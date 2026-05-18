@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "420319876617",
+    "project_id": "respondcrew",
+    "storage_bucket": "respondcrew.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:420319876617:android:ec5320ae4ff9b34d744ad8",
+        "android_client_info": {
+          "package_name": "com.example.respondcrew_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD22HeSfRpy9ftstqZ-uitPhC-FXQ94icY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
