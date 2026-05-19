@@ -3,8 +3,21 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class MembershipService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  static const allowedRoles = {
+    'member',
+    'boardMember',
+    'admin',
+  };
+
   CollectionReference<Map<String, dynamic>> get _memberships =>
       _firestore.collection('memberships');
+
+  String membershipId({
+    required String userId,
+    required String organizationId,
+  }) {
+    return '${userId}_$organizationId';
+  }
 
   Stream<List<QueryDocumentSnapshot<Map<String, dynamic>>>>
       streamActiveMembershipsForUser(String userId) {
@@ -98,6 +111,28 @@ class MembershipService {
     }
 
     return null;
+  }
+
+  Future<void> updateMembershipRole({
+    required String membershipId,
+    required String targetUserId,
+    required String organizationId,
+    required String role,
+  }) async {
+    if (!allowedRoles.contains(role)) {
+      throw Exception('Unsupported membership role: $role');
+    }
+
+    await _memberships.doc(membershipId).set({
+      'userId': targetUserId,
+      'organizationId': organizationId,
+      // TODO: Remove commandId after all membership reads use organizationId.
+      'commandId': organizationId,
+      'role': role,
+      'status': 'active',
+      'isActive': true,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 
   bool _hasMembership(

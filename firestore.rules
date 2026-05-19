@@ -42,6 +42,12 @@ service cloud.firestore {
         (!data.keys().hasAny(['isActive']) || data.isActive == true);
     }
 
+    function isValidMembershipRole(role) {
+      return role == 'member' ||
+        role == 'boardMember' ||
+        role == 'admin';
+    }
+
     function commandExistsAfter(commandId) {
       return existsAfter(/databases/$(database)/documents/commands/$(commandId)) &&
         getAfter(/databases/$(database)/documents/commands/$(commandId)).data.createdBy is string;
@@ -92,6 +98,15 @@ service cloud.firestore {
         request.resource.data.role == resource.data.role;
     }
 
+    function isAdminMembershipRoleUpdate() {
+      return request.resource.data.userId == resource.data.userId &&
+        hasValidOrganizationReference(request.resource.data) &&
+        membershipOrganizationId(request.resource.data) ==
+          membershipOrganizationId(resource.data) &&
+        isValidMembershipRole(request.resource.data.role) &&
+        isActiveAdmin(membershipOrganizationId(resource.data));
+    }
+
     match /users/{userId} {
       // TODO: Restrict user reads to self + same-organization members before production.
       allow read: if signedIn();
@@ -116,7 +131,7 @@ service cloud.firestore {
 
       allow update: if signedIn() &&
         (
-          isActiveAdmin(membershipOrganizationId(resource.data)) ||
+          isAdminMembershipRoleUpdate() ||
           (resource.data.userId == request.auth.uid && keepsMembershipIdentityAndRole())
         );
     }

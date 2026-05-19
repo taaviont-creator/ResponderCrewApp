@@ -47,8 +47,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  String _membershipId(String userId, String commandId) => '${userId}_$commandId';
-
   Future<void> _showJoinCommandDialog() async {
     final codeController = TextEditingController();
 
@@ -531,22 +529,33 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _updateMembershipRole({
+    required String membershipId,
     required String targetUid,
-    required String commandId,
+    required String organizationId,
     required String newRole,
   }) async {
-    await FirebaseFirestore.instance
-        .collection('memberships')
-        .doc(_membershipId(targetUid, commandId))
-        .set({
-      'userId': targetUid,
-      'organizationId': commandId,
-      'commandId': commandId,
-      'role': newRole,
-      'status': 'active',
-      'isActive': true,
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    await _membershipService.updateMembershipRole(
+      membershipId: membershipId,
+      targetUserId: targetUid,
+      organizationId: organizationId,
+      role: newRole,
+    );
+  }
+
+  String _membershipRoleFromData(Map<String, dynamic> membership) {
+    final role = membership['role'];
+    return role is String && role.isNotEmpty ? role : 'member';
+  }
+
+  int _roleSortOrder(String role) {
+    switch (role) {
+      case 'admin':
+        return 0;
+      case 'boardMember':
+        return 1;
+      default:
+        return 2;
+    }
   }
 
   Widget _buildMembersList({
@@ -574,27 +583,24 @@ class _HomeScreenState extends State<HomeScreen> {
         }
 
         final memberships = membershipDocs
-            .map((doc) => doc.data())
-            .where((m) => (m['userId'] ?? '').toString().isNotEmpty)
+            .where((doc) => (doc.data()['userId'] ?? '').toString().isNotEmpty)
             .toList();
 
         memberships.sort((a, b) {
-          final aRole = (a['role'] ?? 'member').toString();
-          final bRole = (b['role'] ?? 'member').toString();
+          final aRole = _membershipRoleFromData(a.data());
+          final bRole = _membershipRoleFromData(b.data());
 
-          if (aRole == bRole) return 0;
-          if (aRole == 'admin') return -1;
-          if (bRole == 'admin') return 1;
-          return 0;
+          return _roleSortOrder(aRole).compareTo(_roleSortOrder(bRole));
         });
 
         return ListView.separated(
           itemCount: memberships.length,
           separatorBuilder: (_, _) => const Divider(height: 1),
           itemBuilder: (context, index) {
-            final membership = memberships[index];
+            final membershipDoc = memberships[index];
+            final membership = membershipDoc.data();
             final targetUid = (membership['userId'] ?? '') as String;
-            final membershipRole = (membership['role'] ?? 'member') as String;
+            final membershipRole = _membershipRoleFromData(membership);
 
             return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
               future: FirebaseFirestore.instance
@@ -645,14 +651,23 @@ class _HomeScreenState extends State<HomeScreen> {
                             try {
                               if (value == 'make_admin') {
                                 await _updateMembershipRole(
+                                  membershipId: membershipDoc.id,
                                   targetUid: targetUid,
-                                  commandId: activeOrganizationId,
+                                  organizationId: activeOrganizationId,
                                   newRole: 'admin',
+                                );
+                              } else if (value == 'make_board_member') {
+                                await _updateMembershipRole(
+                                  membershipId: membershipDoc.id,
+                                  targetUid: targetUid,
+                                  organizationId: activeOrganizationId,
+                                  newRole: 'boardMember',
                                 );
                               } else if (value == 'make_member') {
                                 await _updateMembershipRole(
+                                  membershipId: membershipDoc.id,
                                   targetUid: targetUid,
-                                  commandId: activeOrganizationId,
+                                  organizationId: activeOrganizationId,
                                   newRole: 'member',
                                 );
                               }
@@ -672,6 +687,10 @@ class _HomeScreenState extends State<HomeScreen> {
                             PopupMenuItem(
                               value: 'make_admin',
                               child: Text('Tee adminiks'),
+                            ),
+                            PopupMenuItem(
+                              value: 'make_board_member',
+                              child: Text('Tee juhatuse liikmeks'),
                             ),
                             PopupMenuItem(
                               value: 'make_member',
@@ -802,7 +821,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
               myMembershipRole = activeMembership == null
                   ? null
-                  : (activeMembership['role'] ?? 'member') as String?;
+                  : _membershipRoleFromData(activeMembership);
 
               final selectedActiveCommandId = activeCommandId;
               if (selectedActiveCommandId != null &&
@@ -820,8 +839,7 @@ class _HomeScreenState extends State<HomeScreen> {
               myMembershipRole = null;
             }
 
-            final canManageRoles =
-                isPlatformOwner || (myMembershipRole == 'admin');
+            final canManageRoles = myMembershipRole == 'admin';
             final canSeeJoinCode =
                 isPlatformOwner || (myMembershipRole == 'admin');
 
