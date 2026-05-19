@@ -12,6 +12,8 @@ class UserService {
       'email': email,
       'name': name,
       'status': 'available', // vaba
+      'activeOrganizationId': null,
+      // TODO: Migrate commandId/role to organization-specific memberships.
       'commandId': null,     // komando pole veel
       'role': 'member',      // hiljem admin/member
       'createdAt': FieldValue.serverTimestamp(),

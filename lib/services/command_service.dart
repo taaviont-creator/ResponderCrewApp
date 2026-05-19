@@ -61,13 +61,16 @@ class CommandService {
 
     batch.set(membershipRef, {
       'userId': user.uid,
+      'organizationId': commandRef.id,
       'commandId': commandRef.id,
       'role': 'admin',
+      'status': 'active',
       'isActive': true,
       'joinedAt': FieldValue.serverTimestamp(),
     });
 
     batch.set(userRef, {
+      'activeOrganizationId': commandRef.id,
       'activeCommandId': commandRef.id,
     }, SetOptions(merge: true));
 
@@ -104,14 +107,17 @@ class CommandService {
 
     batch.set(membershipRef, {
       'userId': user.uid,
+      'organizationId': commandId,
       'commandId': commandId,
       'role': 'member',
+      'status': 'active',
       'isActive': true,
       'joinedAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
 
     batch.set(userRef, {
+      'activeOrganizationId': commandId,
       'activeCommandId': commandId,
     }, SetOptions(merge: true));
 
@@ -164,7 +170,9 @@ class CommandService {
 
     final userSnap = await userRef.get();
     final userData = userSnap.data();
-    final activeCommandId = userData?['activeCommandId'] as String?;
+    final activeCommandId =
+        userData?['activeOrganizationId'] as String? ??
+        userData?['activeCommandId'] as String?;
 
     final myOtherMembershipsQuery = await _db
         .collection('memberships')
@@ -175,7 +183,8 @@ class CommandService {
     String? nextActiveCommandId;
     for (final doc in myOtherMembershipsQuery.docs) {
       final data = doc.data();
-      final otherCommandId = data['commandId'] as String?;
+      final otherCommandId =
+          data['organizationId'] as String? ?? data['commandId'] as String?;
       if (otherCommandId != null && otherCommandId.isNotEmpty && otherCommandId != commandId) {
         nextActiveCommandId = otherCommandId;
         break;
@@ -185,6 +194,7 @@ class CommandService {
     final batch = _db.batch();
 
     batch.set(membershipRef, {
+      'status': 'removed',
       'isActive': false,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
@@ -192,10 +202,12 @@ class CommandService {
     if (activeCommandId == commandId) {
       if (nextActiveCommandId != null) {
         batch.set(userRef, {
+          'activeOrganizationId': nextActiveCommandId,
           'activeCommandId': nextActiveCommandId,
         }, SetOptions(merge: true));
       } else {
         batch.update(userRef, {
+          'activeOrganizationId': FieldValue.delete(),
           'activeCommandId': FieldValue.delete(),
         });
       }

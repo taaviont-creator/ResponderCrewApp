@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../services/command_service.dart';
+import '../services/membership_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -13,6 +14,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _commandService = CommandService();
+  final _membershipService = MembershipService();
 
   Future<void> _signOut() async {
     await FirebaseAuth.instance.signOut();
@@ -30,6 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (user == null) throw Exception('Not authenticated');
 
     await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+      'activeOrganizationId': commandId,
       'activeCommandId': commandId,
     }, SetOptions(merge: true));
   }
@@ -144,7 +147,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
     for (final membershipDoc in membershipDocs) {
       final membership = membershipDoc.data();
-      final commandId = (membership['commandId'] ?? '') as String;
+      // TODO: Move organization switching into a dedicated screen.
+      final commandId =
+          _membershipService.organizationIdFromMembership(membership) ?? '';
       if (commandId.isEmpty) continue;
 
       try {
@@ -429,24 +434,25 @@ class _HomeScreenState extends State<HomeScreen> {
         .doc(_membershipId(targetUid, commandId))
         .set({
       'userId': targetUid,
+      'organizationId': commandId,
       'commandId': commandId,
       'role': newRole,
+      'status': 'active',
       'isActive': true,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }
 
   Widget _buildMembersList({
-    required String commandId,
+    required String activeOrganizationId,
     required bool canManageRoles,
     required String currentUid,
   }) {
-    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('memberships')
-          .where('commandId', isEqualTo: commandId)
-          .where('isActive', isEqualTo: true)
-          .snapshots(),
+    return StreamBuilder<
+        List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
+      stream: _membershipService.streamActiveMembershipsForOrganization(
+        activeOrganizationId,
+      ),
       builder: (context, membershipsSnapshot) {
         if (membershipsSnapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -455,7 +461,8 @@ class _HomeScreenState extends State<HomeScreen> {
           return Center(child: Text('Viga: ${membershipsSnapshot.error}'));
         }
 
-        final membershipDocs = membershipsSnapshot.data?.docs ?? [];
+        final membershipDocs = membershipsSnapshot.data ??
+            <QueryDocumentSnapshot<Map<String, dynamic>>>[];
         if (membershipDocs.isEmpty) {
           return const Center(child: Text('Ühtegi liiget ei leitud'));
         }
@@ -477,7 +484,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
         return ListView.separated(
           itemCount: memberships.length,
-          separatorBuilder: (_, __) => const Divider(height: 1),
+          separatorBuilder: (_, _) => const Divider(height: 1),
           itemBuilder: (context, index) {
             final membership = memberships[index];
             final targetUid = (membership['userId'] ?? '') as String;
@@ -533,23 +540,23 @@ class _HomeScreenState extends State<HomeScreen> {
                               if (value == 'make_admin') {
                                 await _updateMembershipRole(
                                   targetUid: targetUid,
-                                  commandId: commandId,
+                                  commandId: activeOrganizationId,
                                   newRole: 'admin',
                                 );
                               } else if (value == 'make_member') {
                                 await _updateMembershipRole(
                                   targetUid: targetUid,
-                                  commandId: commandId,
+                                  commandId: activeOrganizationId,
                                   newRole: 'member',
                                 );
                               }
 
-                              if (!mounted) return;
+                              if (!context.mounted) return;
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(content: Text('Roll uuendatud')),
                               );
                             } catch (e) {
-                              if (!mounted) return;
+                              if (!context.mounted) return;
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(content: Text('Viga: $e')),
                               );
@@ -620,18 +627,21 @@ class _HomeScreenState extends State<HomeScreen> {
         final status = (userData['status'] ?? 'unavailable') as String;
         final isAvailable = status == 'available';
 
+        final activeOrganizationIdFromUser =
+            userData['activeOrganizationId'] as String?;
         final activeCommandIdFromUser = userData['activeCommandId'] as String?;
+        final legacyCommandIdFromUser = userData['commandId'] as String?;
+        final currentActiveIdFromUser = activeOrganizationIdFromUser ??
+            activeCommandIdFromUser ??
+            legacyCommandIdFromUser;
         final platformRole = (userData['platformRole'] ?? '') as String;
         final isPlatformOwner = platformRole == 'platformOwner';
 
         final displayName = name.isEmpty ? (user.email ?? 'kasutaja') : name;
 
-        return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: FirebaseFirestore.instance
-              .collection('memberships')
-              .where('userId', isEqualTo: user.uid)
-              .where('isActive', isEqualTo: true)
-              .snapshots(),
+        return StreamBuilder<
+            List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
+          stream: _membershipService.streamActiveMembershipsForUser(user.uid),
           builder: (context, membershipsSnapshot) {
             if (membershipsSnapshot.connectionState ==
                 ConnectionState.waiting) {
@@ -640,7 +650,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   title: const Text('RespondCrew'),
                   actions: _buildAppBarActions(
                     membershipDocs: const [],
-                    currentActiveCommandId: activeCommandIdFromUser,
+                    currentActiveCommandId: currentActiveIdFromUser,
                     currentCommandName: null,
                   ),
                 ),
@@ -654,7 +664,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   title: const Text('RespondCrew'),
                   actions: _buildAppBarActions(
                     membershipDocs: const [],
-                    currentActiveCommandId: activeCommandIdFromUser,
+                    currentActiveCommandId: currentActiveIdFromUser,
                     currentCommandName: null,
                   ),
                 ),
@@ -666,45 +676,41 @@ class _HomeScreenState extends State<HomeScreen> {
               );
             }
 
-            final membershipDocs = membershipsSnapshot.data?.docs ?? [];
+            final membershipDocs = membershipsSnapshot.data ??
+                <QueryDocumentSnapshot<Map<String, dynamic>>>[];
 
             String? activeCommandId;
             String? myMembershipRole;
 
             if (membershipDocs.isNotEmpty) {
-              final membershipsByCommandId = <String, Map<String, dynamic>>{};
+              activeCommandId = _membershipService.resolveActiveOrganizationId(
+                userData: userData,
+                memberships: membershipDocs,
+              );
 
-              for (final doc in membershipDocs) {
-                final data = doc.data();
-                final commandId = data['commandId'] as String?;
-                if (commandId != null && commandId.isNotEmpty) {
-                  membershipsByCommandId[commandId] = data;
-                }
-              }
+              final activeMembership = activeCommandId == null
+                  ? null
+                  : _membershipService.membershipForOrganizationId(
+                      organizationId: activeCommandId,
+                      memberships: membershipDocs,
+                    );
+              myMembershipRole = activeMembership == null
+                  ? null
+                  : (activeMembership['role'] ?? 'member') as String?;
 
-              if (activeCommandIdFromUser != null &&
-                  membershipsByCommandId.containsKey(activeCommandIdFromUser)) {
-                activeCommandId = activeCommandIdFromUser;
-                myMembershipRole =
-                    (membershipsByCommandId[activeCommandIdFromUser]?['role'] ??
-                            'member')
-                        as String?;
-              } else {
-                final firstMembership = membershipDocs.first.data();
-                activeCommandId = firstMembership['commandId'] as String?;
-                myMembershipRole =
-                    (firstMembership['role'] ?? 'member') as String?;
-
-                if (activeCommandId != null && activeCommandId.isNotEmpty) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) async {
-                    try {
-                      await _setActiveCommand(activeCommandId!);
-                    } catch (_) {}
-                  });
-                }
+              final selectedActiveCommandId = activeCommandId;
+              if (selectedActiveCommandId != null &&
+                  selectedActiveCommandId.isNotEmpty &&
+                  (activeOrganizationIdFromUser != selectedActiveCommandId ||
+                      activeCommandIdFromUser != selectedActiveCommandId)) {
+                WidgetsBinding.instance.addPostFrameCallback((_) async {
+                  try {
+                    await _setActiveCommand(selectedActiveCommandId);
+                  } catch (_) {}
+                });
               }
             } else {
-              activeCommandId = activeCommandIdFromUser;
+              activeCommandId = null;
               myMembershipRole = null;
             }
 
@@ -783,7 +789,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       Expanded(
                         child: _buildMembersList(
-                          commandId: activeCommandId!,
+                          activeOrganizationId: activeCommandId!,
                           canManageRoles: canManageRoles,
                           currentUid: user.uid,
                         ),
