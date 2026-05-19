@@ -34,6 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
     await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
       'activeOrganizationId': commandId,
       'activeCommandId': commandId,
+      'commandId': commandId,
     }, SetOptions(merge: true));
   }
 
@@ -275,6 +276,9 @@ class _HomeScreenState extends State<HomeScreen> {
     required String? currentActiveCommandId,
     required String? currentCommandName,
   }) {
+    final canSwitchOrganization =
+        _organizationIdsFromMembershipDocs(membershipDocs).length > 1;
+
     return [
       IconButton(
         onPressed: _signOut,
@@ -284,7 +288,7 @@ class _HomeScreenState extends State<HomeScreen> {
       IconButton(
         icon: const Icon(Icons.swap_horiz),
         tooltip: 'Vaheta organisatsiooni',
-        onPressed: membershipDocs.isEmpty
+        onPressed: !canSwitchOrganization
             ? null
             : () => _showSwitchOrganizationDialog(
                   membershipDocs: membershipDocs,
@@ -314,6 +318,103 @@ class _HomeScreenState extends State<HomeScreen> {
     ];
   }
 
+  Set<String> _organizationIdsFromMembershipDocs(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> membershipDocs,
+  ) {
+    final organizationIds = <String>{};
+
+    for (final membershipDoc in membershipDocs) {
+      final organizationId =
+          _membershipService.organizationIdFromMembership(membershipDoc.data());
+      if (organizationId != null && organizationId.isNotEmpty) {
+        organizationIds.add(organizationId);
+      }
+    }
+
+    return organizationIds;
+  }
+
+  Future<List<Map<String, String>>> _loadOrganizationItems(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> membershipDocs,
+  ) async {
+    final organizationIds = _organizationIdsFromMembershipDocs(membershipDocs);
+
+    final items = <Map<String, String>>[];
+
+    for (final organizationId in organizationIds) {
+      try {
+        final commandSnap = await FirebaseFirestore.instance
+            .collection('commands')
+            .doc(organizationId)
+            .get();
+        final commandData = commandSnap.data();
+        final commandName = (commandData?['name'] ?? organizationId) as String;
+
+        items.add({
+          'id': organizationId,
+          'name': commandName,
+        });
+      } catch (_) {
+        items.add({
+          'id': organizationId,
+          'name': organizationId,
+        });
+      }
+    }
+
+    items.sort((a, b) => a['name']!.compareTo(b['name']!));
+    return items;
+  }
+
+  Widget _buildOrganizationSelector({
+    required String? activeOrganizationId,
+    required List<QueryDocumentSnapshot<Map<String, dynamic>>> membershipDocs,
+  }) {
+    return FutureBuilder<List<Map<String, String>>>(
+      future: _loadOrganizationItems(membershipDocs),
+      builder: (context, snapshot) {
+        final items = snapshot.data ?? const <Map<String, String>>[];
+        if (items.length <= 1) {
+          return const SizedBox.shrink();
+        }
+
+        final selectedId = items.any((item) => item['id'] == activeOrganizationId)
+            ? activeOrganizationId
+            : items.first['id'];
+
+        return Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: DropdownButton<String>(
+            value: selectedId,
+            isExpanded: true,
+            items: items.map((item) {
+              return DropdownMenuItem<String>(
+                value: item['id'],
+                child: Text(item['name']!),
+              );
+            }).toList(),
+            onChanged: (value) async {
+              if (value == null || value == activeOrganizationId) return;
+
+              try {
+                await _setActiveCommand(value);
+              } catch (e) {
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Organisatsiooni vahetamine ebaõnnestus: $e',
+                    ),
+                  ),
+                );
+              }
+            },
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildHeaderSection({
     required User user,
     required String displayName,
@@ -324,6 +425,7 @@ class _HomeScreenState extends State<HomeScreen> {
     required bool canSeeJoinCode,
     required bool isPlatformOwner,
     required String? membershipRole,
+    required List<QueryDocumentSnapshot<Map<String, dynamic>>> membershipDocs,
   }) {
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -340,6 +442,10 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 4),
             Text('Komando nimi: $commandName'),
           ],
+          _buildOrganizationSelector(
+            activeOrganizationId: commandId,
+            membershipDocs: membershipDocs,
+          ),
           const SizedBox(height: 4),
           Text(
             'Minu roll: ${membershipRole ?? "puudub"}'
@@ -742,6 +848,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       canSeeJoinCode: canSeeJoinCode,
                       isPlatformOwner: isPlatformOwner,
                       membershipRole: myMembershipRole,
+                      membershipDocs: membershipDocs,
                     ),
                     const Padding(
                       padding: EdgeInsets.all(16),
@@ -786,6 +893,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         canSeeJoinCode: canSeeJoinCode,
                         isPlatformOwner: isPlatformOwner,
                         membershipRole: myMembershipRole,
+                        membershipDocs: membershipDocs,
                       ),
                       Expanded(
                         child: _buildMembersList(
