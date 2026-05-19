@@ -72,6 +72,7 @@ class CommandService {
     batch.set(userRef, {
       'activeOrganizationId': commandRef.id,
       'activeCommandId': commandRef.id,
+      'commandId': commandRef.id,
     }, SetOptions(merge: true));
 
     await batch.commit();
@@ -119,6 +120,7 @@ class CommandService {
     batch.set(userRef, {
       'activeOrganizationId': commandId,
       'activeCommandId': commandId,
+      'commandId': commandId,
     }, SetOptions(merge: true));
 
     await batch.commit();
@@ -204,11 +206,13 @@ class CommandService {
         batch.set(userRef, {
           'activeOrganizationId': nextActiveCommandId,
           'activeCommandId': nextActiveCommandId,
+          'commandId': nextActiveCommandId,
         }, SetOptions(merge: true));
       } else {
         batch.update(userRef, {
           'activeOrganizationId': FieldValue.delete(),
           'activeCommandId': FieldValue.delete(),
+          'commandId': FieldValue.delete(),
         });
       }
     }
