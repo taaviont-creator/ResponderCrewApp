@@ -2,6 +2,8 @@ import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../models/availability_model.dart';
+import '../services/availability_service.dart';
 import '../services/command_service.dart';
 import '../services/membership_service.dart';
 
@@ -13,6 +15,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final _availabilityService = AvailabilityService();
   final _commandService = CommandService();
   final _membershipService = MembershipService();
 
@@ -518,6 +521,13 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           const SizedBox(height: 16),
+          if (commandId != null && commandId.isNotEmpty) ...[
+            _buildAvailabilityControl(
+              user: user,
+              organizationId: commandId,
+            ),
+            const SizedBox(height: 16),
+          ],
           Text(
             'Liikmed',
             style: Theme.of(context).textTheme.titleMedium,
@@ -525,6 +535,100 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 8),
         ],
       ),
+    );
+  }
+
+  Widget _buildAvailabilityControl({
+    required User user,
+    required String organizationId,
+  }) {
+    return StreamBuilder<AvailabilityModel?>(
+      stream: _availabilityService.streamMyAvailability(
+        userId: user.uid,
+        organizationId: organizationId,
+      ),
+      builder: (context, snapshot) {
+        final availability = snapshot.data;
+        final status = availability?.status ?? AvailabilityStatus.offDuty;
+        final responseMinutes = availability?.responseMinutes ?? 15;
+
+        Future<void> updateAvailability(
+          String newStatus, {
+          int? minutes,
+        }) async {
+          try {
+            await _availabilityService.setMyAvailability(
+              userId: user.uid,
+              organizationId: organizationId,
+              status: newStatus,
+              responseMinutes: minutes,
+            );
+          } catch (e) {
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Valmiduse muutmine ebaõnnestus: $e')),
+            );
+          }
+        }
+
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Minu valmisolek'),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    ChoiceChip(
+                      label: const Text('Off duty'),
+                      selected: status == AvailabilityStatus.offDuty,
+                      onSelected: (_) => updateAvailability(
+                        AvailabilityStatus.offDuty,
+                      ),
+                    ),
+                    ChoiceChip(
+                      label: const Text('On duty'),
+                      selected: status == AvailabilityStatus.onDuty,
+                      onSelected: (_) => updateAvailability(
+                        AvailabilityStatus.onDuty,
+                      ),
+                    ),
+                    ChoiceChip(
+                      label: const Text('Delayed'),
+                      selected: status == AvailabilityStatus.delayed,
+                      onSelected: (_) => updateAvailability(
+                        AvailabilityStatus.delayed,
+                        minutes: responseMinutes,
+                      ),
+                    ),
+                  ],
+                ),
+                if (status == AvailabilityStatus.delayed) ...[
+                  const SizedBox(height: 8),
+                  DropdownButton<int>(
+                    value: responseMinutes,
+                    items: const [
+                      DropdownMenuItem(value: 15, child: Text('15 min')),
+                      DropdownMenuItem(value: 30, child: Text('30 min')),
+                      DropdownMenuItem(value: 60, child: Text('60 min')),
+                    ],
+                    onChanged: (value) {
+                      if (value == null) return;
+                      updateAvailability(
+                        AvailabilityStatus.delayed,
+                        minutes: value,
+                      );
+                    },
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
