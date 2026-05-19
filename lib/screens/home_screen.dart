@@ -23,13 +23,6 @@ class _HomeScreenState extends State<HomeScreen> {
     await FirebaseAuth.instance.signOut();
   }
 
-  Future<void> _setStatus(String uid, String status) async {
-    await FirebaseFirestore.instance.collection('users').doc(uid).update({
-      'status': status,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-  }
-
   Future<void> _setActiveCommand(String commandId) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw Exception('Not authenticated');
@@ -419,7 +412,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildHeaderSection({
     required User user,
     required String displayName,
-    required bool isAvailable,
     required String? commandId,
     required String? commandName,
     required String? joinCode,
@@ -482,48 +474,14 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ],
-          const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Minu staatus'),
-                      const SizedBox(height: 6),
-                      Text(
-                        isAvailable ? 'Valves / Saadaval' : 'Mitte valves',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                    ],
-                  ),
-                  Switch(
-                    value: isAvailable,
-                    onChanged: (value) async {
-                      final newStatus = value ? 'available' : 'unavailable';
-                      try {
-                        await _setStatus(user.uid, newStatus);
-                      } catch (e) {
-                        if (!mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Staatuse muutmine ebaõnnestus: $e'),
-                          ),
-                        );
-                      }
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
           if (commandId != null && commandId.isNotEmpty) ...[
+            const SizedBox(height: 16),
             _buildAvailabilityControl(
               user: user,
+              organizationId: commandId,
+            ),
+            const SizedBox(height: 16),
+            _buildAvailabilityOverview(
               organizationId: commandId,
             ),
             const SizedBox(height: 16),
@@ -632,6 +590,115 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildAvailabilityOverview({
+    required String organizationId,
+  }) {
+    return StreamBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
+      stream: _membershipService.streamActiveMembershipsForOrganization(
+        organizationId,
+      ),
+      builder: (context, membershipsSnapshot) {
+        final activeMemberships = membershipsSnapshot.data ??
+            const <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+
+        return StreamBuilder<List<AvailabilityModel>>(
+          stream: _availabilityService.streamOrganizationAvailability(
+            organizationId: organizationId,
+          ),
+          builder: (context, availabilitySnapshot) {
+            final availabilityByUserId = <String, AvailabilityModel>{};
+            for (final availability
+                in availabilitySnapshot.data ?? const <AvailabilityModel>[]) {
+              if (availability.userId.isNotEmpty) {
+                availabilityByUserId[availability.userId] = availability;
+              }
+            }
+
+            int onDutyCount = 0;
+            int delayedCount = 0;
+            int offDutyCount = 0;
+
+            for (final membershipDoc in activeMemberships) {
+              final userId = (membershipDoc.data()['userId'] ?? '').toString();
+              final availability = availabilityByUserId[userId];
+              final status = availability?.status ?? AvailabilityStatus.offDuty;
+
+              if (status == AvailabilityStatus.onDuty) {
+                onDutyCount++;
+              } else if (status == AvailabilityStatus.delayed) {
+                delayedCount++;
+              } else {
+                offDutyCount++;
+              }
+            }
+
+            return Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Organisatsiooni valmisolek'),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 8,
+                      children: [
+                        Text('On duty: $onDutyCount'),
+                        Text('Delayed: $delayedCount'),
+                        Text('Off duty: $offDutyCount'),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    if (activeMemberships.isEmpty)
+                      const Text('Liikmeid ei leitud')
+                    else
+                      ...activeMemberships.map((membershipDoc) {
+                        final membership = membershipDoc.data();
+                        final userId = (membership['userId'] ?? '').toString();
+                        final availability = availabilityByUserId[userId];
+                        final status =
+                            availability?.status ?? AvailabilityStatus.offDuty;
+                        final responseMinutes = availability?.responseMinutes;
+
+                        return FutureBuilder<
+                            DocumentSnapshot<Map<String, dynamic>>>(
+                          future: FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(userId)
+                              .get(),
+                          builder: (context, userSnapshot) {
+                            final userData = userSnapshot.data?.data() ?? {};
+                            final name = (userData['name'] ?? '').toString();
+                            final email = (userData['email'] ?? '').toString();
+                            final title = name.isNotEmpty
+                                ? name
+                                : (email.isNotEmpty ? email : userId);
+                            final subtitle =
+                                status == AvailabilityStatus.delayed &&
+                                        responseMinutes != null
+                                    ? '$status - $responseMinutes min'
+                                    : status;
+
+                            return ListTile(
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(title),
+                              subtitle: Text(subtitle),
+                            );
+                          },
+                        );
+                      }),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   Future<void> _updateMembershipRole({
     required String membershipId,
     required String targetUid,
@@ -698,6 +765,8 @@ class _HomeScreenState extends State<HomeScreen> {
         });
 
         return ListView.separated(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
           itemCount: memberships.length,
           separatorBuilder: (_, _) => const Divider(height: 1),
           itemBuilder: (context, index) {
@@ -853,8 +922,6 @@ class _HomeScreenState extends State<HomeScreen> {
         }
 
         final name = (userData['name'] ?? '') as String;
-        final status = (userData['status'] ?? 'unavailable') as String;
-        final isAvailable = status == 'available';
 
         final activeOrganizationIdFromUser =
             userData['activeOrganizationId'] as String?;
@@ -957,13 +1024,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     currentCommandName: null,
                   ),
                 ),
-                body: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                body: ListView(
                   children: [
                     _buildHeaderSection(
                       user: user,
                       displayName: displayName,
-                      isAvailable: isAvailable,
                       commandId: activeCommandId,
                       commandName: null,
                       joinCode: null,
@@ -1002,13 +1067,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       currentCommandName: commandName,
                     ),
                   ),
-                  body: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  body: ListView(
                     children: [
                       _buildHeaderSection(
                         user: user,
                         displayName: displayName,
-                        isAvailable: isAvailable,
                         commandId: activeCommandId,
                         commandName: commandName,
                         joinCode: joinCode,
@@ -1017,12 +1080,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         membershipRole: myMembershipRole,
                         membershipDocs: membershipDocs,
                       ),
-                      Expanded(
-                        child: _buildMembersList(
-                          activeOrganizationId: activeCommandId!,
-                          canManageRoles: canManageRoles,
-                          currentUid: user.uid,
-                        ),
+                      _buildMembersList(
+                        activeOrganizationId: activeCommandId!,
+                        canManageRoles: canManageRoles,
+                        currentUid: user.uid,
                       ),
                     ],
                   ),

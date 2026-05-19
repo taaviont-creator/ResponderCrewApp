@@ -28,6 +28,25 @@ class AvailabilityService {
     });
   }
 
+  Stream<List<AvailabilityModel>> streamOrganizationAvailability({
+    required String organizationId,
+  }) {
+    return _availability
+        .where(
+          Filter.or(
+            Filter('organizationId', isEqualTo: organizationId),
+            // TODO: Remove commandId fallback after availability migration.
+            Filter('commandId', isEqualTo: organizationId),
+          ),
+        )
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs
+          .map(AvailabilityModel.fromFirestore)
+          .toList(growable: false);
+    });
+  }
+
   Future<void> setMyAvailability({
     required String userId,
     required String organizationId,

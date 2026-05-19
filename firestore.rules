@@ -1,1 +1,182 @@
-git status 
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function hasCommandId(data) {
+      return data.keys().hasAny(['commandId']) &&
+        data.commandId is string &&
+        data.commandId.size() > 0;
+    }
+
+    function hasOrganizationId(data) {
+      return data.keys().hasAny(['organizationId']) &&
+        data.organizationId is string &&
+        data.organizationId.size() > 0;
+    }
+
+    function organizationIdFromData(data) {
+      return hasOrganizationId(data) ? data.organizationId : data.commandId;
+    }
+
+    function hasValidOrganizationReference(data) {
+      return (hasOrganizationId(data) || hasCommandId(data)) &&
+        (!hasOrganizationId(data) ||
+          !hasCommandId(data) ||
+          data.organizationId == data.commandId);
+    }
+
+    function isActiveMembershipData(data) {
+      return (
+          (data.keys().hasAny(['status']) && data.status == 'active') ||
+          (data.keys().hasAny(['isActive']) && data.isActive == true)
+        ) &&
+        (!data.keys().hasAny(['status']) || data.status == 'active') &&
+        (!data.keys().hasAny(['isActive']) || data.isActive == true);
+    }
+
+    function isValidMembershipRole(role) {
+      return role == 'member' ||
+        role == 'boardMember' ||
+        role == 'admin';
+    }
+
+    function commandExistsAfter(commandId) {
+      return existsAfter(/databases/$(database)/documents/commands/$(commandId)) &&
+        getAfter(/databases/$(database)/documents/commands/$(commandId)).data.createdBy is string;
+    }
+
+    function isCommandCreator(commandId) {
+      return commandExistsAfter(commandId) &&
+        getAfter(/databases/$(database)/documents/commands/$(commandId)).data.createdBy ==
+          request.auth.uid;
+    }
+
+    function activeMembershipId(commandId) {
+      return request.auth.uid + '_' + commandId;
+    }
+
+    function isActiveMember(commandId) {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/memberships/$(activeMembershipId(commandId))) &&
+        isActiveMembershipData(
+          get(/databases/$(database)/documents/memberships/$(activeMembershipId(commandId))).data
+        );
+    }
+
+    function isActiveAdmin(commandId) {
+      return isActiveMember(commandId) &&
+        get(/databases/$(database)/documents/memberships/$(activeMembershipId(commandId))).data.role == 'admin';
+    }
+
+    function isOwnMembershipCreate() {
+      return signedIn() &&
+        request.resource.data.userId == request.auth.uid &&
+        hasValidOrganizationReference(request.resource.data) &&
+        isActiveMembershipData(request.resource.data);
+    }
+
+    function isOwnAdminMembershipForCreatedCommand() {
+      return isOwnMembershipCreate() &&
+        request.resource.data.role == 'admin' &&
+        isCommandCreator(organizationIdFromData(request.resource.data));
+    }
+
+    function isOwnMemberMembership() {
+      return isOwnMembershipCreate() &&
+        request.resource.data.role == 'member' &&
+        commandExistsAfter(organizationIdFromData(request.resource.data));
+    }
+
+    function keepsMembershipIdentityAndRole() {
+      return request.resource.data.userId == resource.data.userId &&
+        hasValidOrganizationReference(request.resource.data) &&
+        organizationIdFromData(request.resource.data) ==
+          organizationIdFromData(resource.data) &&
+        request.resource.data.role == resource.data.role;
+    }
+
+    function isAdminMembershipRoleUpdate() {
+      return request.resource.data.userId == resource.data.userId &&
+        hasValidOrganizationReference(request.resource.data) &&
+        organizationIdFromData(request.resource.data) ==
+          organizationIdFromData(resource.data) &&
+        isValidMembershipRole(request.resource.data.role) &&
+        isActiveAdmin(organizationIdFromData(resource.data));
+    }
+
+    function isValidAvailabilityStatus(status) {
+      return status == 'offDuty' ||
+        status == 'onDuty' ||
+        status == 'delayed';
+    }
+
+    function hasValidDelayedResponse(data) {
+      return data.status != 'delayed' ||
+        (
+          data.keys().hasAny(['responseMinutes']) &&
+          data.responseMinutes is int &&
+          data.responseMinutes > 0
+        );
+    }
+
+    function hasValidAvailabilityResponse(data) {
+      return !data.keys().hasAny(['responseMinutes']) ||
+        data.responseMinutes == null ||
+        data.responseMinutes is int;
+    }
+
+    function isOwnAvailabilityWrite(availabilityId) {
+      return signedIn() &&
+        request.resource.data.userId == request.auth.uid &&
+        hasValidOrganizationReference(request.resource.data) &&
+        availabilityId == request.auth.uid + '_' + organizationIdFromData(request.resource.data) &&
+        isActiveMember(organizationIdFromData(request.resource.data)) &&
+        isValidAvailabilityStatus(request.resource.data.status) &&
+        hasValidAvailabilityResponse(request.resource.data) &&
+        hasValidDelayedResponse(request.resource.data);
+    }
+
+    match /users/{userId} {
+      // TODO: Restrict user reads to self + same-organization members before production.
+      allow read: if signedIn();
+      allow create, update: if isSelf(userId);
+    }
+
+    match /commands/{commandId} {
+      allow read: if signedIn();
+      allow create: if signedIn() &&
+        request.resource.data.createdBy == request.auth.uid;
+
+      // TODO: Restrict command updates to command admins with field validation.
+      allow update: if signedIn() && isActiveAdmin(commandId);
+    }
+
+    match /memberships/{membershipId} {
+      // TODO: Restrict membership reads to same-organization members before production.
+      allow read: if signedIn();
+
+      allow create: if isOwnAdminMembershipForCreatedCommand() ||
+        isOwnMemberMembership();
+
+      allow update: if signedIn() &&
+        (
+          isAdminMembershipRoleUpdate() ||
+          (resource.data.userId == request.auth.uid && keepsMembershipIdentityAndRole())
+        );
+    }
+
+    match /availability/{availabilityId} {
+      // TODO: Restrict availability reads to same-organization members before production.
+      allow read: if signedIn();
+      allow create, update: if isOwnAvailabilityWrite(availabilityId);
+    }
+  }
+}
