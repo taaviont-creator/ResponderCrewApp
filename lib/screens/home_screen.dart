@@ -15,6 +15,7 @@ import '../services/equipment_service.dart';
 import '../services/membership_service.dart';
 import '../services/operation_log_service.dart';
 import 'certificates_screen.dart';
+import 'statistics_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -820,6 +821,24 @@ class _HomeScreenState extends State<HomeScreen> {
                       organizationId: commandId,
                       currentUid: user.uid,
                       canManageCertificates: membershipRole == 'admin',
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.insights),
+              label: const Text('Statistika'),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => StatisticsScreen(
+                      organizationId: commandId,
+                      currentUid: user.uid,
+                      canViewOrganizationCertificates:
+                          membershipRole == 'admin',
                     ),
                   ),
                 );
