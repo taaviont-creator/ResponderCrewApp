@@ -63,11 +63,23 @@ service cloud.firestore {
       return request.auth.uid + '_' + commandId;
     }
 
+    function membershipIdForUser(userId, commandId) {
+      return userId + '_' + commandId;
+    }
+
     function isActiveMember(commandId) {
       return signedIn() &&
         exists(/databases/$(database)/documents/memberships/$(activeMembershipId(commandId))) &&
         isActiveMembershipData(
           get(/databases/$(database)/documents/memberships/$(activeMembershipId(commandId))).data
+        );
+    }
+
+    function isActiveMemberOf(userId, commandId) {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/memberships/$(membershipIdForUser(userId, commandId))) &&
+        isActiveMembershipData(
+          get(/databases/$(database)/documents/memberships/$(membershipIdForUser(userId, commandId))).data
         );
     }
 
@@ -370,6 +382,94 @@ service cloud.firestore {
         isActiveMember(organizationIdFromData(request.resource.data));
     }
 
+    function isValidCertificateType(type) {
+      return type == 'firstAid' ||
+        type == 'seaRescue' ||
+        type == 'radio' ||
+        type == 'navigation' ||
+        type == 'boatOperator' ||
+        type == 'safety' ||
+        type == 'other';
+    }
+
+    function isValidCertificateStatus(status) {
+      return status == 'valid' ||
+        status == 'expiringSoon' ||
+        status == 'expired' ||
+        status == 'missing';
+    }
+
+    function isValidCertificateData(data) {
+      return data.keys().hasAll([
+          'id',
+          'organizationId',
+          'commandId',
+          'userId',
+          'userName',
+          'title',
+          'type',
+          'issuer',
+          'issuedAt',
+          'expiresAt',
+          'status',
+          'note',
+          'createdBy'
+        ]) &&
+        data.id is string &&
+        data.userId is string &&
+        data.userId.size() > 0 &&
+        data.userName is string &&
+        data.title is string &&
+        data.title.size() > 0 &&
+        data.issuer is string &&
+        data.issuedAt is string &&
+        data.expiresAt is string &&
+        data.note is string &&
+        data.createdBy is string &&
+        hasValidOrganizationReference(data) &&
+        isValidCertificateType(data.type) &&
+        isValidCertificateStatus(data.status);
+    }
+
+    function canReadCertificate(data) {
+      return signedIn() &&
+        (
+          isActiveAdmin(organizationIdFromData(data)) ||
+          (
+            data.userId == request.auth.uid &&
+            isActiveMember(organizationIdFromData(data))
+          )
+        );
+    }
+
+    function isCertificateCreate(certificateId) {
+      return signedIn() &&
+        request.resource.data.id == certificateId &&
+        request.resource.data.createdBy == request.auth.uid &&
+        isValidCertificateData(request.resource.data) &&
+        isActiveAdmin(organizationIdFromData(request.resource.data)) &&
+        isActiveMemberOf(
+          request.resource.data.userId,
+          organizationIdFromData(request.resource.data)
+        );
+    }
+
+    function isCertificateUpdate(certificateId) {
+      return signedIn() &&
+        request.resource.data.id == resource.data.id &&
+        request.resource.data.id == certificateId &&
+        request.resource.data.userId == resource.data.userId &&
+        request.resource.data.createdBy == resource.data.createdBy &&
+        organizationIdFromData(request.resource.data) ==
+          organizationIdFromData(resource.data) &&
+        isValidCertificateData(request.resource.data) &&
+        isActiveAdmin(organizationIdFromData(resource.data)) &&
+        isActiveMemberOf(
+          resource.data.userId,
+          organizationIdFromData(resource.data)
+        );
+    }
+
     match /users/{userId} {
       // TODO: Restrict user reads to self + same-organization members before production.
       allow read: if signedIn();
@@ -435,6 +535,12 @@ service cloud.firestore {
       allow read: if signedIn() &&
         isActiveMember(organizationIdFromData(resource.data));
       allow create, update: if isOwnActivityParticipationWrite(participantId);
+    }
+
+    match /certificates/{certificateId} {
+      allow read: if canReadCertificate(resource.data);
+      allow create: if isCertificateCreate(certificateId);
+      allow update: if isCertificateUpdate(certificateId);
     }
   }
 }

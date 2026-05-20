@@ -14,6 +14,7 @@ import '../services/command_service.dart';
 import '../services/equipment_service.dart';
 import '../services/membership_service.dart';
 import '../services/operation_log_service.dart';
+import 'certificates_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -807,6 +808,23 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
           if (commandId != null && commandId.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.card_membership),
+              label: const Text('Kvalifikatsioonid'),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => CertificatesScreen(
+                      organizationId: commandId,
+                      currentUid: user.uid,
+                      canManageCertificates: membershipRole == 'admin',
+                    ),
+                  ),
+                );
+              },
+            ),
             const SizedBox(height: 16),
             _buildAvailabilityControl(
               user: user,
