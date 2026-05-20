@@ -4,9 +4,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../models/availability_reminder_settings_model.dart';
 import '../models/availability_model.dart';
+import '../models/equipment_model.dart';
 import '../services/availability_reminder_settings_service.dart';
 import '../services/availability_service.dart';
 import '../services/command_service.dart';
+import '../services/equipment_service.dart';
 import '../services/membership_service.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -21,6 +23,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final _availabilityReminderSettingsService =
       AvailabilityReminderSettingsService();
   final _commandService = CommandService();
+  final _equipmentService = EquipmentService();
   final _membershipService = MembershipService();
 
   Future<void> _signOut() async {
@@ -134,6 +137,124 @@ class _HomeScreenState extends State<HomeScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Viga: $e')),
+      );
+    }
+  }
+
+  Future<void> _showAddEquipmentDialog({
+    required String organizationId,
+    required String createdBy,
+  }) async {
+    final nameController = TextEditingController();
+    final locationController = TextEditingController();
+    final noteController = TextEditingController();
+    var selectedCategory = EquipmentCategory.other;
+    var selectedStatus = EquipmentStatus.ok;
+
+    final shouldCreate = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Text('Lisa varustus'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Nimi',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedCategory,
+                    decoration: const InputDecoration(
+                      labelText: 'Kategooria',
+                    ),
+                    items: EquipmentCategory.values.map((category) {
+                      return DropdownMenuItem<String>(
+                        value: category,
+                        child: Text(_equipmentCategoryLabel(category)),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setDialogState(() => selectedCategory = value);
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedStatus,
+                    decoration: const InputDecoration(
+                      labelText: 'Staatus',
+                    ),
+                    items: EquipmentStatus.values.map((status) {
+                      return DropdownMenuItem<String>(
+                        value: status,
+                        child: Text(_equipmentStatusLabel(status)),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setDialogState(() => selectedStatus = value);
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: locationController,
+                    decoration: const InputDecoration(
+                      labelText: 'Asukoht',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: noteController,
+                    decoration: const InputDecoration(
+                      labelText: 'Märkus',
+                    ),
+                    maxLines: 2,
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Katkesta'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Lisa'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    if (shouldCreate != true) return;
+
+    try {
+      await _equipmentService.addEquipment(
+        organizationId: organizationId,
+        name: nameController.text,
+        category: selectedCategory,
+        status: selectedStatus,
+        location: locationController.text,
+        note: noteController.text,
+        createdBy: createdBy,
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Varustus lisatud')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Varustuse lisamine ebaõnnestus: $e')),
       );
     }
   }
@@ -494,6 +615,12 @@ class _HomeScreenState extends State<HomeScreen> {
               organizationId: commandId,
             ),
             const SizedBox(height: 16),
+            _buildEquipmentSection(
+              organizationId: commandId,
+              canManageEquipment: membershipRole == 'admin',
+              currentUid: user.uid,
+            ),
+            const SizedBox(height: 16),
           ],
           Text(
             'Liikmed',
@@ -819,6 +946,111 @@ class _HomeScreenState extends State<HomeScreen> {
   String _reminderIntervalLabel(int intervalHours) {
     if (intervalHours == 168) return '7 days';
     return '$intervalHours hours';
+  }
+
+  Widget _buildEquipmentSection({
+    required String organizationId,
+    required bool canManageEquipment,
+    required String currentUid,
+  }) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Expanded(
+                  child: Text('Varustus'),
+                ),
+                if (canManageEquipment)
+                  IconButton(
+                    icon: const Icon(Icons.add),
+                    tooltip: 'Lisa varustus',
+                    onPressed: () => _showAddEquipmentDialog(
+                      organizationId: organizationId,
+                      createdBy: currentUid,
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            StreamBuilder<List<EquipmentModel>>(
+              stream: _equipmentService.streamOrganizationEquipment(
+                organizationId: organizationId,
+              ),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const LinearProgressIndicator();
+                }
+
+                if (snapshot.hasError) {
+                  return Text('Varustuse laadimine ebaõnnestus: ${snapshot.error}');
+                }
+
+                final equipment = snapshot.data ?? const <EquipmentModel>[];
+                if (equipment.isEmpty) {
+                  return const Text('Varustust ei ole veel lisatud');
+                }
+
+                return Column(
+                  children: equipment.map((item) {
+                    final subtitleParts = [
+                      _equipmentCategoryLabel(item.category),
+                      _equipmentStatusLabel(item.status),
+                      if (item.location.isNotEmpty) item.location,
+                    ];
+
+                    return ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(item.name),
+                      subtitle: Text(subtitleParts.join(' - ')),
+                      trailing: item.note.isEmpty
+                          ? null
+                          : const Icon(Icons.notes),
+                    );
+                  }).toList(),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _equipmentCategoryLabel(String category) {
+    switch (category) {
+      case EquipmentCategory.vessel:
+        return 'Vessel';
+      case EquipmentCategory.engine:
+        return 'Engine';
+      case EquipmentCategory.rescue:
+        return 'Rescue';
+      case EquipmentCategory.medical:
+        return 'Medical';
+      case EquipmentCategory.radio:
+        return 'Radio';
+      case EquipmentCategory.safety:
+        return 'Safety';
+      default:
+        return 'Other';
+    }
+  }
+
+  String _equipmentStatusLabel(String status) {
+    switch (status) {
+      case EquipmentStatus.needsMaintenance:
+        return 'Needs maintenance';
+      case EquipmentStatus.broken:
+        return 'Broken';
+      case EquipmentStatus.outOfService:
+        return 'Out of service';
+      default:
+        return 'OK';
+    }
   }
 
   Future<void> _updateMembershipRole({

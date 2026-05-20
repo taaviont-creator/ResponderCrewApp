@@ -173,6 +173,65 @@ service cloud.firestore {
         isValidReminderSettingsData(request.resource.data);
     }
 
+    function isValidEquipmentCategory(category) {
+      return category == 'vessel' ||
+        category == 'engine' ||
+        category == 'rescue' ||
+        category == 'medical' ||
+        category == 'radio' ||
+        category == 'safety' ||
+        category == 'other';
+    }
+
+    function isValidEquipmentStatus(status) {
+      return status == 'ok' ||
+        status == 'needsMaintenance' ||
+        status == 'broken' ||
+        status == 'outOfService';
+    }
+
+    function isValidEquipmentData(data) {
+      return data.keys().hasAll([
+          'id',
+          'organizationId',
+          'commandId',
+          'name',
+          'category',
+          'status',
+          'location',
+          'note',
+          'createdBy'
+        ]) &&
+        data.id is string &&
+        data.name is string &&
+        data.name.size() > 0 &&
+        data.location is string &&
+        data.note is string &&
+        data.createdBy is string &&
+        hasValidOrganizationReference(data) &&
+        isValidEquipmentCategory(data.category) &&
+        isValidEquipmentStatus(data.status);
+    }
+
+    function isEquipmentCreate(equipmentId) {
+      return signedIn() &&
+        request.resource.data.id == equipmentId &&
+        request.resource.data.createdBy == request.auth.uid &&
+        isValidEquipmentData(request.resource.data) &&
+        isActiveAdmin(organizationIdFromData(request.resource.data));
+    }
+
+    function isEquipmentUpdate(equipmentId) {
+      return signedIn() &&
+        request.resource.data.id == resource.data.id &&
+        request.resource.data.id == equipmentId &&
+        request.resource.data.createdBy == resource.data.createdBy &&
+        organizationIdFromData(request.resource.data) ==
+          organizationIdFromData(resource.data) &&
+        isValidEquipmentData(request.resource.data) &&
+        isActiveAdmin(organizationIdFromData(resource.data));
+    }
+
     match /users/{userId} {
       // TODO: Restrict user reads to self + same-organization members before production.
       allow read: if signedIn();
@@ -212,6 +271,13 @@ service cloud.firestore {
       // TODO: Restrict reminder settings reads to self before production.
       allow read: if signedIn();
       allow create, update: if isOwnReminderSettingsWrite(settingId);
+    }
+
+    match /equipment/{equipmentId} {
+      allow read: if signedIn() &&
+        isActiveMember(organizationIdFromData(resource.data));
+      allow create: if isEquipmentCreate(equipmentId);
+      allow update: if isEquipmentUpdate(equipmentId);
     }
   }
 }
