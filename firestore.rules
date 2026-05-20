@@ -552,6 +552,139 @@ service cloud.firestore {
         isActiveMember(organizationIdFromData(request.resource.data));
     }
 
+    function isValidCalloutStatus(status) {
+      return status == 'active' ||
+        status == 'closed' ||
+        status == 'cancelled';
+    }
+
+    function isValidCalloutPriority(priority) {
+      return priority == 'low' ||
+        priority == 'normal' ||
+        priority == 'high' ||
+        priority == 'critical';
+    }
+
+    function isValidCalloutData(data) {
+      return data.keys().hasAll([
+          'id',
+          'organizationId',
+          'commandId',
+          'title',
+          'description',
+          'location',
+          'status',
+          'priority',
+          'createdBy',
+          'createdByName'
+        ]) &&
+        data.id is string &&
+        data.title is string &&
+        data.title.size() > 0 &&
+        data.description is string &&
+        data.location is string &&
+        data.createdBy is string &&
+        data.createdByName is string &&
+        hasValidOrganizationReference(data) &&
+        isValidCalloutStatus(data.status) &&
+        isValidCalloutPriority(data.priority);
+    }
+
+    function isCalloutCreate(calloutId) {
+      return signedIn() &&
+        request.resource.data.id == calloutId &&
+        request.resource.data.createdBy == request.auth.uid &&
+        request.resource.data.status == 'active' &&
+        isValidCalloutData(request.resource.data) &&
+        isActiveAdmin(organizationIdFromData(request.resource.data));
+    }
+
+    function isCalloutUpdate(calloutId) {
+      return signedIn() &&
+        request.resource.data.id == resource.data.id &&
+        request.resource.data.id == calloutId &&
+        request.resource.data.createdBy == resource.data.createdBy &&
+        organizationIdFromData(request.resource.data) ==
+          organizationIdFromData(resource.data) &&
+        isValidCalloutData(request.resource.data) &&
+        isActiveAdmin(organizationIdFromData(resource.data));
+    }
+
+    function isValidCalloutResponseValue(response) {
+      return response == 'responding' ||
+        response == 'delayed' ||
+        response == 'unavailable' ||
+        response == 'noResponse';
+    }
+
+    function hasValidCalloutResponseMinutes(data) {
+      return (
+          data.response != 'delayed' ||
+          (
+            data.keys().hasAny(['responseMinutes']) &&
+            data.responseMinutes is int &&
+            data.responseMinutes > 0
+          )
+        ) &&
+        (
+          !data.keys().hasAny(['responseMinutes']) ||
+          data.responseMinutes == null ||
+          data.responseMinutes is int
+        );
+    }
+
+    function calloutExists(calloutId) {
+      return exists(/databases/$(database)/documents/callouts/$(calloutId));
+    }
+
+    function calloutData(calloutId) {
+      return get(/databases/$(database)/documents/callouts/$(calloutId)).data;
+    }
+
+    function calloutOrganizationMatches(calloutId, data) {
+      return calloutExists(calloutId) &&
+        organizationIdFromData(calloutData(calloutId)) ==
+          organizationIdFromData(data);
+    }
+
+    function calloutIsActive(calloutId) {
+      return calloutExists(calloutId) &&
+        calloutData(calloutId).status == 'active';
+    }
+
+    function isValidCalloutResponseData(data) {
+      return data.keys().hasAll([
+          'id',
+          'calloutId',
+          'userId',
+          'userName',
+          'organizationId',
+          'commandId',
+          'response',
+          'note'
+        ]) &&
+        data.id is string &&
+        data.calloutId is string &&
+        data.userId is string &&
+        data.userName is string &&
+        data.note is string &&
+        hasValidOrganizationReference(data) &&
+        isValidCalloutResponseValue(data.response) &&
+        data.response != 'noResponse' &&
+        hasValidCalloutResponseMinutes(data) &&
+        calloutOrganizationMatches(data.calloutId, data);
+    }
+
+    function isOwnCalloutResponseWrite(responseId) {
+      return signedIn() &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.id == responseId &&
+        responseId == request.resource.data.calloutId + '_' + request.auth.uid &&
+        isValidCalloutResponseData(request.resource.data) &&
+        calloutIsActive(request.resource.data.calloutId) &&
+        isActiveMember(organizationIdFromData(request.resource.data));
+    }
+
     function isPlatformOwner() {
       return signedIn() &&
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
@@ -719,6 +852,22 @@ service cloud.firestore {
       allow read: if signedIn() &&
         resource.data.userId == request.auth.uid;
       allow create, update: if isOwnNotificationReadWrite(readId);
+    }
+
+    match /callouts/{calloutId} {
+      allow read: if signedIn() &&
+        isActiveMember(organizationIdFromData(resource.data));
+      allow create: if isCalloutCreate(calloutId);
+      allow update: if isCalloutUpdate(calloutId);
+    }
+
+    match /calloutResponses/{responseId} {
+      allow read: if signedIn() &&
+        (
+          resource.data.userId == request.auth.uid ||
+          isActiveAdmin(organizationIdFromData(resource.data))
+        );
+      allow create, update: if isOwnCalloutResponseWrite(responseId);
     }
 
     match /organizationReadinessSummaries/{summaryId} {

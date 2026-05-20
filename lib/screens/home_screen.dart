@@ -8,6 +8,7 @@ import '../services/command_service.dart';
 import '../services/membership_service.dart';
 import 'activities_screen.dart';
 import 'availability_screen.dart';
+import 'callouts_screen.dart';
 import 'certificates_screen.dart';
 import 'equipment_screen.dart';
 import 'members_screen.dart';
@@ -533,6 +534,21 @@ class _HomeScreenState extends State<HomeScreen> {
                         organizationId: commandId,
                         currentUid: user.uid,
                         canManageRoles: membershipRole == 'admin',
+                      ),
+                    ),
+                  ),
+                ),
+                _buildModuleButton(
+                  icon: Icons.campaign,
+                  label: 'Valjakutsed',
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => CalloutsScreen(
+                        organizationId: commandId,
+                        currentUid: user.uid,
+                        currentUserName: displayName,
+                        canManageCallouts: membershipRole == 'admin',
                       ),
                     ),
                   ),
