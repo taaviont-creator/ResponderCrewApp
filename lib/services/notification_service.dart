@@ -46,6 +46,8 @@ class NotificationService {
     required String type,
     required String priority,
     required String createdBy,
+    String? relatedType,
+    String? relatedId,
   }) async {
     if (title.trim().isEmpty) {
       throw Exception('Notification title is required');
@@ -74,6 +76,10 @@ class NotificationService {
       'message': message.trim(),
       'type': type,
       'priority': priority,
+      if (relatedType != null && relatedType.trim().isNotEmpty)
+        'relatedType': relatedType.trim(),
+      if (relatedId != null && relatedId.trim().isNotEmpty)
+        'relatedId': relatedId.trim(),
       'createdBy': createdBy,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),

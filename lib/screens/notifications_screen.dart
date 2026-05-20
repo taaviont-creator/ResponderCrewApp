@@ -223,6 +223,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         return 'Tegevus';
       case NotificationType.operation:
         return 'Operatsioon';
+      case NotificationType.callout:
+        return 'Valjakutse';
       case NotificationType.other:
         return 'Muu';
       default:

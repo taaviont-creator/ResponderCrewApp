@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/callout_model.dart';
+import '../models/notification_model.dart';
 
 class CalloutService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -10,6 +11,9 @@ class CalloutService {
 
   CollectionReference<Map<String, dynamic>> get _responses =>
       _firestore.collection('calloutResponses');
+
+  CollectionReference<Map<String, dynamic>> get _notifications =>
+      _firestore.collection('notifications');
 
   Stream<List<CalloutModel>> streamActiveCallouts({
     required String organizationId,
@@ -84,24 +88,53 @@ class CalloutService {
       throw Exception('Unsupported callout priority: $priority');
     }
 
-    final doc = _callouts.doc();
+    final calloutDoc = _callouts.doc();
+    final notificationDoc = _notifications.doc();
+    final batch = _firestore.batch();
+    final trimmedTitle = title.trim();
+    final trimmedDescription = description.trim();
+    final trimmedLocation = location.trim();
+    final trimmedCreatedByName = createdByName.trim();
+    final notificationMessage = trimmedLocation.isEmpty
+        ? (trimmedDescription.isEmpty ? trimmedTitle : trimmedDescription)
+        : (trimmedDescription.isEmpty
+            ? trimmedLocation
+            : '$trimmedLocation - $trimmedDescription');
 
-    await doc.set({
-      'id': doc.id,
+    batch.set(calloutDoc, {
+      'id': calloutDoc.id,
       'organizationId': organizationId,
       // TODO: Remove commandId after all callout reads use organizationId.
       'commandId': organizationId,
-      'title': title.trim(),
-      'description': description.trim(),
-      'location': location.trim(),
+      'title': trimmedTitle,
+      'description': trimmedDescription,
+      'location': trimmedLocation,
       'status': CalloutStatus.active,
       'priority': priority,
       'createdBy': createdBy,
-      'createdByName': createdByName.trim(),
+      'createdByName': trimmedCreatedByName,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
       'closedAt': null,
     });
+
+    batch.set(notificationDoc, {
+      'id': notificationDoc.id,
+      'organizationId': organizationId,
+      // TODO: Remove commandId after all notification reads use organizationId.
+      'commandId': organizationId,
+      'title': 'Valjakutse: $trimmedTitle',
+      'message': notificationMessage,
+      'type': NotificationType.callout,
+      'priority': priority,
+      'relatedType': 'callout',
+      'relatedId': calloutDoc.id,
+      'createdBy': createdBy,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    await batch.commit();
   }
 
   Future<void> updateCalloutStatus({

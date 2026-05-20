@@ -7,6 +7,7 @@ class NotificationType {
   static const availability = 'availability';
   static const activity = 'activity';
   static const operation = 'operation';
+  static const callout = 'callout';
   static const other = 'other';
 
   static const values = {
@@ -16,6 +17,7 @@ class NotificationType {
     availability,
     activity,
     operation,
+    callout,
     other,
   };
 }
@@ -43,6 +45,8 @@ class NotificationModel {
     required this.message,
     required this.type,
     required this.priority,
+    this.relatedType,
+    this.relatedId,
     required this.createdBy,
     this.createdAt,
     this.updatedAt,
@@ -55,6 +59,8 @@ class NotificationModel {
   final String message;
   final String type;
   final String priority;
+  final String? relatedType;
+  final String? relatedId;
   final String createdBy;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -75,6 +81,8 @@ class NotificationModel {
         data['priority'],
         fallback: NotificationPriority.normal,
       ),
+      relatedType: _nullableStringValue(data['relatedType']),
+      relatedId: _nullableStringValue(data['relatedId']),
       createdBy: _stringValue(data['createdBy']),
       createdAt: _dateTimeValue(data['createdAt']),
       updatedAt: _dateTimeValue(data['updatedAt']),
@@ -90,6 +98,8 @@ class NotificationModel {
       'message': message,
       'type': type,
       'priority': priority,
+      'relatedType': relatedType,
+      'relatedId': relatedId,
       'createdBy': createdBy,
       'createdAt': createdAt == null ? null : Timestamp.fromDate(createdAt!),
       'updatedAt': updatedAt == null ? null : Timestamp.fromDate(updatedAt!),
@@ -147,6 +157,10 @@ class NotificationReadModel {
 
 String _stringValue(Object? value, {String fallback = ''}) {
   return value is String && value.isNotEmpty ? value : fallback;
+}
+
+String? _nullableStringValue(Object? value) {
+  return value is String && value.isNotEmpty ? value : null;
 }
 
 DateTime? _dateTimeValue(Object? value) {
