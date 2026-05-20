@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/activity_model.dart';
+import '../models/notification_model.dart';
 
 class ActivityService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -10,6 +11,9 @@ class ActivityService {
 
   CollectionReference<Map<String, dynamic>> get _participants =>
       _firestore.collection('activityParticipants');
+
+  CollectionReference<Map<String, dynamic>> get _notifications =>
+      _firestore.collection('notifications');
 
   String participantId({
     required String activityId,
@@ -76,23 +80,52 @@ class ActivityService {
       throw Exception('Unsupported activity type: $type');
     }
 
-    final doc = _activities.doc();
+    final activityDoc = _activities.doc();
+    final notificationDoc = _notifications.doc();
+    final batch = _firestore.batch();
+    final trimmedTitle = title.trim();
+    final trimmedDescription = description.trim();
+    final trimmedStartTime = startTime.trim();
+    final trimmedLocation = location.trim();
 
-    await doc.set({
-      'id': doc.id,
+    batch.set(activityDoc, {
+      'id': activityDoc.id,
       'organizationId': organizationId,
       // TODO: Remove commandId after all activity reads use organizationId.
       'commandId': organizationId,
-      'title': title.trim(),
-      'description': description.trim(),
+      'title': trimmedTitle,
+      'description': trimmedDescription,
       'type': type,
-      'startTime': startTime.trim(),
+      'startTime': trimmedStartTime,
       'endTime': '',
-      'location': location.trim(),
+      'location': trimmedLocation,
       'createdBy': createdBy,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
+
+    batch.set(notificationDoc, {
+      'id': notificationDoc.id,
+      'organizationId': organizationId,
+      // TODO: Remove commandId after all notification reads use organizationId.
+      'commandId': organizationId,
+      'title': 'Tegevus: $trimmedTitle',
+      'message': _activityNotificationMessage(
+        title: trimmedTitle,
+        type: type,
+        startTime: trimmedStartTime,
+        location: trimmedLocation,
+      ),
+      'type': NotificationType.activity,
+      'priority': NotificationPriority.normal,
+      'relatedType': 'activity',
+      'relatedId': activityDoc.id,
+      'createdBy': createdBy,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    await batch.commit();
   }
 
   Future<void> setMyParticipation({
@@ -119,5 +152,38 @@ class ActivityService {
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
+  }
+
+  String _activityNotificationMessage({
+    required String title,
+    required String type,
+    required String startTime,
+    required String location,
+  }) {
+    final parts = [
+      _activityTypeLabel(type),
+      if (startTime.isNotEmpty) startTime,
+      if (location.isNotEmpty) location,
+    ];
+
+    if (parts.isEmpty) return title;
+    return '$title - ${parts.join(' - ')}';
+  }
+
+  String _activityTypeLabel(String type) {
+    switch (type) {
+      case ActivityType.training:
+        return 'Training';
+      case ActivityType.meeting:
+        return 'Meeting';
+      case ActivityType.maintenance:
+        return 'Maintenance';
+      case ActivityType.exercise:
+        return 'Exercise';
+      case ActivityType.event:
+        return 'Event';
+      default:
+        return 'Other';
+    }
   }
 }
