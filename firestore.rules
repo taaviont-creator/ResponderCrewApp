@@ -144,6 +144,35 @@ service cloud.firestore {
         hasValidDelayedResponse(request.resource.data);
     }
 
+    function isValidReminderInterval(intervalHours) {
+      return intervalHours == 12 ||
+        intervalHours == 24 ||
+        intervalHours == 48 ||
+        intervalHours == 168;
+    }
+
+    function isValidReminderTime(reminderTime) {
+      return reminderTime is string &&
+        reminderTime.matches('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+    }
+
+    function isValidReminderSettingsData(data) {
+      return data.keys().hasAll(['enabled', 'intervalHours', 'reminderTime']) &&
+        data.enabled is bool &&
+        isValidReminderInterval(data.intervalHours) &&
+        isValidReminderTime(data.reminderTime);
+    }
+
+    function isOwnReminderSettingsWrite(settingId) {
+      return signedIn() &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.id == settingId &&
+        hasValidOrganizationReference(request.resource.data) &&
+        settingId == request.auth.uid + '_' + organizationIdFromData(request.resource.data) &&
+        isActiveMember(organizationIdFromData(request.resource.data)) &&
+        isValidReminderSettingsData(request.resource.data);
+    }
+
     match /users/{userId} {
       // TODO: Restrict user reads to self + same-organization members before production.
       allow read: if signedIn();
@@ -177,6 +206,12 @@ service cloud.firestore {
       // TODO: Restrict availability reads to same-organization members before production.
       allow read: if signedIn();
       allow create, update: if isOwnAvailabilityWrite(availabilityId);
+    }
+
+    match /availabilityReminderSettings/{settingId} {
+      // TODO: Restrict reminder settings reads to self before production.
+      allow read: if signedIn();
+      allow create, update: if isOwnReminderSettingsWrite(settingId);
     }
   }
 }

@@ -2,7 +2,9 @@ import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../models/availability_reminder_settings_model.dart';
 import '../models/availability_model.dart';
+import '../services/availability_reminder_settings_service.dart';
 import '../services/availability_service.dart';
 import '../services/command_service.dart';
 import '../services/membership_service.dart';
@@ -16,6 +18,8 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _availabilityService = AvailabilityService();
+  final _availabilityReminderSettingsService =
+      AvailabilityReminderSettingsService();
   final _commandService = CommandService();
   final _membershipService = MembershipService();
 
@@ -481,6 +485,11 @@ class _HomeScreenState extends State<HomeScreen> {
               organizationId: commandId,
             ),
             const SizedBox(height: 16),
+            _buildAvailabilityReminderSettings(
+              user: user,
+              organizationId: commandId,
+            ),
+            const SizedBox(height: 16),
             _buildAvailabilityOverview(
               organizationId: commandId,
             ),
@@ -582,6 +591,103 @@ class _HomeScreenState extends State<HomeScreen> {
                     },
                   ),
                 ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildAvailabilityReminderSettings({
+    required User user,
+    required String organizationId,
+  }) {
+    return StreamBuilder<AvailabilityReminderSettingsModel>(
+      stream: _availabilityReminderSettingsService.streamMySettings(
+        userId: user.uid,
+        organizationId: organizationId,
+      ),
+      builder: (context, snapshot) {
+        final settings = snapshot.data ??
+            AvailabilityReminderSettingsModel.defaults(
+              userId: user.uid,
+              organizationId: organizationId,
+            );
+        final timeOptions = _reminderTimeOptions(settings.reminderTime);
+
+        Future<void> updateReminderSettings({
+          bool? enabled,
+          int? intervalHours,
+          String? reminderTime,
+        }) async {
+          try {
+            await _availabilityReminderSettingsService.setMySettings(
+              userId: user.uid,
+              organizationId: organizationId,
+              enabled: enabled ?? settings.enabled,
+              intervalHours: intervalHours ?? settings.intervalHours,
+              reminderTime: reminderTime ?? settings.reminderTime,
+            );
+          } catch (e) {
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Meeldetuletuse muutmine ebaonnestus: $e'),
+              ),
+            );
+          }
+        }
+
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Valmisoleku meeldetuletused'),
+                  value: settings.enabled,
+                  onChanged: (value) => updateReminderSettings(
+                    enabled: value,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<int>(
+                  initialValue: settings.intervalHours,
+                  decoration: const InputDecoration(
+                    labelText: 'Intervall',
+                  ),
+                  items: AvailabilityReminderSettingsModel.allowedIntervalHours
+                      .map((hours) {
+                    return DropdownMenuItem<int>(
+                      value: hours,
+                      child: Text(_reminderIntervalLabel(hours)),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    updateReminderSettings(intervalHours: value);
+                  },
+                ),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  initialValue: settings.reminderTime,
+                  decoration: const InputDecoration(
+                    labelText: 'Kellaaeg',
+                  ),
+                  items: timeOptions.map((time) {
+                    return DropdownMenuItem<String>(
+                      value: time,
+                      child: Text(time),
+                    );
+                  }).toList(),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    updateReminderSettings(reminderTime: value);
+                  },
+                ),
               ],
             ),
           ),
@@ -697,6 +803,22 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       },
     );
+  }
+
+  List<String> _reminderTimeOptions(String selectedTime) {
+    final times = <String>{
+      for (var hour = 0; hour < 24; hour++)
+        '${hour.toString().padLeft(2, '0')}:00',
+      selectedTime,
+    }.toList();
+
+    times.sort();
+    return times;
+  }
+
+  String _reminderIntervalLabel(int intervalHours) {
+    if (intervalHours == 168) return '7 days';
+    return '$intervalHours hours';
   }
 
   Future<void> _updateMembershipRole({
