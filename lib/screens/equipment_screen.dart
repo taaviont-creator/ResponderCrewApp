@@ -127,6 +127,111 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
     }
   }
 
+  Future<void> _showEditEquipmentDialog(EquipmentModel item) async {
+    final nameController = TextEditingController(text: item.name);
+    final locationController = TextEditingController(text: item.location);
+    final noteController = TextEditingController(text: item.note);
+    var selectedCategory = item.category;
+    var selectedStatus = item.status;
+
+    final shouldUpdate = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Text('Muuda varustust'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: nameController,
+                    decoration: const InputDecoration(labelText: 'Nimi'),
+                  ),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedCategory,
+                    decoration: const InputDecoration(labelText: 'Kategooria'),
+                    items: EquipmentCategory.values.map((category) {
+                      return DropdownMenuItem<String>(
+                        value: category,
+                        child: Text(_equipmentCategoryLabel(category)),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setDialogState(() => selectedCategory = value);
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedStatus,
+                    decoration: const InputDecoration(labelText: 'Staatus'),
+                    items: EquipmentStatus.values.map((status) {
+                      return DropdownMenuItem<String>(
+                        value: status,
+                        child: Text(_equipmentStatusLabel(status)),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setDialogState(() => selectedStatus = value);
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: locationController,
+                    decoration: const InputDecoration(labelText: 'Asukoht'),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: noteController,
+                    decoration: const InputDecoration(labelText: 'Markus'),
+                    maxLines: 2,
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Katkesta'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Salvesta'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    if (shouldUpdate != true) return;
+
+    try {
+      await _equipmentService.updateEquipment(
+        equipmentId: item.id,
+        name: nameController.text,
+        category: selectedCategory,
+        status: selectedStatus,
+        location: locationController.text,
+        note: noteController.text,
+        updatedBy: widget.currentUid,
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Varustus uuendatud')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Varustuse uuendamine ebaonnestus: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -176,6 +281,13 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
                 contentPadding: EdgeInsets.zero,
                 title: Text(item.name),
                 subtitle: Text(subtitleParts.join(' - ')),
+                trailing: widget.canManageEquipment
+                    ? IconButton(
+                        icon: const Icon(Icons.edit),
+                        tooltip: 'Muuda varustust',
+                        onPressed: () => _showEditEquipmentDialog(item),
+                      )
+                    : null,
               );
             },
           );
