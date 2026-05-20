@@ -2,20 +2,17 @@ import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import '../models/activity_model.dart';
-import '../models/availability_reminder_settings_model.dart';
 import '../models/availability_model.dart';
-import '../models/equipment_model.dart';
-import '../models/operation_log_model.dart';
-import '../services/activity_service.dart';
-import '../services/availability_reminder_settings_service.dart';
 import '../services/availability_service.dart';
 import '../services/command_service.dart';
-import '../services/equipment_service.dart';
 import '../services/membership_service.dart';
-import '../services/operation_log_service.dart';
+import 'activities_screen.dart';
+import 'availability_screen.dart';
 import 'certificates_screen.dart';
+import 'equipment_screen.dart';
+import 'members_screen.dart';
 import 'notifications_screen.dart';
+import 'operation_log_screen.dart';
 import 'platform_readiness_screen.dart';
 import 'statistics_screen.dart';
 
@@ -27,14 +24,9 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final _activityService = ActivityService();
   final _availabilityService = AvailabilityService();
-  final _availabilityReminderSettingsService =
-      AvailabilityReminderSettingsService();
   final _commandService = CommandService();
-  final _equipmentService = EquipmentService();
   final _membershipService = MembershipService();
-  final _operationLogService = OperationLogService();
 
   Future<void> _signOut() async {
     await FirebaseAuth.instance.signOut();
@@ -147,325 +139,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Viga: $e')),
-      );
-    }
-  }
-
-  Future<void> _showAddEquipmentDialog({
-    required String organizationId,
-    required String createdBy,
-  }) async {
-    final nameController = TextEditingController();
-    final locationController = TextEditingController();
-    final noteController = TextEditingController();
-    var selectedCategory = EquipmentCategory.other;
-    var selectedStatus = EquipmentStatus.ok;
-
-    final shouldCreate = await showDialog<bool>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            title: const Text('Lisa varustus'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Nimi',
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedCategory,
-                    decoration: const InputDecoration(
-                      labelText: 'Kategooria',
-                    ),
-                    items: EquipmentCategory.values.map((category) {
-                      return DropdownMenuItem<String>(
-                        value: category,
-                        child: Text(_equipmentCategoryLabel(category)),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value == null) return;
-                      setDialogState(() => selectedCategory = value);
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedStatus,
-                    decoration: const InputDecoration(
-                      labelText: 'Staatus',
-                    ),
-                    items: EquipmentStatus.values.map((status) {
-                      return DropdownMenuItem<String>(
-                        value: status,
-                        child: Text(_equipmentStatusLabel(status)),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value == null) return;
-                      setDialogState(() => selectedStatus = value);
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: locationController,
-                    decoration: const InputDecoration(
-                      labelText: 'Asukoht',
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: noteController,
-                    decoration: const InputDecoration(
-                      labelText: 'Märkus',
-                    ),
-                    maxLines: 2,
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Katkesta'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Lisa'),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-
-    if (shouldCreate != true) return;
-
-    try {
-      await _equipmentService.addEquipment(
-        organizationId: organizationId,
-        name: nameController.text,
-        category: selectedCategory,
-        status: selectedStatus,
-        location: locationController.text,
-        note: noteController.text,
-        createdBy: createdBy,
-      );
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Varustus lisatud')),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Varustuse lisamine ebaõnnestus: $e')),
-      );
-    }
-  }
-
-  Future<void> _showAddOperationLogDialog({
-    required String organizationId,
-    required String createdBy,
-    required String createdByName,
-  }) async {
-    final titleController = TextEditingController();
-    final descriptionController = TextEditingController();
-    var selectedType = OperationLogType.note;
-
-    final shouldCreate = await showDialog<bool>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            title: const Text('Lisa logikanne'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedType,
-                    decoration: const InputDecoration(
-                      labelText: 'Tüüp',
-                    ),
-                    items: OperationLogType.values.map((type) {
-                      return DropdownMenuItem<String>(
-                        value: type,
-                        child: Text(_operationLogTypeLabel(type)),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value == null) return;
-                      setDialogState(() => selectedType = value);
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: titleController,
-                    decoration: const InputDecoration(
-                      labelText: 'Pealkiri',
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: descriptionController,
-                    decoration: const InputDecoration(
-                      labelText: 'Kirjeldus / märkus',
-                    ),
-                    maxLines: 3,
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Katkesta'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Lisa'),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-
-    if (shouldCreate != true) return;
-
-    try {
-      await _operationLogService.addLog(
-        organizationId: organizationId,
-        createdBy: createdBy,
-        createdByName: createdByName,
-        type: selectedType,
-        title: titleController.text,
-        description: descriptionController.text,
-      );
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Logikanne lisatud')),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Logikande lisamine ebaõnnestus: $e')),
-      );
-    }
-  }
-
-  Future<void> _showAddActivityDialog({
-    required String organizationId,
-    required String createdBy,
-  }) async {
-    final titleController = TextEditingController();
-    final startTimeController = TextEditingController();
-    final locationController = TextEditingController();
-    final descriptionController = TextEditingController();
-    var selectedType = ActivityType.training;
-
-    final shouldCreate = await showDialog<bool>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            title: const Text('Lisa tegevus'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: titleController,
-                    decoration: const InputDecoration(
-                      labelText: 'Pealkiri',
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedType,
-                    decoration: const InputDecoration(
-                      labelText: 'Tüüp',
-                    ),
-                    items: ActivityType.values.map((type) {
-                      return DropdownMenuItem<String>(
-                        value: type,
-                        child: Text(_activityTypeLabel(type)),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value == null) return;
-                      setDialogState(() => selectedType = value);
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: startTimeController,
-                    decoration: const InputDecoration(
-                      labelText: 'Algusaeg',
-                      hintText: 'nt 2026-05-20 18:00',
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: locationController,
-                    decoration: const InputDecoration(
-                      labelText: 'Asukoht',
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: descriptionController,
-                    decoration: const InputDecoration(
-                      labelText: 'Kirjeldus',
-                    ),
-                    maxLines: 3,
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Katkesta'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Lisa'),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-
-    if (shouldCreate != true) return;
-
-    try {
-      await _activityService.addActivity(
-        organizationId: organizationId,
-        title: titleController.text,
-        description: descriptionController.text,
-        type: selectedType,
-        startTime: startTimeController.text,
-        location: locationController.text,
-        createdBy: createdBy,
-      );
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tegevus lisatud')),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Tegevuse lisamine ebaõnnestus: $e')),
       );
     }
   }
@@ -834,98 +507,220 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
           if (commandId != null && commandId.isNotEmpty) ...[
             const SizedBox(height: 16),
-            OutlinedButton.icon(
-              icon: const Icon(Icons.card_membership),
-              label: const Text('Kvalifikatsioonid'),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => CertificatesScreen(
-                      organizationId: commandId,
-                      currentUid: user.uid,
-                      canManageCertificates: membershipRole == 'admin',
-                    ),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              icon: const Icon(Icons.insights),
-              label: const Text('Statistika'),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => StatisticsScreen(
-                      organizationId: commandId,
-                      currentUid: user.uid,
-                      canViewOrganizationCertificates:
-                          membershipRole == 'admin',
-                    ),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              icon: const Icon(Icons.notifications),
-              label: const Text('Teavitused'),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => NotificationsScreen(
-                      organizationId: commandId,
-                      currentUid: user.uid,
-                      canManageNotifications: membershipRole == 'admin',
-                    ),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 16),
             _buildAvailabilityControl(
               user: user,
               organizationId: commandId,
             ),
             const SizedBox(height: 16),
-            _buildAvailabilityReminderSettings(
-              user: user,
-              organizationId: commandId,
-            ),
+            _buildReadinessSummary(organizationId: commandId),
             const SizedBox(height: 16),
-            _buildAvailabilityOverview(
-              organizationId: commandId,
+            Text(
+              'Moodulid',
+              style: Theme.of(context).textTheme.titleMedium,
             ),
-            const SizedBox(height: 16),
-            _buildEquipmentSection(
-              organizationId: commandId,
-              canManageEquipment: membershipRole == 'admin',
-              currentUid: user.uid,
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _buildModuleButton(
+                  icon: Icons.group,
+                  label: 'Liikmed',
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => MembersScreen(
+                        organizationId: commandId,
+                        currentUid: user.uid,
+                        canManageRoles: membershipRole == 'admin',
+                      ),
+                    ),
+                  ),
+                ),
+                _buildModuleButton(
+                  icon: Icons.check_circle,
+                  label: 'Valmisolek',
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => AvailabilityScreen(
+                        organizationId: commandId,
+                        currentUid: user.uid,
+                      ),
+                    ),
+                  ),
+                ),
+                _buildModuleButton(
+                  icon: Icons.inventory_2,
+                  label: 'Varustus',
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => EquipmentScreen(
+                        organizationId: commandId,
+                        currentUid: user.uid,
+                        canManageEquipment: membershipRole == 'admin',
+                      ),
+                    ),
+                  ),
+                ),
+                _buildModuleButton(
+                  icon: Icons.assignment,
+                  label: 'Operatsioonilogi',
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => OperationLogScreen(
+                        organizationId: commandId,
+                        currentUid: user.uid,
+                        currentUserName: displayName,
+                      ),
+                    ),
+                  ),
+                ),
+                _buildModuleButton(
+                  icon: Icons.event,
+                  label: 'Tegevused',
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ActivitiesScreen(
+                        organizationId: commandId,
+                        currentUid: user.uid,
+                        canManageActivities: membershipRole == 'admin',
+                      ),
+                    ),
+                  ),
+                ),
+                _buildModuleButton(
+                  icon: Icons.card_membership,
+                  label: 'Kvalifikatsioonid',
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => CertificatesScreen(
+                        organizationId: commandId,
+                        currentUid: user.uid,
+                        canManageCertificates: membershipRole == 'admin',
+                      ),
+                    ),
+                  ),
+                ),
+                _buildModuleButton(
+                  icon: Icons.insights,
+                  label: 'Statistika',
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => StatisticsScreen(
+                        organizationId: commandId,
+                        currentUid: user.uid,
+                        canViewOrganizationCertificates:
+                            membershipRole == 'admin',
+                      ),
+                    ),
+                  ),
+                ),
+                _buildModuleButton(
+                  icon: Icons.notifications,
+                  label: 'Teavitused',
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => NotificationsScreen(
+                        organizationId: commandId,
+                        currentUid: user.uid,
+                        canManageNotifications: membershipRole == 'admin',
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            _buildOperationLogSection(
-              organizationId: commandId,
-              currentUid: user.uid,
-              currentUserName: displayName,
-            ),
-            const SizedBox(height: 16),
-            _buildActivitiesSection(
-              organizationId: commandId,
-              canManageActivities: membershipRole == 'admin',
-              currentUid: user.uid,
-            ),
-            const SizedBox(height: 16),
           ],
-          Text(
-            'Liikmed',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 8),
         ],
       ),
+    );
+  }
+
+  Widget _buildReadinessSummary({
+    required String organizationId,
+  }) {
+    return StreamBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
+      stream: _membershipService.streamActiveMembershipsForOrganization(
+        organizationId,
+      ),
+      builder: (context, membershipsSnapshot) {
+        final activeMemberships = membershipsSnapshot.data ??
+            const <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+
+        return StreamBuilder<List<AvailabilityModel>>(
+          stream: _availabilityService.streamOrganizationAvailability(
+            organizationId: organizationId,
+          ),
+          builder: (context, availabilitySnapshot) {
+            final availabilityByUserId = <String, AvailabilityModel>{};
+            for (final availability
+                in availabilitySnapshot.data ?? const <AvailabilityModel>[]) {
+              if (availability.userId.isNotEmpty) {
+                availabilityByUserId[availability.userId] = availability;
+              }
+            }
+
+            var onDutyCount = 0;
+            var delayedCount = 0;
+            var offDutyCount = 0;
+
+            for (final membershipDoc in activeMemberships) {
+              final userId = (membershipDoc.data()['userId'] ?? '').toString();
+              final availability = availabilityByUserId[userId];
+              final status = availability?.status ?? AvailabilityStatus.offDuty;
+
+              if (status == AvailabilityStatus.onDuty) {
+                onDutyCount++;
+              } else if (status == AvailabilityStatus.delayed) {
+                delayedCount++;
+              } else {
+                offDutyCount++;
+              }
+            }
+
+            return Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Valmisoleku kokkuvote'),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 8,
+                      children: [
+                        Text('On duty: $onDutyCount'),
+                        Text('Delayed: $delayedCount'),
+                        Text('Off duty: $offDutyCount'),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildModuleButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onPressed,
+  }) {
+    return OutlinedButton.icon(
+      icon: Icon(icon),
+      label: Text(label),
+      onPressed: onPressed,
     );
   }
 
@@ -1023,793 +818,9 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildAvailabilityReminderSettings({
-    required User user,
-    required String organizationId,
-  }) {
-    return StreamBuilder<AvailabilityReminderSettingsModel>(
-      stream: _availabilityReminderSettingsService.streamMySettings(
-        userId: user.uid,
-        organizationId: organizationId,
-      ),
-      builder: (context, snapshot) {
-        final settings = snapshot.data ??
-            AvailabilityReminderSettingsModel.defaults(
-              userId: user.uid,
-              organizationId: organizationId,
-            );
-        final timeOptions = _reminderTimeOptions(settings.reminderTime);
-
-        Future<void> updateReminderSettings({
-          bool? enabled,
-          int? intervalHours,
-          String? reminderTime,
-        }) async {
-          try {
-            await _availabilityReminderSettingsService.setMySettings(
-              userId: user.uid,
-              organizationId: organizationId,
-              enabled: enabled ?? settings.enabled,
-              intervalHours: intervalHours ?? settings.intervalHours,
-              reminderTime: reminderTime ?? settings.reminderTime,
-            );
-          } catch (e) {
-            if (!context.mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Meeldetuletuse muutmine ebaonnestus: $e'),
-              ),
-            );
-          }
-        }
-
-        return Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Valmisoleku meeldetuletused'),
-                  value: settings.enabled,
-                  onChanged: (value) => updateReminderSettings(
-                    enabled: value,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<int>(
-                  initialValue: settings.intervalHours,
-                  decoration: const InputDecoration(
-                    labelText: 'Intervall',
-                  ),
-                  items: AvailabilityReminderSettingsModel.allowedIntervalHours
-                      .map((hours) {
-                    return DropdownMenuItem<int>(
-                      value: hours,
-                      child: Text(_reminderIntervalLabel(hours)),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    if (value == null) return;
-                    updateReminderSettings(intervalHours: value);
-                  },
-                ),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  initialValue: settings.reminderTime,
-                  decoration: const InputDecoration(
-                    labelText: 'Kellaaeg',
-                  ),
-                  items: timeOptions.map((time) {
-                    return DropdownMenuItem<String>(
-                      value: time,
-                      child: Text(time),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    if (value == null) return;
-                    updateReminderSettings(reminderTime: value);
-                  },
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildAvailabilityOverview({
-    required String organizationId,
-  }) {
-    return StreamBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
-      stream: _membershipService.streamActiveMembershipsForOrganization(
-        organizationId,
-      ),
-      builder: (context, membershipsSnapshot) {
-        final activeMemberships = membershipsSnapshot.data ??
-            const <QueryDocumentSnapshot<Map<String, dynamic>>>[];
-
-        return StreamBuilder<List<AvailabilityModel>>(
-          stream: _availabilityService.streamOrganizationAvailability(
-            organizationId: organizationId,
-          ),
-          builder: (context, availabilitySnapshot) {
-            final availabilityByUserId = <String, AvailabilityModel>{};
-            for (final availability
-                in availabilitySnapshot.data ?? const <AvailabilityModel>[]) {
-              if (availability.userId.isNotEmpty) {
-                availabilityByUserId[availability.userId] = availability;
-              }
-            }
-
-            int onDutyCount = 0;
-            int delayedCount = 0;
-            int offDutyCount = 0;
-
-            for (final membershipDoc in activeMemberships) {
-              final userId = (membershipDoc.data()['userId'] ?? '').toString();
-              final availability = availabilityByUserId[userId];
-              final status = availability?.status ?? AvailabilityStatus.offDuty;
-
-              if (status == AvailabilityStatus.onDuty) {
-                onDutyCount++;
-              } else if (status == AvailabilityStatus.delayed) {
-                delayedCount++;
-              } else {
-                offDutyCount++;
-              }
-            }
-
-            return Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Organisatsiooni valmisolek'),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 12,
-                      runSpacing: 8,
-                      children: [
-                        Text('On duty: $onDutyCount'),
-                        Text('Delayed: $delayedCount'),
-                        Text('Off duty: $offDutyCount'),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    if (activeMemberships.isEmpty)
-                      const Text('Liikmeid ei leitud')
-                    else
-                      ...activeMemberships.map((membershipDoc) {
-                        final membership = membershipDoc.data();
-                        final userId = (membership['userId'] ?? '').toString();
-                        final availability = availabilityByUserId[userId];
-                        final status =
-                            availability?.status ?? AvailabilityStatus.offDuty;
-                        final responseMinutes = availability?.responseMinutes;
-
-                        return FutureBuilder<
-                            DocumentSnapshot<Map<String, dynamic>>>(
-                          future: FirebaseFirestore.instance
-                              .collection('users')
-                              .doc(userId)
-                              .get(),
-                          builder: (context, userSnapshot) {
-                            final userData = userSnapshot.data?.data() ?? {};
-                            final name = (userData['name'] ?? '').toString();
-                            final email = (userData['email'] ?? '').toString();
-                            final title = name.isNotEmpty
-                                ? name
-                                : (email.isNotEmpty ? email : userId);
-                            final subtitle =
-                                status == AvailabilityStatus.delayed &&
-                                        responseMinutes != null
-                                    ? '$status - $responseMinutes min'
-                                    : status;
-
-                            return ListTile(
-                              dense: true,
-                              contentPadding: EdgeInsets.zero,
-                              title: Text(title),
-                              subtitle: Text(subtitle),
-                            );
-                          },
-                        );
-                      }),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  List<String> _reminderTimeOptions(String selectedTime) {
-    final times = <String>{
-      for (var hour = 0; hour < 24; hour++)
-        '${hour.toString().padLeft(2, '0')}:00',
-      selectedTime,
-    }.toList();
-
-    times.sort();
-    return times;
-  }
-
-  String _reminderIntervalLabel(int intervalHours) {
-    if (intervalHours == 168) return '7 days';
-    return '$intervalHours hours';
-  }
-
-  Widget _buildEquipmentSection({
-    required String organizationId,
-    required bool canManageEquipment,
-    required String currentUid,
-  }) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Expanded(
-                  child: Text('Varustus'),
-                ),
-                if (canManageEquipment)
-                  IconButton(
-                    icon: const Icon(Icons.add),
-                    tooltip: 'Lisa varustus',
-                    onPressed: () => _showAddEquipmentDialog(
-                      organizationId: organizationId,
-                      createdBy: currentUid,
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            StreamBuilder<List<EquipmentModel>>(
-              stream: _equipmentService.streamOrganizationEquipment(
-                organizationId: organizationId,
-              ),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const LinearProgressIndicator();
-                }
-
-                if (snapshot.hasError) {
-                  return Text('Varustuse laadimine ebaõnnestus: ${snapshot.error}');
-                }
-
-                final equipment = snapshot.data ?? const <EquipmentModel>[];
-                if (equipment.isEmpty) {
-                  return const Text('Varustust ei ole veel lisatud');
-                }
-
-                return Column(
-                  children: equipment.map((item) {
-                    final subtitleParts = [
-                      _equipmentCategoryLabel(item.category),
-                      _equipmentStatusLabel(item.status),
-                      if (item.location.isNotEmpty) item.location,
-                    ];
-
-                    return ListTile(
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(item.name),
-                      subtitle: Text(subtitleParts.join(' - ')),
-                      trailing: item.note.isEmpty
-                          ? null
-                          : const Icon(Icons.notes),
-                    );
-                  }).toList(),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _equipmentCategoryLabel(String category) {
-    switch (category) {
-      case EquipmentCategory.vessel:
-        return 'Vessel';
-      case EquipmentCategory.engine:
-        return 'Engine';
-      case EquipmentCategory.rescue:
-        return 'Rescue';
-      case EquipmentCategory.medical:
-        return 'Medical';
-      case EquipmentCategory.radio:
-        return 'Radio';
-      case EquipmentCategory.safety:
-        return 'Safety';
-      default:
-        return 'Other';
-    }
-  }
-
-  String _equipmentStatusLabel(String status) {
-    switch (status) {
-      case EquipmentStatus.needsMaintenance:
-        return 'Needs maintenance';
-      case EquipmentStatus.broken:
-        return 'Broken';
-      case EquipmentStatus.outOfService:
-        return 'Out of service';
-      default:
-        return 'OK';
-    }
-  }
-
-  Widget _buildOperationLogSection({
-    required String organizationId,
-    required String currentUid,
-    required String currentUserName,
-  }) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Expanded(
-                  child: Text('Operatsioonilogi'),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.add),
-                  tooltip: 'Lisa logikanne',
-                  onPressed: () => _showAddOperationLogDialog(
-                    organizationId: organizationId,
-                    createdBy: currentUid,
-                    createdByName: currentUserName,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            StreamBuilder<List<OperationLogModel>>(
-              stream: _operationLogService.streamOrganizationLogs(
-                organizationId: organizationId,
-              ),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const LinearProgressIndicator();
-                }
-
-                if (snapshot.hasError) {
-                  return Text(
-                    'Logi laadimine ebaõnnestus: ${snapshot.error}',
-                  );
-                }
-
-                final logs = snapshot.data ?? const <OperationLogModel>[];
-                if (logs.isEmpty) {
-                  return const Text('Logikandeid ei ole veel lisatud');
-                }
-
-                return Column(
-                  children: logs.map((log) {
-                    final subtitleParts = [
-                      _operationLogTypeLabel(log.type),
-                      if (log.createdByName.isNotEmpty) log.createdByName,
-                      if (log.timestamp != null)
-                        _shortDateTime(log.timestamp!),
-                    ];
-
-                    return ListTile(
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(log.title),
-                      subtitle: Text(
-                        log.description.isEmpty
-                            ? subtitleParts.join(' - ')
-                            : '${subtitleParts.join(' - ')}\n'
-                                '${log.description}',
-                      ),
-                    );
-                  }).toList(),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _operationLogTypeLabel(String type) {
-    switch (type) {
-      case OperationLogType.departure:
-        return 'Departure';
-      case OperationLogType.arrivalOnScene:
-        return 'Arrival on scene';
-      case OperationLogType.searchStarted:
-        return 'Search started';
-      case OperationLogType.searchEnded:
-        return 'Search ended';
-      case OperationLogType.patientRecovered:
-        return 'Patient recovered';
-      case OperationLogType.towingStarted:
-        return 'Towing started';
-      case OperationLogType.towingEnded:
-        return 'Towing ended';
-      case OperationLogType.returnedToBase:
-        return 'Returned to base';
-      case OperationLogType.other:
-        return 'Other';
-      default:
-        return 'Note';
-    }
-  }
-
-  String _shortDateTime(DateTime value) {
-    String twoDigits(int number) => number.toString().padLeft(2, '0');
-
-    final date = '${twoDigits(value.day)}.${twoDigits(value.month)}';
-    final time = '${twoDigits(value.hour)}:${twoDigits(value.minute)}';
-    return '$date $time';
-  }
-
-  Widget _buildActivitiesSection({
-    required String organizationId,
-    required bool canManageActivities,
-    required String currentUid,
-  }) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Expanded(
-                  child: Text('Tegevused ja koolitused'),
-                ),
-                if (canManageActivities)
-                  IconButton(
-                    icon: const Icon(Icons.add),
-                    tooltip: 'Lisa tegevus',
-                    onPressed: () => _showAddActivityDialog(
-                      organizationId: organizationId,
-                      createdBy: currentUid,
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            StreamBuilder<List<ActivityModel>>(
-              stream: _activityService.streamOrganizationActivities(
-                organizationId: organizationId,
-              ),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const LinearProgressIndicator();
-                }
-
-                if (snapshot.hasError) {
-                  return Text(
-                    'Tegevuste laadimine ebaõnnestus: ${snapshot.error}',
-                  );
-                }
-
-                final activities = snapshot.data ?? const <ActivityModel>[];
-                if (activities.isEmpty) {
-                  return const Text('Tegevusi ei ole veel lisatud');
-                }
-
-                return Column(
-                  children: activities.map((activity) {
-                    final subtitleParts = [
-                      _activityTypeLabel(activity.type),
-                      if (activity.startTime.isNotEmpty) activity.startTime,
-                      if (activity.location.isNotEmpty) activity.location,
-                    ];
-
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          ListTile(
-                            dense: true,
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(activity.title),
-                            subtitle: Text(
-                              activity.description.isEmpty
-                                  ? subtitleParts.join(' - ')
-                                  : '${subtitleParts.join(' - ')}\n'
-                                      '${activity.description}',
-                            ),
-                          ),
-                          _buildActivityParticipationControls(
-                            activity: activity,
-                            currentUid: currentUid,
-                          ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActivityParticipationControls({
-    required ActivityModel activity,
-    required String currentUid,
-  }) {
-    return StreamBuilder<ActivityParticipantModel?>(
-      stream: _activityService.streamMyParticipation(
-        activityId: activity.id,
-        userId: currentUid,
-      ),
-      builder: (context, snapshot) {
-        final status = snapshot.data?.status;
-
-        Future<void> updateParticipation(String newStatus) async {
-          try {
-            await _activityService.setMyParticipation(
-              activityId: activity.id,
-              userId: currentUid,
-              organizationId: activity.organizationId.isNotEmpty
-                  ? activity.organizationId
-                  : activity.commandId,
-              status: newStatus,
-            );
-          } catch (e) {
-            if (!context.mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Osalemise muutmine ebaõnnestus: $e')),
-            );
-          }
-        }
-
-        return Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            ChoiceChip(
-              label: const Text('Attending'),
-              selected: status == ActivityParticipationStatus.attending,
-              onSelected: (_) => updateParticipation(
-                ActivityParticipationStatus.attending,
-              ),
-            ),
-            ChoiceChip(
-              label: const Text('Maybe'),
-              selected: status == ActivityParticipationStatus.maybe,
-              onSelected: (_) => updateParticipation(
-                ActivityParticipationStatus.maybe,
-              ),
-            ),
-            ChoiceChip(
-              label: const Text('Not attending'),
-              selected: status == ActivityParticipationStatus.notAttending,
-              onSelected: (_) => updateParticipation(
-                ActivityParticipationStatus.notAttending,
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  String _activityTypeLabel(String type) {
-    switch (type) {
-      case ActivityType.training:
-        return 'Training';
-      case ActivityType.meeting:
-        return 'Meeting';
-      case ActivityType.maintenance:
-        return 'Maintenance';
-      case ActivityType.exercise:
-        return 'Exercise';
-      case ActivityType.event:
-        return 'Event';
-      default:
-        return 'Other';
-    }
-  }
-
-  Future<void> _updateMembershipRole({
-    required String membershipId,
-    required String targetUid,
-    required String organizationId,
-    required String newRole,
-  }) async {
-    await _membershipService.updateMembershipRole(
-      membershipId: membershipId,
-      targetUserId: targetUid,
-      organizationId: organizationId,
-      role: newRole,
-    );
-  }
-
   String _membershipRoleFromData(Map<String, dynamic> membership) {
     final role = membership['role'];
     return role is String && role.isNotEmpty ? role : 'member';
-  }
-
-  int _roleSortOrder(String role) {
-    switch (role) {
-      case 'admin':
-        return 0;
-      case 'boardMember':
-        return 1;
-      default:
-        return 2;
-    }
-  }
-
-  Widget _buildMembersList({
-    required String activeOrganizationId,
-    required bool canManageRoles,
-    required String currentUid,
-  }) {
-    return StreamBuilder<
-        List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
-      stream: _membershipService.streamActiveMembershipsForOrganization(
-        activeOrganizationId,
-      ),
-      builder: (context, membershipsSnapshot) {
-        if (membershipsSnapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (membershipsSnapshot.hasError) {
-          return Center(child: Text('Viga: ${membershipsSnapshot.error}'));
-        }
-
-        final membershipDocs = membershipsSnapshot.data ??
-            <QueryDocumentSnapshot<Map<String, dynamic>>>[];
-        if (membershipDocs.isEmpty) {
-          return const Center(child: Text('Ühtegi liiget ei leitud'));
-        }
-
-        final memberships = membershipDocs
-            .where((doc) => (doc.data()['userId'] ?? '').toString().isNotEmpty)
-            .toList();
-
-        memberships.sort((a, b) {
-          final aRole = _membershipRoleFromData(a.data());
-          final bRole = _membershipRoleFromData(b.data());
-
-          return _roleSortOrder(aRole).compareTo(_roleSortOrder(bRole));
-        });
-
-        return ListView.separated(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: memberships.length,
-          separatorBuilder: (_, _) => const Divider(height: 1),
-          itemBuilder: (context, index) {
-            final membershipDoc = memberships[index];
-            final membership = membershipDoc.data();
-            final targetUid = (membership['userId'] ?? '') as String;
-            final membershipRole = _membershipRoleFromData(membership);
-
-            return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-              future: FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(targetUid)
-                  .get(),
-              builder: (context, userSnapshot) {
-                if (userSnapshot.connectionState == ConnectionState.waiting) {
-                  return const ListTile(
-                    title: Text('Laen kasutajat...'),
-                  );
-                }
-
-                if (userSnapshot.hasError) {
-                  return ListTile(
-                    title: Text('Viga kasutaja laadimisel: ${userSnapshot.error}'),
-                  );
-                }
-
-                final userData = userSnapshot.data?.data() ?? {};
-                final uName = (userData['name'] ?? '') as String;
-                final uEmail = (userData['email'] ?? '') as String;
-                final uStatus = (userData['status'] ?? 'unavailable') as String;
-
-                final title = uName.isNotEmpty ? uName : uEmail;
-                final subtitle = (uStatus == 'available')
-                    ? 'Valves / Saadaval'
-                    : 'Mitte valves';
-
-                return ListTile(
-                  title: Text(title),
-                  subtitle: Text('$subtitle • roll: $membershipRole'),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        uStatus == 'available'
-                            ? Icons.check_circle
-                            : Icons.cancel,
-                        color: uStatus == 'available'
-                            ? const Color.fromARGB(255, 72, 212, 79)
-                            : const Color.fromARGB(255, 179, 32, 30),
-                      ),
-                      if (canManageRoles && targetUid != currentUid) ...[
-                        const SizedBox(width: 8),
-                        PopupMenuButton<String>(
-                          onSelected: (value) async {
-                            try {
-                              if (value == 'make_admin') {
-                                await _updateMembershipRole(
-                                  membershipId: membershipDoc.id,
-                                  targetUid: targetUid,
-                                  organizationId: activeOrganizationId,
-                                  newRole: 'admin',
-                                );
-                              } else if (value == 'make_board_member') {
-                                await _updateMembershipRole(
-                                  membershipId: membershipDoc.id,
-                                  targetUid: targetUid,
-                                  organizationId: activeOrganizationId,
-                                  newRole: 'boardMember',
-                                );
-                              } else if (value == 'make_member') {
-                                await _updateMembershipRole(
-                                  membershipId: membershipDoc.id,
-                                  targetUid: targetUid,
-                                  organizationId: activeOrganizationId,
-                                  newRole: 'member',
-                                );
-                              }
-
-                              if (!context.mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Roll uuendatud')),
-                              );
-                            } catch (e) {
-                              if (!context.mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Viga: $e')),
-                              );
-                            }
-                          },
-                          itemBuilder: (context) => const [
-                            PopupMenuItem(
-                              value: 'make_admin',
-                              child: Text('Tee adminiks'),
-                            ),
-                            PopupMenuItem(
-                              value: 'make_board_member',
-                              child: Text('Tee juhatuse liikmeks'),
-                            ),
-                            PopupMenuItem(
-                              value: 'make_member',
-                              child: Text('Tee liikmeks'),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ],
-                  ),
-                );
-              },
-            );
-          },
-        );
-      },
-    );
   }
 
   @override
@@ -1939,7 +950,6 @@ class _HomeScreenState extends State<HomeScreen> {
               myMembershipRole = null;
             }
 
-            final canManageRoles = myMembershipRole == 'admin';
             final canSeeJoinCode =
                 isPlatformOwner || (myMembershipRole == 'admin');
 
@@ -2008,11 +1018,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         isPlatformOwner: isPlatformOwner,
                         membershipRole: myMembershipRole,
                         membershipDocs: membershipDocs,
-                      ),
-                      _buildMembersList(
-                        activeOrganizationId: activeCommandId!,
-                        canManageRoles: canManageRoles,
-                        currentUid: user.uid,
                       ),
                     ],
                   ),
