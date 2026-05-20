@@ -2,10 +2,12 @@ import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../models/activity_model.dart';
 import '../models/availability_reminder_settings_model.dart';
 import '../models/availability_model.dart';
 import '../models/equipment_model.dart';
 import '../models/operation_log_model.dart';
+import '../services/activity_service.dart';
 import '../services/availability_reminder_settings_service.dart';
 import '../services/availability_service.dart';
 import '../services/command_service.dart';
@@ -21,6 +23,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final _activityService = ActivityService();
   final _availabilityService = AvailabilityService();
   final _availabilityReminderSettingsService =
       AvailabilityReminderSettingsService();
@@ -350,6 +353,115 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Logikande lisamine ebaõnnestus: $e')),
+      );
+    }
+  }
+
+  Future<void> _showAddActivityDialog({
+    required String organizationId,
+    required String createdBy,
+  }) async {
+    final titleController = TextEditingController();
+    final startTimeController = TextEditingController();
+    final locationController = TextEditingController();
+    final descriptionController = TextEditingController();
+    var selectedType = ActivityType.training;
+
+    final shouldCreate = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Text('Lisa tegevus'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: titleController,
+                    decoration: const InputDecoration(
+                      labelText: 'Pealkiri',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedType,
+                    decoration: const InputDecoration(
+                      labelText: 'Tüüp',
+                    ),
+                    items: ActivityType.values.map((type) {
+                      return DropdownMenuItem<String>(
+                        value: type,
+                        child: Text(_activityTypeLabel(type)),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setDialogState(() => selectedType = value);
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: startTimeController,
+                    decoration: const InputDecoration(
+                      labelText: 'Algusaeg',
+                      hintText: 'nt 2026-05-20 18:00',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: locationController,
+                    decoration: const InputDecoration(
+                      labelText: 'Asukoht',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: descriptionController,
+                    decoration: const InputDecoration(
+                      labelText: 'Kirjeldus',
+                    ),
+                    maxLines: 3,
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Katkesta'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Lisa'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    if (shouldCreate != true) return;
+
+    try {
+      await _activityService.addActivity(
+        organizationId: organizationId,
+        title: titleController.text,
+        description: descriptionController.text,
+        type: selectedType,
+        startTime: startTimeController.text,
+        location: locationController.text,
+        createdBy: createdBy,
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tegevus lisatud')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Tegevuse lisamine ebaõnnestus: $e')),
       );
     }
   }
@@ -720,6 +832,12 @@ class _HomeScreenState extends State<HomeScreen> {
               organizationId: commandId,
               currentUid: user.uid,
               currentUserName: displayName,
+            ),
+            const SizedBox(height: 16),
+            _buildActivitiesSection(
+              organizationId: commandId,
+              canManageActivities: membershipRole == 'admin',
+              currentUid: user.uid,
             ),
             const SizedBox(height: 16),
           ],
@@ -1263,6 +1381,173 @@ class _HomeScreenState extends State<HomeScreen> {
     final date = '${twoDigits(value.day)}.${twoDigits(value.month)}';
     final time = '${twoDigits(value.hour)}:${twoDigits(value.minute)}';
     return '$date $time';
+  }
+
+  Widget _buildActivitiesSection({
+    required String organizationId,
+    required bool canManageActivities,
+    required String currentUid,
+  }) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Expanded(
+                  child: Text('Tegevused ja koolitused'),
+                ),
+                if (canManageActivities)
+                  IconButton(
+                    icon: const Icon(Icons.add),
+                    tooltip: 'Lisa tegevus',
+                    onPressed: () => _showAddActivityDialog(
+                      organizationId: organizationId,
+                      createdBy: currentUid,
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            StreamBuilder<List<ActivityModel>>(
+              stream: _activityService.streamOrganizationActivities(
+                organizationId: organizationId,
+              ),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const LinearProgressIndicator();
+                }
+
+                if (snapshot.hasError) {
+                  return Text(
+                    'Tegevuste laadimine ebaõnnestus: ${snapshot.error}',
+                  );
+                }
+
+                final activities = snapshot.data ?? const <ActivityModel>[];
+                if (activities.isEmpty) {
+                  return const Text('Tegevusi ei ole veel lisatud');
+                }
+
+                return Column(
+                  children: activities.map((activity) {
+                    final subtitleParts = [
+                      _activityTypeLabel(activity.type),
+                      if (activity.startTime.isNotEmpty) activity.startTime,
+                      if (activity.location.isNotEmpty) activity.location,
+                    ];
+
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(activity.title),
+                            subtitle: Text(
+                              activity.description.isEmpty
+                                  ? subtitleParts.join(' - ')
+                                  : '${subtitleParts.join(' - ')}\n'
+                                      '${activity.description}',
+                            ),
+                          ),
+                          _buildActivityParticipationControls(
+                            activity: activity,
+                            currentUid: currentUid,
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActivityParticipationControls({
+    required ActivityModel activity,
+    required String currentUid,
+  }) {
+    return StreamBuilder<ActivityParticipantModel?>(
+      stream: _activityService.streamMyParticipation(
+        activityId: activity.id,
+        userId: currentUid,
+      ),
+      builder: (context, snapshot) {
+        final status = snapshot.data?.status;
+
+        Future<void> updateParticipation(String newStatus) async {
+          try {
+            await _activityService.setMyParticipation(
+              activityId: activity.id,
+              userId: currentUid,
+              organizationId: activity.organizationId.isNotEmpty
+                  ? activity.organizationId
+                  : activity.commandId,
+              status: newStatus,
+            );
+          } catch (e) {
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Osalemise muutmine ebaõnnestus: $e')),
+            );
+          }
+        }
+
+        return Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            ChoiceChip(
+              label: const Text('Attending'),
+              selected: status == ActivityParticipationStatus.attending,
+              onSelected: (_) => updateParticipation(
+                ActivityParticipationStatus.attending,
+              ),
+            ),
+            ChoiceChip(
+              label: const Text('Maybe'),
+              selected: status == ActivityParticipationStatus.maybe,
+              onSelected: (_) => updateParticipation(
+                ActivityParticipationStatus.maybe,
+              ),
+            ),
+            ChoiceChip(
+              label: const Text('Not attending'),
+              selected: status == ActivityParticipationStatus.notAttending,
+              onSelected: (_) => updateParticipation(
+                ActivityParticipationStatus.notAttending,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  String _activityTypeLabel(String type) {
+    switch (type) {
+      case ActivityType.training:
+        return 'Training';
+      case ActivityType.meeting:
+        return 'Meeting';
+      case ActivityType.maintenance:
+        return 'Maintenance';
+      case ActivityType.exercise:
+        return 'Exercise';
+      case ActivityType.event:
+        return 'Event';
+      default:
+        return 'Other';
+    }
   }
 
   Future<void> _updateMembershipRole({

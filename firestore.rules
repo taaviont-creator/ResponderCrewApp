@@ -274,6 +274,102 @@ service cloud.firestore {
         isActiveMember(organizationIdFromData(request.resource.data));
     }
 
+    function isValidActivityType(type) {
+      return type == 'training' ||
+        type == 'meeting' ||
+        type == 'maintenance' ||
+        type == 'exercise' ||
+        type == 'event' ||
+        type == 'other';
+    }
+
+    function isValidActivityData(data) {
+      return data.keys().hasAll([
+          'id',
+          'organizationId',
+          'commandId',
+          'title',
+          'description',
+          'type',
+          'startTime',
+          'endTime',
+          'location',
+          'createdBy'
+        ]) &&
+        data.id is string &&
+        data.title is string &&
+        data.title.size() > 0 &&
+        data.description is string &&
+        data.startTime is string &&
+        data.endTime is string &&
+        data.location is string &&
+        data.createdBy is string &&
+        hasValidOrganizationReference(data) &&
+        isValidActivityType(data.type);
+    }
+
+    function isActivityCreate(activityId) {
+      return signedIn() &&
+        request.resource.data.id == activityId &&
+        request.resource.data.createdBy == request.auth.uid &&
+        isValidActivityData(request.resource.data) &&
+        isActiveAdmin(organizationIdFromData(request.resource.data));
+    }
+
+    function isActivityUpdate(activityId) {
+      return signedIn() &&
+        request.resource.data.id == resource.data.id &&
+        request.resource.data.id == activityId &&
+        request.resource.data.createdBy == resource.data.createdBy &&
+        organizationIdFromData(request.resource.data) ==
+          organizationIdFromData(resource.data) &&
+        isValidActivityData(request.resource.data) &&
+        isActiveAdmin(organizationIdFromData(resource.data));
+    }
+
+    function isValidParticipationStatus(status) {
+      return status == 'attending' ||
+        status == 'notAttending' ||
+        status == 'maybe';
+    }
+
+    function activityExists(activityId) {
+      return exists(/databases/$(database)/documents/activities/$(activityId));
+    }
+
+    function activityOrganizationMatches(activityId, data) {
+      return activityExists(activityId) &&
+        organizationIdFromData(
+          get(/databases/$(database)/documents/activities/$(activityId)).data
+        ) == organizationIdFromData(data);
+    }
+
+    function isValidActivityParticipantData(data) {
+      return data.keys().hasAll([
+          'id',
+          'activityId',
+          'userId',
+          'organizationId',
+          'commandId',
+          'status'
+        ]) &&
+        data.id is string &&
+        data.activityId is string &&
+        data.userId is string &&
+        hasValidOrganizationReference(data) &&
+        isValidParticipationStatus(data.status) &&
+        activityOrganizationMatches(data.activityId, data);
+    }
+
+    function isOwnActivityParticipationWrite(participantId) {
+      return signedIn() &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.id == participantId &&
+        participantId == request.resource.data.activityId + '_' + request.auth.uid &&
+        isValidActivityParticipantData(request.resource.data) &&
+        isActiveMember(organizationIdFromData(request.resource.data));
+    }
+
     match /users/{userId} {
       // TODO: Restrict user reads to self + same-organization members before production.
       allow read: if signedIn();
@@ -326,6 +422,19 @@ service cloud.firestore {
       allow read: if signedIn() &&
         isActiveMember(organizationIdFromData(resource.data));
       allow create: if isOperationLogCreate(logId);
+    }
+
+    match /activities/{activityId} {
+      allow read: if signedIn() &&
+        isActiveMember(organizationIdFromData(resource.data));
+      allow create: if isActivityCreate(activityId);
+      allow update: if isActivityUpdate(activityId);
+    }
+
+    match /activityParticipants/{participantId} {
+      allow read: if signedIn() &&
+        isActiveMember(organizationIdFromData(resource.data));
+      allow create, update: if isOwnActivityParticipationWrite(participantId);
     }
   }
 }
