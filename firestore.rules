@@ -232,6 +232,48 @@ service cloud.firestore {
         isActiveAdmin(organizationIdFromData(resource.data));
     }
 
+    function isValidOperationLogType(type) {
+      return type == 'departure' ||
+        type == 'arrivalOnScene' ||
+        type == 'searchStarted' ||
+        type == 'searchEnded' ||
+        type == 'patientRecovered' ||
+        type == 'towingStarted' ||
+        type == 'towingEnded' ||
+        type == 'returnedToBase' ||
+        type == 'note' ||
+        type == 'other';
+    }
+
+    function isValidOperationLogData(data) {
+      return data.keys().hasAll([
+          'id',
+          'organizationId',
+          'commandId',
+          'createdBy',
+          'createdByName',
+          'type',
+          'title',
+          'description'
+        ]) &&
+        data.id is string &&
+        data.createdBy is string &&
+        data.createdByName is string &&
+        data.title is string &&
+        data.title.size() > 0 &&
+        data.description is string &&
+        hasValidOrganizationReference(data) &&
+        isValidOperationLogType(data.type);
+    }
+
+    function isOperationLogCreate(logId) {
+      return signedIn() &&
+        request.resource.data.id == logId &&
+        request.resource.data.createdBy == request.auth.uid &&
+        isValidOperationLogData(request.resource.data) &&
+        isActiveMember(organizationIdFromData(request.resource.data));
+    }
+
     match /users/{userId} {
       // TODO: Restrict user reads to self + same-organization members before production.
       allow read: if signedIn();
@@ -278,6 +320,12 @@ service cloud.firestore {
         isActiveMember(organizationIdFromData(resource.data));
       allow create: if isEquipmentCreate(equipmentId);
       allow update: if isEquipmentUpdate(equipmentId);
+    }
+
+    match /operationLogs/{logId} {
+      allow read: if signedIn() &&
+        isActiveMember(organizationIdFromData(resource.data));
+      allow create: if isOperationLogCreate(logId);
     }
   }
 }

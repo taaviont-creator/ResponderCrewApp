@@ -5,11 +5,13 @@ import 'package:flutter/material.dart';
 import '../models/availability_reminder_settings_model.dart';
 import '../models/availability_model.dart';
 import '../models/equipment_model.dart';
+import '../models/operation_log_model.dart';
 import '../services/availability_reminder_settings_service.dart';
 import '../services/availability_service.dart';
 import '../services/command_service.dart';
 import '../services/equipment_service.dart';
 import '../services/membership_service.dart';
+import '../services/operation_log_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -25,6 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final _commandService = CommandService();
   final _equipmentService = EquipmentService();
   final _membershipService = MembershipService();
+  final _operationLogService = OperationLogService();
 
   Future<void> _signOut() async {
     await FirebaseAuth.instance.signOut();
@@ -255,6 +258,98 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Varustuse lisamine ebaõnnestus: $e')),
+      );
+    }
+  }
+
+  Future<void> _showAddOperationLogDialog({
+    required String organizationId,
+    required String createdBy,
+    required String createdByName,
+  }) async {
+    final titleController = TextEditingController();
+    final descriptionController = TextEditingController();
+    var selectedType = OperationLogType.note;
+
+    final shouldCreate = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Text('Lisa logikanne'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedType,
+                    decoration: const InputDecoration(
+                      labelText: 'Tüüp',
+                    ),
+                    items: OperationLogType.values.map((type) {
+                      return DropdownMenuItem<String>(
+                        value: type,
+                        child: Text(_operationLogTypeLabel(type)),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setDialogState(() => selectedType = value);
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: titleController,
+                    decoration: const InputDecoration(
+                      labelText: 'Pealkiri',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: descriptionController,
+                    decoration: const InputDecoration(
+                      labelText: 'Kirjeldus / märkus',
+                    ),
+                    maxLines: 3,
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Katkesta'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Lisa'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    if (shouldCreate != true) return;
+
+    try {
+      await _operationLogService.addLog(
+        organizationId: organizationId,
+        createdBy: createdBy,
+        createdByName: createdByName,
+        type: selectedType,
+        title: titleController.text,
+        description: descriptionController.text,
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Logikanne lisatud')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Logikande lisamine ebaõnnestus: $e')),
       );
     }
   }
@@ -619,6 +714,12 @@ class _HomeScreenState extends State<HomeScreen> {
               organizationId: commandId,
               canManageEquipment: membershipRole == 'admin',
               currentUid: user.uid,
+            ),
+            const SizedBox(height: 16),
+            _buildOperationLogSection(
+              organizationId: commandId,
+              currentUid: user.uid,
+              currentUserName: displayName,
             ),
             const SizedBox(height: 16),
           ],
@@ -1051,6 +1152,117 @@ class _HomeScreenState extends State<HomeScreen> {
       default:
         return 'OK';
     }
+  }
+
+  Widget _buildOperationLogSection({
+    required String organizationId,
+    required String currentUid,
+    required String currentUserName,
+  }) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Expanded(
+                  child: Text('Operatsioonilogi'),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.add),
+                  tooltip: 'Lisa logikanne',
+                  onPressed: () => _showAddOperationLogDialog(
+                    organizationId: organizationId,
+                    createdBy: currentUid,
+                    createdByName: currentUserName,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            StreamBuilder<List<OperationLogModel>>(
+              stream: _operationLogService.streamOrganizationLogs(
+                organizationId: organizationId,
+              ),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const LinearProgressIndicator();
+                }
+
+                if (snapshot.hasError) {
+                  return Text(
+                    'Logi laadimine ebaõnnestus: ${snapshot.error}',
+                  );
+                }
+
+                final logs = snapshot.data ?? const <OperationLogModel>[];
+                if (logs.isEmpty) {
+                  return const Text('Logikandeid ei ole veel lisatud');
+                }
+
+                return Column(
+                  children: logs.map((log) {
+                    final subtitleParts = [
+                      _operationLogTypeLabel(log.type),
+                      if (log.createdByName.isNotEmpty) log.createdByName,
+                      if (log.timestamp != null)
+                        _shortDateTime(log.timestamp!),
+                    ];
+
+                    return ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(log.title),
+                      subtitle: Text(
+                        log.description.isEmpty
+                            ? subtitleParts.join(' - ')
+                            : '${subtitleParts.join(' - ')}\n'
+                                '${log.description}',
+                      ),
+                    );
+                  }).toList(),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _operationLogTypeLabel(String type) {
+    switch (type) {
+      case OperationLogType.departure:
+        return 'Departure';
+      case OperationLogType.arrivalOnScene:
+        return 'Arrival on scene';
+      case OperationLogType.searchStarted:
+        return 'Search started';
+      case OperationLogType.searchEnded:
+        return 'Search ended';
+      case OperationLogType.patientRecovered:
+        return 'Patient recovered';
+      case OperationLogType.towingStarted:
+        return 'Towing started';
+      case OperationLogType.towingEnded:
+        return 'Towing ended';
+      case OperationLogType.returnedToBase:
+        return 'Returned to base';
+      case OperationLogType.other:
+        return 'Other';
+      default:
+        return 'Note';
+    }
+  }
+
+  String _shortDateTime(DateTime value) {
+    String twoDigits(int number) => number.toString().padLeft(2, '0');
+
+    final date = '${twoDigits(value.day)}.${twoDigits(value.month)}';
+    final time = '${twoDigits(value.hour)}:${twoDigits(value.minute)}';
+    return '$date $time';
   }
 
   Future<void> _updateMembershipRole({
