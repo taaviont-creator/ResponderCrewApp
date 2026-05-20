@@ -552,10 +552,94 @@ service cloud.firestore {
         isActiveMember(organizationIdFromData(request.resource.data));
     }
 
+    function isPlatformOwner() {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.systemRole ==
+          'platformOwner';
+    }
+
+    function isSafeUserCreate(userId) {
+      return isSelf(userId) &&
+        (
+          !request.resource.data.keys().hasAny(['systemRole']) ||
+          request.resource.data.systemRole == 'user'
+        );
+    }
+
+    function isSafeUserUpdate(userId) {
+      return isSelf(userId) &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['systemRole']);
+    }
+
+    function isValidReadinessStatus(status) {
+      return status == 'ready' ||
+        status == 'limited' ||
+        status == 'notReady' ||
+        status == 'unknown';
+    }
+
+    function isValidReadinessEquipmentStatus(status) {
+      return status == 'ok' ||
+        status == 'issues' ||
+        status == 'critical' ||
+        status == 'unknown';
+    }
+
+    function isValidReadinessSummaryData(data) {
+      return data.keys().hasAll([
+          'id',
+          'organizationId',
+          'commandId',
+          'organizationName',
+          'region',
+          'contactName',
+          'contactPhone',
+          'readinessStatus',
+          'onDutyCount',
+          'delayedCount',
+          'minimumCrewRequired',
+          'minimumCrewMet',
+          'primaryVesselStatus',
+          'equipmentStatus',
+          'criticalIssues',
+          'lastUpdatedBy'
+        ]) &&
+        data.id is string &&
+        data.organizationName is string &&
+        data.region is string &&
+        data.contactName is string &&
+        data.contactPhone is string &&
+        data.onDutyCount is int &&
+        data.onDutyCount >= 0 &&
+        data.delayedCount is int &&
+        data.delayedCount >= 0 &&
+        data.minimumCrewRequired is int &&
+        data.minimumCrewRequired >= 0 &&
+        data.minimumCrewMet is bool &&
+        data.criticalIssues is string &&
+        data.lastUpdatedBy is string &&
+        hasValidOrganizationReference(data) &&
+        isValidReadinessStatus(data.readinessStatus) &&
+        isValidReadinessEquipmentStatus(data.primaryVesselStatus) &&
+        isValidReadinessEquipmentStatus(data.equipmentStatus);
+    }
+
+    function isReadinessSummaryWrite(summaryId) {
+      return signedIn() &&
+        request.resource.data.id == summaryId &&
+        request.resource.data.organizationId == summaryId &&
+        request.resource.data.commandId == summaryId &&
+        request.resource.data.lastUpdatedBy == request.auth.uid &&
+        isValidReadinessSummaryData(request.resource.data) &&
+        isActiveAdmin(summaryId);
+    }
+
     match /users/{userId} {
       // TODO: Restrict user reads to self + same-organization members before production.
       allow read: if signedIn();
-      allow create, update: if isSelf(userId);
+      allow create: if isSafeUserCreate(userId);
+      allow update: if isSafeUserUpdate(userId);
     }
 
     match /commands/{commandId} {
@@ -635,6 +719,18 @@ service cloud.firestore {
       allow read: if signedIn() &&
         resource.data.userId == request.auth.uid;
       allow create, update: if isOwnNotificationReadWrite(readId);
+    }
+
+    match /organizationReadinessSummaries/{summaryId} {
+      allow read: if isPlatformOwner() ||
+        (
+          signedIn() &&
+          (
+            isActiveMember(summaryId) ||
+            isActiveMember(organizationIdFromData(resource.data))
+          )
+        );
+      allow create, update: if isReadinessSummaryWrite(summaryId);
     }
   }
 }

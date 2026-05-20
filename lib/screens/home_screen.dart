@@ -16,6 +16,7 @@ import '../services/membership_service.dart';
 import '../services/operation_log_service.dart';
 import 'certificates_screen.dart';
 import 'notifications_screen.dart';
+import 'platform_readiness_screen.dart';
 import 'statistics_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -807,6 +808,28 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
+            ),
+          ],
+          if (isPlatformOwner ||
+              (commandId != null && commandId.isNotEmpty)) ...[
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.health_and_safety),
+              label: const Text('Platvormi valmidus'),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => PlatformReadinessScreen(
+                      currentUid: user.uid,
+                      activeOrganizationId: commandId,
+                      activeOrganizationName: commandName,
+                      canManageOwnSummary: membershipRole == 'admin',
+                      isPlatformOwner: isPlatformOwner,
+                    ),
+                  ),
+                );
+              },
             ),
           ],
           if (commandId != null && commandId.isNotEmpty) ...[
@@ -1836,8 +1859,8 @@ class _HomeScreenState extends State<HomeScreen> {
         final currentActiveIdFromUser = activeOrganizationIdFromUser ??
             activeCommandIdFromUser ??
             legacyCommandIdFromUser;
-        final platformRole = (userData['platformRole'] ?? '') as String;
-        final isPlatformOwner = platformRole == 'platformOwner';
+        final systemRole = (userData['systemRole'] ?? '') as String;
+        final isPlatformOwner = systemRole == 'platformOwner';
 
         final displayName = name.isEmpty ? (user.email ?? 'kasutaja') : name;
 

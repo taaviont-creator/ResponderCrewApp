@@ -13,6 +13,7 @@ class UserService {
       'name': name,
       'status': 'available', // vaba
       'activeOrganizationId': null,
+      'systemRole': 'user',
       // TODO: Migrate commandId/role to organization-specific memberships.
       'commandId': null,     // komando pole veel
       'role': 'member',      // hiljem admin/member
