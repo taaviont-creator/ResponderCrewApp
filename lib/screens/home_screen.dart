@@ -15,6 +15,7 @@ import '../services/equipment_service.dart';
 import '../services/membership_service.dart';
 import '../services/operation_log_service.dart';
 import 'certificates_screen.dart';
+import 'notifications_screen.dart';
 import 'statistics_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -839,6 +840,23 @@ class _HomeScreenState extends State<HomeScreen> {
                       currentUid: user.uid,
                       canViewOrganizationCertificates:
                           membershipRole == 'admin',
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.notifications),
+              label: const Text('Teavitused'),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => NotificationsScreen(
+                      organizationId: commandId,
+                      currentUid: user.uid,
+                      canManageNotifications: membershipRole == 'admin',
                     ),
                   ),
                 );

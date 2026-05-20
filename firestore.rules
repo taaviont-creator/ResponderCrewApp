@@ -470,6 +470,88 @@ service cloud.firestore {
         );
     }
 
+    function isValidNotificationType(type) {
+      return type == 'info' ||
+        type == 'warning' ||
+        type == 'equipment' ||
+        type == 'availability' ||
+        type == 'activity' ||
+        type == 'operation' ||
+        type == 'other';
+    }
+
+    function isValidNotificationPriority(priority) {
+      return priority == 'low' ||
+        priority == 'normal' ||
+        priority == 'high' ||
+        priority == 'critical';
+    }
+
+    function isValidNotificationData(data) {
+      return data.keys().hasAll([
+          'id',
+          'organizationId',
+          'commandId',
+          'title',
+          'message',
+          'type',
+          'priority',
+          'createdBy'
+        ]) &&
+        data.id is string &&
+        data.title is string &&
+        data.title.size() > 0 &&
+        data.message is string &&
+        data.message.size() > 0 &&
+        data.createdBy is string &&
+        hasValidOrganizationReference(data) &&
+        isValidNotificationType(data.type) &&
+        isValidNotificationPriority(data.priority);
+    }
+
+    function isNotificationCreate(notificationId) {
+      return signedIn() &&
+        request.resource.data.id == notificationId &&
+        request.resource.data.createdBy == request.auth.uid &&
+        isValidNotificationData(request.resource.data) &&
+        isActiveAdmin(organizationIdFromData(request.resource.data));
+    }
+
+    function notificationExists(notificationId) {
+      return exists(/databases/$(database)/documents/notifications/$(notificationId));
+    }
+
+    function notificationOrganizationMatches(notificationId, data) {
+      return notificationExists(notificationId) &&
+        organizationIdFromData(
+          get(/databases/$(database)/documents/notifications/$(notificationId)).data
+        ) == organizationIdFromData(data);
+    }
+
+    function isValidNotificationReadData(data) {
+      return data.keys().hasAll([
+          'id',
+          'notificationId',
+          'userId',
+          'organizationId',
+          'commandId'
+        ]) &&
+        data.id is string &&
+        data.notificationId is string &&
+        data.userId is string &&
+        hasValidOrganizationReference(data) &&
+        notificationOrganizationMatches(data.notificationId, data);
+    }
+
+    function isOwnNotificationReadWrite(readId) {
+      return signedIn() &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.id == readId &&
+        readId == request.resource.data.notificationId + '_' + request.auth.uid &&
+        isValidNotificationReadData(request.resource.data) &&
+        isActiveMember(organizationIdFromData(request.resource.data));
+    }
+
     match /users/{userId} {
       // TODO: Restrict user reads to self + same-organization members before production.
       allow read: if signedIn();
@@ -541,6 +623,18 @@ service cloud.firestore {
       allow read: if canReadCertificate(resource.data);
       allow create: if isCertificateCreate(certificateId);
       allow update: if isCertificateUpdate(certificateId);
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if signedIn() &&
+        isActiveMember(organizationIdFromData(resource.data));
+      allow create: if isNotificationCreate(notificationId);
+    }
+
+    match /notificationReads/{readId} {
+      allow read: if signedIn() &&
+        resource.data.userId == request.auth.uid;
+      allow create, update: if isOwnNotificationReadWrite(readId);
     }
   }
 }
