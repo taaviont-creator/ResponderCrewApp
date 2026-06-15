@@ -27,6 +27,7 @@ class ActivityService {
   Stream<List<ActivityModel>> streamOrganizationActivities({
     required String organizationId,
   }) {
+    _requireOrganizationId(organizationId);
     return _activities
         .where(
           Filter.or(
@@ -177,7 +178,7 @@ class ActivityService {
 
   void _requireOrganizationId(String organizationId) {
     if (organizationId.trim().isEmpty) {
-      throw Exception('Organization id is required');
+      throw Exception('Selle toimingu jaoks puudub aktiivne organisatsioon');
     }
   }
 

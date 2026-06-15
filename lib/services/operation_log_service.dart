@@ -11,6 +11,7 @@ class OperationLogService {
   Stream<List<OperationLogModel>> streamOrganizationLogs({
     required String organizationId,
   }) {
+    _requireOrganizationId(organizationId);
     return _operationLogs
         .where(
           Filter.or(
@@ -40,6 +41,7 @@ class OperationLogService {
     required String operationLogId,
     required String organizationId,
   }) {
+    _requireOrganizationId(organizationId);
     return _operationLogs
         .doc(operationLogId)
         .collection('events')
@@ -283,7 +285,7 @@ class OperationLogService {
 
   void _requireOrganizationId(String organizationId) {
     if (organizationId.trim().isEmpty) {
-      throw Exception('Organization id is required');
+      throw Exception('Selle toimingu jaoks puudub aktiivne organisatsioon');
     }
   }
 }

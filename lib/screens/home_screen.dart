@@ -38,11 +38,30 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _setActiveCommand(String commandId) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw Exception('Not authenticated');
+    final organizationId = commandId.trim();
+    if (organizationId.isEmpty) {
+      throw Exception('Selle toimingu jaoks puudub aktiivne organisatsioon');
+    }
+
+    final membershipSnapshot = await FirebaseFirestore.instance
+        .collection('memberships')
+        .doc(_membershipService.membershipId(
+          userId: user.uid,
+          organizationId: organizationId,
+        ))
+        .get();
+    final membership = membershipSnapshot.data();
+    if (membership == null ||
+        !_membershipService.isActiveMembership(membership) ||
+        _membershipService.organizationIdFromMembership(membership) !=
+            organizationId) {
+      throw Exception('Sul puudub selle organisatsiooni aktiivne liikmelisus');
+    }
 
     await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-      'activeOrganizationId': commandId,
-      'activeCommandId': commandId,
-      'commandId': commandId,
+      'activeOrganizationId': organizationId,
+      'activeCommandId': organizationId,
+      'commandId': organizationId,
     }, SetOptions(merge: true));
   }
 
@@ -282,8 +301,12 @@ class _HomeScreenState extends State<HomeScreen> {
     required String? currentActiveCommandId,
     required String? currentCommandName,
   }) {
-    final canSwitchOrganization =
-        _organizationIdsFromMembershipDocs(membershipDocs).length > 1;
+    final organizationCount =
+        _organizationIdsFromMembershipDocs(membershipDocs).length;
+    final canSelectOrganization = organizationCount > 0 &&
+        (organizationCount > 1 ||
+            currentActiveCommandId == null ||
+            currentActiveCommandId.isEmpty);
 
     return [
       IconButton(
@@ -294,7 +317,7 @@ class _HomeScreenState extends State<HomeScreen> {
       IconButton(
         icon: const Icon(Icons.swap_horiz),
         tooltip: 'Vaheta organisatsiooni',
-        onPressed: !canSwitchOrganization
+        onPressed: !canSelectOrganization
             ? null
             : () => _showSwitchOrganizationDialog(
                   membershipDocs: membershipDocs,
@@ -386,12 +409,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
         final selectedId = items.any((item) => item['id'] == activeOrganizationId)
             ? activeOrganizationId
-            : items.first['id'];
+            : null;
 
         return Padding(
           padding: const EdgeInsets.only(top: 8),
           child: DropdownButton<String>(
             value: selectedId,
+            hint: const Text('Vali organisatsioon'),
             isExpanded: true,
             items: items.map((item) {
               return DropdownMenuItem<String>(
@@ -418,6 +442,57 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildMissingOrganizationState({
+    required bool hasMemberships,
+    required List<QueryDocumentSnapshot<Map<String, dynamic>>> membershipDocs,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            hasMemberships ? 'Vali organisatsioon' : 'Organisatsioon puudub',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            hasMemberships
+                ? 'Enne jätkamist vali aktiivne organisatsioon.'
+                : 'Sul puudub aktiivne organisatsiooni liikmelisus. '
+                    'Loo uus organisatsioon või liitu olemasolevaga.',
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (hasMemberships)
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.swap_horiz),
+                  label: const Text('Vali organisatsioon'),
+                  onPressed: () => _showSwitchOrganizationDialog(
+                    membershipDocs: membershipDocs,
+                    currentActiveCommandId: null,
+                  ),
+                ),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.group_add),
+                label: const Text('Loo uus organisatsioon'),
+                onPressed: _showCreateCommandDialog,
+              ),
+              OutlinedButton.icon(
+                icon: const Icon(Icons.vpn_key),
+                label: const Text('Liitu organisatsiooniga'),
+                onPressed: _showJoinCommandDialog,
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -455,10 +530,11 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 4),
             Text('Komando nimi: $commandName'),
           ],
-          _buildOrganizationSelector(
-            activeOrganizationId: commandId,
-            membershipDocs: membershipDocs,
-          ),
+          if (commandId != null && commandId.isNotEmpty)
+            _buildOrganizationSelector(
+              activeOrganizationId: commandId,
+              membershipDocs: membershipDocs,
+            ),
           const SizedBox(height: 4),
           Text(
             'Minu roll: ${membershipRole ?? "puudub"}'
@@ -935,6 +1011,13 @@ class _HomeScreenState extends State<HomeScreen> {
     return role is String && role.isNotEmpty ? role : 'member';
   }
 
+  String? _stringValue(Object? value) {
+    if (value is String && value.trim().isNotEmpty) {
+      return value.trim();
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -973,16 +1056,11 @@ class _HomeScreenState extends State<HomeScreen> {
           );
         }
 
-        final name = (userData['name'] ?? '') as String;
+        final name = _stringValue(userData['name']) ?? '';
 
         final activeOrganizationIdFromUser =
-            userData['activeOrganizationId'] as String?;
-        final activeCommandIdFromUser = userData['activeCommandId'] as String?;
-        final legacyCommandIdFromUser = userData['commandId'] as String?;
-        final currentActiveIdFromUser = activeOrganizationIdFromUser ??
-            activeCommandIdFromUser ??
-            legacyCommandIdFromUser;
-        final systemRole = (userData['systemRole'] ?? '') as String;
+            _stringValue(userData['activeOrganizationId']);
+        final systemRole = _stringValue(userData['systemRole']) ?? '';
         final isPlatformOwner = systemRole == 'platformOwner';
 
         final displayName = name.isEmpty ? (user.email ?? 'kasutaja') : name;
@@ -998,7 +1076,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   title: const Text('RespondCrew'),
                   actions: _buildAppBarActions(
                     membershipDocs: const [],
-                    currentActiveCommandId: currentActiveIdFromUser,
+                    currentActiveCommandId: null,
                     currentCommandName: null,
                   ),
                 ),
@@ -1012,7 +1090,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   title: const Text('RespondCrew'),
                   actions: _buildAppBarActions(
                     membershipDocs: const [],
-                    currentActiveCommandId: currentActiveIdFromUser,
+                    currentActiveCommandId: null,
                     currentCommandName: null,
                   ),
                 ),
@@ -1031,32 +1109,22 @@ class _HomeScreenState extends State<HomeScreen> {
             String? myMembershipRole;
 
             if (membershipDocs.isNotEmpty) {
-              activeCommandId = _membershipService.resolveActiveOrganizationId(
-                userData: userData,
-                memberships: membershipDocs,
-              );
-
-              final activeMembership = activeCommandId == null
+              final requestedOrganizationId =
+                  activeOrganizationIdFromUser?.trim();
+              final activeMembership = requestedOrganizationId == null ||
+                      requestedOrganizationId.isEmpty
                   ? null
                   : _membershipService.membershipForOrganizationId(
-                      organizationId: activeCommandId,
+                      organizationId: requestedOrganizationId,
                       memberships: membershipDocs,
                     );
+
+              activeCommandId = activeMembership == null
+                  ? null
+                  : requestedOrganizationId;
               myMembershipRole = activeMembership == null
                   ? null
                   : _membershipRoleFromData(activeMembership);
-
-              final selectedActiveCommandId = activeCommandId;
-              if (selectedActiveCommandId != null &&
-                  selectedActiveCommandId.isNotEmpty &&
-                  (activeOrganizationIdFromUser != selectedActiveCommandId ||
-                      activeCommandIdFromUser != selectedActiveCommandId)) {
-                WidgetsBinding.instance.addPostFrameCallback((_) async {
-                  try {
-                    await _setActiveCommand(selectedActiveCommandId);
-                  } catch (_) {}
-                });
-              }
             } else {
               activeCommandId = null;
               myMembershipRole = null;
@@ -1090,11 +1158,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       allowMembersToViewStatistics: false,
                       membershipDocs: membershipDocs,
                     ),
-                    const Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Text(
-                        'Sa ei ole veel komandoga liitunud. Kasuta ülevalt “Liitu koodiga” või “Loo komando”.',
-                      ),
+                    _buildMissingOrganizationState(
+                      hasMemberships: membershipDocs.isNotEmpty,
+                      membershipDocs: membershipDocs,
                     ),
                   ],
                 ),

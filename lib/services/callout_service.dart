@@ -26,6 +26,7 @@ class CalloutService {
   Stream<List<CalloutModel>> streamActiveCallouts({
     required String organizationId,
   }) {
+    _requireOrganizationId(organizationId);
     return _callouts
         .where(
           Filter.or(
@@ -57,6 +58,7 @@ class CalloutService {
     required String calloutId,
     required String organizationId,
   }) {
+    _requireOrganizationId(organizationId);
     return _responses
         .where('calloutId', isEqualTo: calloutId)
         .snapshots()
@@ -86,6 +88,7 @@ class CalloutService {
     required String calloutId,
     required String organizationId,
   }) {
+    _requireOrganizationId(organizationId);
     late StreamController<CalloutResponseDetails> controller;
     StreamSubscription<List<CalloutResponseModel>>? responseSubscription;
     StreamSubscription<
@@ -436,7 +439,7 @@ class CalloutService {
 
   void _requireOrganizationId(String organizationId) {
     if (organizationId.trim().isEmpty) {
-      throw Exception('Organization id is required');
+      throw Exception('Selle toimingu jaoks puudub aktiivne organisatsioon');
     }
   }
 }

@@ -17,6 +17,7 @@ class EquipmentService {
   Stream<List<EquipmentModel>> streamOrganizationEquipment({
     required String organizationId,
   }) {
+    _requireOrganizationId(organizationId);
     return _equipment
         .where(
           Filter.or(
@@ -185,7 +186,7 @@ class EquipmentService {
 
   void _requireOrganizationId(String organizationId) {
     if (organizationId.trim().isEmpty) {
-      throw Exception('Organization id is required');
+      throw Exception('Selle toimingu jaoks puudub aktiivne organisatsioon');
     }
   }
 

@@ -14,6 +14,7 @@ class CertificateService {
   Stream<List<CertificateModel>> streamOrganizationCertificates({
     required String organizationId,
   }) {
+    _requireOrganizationId(organizationId);
     return _certificates
         .where(
           Filter.or(
@@ -41,6 +42,7 @@ class CertificateService {
     required String organizationId,
     required String userId,
   }) {
+    _requireOrganizationId(organizationId);
     return _certificates
         .where('userId', isEqualTo: userId)
         .where(
@@ -169,7 +171,7 @@ class CertificateService {
 
   void _requireOrganizationId(String organizationId) {
     if (organizationId.trim().isEmpty) {
-      throw Exception('Organization id is required');
+      throw Exception('Selle toimingu jaoks puudub aktiivne organisatsioon');
     }
   }
 }

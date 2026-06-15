@@ -138,7 +138,7 @@ class CommandService {
     final user = _auth.currentUser;
     if (user == null) throw Exception('Not authenticated');
     if (organizationId.trim().isEmpty) {
-      throw Exception('Organization id is required');
+      throw Exception('Selle toimingu jaoks puudub aktiivne organisatsioon');
     }
 
     final membershipSnapshot = await _db
@@ -178,7 +178,7 @@ class CommandService {
     final user = _auth.currentUser;
     if (user == null) throw Exception('Not authenticated');
     if (commandId.trim().isEmpty) {
-      throw Exception('Organization id is required');
+      throw Exception('Selle toimingu jaoks puudub aktiivne organisatsioon');
     }
 
     final uid = user.uid;

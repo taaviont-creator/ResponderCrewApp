@@ -26,6 +26,7 @@ class AvailabilityService {
     required String userId,
     required String organizationId,
   }) {
+    _requireOrganizationId(organizationId);
     return _availability
         .doc(availabilityId(userId: userId, organizationId: organizationId))
         .snapshots()
@@ -38,6 +39,7 @@ class AvailabilityService {
   Stream<List<AvailabilityModel>> streamOrganizationAvailability({
     required String organizationId,
   }) {
+    _requireOrganizationId(organizationId);
     return _availability
         .where(
           Filter.or(
@@ -200,7 +202,7 @@ class AvailabilityService {
 
   void _requireOrganizationId(String organizationId) {
     if (organizationId.trim().isEmpty) {
-      throw Exception('Organization id is required');
+      throw Exception('Selle toimingu jaoks puudub aktiivne organisatsioon');
     }
   }
 }

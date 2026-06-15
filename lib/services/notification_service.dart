@@ -16,6 +16,7 @@ class NotificationService {
   Stream<List<NotificationModel>> streamOrganizationNotifications({
     required String organizationId,
   }) {
+    _requireOrganizationId(organizationId);
     return _notifications
         .where(
           Filter.or(
@@ -45,6 +46,7 @@ class NotificationService {
     required String userId,
     required String organizationId,
   }) {
+    _requireOrganizationId(organizationId);
     return _notificationReads
         .where('userId', isEqualTo: userId)
         .where('organizationId', isEqualTo: organizationId)
@@ -62,6 +64,7 @@ class NotificationService {
     required String userId,
     required String organizationId,
   }) {
+    _requireOrganizationId(organizationId);
     late StreamController<int> controller;
     StreamSubscription<List<NotificationModel>>? notificationsSubscription;
     StreamSubscription<Set<String>>? readsSubscription;
@@ -275,7 +278,7 @@ class NotificationService {
 
   void _requireOrganizationId(String organizationId) {
     if (organizationId.trim().isEmpty) {
-      throw Exception('Organization id is required');
+      throw Exception('Selle toimingu jaoks puudub aktiivne organisatsioon');
     }
   }
 }

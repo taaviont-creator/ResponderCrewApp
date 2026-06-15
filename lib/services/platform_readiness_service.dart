@@ -22,6 +22,7 @@ class PlatformReadinessService {
   Stream<List<PlatformReadinessSummary>> streamOrganizationSummary({
     required String organizationId,
   }) {
+    _requireOrganizationId(organizationId);
     return _summaries.doc(organizationId).snapshots().map((snapshot) {
       if (!snapshot.exists) return const <PlatformReadinessSummary>[];
       return [PlatformReadinessSummary.fromFirestore(snapshot)];
@@ -44,6 +45,7 @@ class PlatformReadinessService {
     required String criticalIssues,
     required String lastUpdatedBy,
   }) async {
+    _requireOrganizationId(organizationId);
     if (!ReadinessStatus.values.contains(readinessStatus)) {
       throw Exception('Unsupported readiness status: $readinessStatus');
     }
@@ -54,10 +56,6 @@ class PlatformReadinessService {
 
     if (!ReadinessEquipmentStatus.values.contains(equipmentStatus)) {
       throw Exception('Unsupported equipment status: $equipmentStatus');
-    }
-
-    if (organizationId.trim().isEmpty) {
-      throw Exception('Organization id is required');
     }
 
     final doc = _summaries.doc(organizationId);
@@ -90,5 +88,11 @@ class PlatformReadinessService {
     };
 
     await doc.set(data, SetOptions(merge: true));
+  }
+
+  void _requireOrganizationId(String organizationId) {
+    if (organizationId.trim().isEmpty) {
+      throw Exception('Selle toimingu jaoks puudub aktiivne organisatsioon');
+    }
   }
 }
