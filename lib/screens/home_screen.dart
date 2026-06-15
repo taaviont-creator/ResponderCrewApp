@@ -6,6 +6,7 @@ import '../models/availability_model.dart';
 import '../services/availability_service.dart';
 import '../services/command_service.dart';
 import '../services/membership_service.dart';
+import '../services/notification_service.dart';
 import 'activities_screen.dart';
 import 'availability_screen.dart';
 import 'callouts_screen.dart';
@@ -28,6 +29,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final _availabilityService = AvailabilityService();
   final _commandService = CommandService();
   final _membershipService = MembershipService();
+  final _notificationService = NotificationService();
 
   Future<void> _signOut() async {
     await FirebaseAuth.instance.signOut();
@@ -639,19 +641,31 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ),
-                _buildModuleButton(
-                  icon: Icons.notifications,
-                  label: 'Teavitused',
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => NotificationsScreen(
-                        organizationId: commandId,
-                        currentUid: user.uid,
-                        canManageNotifications: membershipRole == 'admin',
-                      ),
-                    ),
+                StreamBuilder<int>(
+                  stream: _notificationService.streamUnreadNotificationCount(
+                    userId: user.uid,
+                    organizationId: commandId,
                   ),
+                  builder: (context, snapshot) {
+                    final unreadCount = snapshot.data ?? 0;
+                    return _buildModuleButton(
+                      icon: Icons.notifications,
+                      label: unreadCount > 0
+                          ? 'Teavitused ($unreadCount)'
+                          : 'Teavitused',
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => NotificationsScreen(
+                            organizationId: commandId,
+                            currentUid: user.uid,
+                            canManageNotifications:
+                                membershipRole == 'admin',
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),

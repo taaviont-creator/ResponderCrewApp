@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/notification_model.dart';
@@ -54,6 +56,65 @@ class NotificationService {
           .where((notificationId) => notificationId.isNotEmpty)
           .toSet();
     });
+  }
+
+  Stream<int> streamUnreadNotificationCount({
+    required String userId,
+    required String organizationId,
+  }) {
+    late StreamController<int> controller;
+    StreamSubscription<List<NotificationModel>>? notificationsSubscription;
+    StreamSubscription<Set<String>>? readsSubscription;
+    List<NotificationModel>? notifications;
+    Set<String>? readNotificationIds;
+
+    void emitCount() {
+      if (notifications == null ||
+          readNotificationIds == null ||
+          controller.isClosed) {
+        return;
+      }
+
+      controller.add(
+        notifications!
+            .where(
+              (notification) =>
+                  !readNotificationIds!.contains(notification.id),
+            )
+            .length,
+      );
+    }
+
+    controller = StreamController<int>(
+      onListen: () {
+        notificationsSubscription = streamOrganizationNotifications(
+          organizationId: organizationId,
+        ).listen(
+          (value) {
+            notifications = value;
+            emitCount();
+          },
+          onError: controller.addError,
+        );
+
+        readsSubscription = streamMyReadNotificationIds(
+          userId: userId,
+          organizationId: organizationId,
+        ).listen(
+          (value) {
+            readNotificationIds = value;
+            emitCount();
+          },
+          onError: controller.addError,
+        );
+      },
+      onCancel: () async {
+        await notificationsSubscription?.cancel();
+        await readsSubscription?.cancel();
+      },
+    );
+
+    return controller.stream;
   }
 
   Future<void> addNotification({
