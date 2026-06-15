@@ -1,11 +1,15 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/callout_model.dart';
 import '../models/notification_model.dart';
 import '../models/operation_log_model.dart';
+import 'membership_service.dart';
 
 class CalloutService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final MembershipService _membershipService = MembershipService();
 
   CollectionReference<Map<String, dynamic>> get _callouts =>
       _firestore.collection('callouts');
@@ -51,13 +55,113 @@ class CalloutService {
 
   Stream<List<CalloutResponseModel>> streamCalloutResponses({
     required String calloutId,
+    required String organizationId,
   }) {
     return _responses
         .where('calloutId', isEqualTo: calloutId)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map(CalloutResponseModel.fromFirestore).toList();
+      return snapshot.docs
+          .map(CalloutResponseModel.fromFirestore)
+          .where((response) {
+        final responseOrganizationId = response.organizationId.isNotEmpty
+            ? response.organizationId
+            : response.commandId;
+        return responseOrganizationId == organizationId;
+      }).toList();
     });
+  }
+
+  Stream<CalloutResponseSummary> streamCalloutResponseSummary({
+    required String calloutId,
+    required String organizationId,
+  }) {
+    late StreamController<CalloutResponseSummary> controller;
+    StreamSubscription<List<CalloutResponseModel>>? responseSubscription;
+    StreamSubscription<
+            List<QueryDocumentSnapshot<Map<String, dynamic>>>>?
+        membershipSubscription;
+    List<CalloutResponseModel>? responses;
+    List<QueryDocumentSnapshot<Map<String, dynamic>>>? memberships;
+
+    void emitSummary() {
+      if (responses == null || memberships == null || controller.isClosed) {
+        return;
+      }
+
+      final memberIds = memberships!
+          .map((membership) => (membership.data()['userId'] ?? '').toString())
+          .where((userId) => userId.isNotEmpty)
+          .toSet();
+      final responsesByUserId = <String, CalloutResponseModel>{};
+      for (final response in responses!) {
+        if (response.userId.isEmpty || !memberIds.contains(response.userId)) {
+          continue;
+        }
+        if (response.response != CalloutResponseValue.responding &&
+            response.response != CalloutResponseValue.delayed &&
+            response.response != CalloutResponseValue.unavailable) {
+          continue;
+        }
+        responsesByUserId[response.userId] = response;
+      }
+
+      var responding = 0;
+      var delayed = 0;
+      var unavailable = 0;
+      for (final response in responsesByUserId.values) {
+        switch (response.response) {
+          case CalloutResponseValue.responding:
+            responding++;
+            break;
+          case CalloutResponseValue.delayed:
+            delayed++;
+            break;
+          case CalloutResponseValue.unavailable:
+            unavailable++;
+            break;
+        }
+      }
+
+      controller.add(
+        CalloutResponseSummary(
+          responding: responding,
+          delayed: delayed,
+          unavailable: unavailable,
+          noResponse: memberIds.length - responsesByUserId.length,
+        ),
+      );
+    }
+
+    controller = StreamController<CalloutResponseSummary>(
+      onListen: () {
+        responseSubscription = streamCalloutResponses(
+          calloutId: calloutId,
+          organizationId: organizationId,
+        ).listen(
+          (value) {
+            responses = value;
+            emitSummary();
+          },
+          onError: controller.addError,
+        );
+        membershipSubscription = _membershipService
+            .streamActiveMembershipsForOrganization(organizationId)
+            .listen(
+          (value) {
+            memberships = value;
+            emitSummary();
+          },
+          onError: controller.addError,
+        );
+      },
+      onCancel: () async {
+        await responseSubscription?.cancel();
+        await membershipSubscription?.cancel();
+      },
+    );
+
+    return controller.stream;
   }
 
   Stream<CalloutResponseModel?> streamMyResponse({

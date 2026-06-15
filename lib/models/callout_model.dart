@@ -182,6 +182,22 @@ class CalloutResponseModel {
   }
 }
 
+class CalloutResponseSummary {
+  const CalloutResponseSummary({
+    required this.responding,
+    required this.delayed,
+    required this.unavailable,
+    required this.noResponse,
+  });
+
+  final int responding;
+  final int delayed;
+  final int unavailable;
+  final int noResponse;
+
+  int get totalResponded => responding + delayed + unavailable;
+}
+
 String _stringValue(Object? value, {String fallback = ''}) {
   return value is String && value.isNotEmpty ? value : fallback;
 }

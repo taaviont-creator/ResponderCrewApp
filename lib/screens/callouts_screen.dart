@@ -1,9 +1,7 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../models/callout_model.dart';
 import '../services/callout_service.dart';
-import '../services/membership_service.dart';
 
 class CalloutsScreen extends StatefulWidget {
   const CalloutsScreen({
@@ -25,7 +23,6 @@ class CalloutsScreen extends StatefulWidget {
 
 class _CalloutsScreenState extends State<CalloutsScreen> {
   final _calloutService = CalloutService();
-  final _membershipService = MembershipService();
 
   Future<void> _showAddCalloutDialog() async {
     final titleController = TextEditingController();
@@ -269,51 +266,28 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
   }
 
   Widget _buildAdminResponseCounts(CalloutModel callout) {
-    return StreamBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
-      stream: _membershipService.streamActiveMembershipsForOrganization(
-        widget.organizationId,
+    return StreamBuilder<CalloutResponseSummary>(
+      stream: _calloutService.streamCalloutResponseSummary(
+        calloutId: callout.id,
+        organizationId: widget.organizationId,
       ),
-      builder: (context, membershipSnapshot) {
-        final memberCount = (membershipSnapshot.data ??
-                const <QueryDocumentSnapshot<Map<String, dynamic>>>[])
-            .length;
+      builder: (context, snapshot) {
+        final summary = snapshot.data;
+        if (summary == null) return const SizedBox.shrink();
 
-        return StreamBuilder<List<CalloutResponseModel>>(
-          stream: _calloutService.streamCalloutResponses(calloutId: callout.id),
-          builder: (context, responseSnapshot) {
-            final responses =
-                responseSnapshot.data ?? const <CalloutResponseModel>[];
-            var responding = 0;
-            var delayed = 0;
-            var unavailable = 0;
-
-            for (final response in responses) {
-              if (response.response == CalloutResponseValue.responding) {
-                responding++;
-              } else if (response.response == CalloutResponseValue.delayed) {
-                delayed++;
-              } else if (response.response ==
-                  CalloutResponseValue.unavailable) {
-                unavailable++;
-              }
-            }
-
-            final noResponse = memberCount - responses.length;
-
-            return Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Wrap(
-                spacing: 12,
-                runSpacing: 8,
-                children: [
-                  Text('Tulen: $responding'),
-                  Text('Hilinen: $delayed'),
-                  Text('Ei saa tulla: $unavailable'),
-                  Text('Vastuseta: ${noResponse < 0 ? 0 : noResponse}'),
-                ],
-              ),
-            );
-          },
+        return Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Wrap(
+            spacing: 12,
+            runSpacing: 8,
+            children: [
+              Text('Tuleb: ${summary.responding}'),
+              Text('Hilineb: ${summary.delayed}'),
+              Text('Ei saa tulla: ${summary.unavailable}'),
+              Text('Vastamata: ${summary.noResponse}'),
+              Text('Kokku vastanud: ${summary.totalResponded}'),
+            ],
+          ),
         );
       },
     );

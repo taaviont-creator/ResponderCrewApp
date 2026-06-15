@@ -594,6 +594,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         organizationId: commandId,
                         currentUid: user.uid,
                         currentUserName: displayName,
+                        canViewCalloutResponseSummary:
+                            membershipRole == 'admin',
                       ),
                     ),
                   ),

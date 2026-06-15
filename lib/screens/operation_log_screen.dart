@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../models/callout_model.dart';
 import '../models/operation_log_model.dart';
+import '../services/callout_service.dart';
 import '../services/operation_log_service.dart';
 
 class OperationLogScreen extends StatefulWidget {
@@ -9,17 +11,20 @@ class OperationLogScreen extends StatefulWidget {
     required this.organizationId,
     required this.currentUid,
     required this.currentUserName,
+    required this.canViewCalloutResponseSummary,
   });
 
   final String organizationId;
   final String currentUid;
   final String currentUserName;
+  final bool canViewCalloutResponseSummary;
 
   @override
   State<OperationLogScreen> createState() => _OperationLogScreenState();
 }
 
 class _OperationLogScreenState extends State<OperationLogScreen> {
+  final _calloutService = CalloutService();
   final _operationLogService = OperationLogService();
 
   static const _quickActions = [
@@ -324,6 +329,9 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
                   },
                 ),
                 children: [
+                  if (widget.canViewCalloutResponseSummary &&
+                      log.calloutId != null)
+                    _buildCalloutResponseSummary(log.calloutId!),
                   Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
@@ -448,6 +456,47 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
       default:
         return 'Note';
     }
+  }
+
+  Widget _buildCalloutResponseSummary(String calloutId) {
+    return StreamBuilder<CalloutResponseSummary>(
+      stream: _calloutService.streamCalloutResponseSummary(
+        calloutId: calloutId,
+        organizationId: widget.organizationId,
+      ),
+      builder: (context, snapshot) {
+        final summary = snapshot.data;
+        if (summary == null) return const SizedBox.shrink();
+
+        return Align(
+          alignment: Alignment.centerLeft,
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Reageerijad',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 4,
+                  children: [
+                    Text('Tuleb: ${summary.responding}'),
+                    Text('Hilineb: ${summary.delayed}'),
+                    Text('Ei saa tulla: ${summary.unavailable}'),
+                    Text('Vastamata: ${summary.noResponse}'),
+                    Text('Kokku vastanud: ${summary.totalResponded}'),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   String _operationLogStatusLabel(String status) {
