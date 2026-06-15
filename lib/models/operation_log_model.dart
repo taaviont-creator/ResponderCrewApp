@@ -44,6 +44,16 @@ class OperationLogStatus {
   };
 }
 
+class OperationLogEventType {
+  static const statusChange = 'statusChange';
+  static const manualNote = 'manualNote';
+
+  static const values = {
+    statusChange,
+    manualNote,
+  };
+}
+
 class OperationLogModel {
   const OperationLogModel({
     required this.id,
@@ -128,6 +138,7 @@ class OperationLogEventModel {
     required this.organizationId,
     required this.commandId,
     required this.operationLogId,
+    required this.type,
     required this.status,
     required this.title,
     required this.description,
@@ -139,6 +150,7 @@ class OperationLogEventModel {
   final String organizationId;
   final String commandId;
   final String operationLogId;
+  final String type;
   final String status;
   final String title;
   final String description;
@@ -155,6 +167,10 @@ class OperationLogEventModel {
       organizationId: _stringValue(data['organizationId']),
       commandId: _stringValue(data['commandId']),
       operationLogId: _stringValue(data['operationLogId']),
+      type: _stringValue(
+        data['type'],
+        fallback: OperationLogEventType.statusChange,
+      ),
       status: _stringValue(
         data['status'],
         fallback: OperationLogStatus.created,

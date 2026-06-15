@@ -164,6 +164,7 @@ class CalloutService {
       'organizationId': organizationId,
       'commandId': organizationId,
       'operationLogId': operationLogDoc.id,
+      'type': OperationLogEventType.statusChange,
       'status': OperationLogStatus.created,
       'title': 'Logi loodud',
       'description': '',

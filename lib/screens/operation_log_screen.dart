@@ -41,6 +41,48 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
     }
   }
 
+  Future<void> _showAddManualEventDialog(OperationLogModel log) async {
+    final noteController = TextEditingController();
+    final shouldCreate = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Lisa märge'),
+        content: TextField(
+          controller: noteController,
+          decoration: const InputDecoration(labelText: 'Märge'),
+          maxLines: 3,
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Tühista'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Salvesta'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldCreate != true) return;
+
+    try {
+      await _operationLogService.addManualEvent(
+        operationLogId: log.id,
+        organizationId: widget.organizationId,
+        title: noteController.text,
+        createdBy: widget.currentUid,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Märke lisamine ebaõnnestus: $e')),
+      );
+    }
+  }
+
   Future<void> _showAddOperationLogDialog() async {
     final titleController = TextEditingController();
     final descriptionController = TextEditingController();
@@ -196,6 +238,14 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
                   },
                 ),
                 children: [
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: () => _showAddManualEventDialog(log),
+                      icon: const Icon(Icons.note_add_outlined),
+                      label: const Text('Lisa märge'),
+                    ),
+                  ),
                   StreamBuilder<List<OperationLogEventModel>>(
                     stream: _operationLogService.streamLogEvents(
                       operationLogId: log.id,
@@ -227,7 +277,11 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
                           return ListTile(
                             dense: true,
                             contentPadding: EdgeInsets.zero,
-                            leading: const Icon(Icons.history),
+                            leading: Icon(
+                              event.type == OperationLogEventType.manualNote
+                                  ? Icons.notes
+                                  : Icons.history,
+                            ),
                             title: Text(event.title),
                             subtitle: event.createdAt == null
                                 ? null

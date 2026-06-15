@@ -348,6 +348,7 @@ service cloud.firestore {
           'organizationId',
           'commandId',
           'operationLogId',
+          'type',
           'status',
           'title',
           'description',
@@ -357,6 +358,10 @@ service cloud.firestore {
         request.resource.data.title is string &&
         request.resource.data.title.size() > 0 &&
         request.resource.data.description is string &&
+        (
+          request.resource.data.type == 'statusChange' ||
+          request.resource.data.type == 'manualNote'
+        ) &&
         request.resource.data.createdAt == request.time &&
         hasValidOrganizationReference(request.resource.data) &&
         isValidOperationLogStatus(request.resource.data.status) &&
@@ -364,7 +369,17 @@ service cloud.firestore {
         organizationIdFromData(getAfter(logPath).data) ==
           organizationIdFromData(request.resource.data) &&
         getAfter(logPath).data.status == request.resource.data.status &&
-        getAfter(logPath).data.updatedAt == request.time &&
+        (
+          (
+            request.resource.data.type == 'statusChange' &&
+            getAfter(logPath).data.updatedAt == request.time
+          ) ||
+          (
+            request.resource.data.type == 'manualNote' &&
+            exists(logPath) &&
+            getAfter(logPath).data.status == get(logPath).data.status
+          )
+        ) &&
         isActiveMember(organizationIdFromData(request.resource.data));
     }
 

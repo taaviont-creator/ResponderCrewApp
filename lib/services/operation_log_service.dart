@@ -108,6 +108,7 @@ class OperationLogService {
       'organizationId': organizationId,
       'commandId': organizationId,
       'operationLogId': doc.id,
+      'type': OperationLogEventType.statusChange,
       'status': OperationLogStatus.created,
       'title': _operationLogStatusLabel(OperationLogStatus.created),
       'description': '',
@@ -157,10 +158,55 @@ class OperationLogService {
         'organizationId': organizationId,
         'commandId': organizationId,
         'operationLogId': operationLogId,
+        'type': OperationLogEventType.statusChange,
         'status': status,
         'title': _operationLogStatusLabel(status),
         'description': '',
         'createdBy': updatedBy,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    });
+  }
+
+  Future<void> addManualEvent({
+    required String operationLogId,
+    required String organizationId,
+    required String title,
+    required String createdBy,
+  }) async {
+    final trimmedTitle = title.trim();
+    if (trimmedTitle.isEmpty) {
+      throw Exception('Operation log event title is required');
+    }
+
+    final doc = _operationLogs.doc(operationLogId);
+    final eventDoc = doc.collection('events').doc();
+
+    await _firestore.runTransaction((transaction) async {
+      final snapshot = await transaction.get(doc);
+      final data = snapshot.data();
+      if (data == null) {
+        throw Exception('Operation log entry not found');
+      }
+
+      final logOrganizationId =
+          (data['organizationId'] ?? data['commandId'] ?? '').toString();
+      if (logOrganizationId != organizationId) {
+        throw Exception('Operation log belongs to another organization');
+      }
+
+      final currentStatus =
+          (data['status'] ?? OperationLogStatus.created).toString();
+      transaction.set(eventDoc, {
+        'id': eventDoc.id,
+        'organizationId': organizationId,
+        'commandId': organizationId,
+        'operationLogId': operationLogId,
+        'type': OperationLogEventType.manualNote,
+        'status': currentStatus,
+        'title': trimmedTitle,
+        'description': '',
+        'createdBy': createdBy,
         'createdAt': FieldValue.serverTimestamp(),
       });
     });
