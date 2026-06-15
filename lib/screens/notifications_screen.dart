@@ -263,6 +263,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           organizationId: widget.organizationId,
           currentUid: widget.currentUid,
           currentUserName: widget.currentUserName,
+          canViewOrganizationReadiness: widget.canManageNotifications,
         );
         break;
       case NotificationType.certificate:

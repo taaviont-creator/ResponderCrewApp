@@ -220,6 +220,17 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!widget.isPlatformOwner && !widget.canManageOwnSummary) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Platvormi valmidus'),
+        ),
+        body: const Center(
+          child: Text('See vaade on ainult administraatorile'),
+        ),
+      );
+    }
+
     final activeOrganizationId = widget.activeOrganizationId;
     final summariesStream = widget.isPlatformOwner
         ? _platformReadinessService.streamAllSummaries()

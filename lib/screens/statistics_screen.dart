@@ -53,7 +53,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     if (!widget.canViewStatistics) {
       return const Scaffold(
         body: Center(
-          child: Text('Sul puudub õigus seda vaadet kasutada'),
+          child: Text('Sul puudub õigus seda toimingut teha'),
         ),
       );
     }

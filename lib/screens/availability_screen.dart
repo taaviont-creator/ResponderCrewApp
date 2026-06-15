@@ -13,11 +13,13 @@ class AvailabilityScreen extends StatefulWidget {
     required this.organizationId,
     required this.currentUid,
     required this.currentUserName,
+    required this.canViewOrganizationReadiness,
   });
 
   final String organizationId;
   final String currentUid;
   final String currentUserName;
+  final bool canViewOrganizationReadiness;
 
   @override
   State<AvailabilityScreen> createState() => _AvailabilityScreenState();
@@ -330,8 +332,10 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
           _buildAvailabilityControl(),
           const SizedBox(height: 16),
           _buildAvailabilityReminderSettings(),
-          const SizedBox(height: 16),
-          _buildAvailabilityOverview(),
+          if (widget.canViewOrganizationReadiness) ...[
+            const SizedBox(height: 16),
+            _buildAvailabilityOverview(),
+          ],
         ],
       ),
     );

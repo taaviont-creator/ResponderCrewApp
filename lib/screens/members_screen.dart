@@ -53,6 +53,17 @@ class _MembersScreenState extends State<MembersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!widget.canManageRoles) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Liikmed'),
+        ),
+        body: const Center(
+          child: Text('See vaade on ainult administraatorile'),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Liikmed'),

@@ -530,7 +530,9 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
           if (isPlatformOwner ||
-              (commandId != null && commandId.isNotEmpty)) ...[
+              (isOrganizationAdmin &&
+                  commandId != null &&
+                  commandId.isNotEmpty)) ...[
             const SizedBox(height: 16),
             OutlinedButton.icon(
               icon: const Icon(Icons.health_and_safety),
@@ -558,8 +560,10 @@ class _HomeScreenState extends State<HomeScreen> {
               organizationId: commandId,
               memberName: displayName,
             ),
-            const SizedBox(height: 16),
-            _buildReadinessSummary(organizationId: commandId),
+            if (isOrganizationAdmin) ...[
+              const SizedBox(height: 16),
+              _buildReadinessSummary(organizationId: commandId),
+            ],
             const SizedBox(height: 16),
             Text(
               'Moodulid',
@@ -570,20 +574,21 @@ class _HomeScreenState extends State<HomeScreen> {
               spacing: 8,
               runSpacing: 8,
               children: [
-                _buildModuleButton(
-                  icon: Icons.group,
-                  label: 'Liikmed',
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => MembersScreen(
-                        organizationId: commandId,
-                        currentUid: user.uid,
-                        canManageRoles: membershipRole == 'admin',
+                if (isOrganizationAdmin)
+                  _buildModuleButton(
+                    icon: Icons.group,
+                    label: 'Liikmed',
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => MembersScreen(
+                          organizationId: commandId,
+                          currentUid: user.uid,
+                          canManageRoles: true,
+                        ),
                       ),
                     ),
                   ),
-                ),
                 _buildModuleButton(
                   icon: Icons.campaign,
                   label: 'Valjakutsed',
@@ -609,13 +614,14 @@ class _HomeScreenState extends State<HomeScreen> {
                         organizationId: commandId,
                         currentUid: user.uid,
                         currentUserName: displayName,
+                        canViewOrganizationReadiness: isOrganizationAdmin,
                       ),
                     ),
                   ),
                 ),
                 _buildModuleButton(
                   icon: Icons.inventory_2,
-                  label: 'Varustus',
+                  label: isOrganizationAdmin ? 'Varustus' : 'Minu varustus',
                   onPressed: () => Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -659,7 +665,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 _buildModuleButton(
                   icon: Icons.card_membership,
-                  label: 'Kvalifikatsioonid',
+                  label: isOrganizationAdmin
+                      ? 'Kvalifikatsioonid'
+                      : 'Minu kvalifikatsioonid',
                   onPressed: () => Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -671,34 +679,25 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ),
-                _buildModuleButton(
-                  icon: Icons.insights,
-                  label: 'Statistika',
-                  onPressed: () {
-                    if (!canViewStatistics) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Sul puudub õigus seda vaadet kasutada',
+                if (canViewStatistics)
+                  _buildModuleButton(
+                    icon: Icons.insights,
+                    label: 'Statistika',
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => StatisticsScreen(
+                            organizationId: commandId,
+                            currentUid: user.uid,
+                            canViewStatistics: true,
+                            canViewOrganizationCertificates:
+                                isOrganizationAdmin,
                           ),
                         ),
                       );
-                      return;
-                    }
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => StatisticsScreen(
-                          organizationId: commandId,
-                          currentUid: user.uid,
-                          canViewStatistics: canViewStatistics,
-                          canViewOrganizationCertificates:
-                              isOrganizationAdmin,
-                        ),
-                      ),
-                    );
-                  },
-                ),
+                    },
+                  ),
                 StreamBuilder<int>(
                   stream: _notificationService.streamUnreadNotificationCount(
                     userId: user.uid,
