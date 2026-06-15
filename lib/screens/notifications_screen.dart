@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../models/notification_model.dart';
 import '../services/notification_service.dart';
+import 'activities_screen.dart';
+import 'availability_screen.dart';
+import 'callouts_screen.dart';
+import 'equipment_screen.dart';
 
 enum _NotificationFilter {
   all,
@@ -14,11 +18,13 @@ class NotificationsScreen extends StatefulWidget {
     super.key,
     required this.organizationId,
     required this.currentUid,
+    required this.currentUserName,
     required this.canManageNotifications,
   });
 
   final String organizationId;
   final String currentUid;
+  final String currentUserName;
   final bool canManageNotifications;
 
   @override
@@ -179,6 +185,104 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
+  Future<void> _openNotification({
+    required NotificationModel notification,
+    required bool isRead,
+  }) async {
+    final notificationOrganizationId = notification.organizationId.isNotEmpty
+        ? notification.organizationId
+        : notification.commandId;
+    if (notificationOrganizationId != widget.organizationId) {
+      _showNoNotificationViewMessage();
+      return;
+    }
+
+    if (!isRead) {
+      try {
+        await _notificationService.markAsRead(
+          notificationId: notification.id,
+          userId: widget.currentUid,
+          organizationId: widget.organizationId,
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Loetuks märkimine ebaõnnestus: $e')),
+        );
+        return;
+      }
+    }
+
+    if (!mounted) return;
+
+    const supportedRelatedTypes = {
+      'callout',
+      'equipment',
+      'activity',
+      'availability',
+      'organizationReadiness',
+    };
+    final targetType =
+        supportedRelatedTypes.contains(notification.relatedType)
+            ? notification.relatedType!
+            : notification.type;
+    Widget? targetScreen;
+
+    switch (targetType) {
+      case 'callout':
+        targetScreen = CalloutsScreen(
+          organizationId: widget.organizationId,
+          currentUid: widget.currentUid,
+          currentUserName: widget.currentUserName,
+          canManageCallouts: widget.canManageNotifications,
+        );
+        break;
+      case 'equipment':
+        targetScreen = EquipmentScreen(
+          organizationId: widget.organizationId,
+          currentUid: widget.currentUid,
+          canManageEquipment: widget.canManageNotifications,
+        );
+        break;
+      case 'activity':
+        targetScreen = ActivitiesScreen(
+          organizationId: widget.organizationId,
+          currentUid: widget.currentUid,
+          canManageActivities: widget.canManageNotifications,
+        );
+        break;
+      case 'availability':
+      case 'organizationReadiness':
+      case NotificationType.minimumCrew:
+      case NotificationType.readiness:
+        targetScreen = AvailabilityScreen(
+          organizationId: widget.organizationId,
+          currentUid: widget.currentUid,
+          currentUserName: widget.currentUserName,
+        );
+        break;
+    }
+
+    if (targetScreen == null) {
+      _showNoNotificationViewMessage();
+      return;
+    }
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => targetScreen!),
+    );
+  }
+
+  void _showNoNotificationViewMessage() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Selle teavituse jaoks puudub eraldi vaade.'),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -335,6 +439,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   ];
 
                   return ListTile(
+                    onTap: () => _openNotification(
+                      notification: notification,
+                      isRead: isRead,
+                    ),
                     tileColor: isRead
                         ? null
                         : Theme.of(context)

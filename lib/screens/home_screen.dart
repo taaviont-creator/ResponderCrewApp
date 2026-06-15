@@ -659,6 +659,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           builder: (_) => NotificationsScreen(
                             organizationId: commandId,
                             currentUid: user.uid,
+                            currentUserName: displayName,
                             canManageNotifications:
                                 membershipRole == 'admin',
                           ),
