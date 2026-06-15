@@ -5,6 +5,7 @@ import '../services/notification_service.dart';
 import 'activities_screen.dart';
 import 'availability_screen.dart';
 import 'callouts_screen.dart';
+import 'certificates_screen.dart';
 import 'equipment_screen.dart';
 
 enum _NotificationFilter {
@@ -221,6 +222,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       'activity',
       'availability',
       'organizationReadiness',
+      'certificate',
     };
     final targetType =
         supportedRelatedTypes.contains(notification.relatedType)
@@ -259,6 +261,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           organizationId: widget.organizationId,
           currentUid: widget.currentUid,
           currentUserName: widget.currentUserName,
+        );
+        break;
+      case NotificationType.certificate:
+        targetScreen = CertificatesScreen(
+          organizationId: widget.organizationId,
+          currentUid: widget.currentUid,
+          canManageCertificates: widget.canManageNotifications,
         );
         break;
     }
@@ -506,6 +515,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         return 'Operatsioon';
       case NotificationType.callout:
         return 'Valjakutse';
+      case NotificationType.certificate:
+        return 'Sertifikaat';
       case NotificationType.other:
         return 'Muu';
       default:

@@ -126,6 +126,8 @@ class NotificationService {
     required String createdBy,
     String? relatedType,
     String? relatedId,
+    String? notificationId,
+    bool createOnlyIfMissing = false,
   }) async {
     if (title.trim().isEmpty) {
       throw Exception('Notification title is required');
@@ -143,9 +145,19 @@ class NotificationService {
       throw Exception('Unsupported notification priority: $priority');
     }
 
-    final doc = _notifications.doc();
-
-    await doc.set({
+    final requestedNotificationId = notificationId?.trim();
+    if (createOnlyIfMissing &&
+        (requestedNotificationId == null ||
+            requestedNotificationId.isEmpty)) {
+      throw Exception(
+        'Notification ID is required when duplicate prevention is enabled',
+      );
+    }
+    final doc = requestedNotificationId == null ||
+            requestedNotificationId.isEmpty
+        ? _notifications.doc()
+        : _notifications.doc(requestedNotificationId);
+    final data = {
       'id': doc.id,
       'organizationId': organizationId,
       // TODO: Remove commandId after all notification reads use organizationId.
@@ -161,6 +173,17 @@ class NotificationService {
       'createdBy': createdBy,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
+    };
+
+    if (!createOnlyIfMissing) {
+      await doc.set(data);
+      return;
+    }
+
+    await _firestore.runTransaction((transaction) async {
+      final existing = await transaction.get(doc);
+      if (existing.exists) return;
+      transaction.set(doc, data);
     });
   }
 

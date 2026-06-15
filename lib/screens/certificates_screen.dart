@@ -25,6 +25,33 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
   final _certificateService = CertificateService();
   final _membershipService = MembershipService();
 
+  @override
+  void initState() {
+    super.initState();
+    if (widget.canManageCertificates) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _checkExpiryNotifications();
+      });
+    }
+  }
+
+  Future<void> _checkExpiryNotifications() async {
+    try {
+      await _certificateService.checkExpiryNotifications(
+        organizationId: widget.organizationId,
+        createdBy: widget.currentUid,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Sertifikaatide aegumise kontroll ebaõnnestus: $e'),
+        ),
+      );
+    }
+  }
+
   Future<void> _showAddCertificateDialog() async {
     final members = await _loadMemberOptions();
     if (!mounted) return;
@@ -177,6 +204,7 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
         note: noteController.text,
         createdBy: widget.currentUid,
       );
+      await _checkExpiryNotifications();
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -272,9 +300,10 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
             separatorBuilder: (_, _) => const Divider(height: 1),
             itemBuilder: (context, index) {
               final certificate = certificates[index];
+              final displayStatus = _certificateDisplayStatus(certificate);
               final subtitleParts = [
                 _certificateTypeLabel(certificate.type),
-                _certificateStatusLabel(certificate.status),
+                _certificateStatusLabel(displayStatus),
                 if (certificate.issuer.isNotEmpty) certificate.issuer,
                 if (certificate.expiresAt.isNotEmpty)
                   'Kehtib kuni ${certificate.expiresAt}',
@@ -318,14 +347,32 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
   String _certificateStatusLabel(String status) {
     switch (status) {
       case CertificateStatus.expiringSoon:
-        return 'Expiring soon';
+        return 'Aegub varsti';
       case CertificateStatus.expired:
-        return 'Expired';
+        return 'Aegunud';
       case CertificateStatus.missing:
-        return 'Missing';
+        return 'Puudub';
       default:
-        return 'Valid';
+        return 'Kehtiv';
     }
+  }
+
+  String _certificateDisplayStatus(CertificateModel certificate) {
+    final parsedExpiry = DateTime.tryParse(certificate.expiresAt.trim());
+    if (parsedExpiry == null) return certificate.status;
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final expiryDate = DateTime(
+      parsedExpiry.year,
+      parsedExpiry.month,
+      parsedExpiry.day,
+    );
+    if (expiryDate.isBefore(today)) return CertificateStatus.expired;
+    if (!expiryDate.isAfter(today.add(const Duration(days: 30)))) {
+      return CertificateStatus.expiringSoon;
+    }
+    return certificate.status;
   }
 }
 

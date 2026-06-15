@@ -7,6 +7,7 @@ class NotificationType {
   static const minimumCrew = 'minimumCrew';
   static const activity = 'activity';
   static const callout = 'callout';
+  static const certificate = 'certificate';
 
   static const values = {
     system,
@@ -15,6 +16,7 @@ class NotificationType {
     minimumCrew,
     activity,
     callout,
+    certificate,
   };
 
   // Legacy values remain readable for existing notification documents.

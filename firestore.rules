@@ -476,7 +476,8 @@ service cloud.firestore {
         type == 'availability' ||
         type == 'minimumCrew' ||
         type == 'activity' ||
-        type == 'callout';
+        type == 'callout' ||
+        type == 'certificate';
     }
 
     function isValidNotificationPriority(priority) {
