@@ -10,14 +10,14 @@ class PlatformReadinessScreen extends StatefulWidget {
     required this.activeOrganizationId,
     required this.activeOrganizationName,
     required this.canManageOwnSummary,
-    required this.isPlatformOwner,
+    required this.isPlatformAdmin,
   });
 
   final String currentUid;
   final String? activeOrganizationId;
   final String? activeOrganizationName;
   final bool canManageOwnSummary;
-  final bool isPlatformOwner;
+  final bool isPlatformAdmin;
 
   @override
   State<PlatformReadinessScreen> createState() =>
@@ -220,7 +220,7 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (!widget.isPlatformOwner && !widget.canManageOwnSummary) {
+    if (!widget.isPlatformAdmin && !widget.canManageOwnSummary) {
       return Scaffold(
         appBar: AppBar(
           title: const Text('Platvormi valmidus'),
@@ -232,7 +232,7 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
     }
 
     final activeOrganizationId = widget.activeOrganizationId;
-    final summariesStream = widget.isPlatformOwner
+    final summariesStream = widget.isPlatformAdmin
         ? _platformReadinessService.streamAllSummaries()
         : activeOrganizationId == null || activeOrganizationId.isEmpty
             ? Stream<List<PlatformReadinessSummary>>.value(

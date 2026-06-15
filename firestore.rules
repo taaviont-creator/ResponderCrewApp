@@ -44,8 +44,19 @@ service cloud.firestore {
 
     function isValidMembershipRole(role) {
       return role == 'member' ||
-        role == 'boardMember' ||
+        role == 'orgAdmin';
+    }
+
+    function isLegacyMembershipRole(role) {
+      return role == 'boardMember' ||
         role == 'admin';
+    }
+
+    function isValidSeaRescueLevel(data) {
+      return !data.keys().hasAny(['seaRescueLevel']) ||
+        data.seaRescueLevel == 'none' ||
+        data.seaRescueLevel == 'level1' ||
+        data.seaRescueLevel == 'level2';
     }
 
     function commandExistsAfter(commandId) {
@@ -83,9 +94,14 @@ service cloud.firestore {
         );
     }
 
-    function isActiveAdmin(commandId) {
+    function isActiveOrgAdmin(commandId) {
       return isActiveMember(commandId) &&
-        get(/databases/$(database)/documents/memberships/$(activeMembershipId(commandId))).data.role == 'admin';
+        (
+          get(/databases/$(database)/documents/memberships/$(activeMembershipId(commandId))).data.role ==
+            'orgAdmin' ||
+          get(/databases/$(database)/documents/memberships/$(activeMembershipId(commandId))).data.role ==
+            'admin'
+        );
     }
 
     function commandAllowsMemberActivityCreate(commandId) {
@@ -111,7 +127,7 @@ service cloud.firestore {
 
     function isCommandMemberPermissionUpdate(commandId) {
       return signedIn() &&
-        isActiveAdmin(commandId) &&
+        isActiveOrgAdmin(commandId) &&
         request.resource.data.allowMembersToCreateActivities is bool &&
         request.resource.data.allowMembersToViewStatistics is bool &&
         request.resource.data.updatedBy == request.auth.uid &&
@@ -128,12 +144,13 @@ service cloud.firestore {
       return signedIn() &&
         request.resource.data.userId == request.auth.uid &&
         hasValidOrganizationReference(request.resource.data) &&
+        isValidSeaRescueLevel(request.resource.data) &&
         isActiveMembershipData(request.resource.data);
     }
 
-    function isOwnAdminMembershipForCreatedCommand() {
+    function isOwnOrgAdminMembershipForCreatedCommand() {
       return isOwnMembershipCreate() &&
-        request.resource.data.role == 'admin' &&
+        request.resource.data.role == 'orgAdmin' &&
         isCommandCreator(organizationIdFromData(request.resource.data));
     }
 
@@ -148,16 +165,50 @@ service cloud.firestore {
         hasValidOrganizationReference(request.resource.data) &&
         organizationIdFromData(request.resource.data) ==
           organizationIdFromData(resource.data) &&
-        request.resource.data.role == resource.data.role;
+        request.resource.data.role == resource.data.role &&
+        (
+          request.resource.data.keys().hasAny(['seaRescueLevel']) ==
+            resource.data.keys().hasAny(['seaRescueLevel'])
+        ) &&
+        (
+          !resource.data.keys().hasAny(['seaRescueLevel']) ||
+          request.resource.data.seaRescueLevel == resource.data.seaRescueLevel
+        );
     }
 
-    function isAdminMembershipRoleUpdate() {
+    function isOwnMembershipStatusUpdate() {
+      return resource.data.userId == request.auth.uid &&
+        keepsMembershipIdentityAndRole() &&
+        request.resource.data.status == 'removed' &&
+        request.resource.data.isActive == false &&
+        request.resource.data.updatedAt == request.time &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status',
+          'isActive',
+          'updatedAt'
+        ]);
+    }
+
+    function isOrgAdminMembershipUpdate() {
       return request.resource.data.userId == resource.data.userId &&
         hasValidOrganizationReference(request.resource.data) &&
         organizationIdFromData(request.resource.data) ==
           organizationIdFromData(resource.data) &&
-        isValidMembershipRole(request.resource.data.role) &&
-        isActiveAdmin(organizationIdFromData(resource.data));
+        (
+          isValidMembershipRole(request.resource.data.role) ||
+          (
+            request.resource.data.role == resource.data.role &&
+            isLegacyMembershipRole(resource.data.role)
+          )
+        ) &&
+        isValidSeaRescueLevel(request.resource.data) &&
+        request.resource.data.updatedAt == request.time &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'role',
+          'seaRescueLevel',
+          'updatedAt'
+        ]) &&
+        isActiveOrgAdmin(organizationIdFromData(resource.data));
     }
 
     function isValidAvailabilityStatus(status) {
@@ -315,7 +366,7 @@ service cloud.firestore {
           ) ||
           (
             equipmentScope(request.resource.data) == 'organization' &&
-            isActiveAdmin(organizationIdFromData(request.resource.data))
+            isActiveOrgAdmin(organizationIdFromData(request.resource.data))
           )
         );
     }
@@ -340,7 +391,7 @@ service cloud.firestore {
           ) ||
           (
             equipmentScope(resource.data) == 'organization' &&
-            isActiveAdmin(organizationIdFromData(resource.data))
+            isActiveOrgAdmin(organizationIdFromData(resource.data))
           )
         );
     }
@@ -582,7 +633,7 @@ service cloud.firestore {
         request.resource.data.createdBy == request.auth.uid &&
         isValidActivityData(request.resource.data) &&
         (
-          isActiveAdmin(organizationId) ||
+          isActiveOrgAdmin(organizationId) ||
           (
             isActiveMember(organizationId) &&
             commandAllowsMemberActivityCreate(organizationId)
@@ -598,7 +649,7 @@ service cloud.firestore {
         organizationIdFromData(request.resource.data) ==
           organizationIdFromData(resource.data) &&
         isValidActivityData(request.resource.data) &&
-        isActiveAdmin(organizationIdFromData(resource.data));
+        isActiveOrgAdmin(organizationIdFromData(resource.data));
     }
 
     function isValidParticipationStatus(status) {
@@ -696,7 +747,7 @@ service cloud.firestore {
     function canReadCertificate(data) {
       return signedIn() &&
         (
-          isActiveAdmin(organizationIdFromData(data)) ||
+          isActiveOrgAdmin(organizationIdFromData(data)) ||
           (
             data.userId == request.auth.uid &&
             isActiveMember(organizationIdFromData(data))
@@ -709,7 +760,7 @@ service cloud.firestore {
         request.resource.data.id == certificateId &&
         request.resource.data.createdBy == request.auth.uid &&
         isValidCertificateData(request.resource.data) &&
-        isActiveAdmin(organizationIdFromData(request.resource.data)) &&
+        isActiveOrgAdmin(organizationIdFromData(request.resource.data)) &&
         isActiveMemberOf(
           request.resource.data.userId,
           organizationIdFromData(request.resource.data)
@@ -725,7 +776,7 @@ service cloud.firestore {
         organizationIdFromData(request.resource.data) ==
           organizationIdFromData(resource.data) &&
         isValidCertificateData(request.resource.data) &&
-        isActiveAdmin(organizationIdFromData(resource.data)) &&
+        isActiveOrgAdmin(organizationIdFromData(resource.data)) &&
         isActiveMemberOf(
           resource.data.userId,
           organizationIdFromData(resource.data)
@@ -780,7 +831,7 @@ service cloud.firestore {
           isOwnAvailabilityNotificationCreate() ||
           isOwnMinimumCrewNotificationCreate() ||
           isOwnActivityNotificationCreate() ||
-          isActiveAdmin(organizationIdFromData(request.resource.data))
+          isActiveOrgAdmin(organizationIdFromData(request.resource.data))
         );
     }
 
@@ -949,7 +1000,7 @@ service cloud.firestore {
         request.resource.data.createdBy == request.auth.uid &&
         request.resource.data.status == 'active' &&
         isValidCalloutData(request.resource.data) &&
-        isActiveAdmin(organizationIdFromData(request.resource.data));
+        isActiveOrgAdmin(organizationIdFromData(request.resource.data));
     }
 
     function isCalloutStatusUpdate(calloutId) {
@@ -975,7 +1026,7 @@ service cloud.firestore {
           'closedAt'
         ]) &&
         isValidCalloutData(request.resource.data) &&
-        isActiveAdmin(organizationIdFromData(resource.data));
+        isActiveOrgAdmin(organizationIdFromData(resource.data));
     }
 
     function isValidCalloutResponseValue(response) {
@@ -1056,11 +1107,15 @@ service cloud.firestore {
         isActiveMember(organizationIdFromData(request.resource.data));
     }
 
-    function isPlatformOwner() {
+    function isPlatformAdmin() {
       return signedIn() &&
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.systemRole ==
-          'platformOwner';
+        (
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.systemRole ==
+            'platformAdmin' ||
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.systemRole ==
+            'platformOwner'
+        );
     }
 
     function isSafeUserCreate(userId) {
@@ -1136,7 +1191,7 @@ service cloud.firestore {
         request.resource.data.commandId == summaryId &&
         request.resource.data.lastUpdatedBy == request.auth.uid &&
         isValidReadinessSummaryData(request.resource.data) &&
-        isActiveAdmin(summaryId);
+        isActiveOrgAdmin(summaryId);
     }
 
     function isOwnAvailabilityReadinessSummaryUpdate(summaryId) {
@@ -1221,13 +1276,13 @@ service cloud.firestore {
           isActiveMember(organizationIdFromData(resource.data))
         );
 
-      allow create: if isOwnAdminMembershipForCreatedCommand() ||
+      allow create: if isOwnOrgAdminMembershipForCreatedCommand() ||
         isOwnMemberMembership();
 
       allow update: if signedIn() &&
         (
-          isAdminMembershipRoleUpdate() ||
-          (resource.data.userId == request.auth.uid && keepsMembershipIdentityAndRole())
+          isOrgAdminMembershipUpdate() ||
+          isOwnMembershipStatusUpdate()
         );
     }
 
@@ -1309,13 +1364,13 @@ service cloud.firestore {
         isActiveMember(organizationIdFromData(resource.data)) &&
         (
           resource.data.userId == request.auth.uid ||
-          isActiveAdmin(organizationIdFromData(resource.data))
+          isActiveOrgAdmin(organizationIdFromData(resource.data))
         );
       allow create, update: if isOwnCalloutResponseWrite(responseId);
     }
 
     match /organizationReadinessSummaries/{summaryId} {
-      allow read: if isPlatformOwner() ||
+      allow read: if isPlatformAdmin() ||
         (
           signedIn() &&
           (

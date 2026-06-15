@@ -2,6 +2,8 @@ import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../models/membership_model.dart';
+
 class CommandService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -65,7 +67,8 @@ class CommandService {
       'userId': user.uid,
       'organizationId': commandRef.id,
       'commandId': commandRef.id,
-      'role': 'admin',
+      'role': MembershipRole.orgAdmin,
+      'seaRescueLevel': SeaRescueLevel.none,
       'status': 'active',
       'isActive': true,
       'joinedAt': FieldValue.serverTimestamp(),
@@ -112,7 +115,8 @@ class CommandService {
       'userId': user.uid,
       'organizationId': commandId,
       'commandId': commandId,
-      'role': 'member',
+      'role': MembershipRole.member,
+      'seaRescueLevel': SeaRescueLevel.none,
       'status': 'active',
       'isActive': true,
       'joinedAt': FieldValue.serverTimestamp(),
@@ -154,7 +158,7 @@ class CommandService {
         (!membership.containsKey('isActive') ||
             membership['isActive'] == true);
     if (membership == null ||
-        membership['role'] != 'admin' ||
+        !MembershipRole.isOrgAdmin(membership['role']) ||
         !membershipIsActive) {
       throw Exception('Sul puudub õigus neid seadeid muuta');
     }
@@ -198,14 +202,14 @@ class CommandService {
       throw Exception('Membership belongs to another organization');
     }
     final isActive = membershipData['isActive'] == true;
-    final myRole = (membershipData['role'] ?? 'member') as String;
+    final myRole = MembershipRole.normalize(membershipData['role']);
 
     if (!isActive) {
       throw Exception('Sa ei ole selles organisatsioonis aktiivne liige');
     }
 
-    // Kui kasutaja on admin, kontrollime et ta ei oleks viimane admin
-    if (myRole == 'admin') {
+    // Organisatsioonist peab lahkumise järel alles jääma vähemalt üks orgAdmin.
+    if (myRole == MembershipRole.orgAdmin) {
       final activeMembershipsQuery = await _db
           .collection('memberships')
           .where('commandId', isEqualTo: commandId)
@@ -214,13 +218,14 @@ class CommandService {
 
       final otherActiveAdmins = activeMembershipsQuery.docs.where((doc) {
         final data = doc.data();
-        return doc.id != membershipRef.id && data['role'] == 'admin';
+        return doc.id != membershipRef.id &&
+            MembershipRole.isOrgAdmin(data['role']);
       }).length;
 
       if (otherActiveAdmins == 0) {
         throw Exception(
-          'Sa oled selle organisatsiooni viimane admin. '
-          'Määra enne kellelegi teisele admini roll.',
+          'Sa oled selle organisatsiooni viimane administraator. '
+          'Määra enne kellelegi teisele orgAdmin roll.',
         );
       }
     }

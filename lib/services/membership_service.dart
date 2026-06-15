@@ -1,13 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../models/membership_model.dart';
+
 class MembershipService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  static const allowedRoles = {
-    'member',
-    'boardMember',
-    'admin',
-  };
+  static const allowedRoles = MembershipRole.values;
 
   CollectionReference<Map<String, dynamic>> get _memberships =>
       _firestore.collection('memberships');
@@ -72,7 +70,31 @@ class MembershipService {
   }
 
   bool isActiveMembership(Map<String, dynamic> membership) {
-    return membership['status'] == 'active' || membership['isActive'] == true;
+    final hasActiveMarker =
+        membership['status'] == 'active' || membership['isActive'] == true;
+    final statusIsActive = !membership.containsKey('status') ||
+        membership['status'] == 'active';
+    final flagIsActive = !membership.containsKey('isActive') ||
+        membership['isActive'] == true;
+    return hasActiveMarker && statusIsActive && flagIsActive;
+  }
+
+  bool isOrgAdmin(Map<String, dynamic> membership) {
+    return isActiveMembership(membership) &&
+        MembershipRole.isOrgAdmin(membership['role']);
+  }
+
+  bool isMember(Map<String, dynamic> membership) {
+    return isActiveMembership(membership) &&
+        MembershipRole.isMember(membership['role']);
+  }
+
+  bool isSeaRescueLevel1(Map<String, dynamic> membership) {
+    return SeaRescueLevel.isLevel1(membership['seaRescueLevel']);
+  }
+
+  bool isSeaRescueLevel2(Map<String, dynamic> membership) {
+    return SeaRescueLevel.isLevel2(membership['seaRescueLevel']);
   }
 
   String? resolveActiveOrganizationId({
@@ -157,6 +179,30 @@ class MembershipService {
       'role': role,
       'status': 'active',
       'isActive': true,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> updateSeaRescueLevel({
+    required String membershipId,
+    required String targetUserId,
+    required String organizationId,
+    required String seaRescueLevel,
+  }) async {
+    _requireOrganizationId(organizationId);
+    final expectedMembershipId = this.membershipId(
+      userId: targetUserId,
+      organizationId: organizationId,
+    );
+    if (membershipId != expectedMembershipId) {
+      throw Exception('Membership belongs to another organization');
+    }
+    if (!SeaRescueLevel.values.contains(seaRescueLevel)) {
+      throw Exception('Unsupported sea rescue level: $seaRescueLevel');
+    }
+
+    await _memberships.doc(membershipId).set({
+      'seaRescueLevel': seaRescueLevel,
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }

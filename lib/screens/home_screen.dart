@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../models/availability_model.dart';
+import '../models/membership_model.dart';
 import '../services/availability_service.dart';
 import '../services/command_service.dart';
 import '../services/membership_service.dart';
@@ -508,13 +509,14 @@ class _HomeScreenState extends State<HomeScreen> {
     required String? commandName,
     required String? joinCode,
     required bool canSeeJoinCode,
-    required bool isPlatformOwner,
+    required bool isPlatformAdmin,
     required String? membershipRole,
     required bool allowMembersToCreateActivities,
     required bool allowMembersToViewStatistics,
     required List<QueryDocumentSnapshot<Map<String, dynamic>>> membershipDocs,
   }) {
-    final isOrganizationAdmin = membershipRole == 'admin';
+    final isOrganizationAdmin =
+        MembershipRole.isOrgAdmin(membershipRole);
     final canCreateActivities =
         isOrganizationAdmin || allowMembersToCreateActivities;
     final canViewStatistics =
@@ -543,7 +545,7 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 4),
           Text(
             'Minu roll: ${membershipRole ?? "puudub"}'
-            '${isPlatformOwner ? " • platformOwner" : ""}',
+            '${isPlatformAdmin ? " • platformAdmin" : ""}',
           ),
           if (canSeeJoinCode && joinCode != null && joinCode.isNotEmpty) ...[
             const SizedBox(height: 12),
@@ -610,7 +612,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ],
-          if (isPlatformOwner ||
+          if (isPlatformAdmin ||
               (isOrganizationAdmin &&
                   commandId != null &&
                   commandId.isNotEmpty)) ...[
@@ -626,8 +628,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       currentUid: user.uid,
                       activeOrganizationId: commandId,
                       activeOrganizationName: commandName,
-                      canManageOwnSummary: membershipRole == 'admin',
-                      isPlatformOwner: isPlatformOwner,
+                      canManageOwnSummary: isOrganizationAdmin,
+                      isPlatformAdmin: isPlatformAdmin,
                     ),
                   ),
                 );
@@ -680,7 +682,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         organizationId: commandId,
                         currentUid: user.uid,
                         currentUserName: displayName,
-                        canManageCallouts: membershipRole == 'admin',
+                        canManageCallouts: isOrganizationAdmin,
                       ),
                     ),
                   ),
@@ -711,7 +713,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       builder: (_) => EquipmentScreen(
                         organizationId: commandId,
                         currentUid: user.uid,
-                        canManageEquipment: membershipRole == 'admin',
+                        canManageEquipment: isOrganizationAdmin,
                       ),
                     ),
                   ),
@@ -726,8 +728,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         organizationId: commandId,
                         currentUid: user.uid,
                         currentUserName: displayName,
-                        canViewCalloutResponseSummary:
-                            membershipRole == 'admin',
+                        canViewCalloutResponseSummary: isOrganizationAdmin,
                       ),
                     ),
                   ),
@@ -757,7 +758,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       builder: (_) => CertificatesScreen(
                         organizationId: commandId,
                         currentUid: user.uid,
-                        canManageCertificates: membershipRole == 'admin',
+                        canManageCertificates: isOrganizationAdmin,
                       ),
                     ),
                   ),
@@ -800,8 +801,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             organizationId: commandId,
                             currentUid: user.uid,
                             currentUserName: displayName,
-                            canManageNotifications:
-                                membershipRole == 'admin',
+                            canManageNotifications: isOrganizationAdmin,
                             canCreateActivities: canCreateActivities,
                           ),
                         ),
@@ -1014,8 +1014,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   String _membershipRoleFromData(Map<String, dynamic> membership) {
-    final role = membership['role'];
-    return role is String && role.isNotEmpty ? role : 'member';
+    return MembershipRole.normalize(membership['role']);
   }
 
   String? _stringValue(Object? value) {
@@ -1067,8 +1066,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
         final activeOrganizationIdFromUser =
             _stringValue(userData['activeOrganizationId']);
-        final systemRole = _stringValue(userData['systemRole']) ?? '';
-        final isPlatformOwner = systemRole == 'platformOwner';
+        final isPlatformAdmin =
+            PlatformRole.isPlatformAdmin(userData['systemRole']);
 
         final displayName = name.isEmpty ? (user.email ?? 'kasutaja') : name;
 
@@ -1137,8 +1136,10 @@ class _HomeScreenState extends State<HomeScreen> {
               myMembershipRole = null;
             }
 
+            final isOrganizationAdmin =
+                MembershipRole.isOrgAdmin(myMembershipRole);
             final canSeeJoinCode =
-                isPlatformOwner || (myMembershipRole == 'admin');
+                isPlatformAdmin || isOrganizationAdmin;
 
             if (activeCommandId == null || activeCommandId.isEmpty) {
               return Scaffold(
@@ -1159,7 +1160,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       commandName: null,
                       joinCode: null,
                       canSeeJoinCode: canSeeJoinCode,
-                      isPlatformOwner: isPlatformOwner,
+                      isPlatformAdmin: isPlatformAdmin,
                       membershipRole: myMembershipRole,
                       allowMembersToCreateActivities: false,
                       allowMembersToViewStatistics: false,
@@ -1190,7 +1191,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 final allowMembersToViewStatistics =
                     commandData?['allowMembersToViewStatistics'] == true;
 
-                final isOrganizationAdmin = myMembershipRole == 'admin';
                 final canCreateActivities =
                     isOrganizationAdmin || allowMembersToCreateActivities;
                 final canViewStatistics =
@@ -1286,7 +1286,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                         commandName: commandName,
                                         joinCode: joinCode,
                                         canSeeJoinCode: canSeeJoinCode,
-                                        isPlatformOwner: isPlatformOwner,
+                                        isPlatformAdmin: isPlatformAdmin,
                                         membershipRole: myMembershipRole,
                                         allowMembersToCreateActivities:
                                             allowMembersToCreateActivities,
@@ -1356,7 +1356,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     currentUid: user.uid,
                     currentUserName: displayName,
                     isOrganizationAdmin: isOrganizationAdmin,
-                    isPlatformOwner: isPlatformOwner,
+                    isPlatformAdmin: isPlatformAdmin,
                     canCreateActivities: canCreateActivities,
                     canViewStatistics: canViewStatistics,
                     onOpenOrganizationSettings: () {

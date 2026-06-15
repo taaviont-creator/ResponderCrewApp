@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/activity_model.dart';
+import '../models/membership_model.dart';
 import '../models/notification_model.dart';
 
 class ActivityService {
@@ -215,7 +216,7 @@ class ActivityService {
       throw Exception('Sul puudub õigus tegevust lisada');
     }
 
-    if (membership['role'] == 'admin') return;
+    if (MembershipRole.isOrgAdmin(membership['role'])) return;
 
     final commandSnapshot =
         await _firestore.collection('commands').doc(organizationId).get();

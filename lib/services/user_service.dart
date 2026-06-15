@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../models/membership_model.dart';
+
 class UserService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
@@ -13,10 +15,9 @@ class UserService {
       'name': name,
       'status': 'available', // vaba
       'activeOrganizationId': null,
-      'systemRole': 'user',
-      // TODO: Migrate commandId/role to organization-specific memberships.
-      'commandId': null,     // komando pole veel
-      'role': 'member',      // hiljem admin/member
+      'systemRole': PlatformRole.user,
+      // TODO: Remove commandId after activeOrganizationId migration.
+      'commandId': null,
       'createdAt': FieldValue.serverTimestamp(),
     });
   }

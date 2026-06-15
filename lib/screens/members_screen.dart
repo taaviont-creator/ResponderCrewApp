@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
+import '../models/membership_model.dart';
 import '../services/membership_service.dart';
 
 class MembersScreen extends StatefulWidget {
@@ -36,18 +37,27 @@ class _MembersScreenState extends State<MembersScreen> {
   }
 
   String _membershipRoleFromData(Map<String, dynamic> membership) {
-    final role = membership['role'];
-    return role is String && role.isNotEmpty ? role : 'member';
+    return MembershipRole.normalize(membership['role']);
   }
 
   int _roleSortOrder(String role) {
-    switch (role) {
-      case 'admin':
-        return 0;
-      case 'boardMember':
-        return 1;
+    return MembershipRole.isOrgAdmin(role) ? 0 : 1;
+  }
+
+  String _roleLabel(String role) {
+    return MembershipRole.isOrgAdmin(role)
+        ? 'Organisatsiooni administraator'
+        : 'Liige';
+  }
+
+  String _seaRescueLevelLabel(Object? level) {
+    switch (SeaRescueLevel.normalize(level)) {
+      case SeaRescueLevel.level1:
+        return 'Merepääste tase 1';
+      case SeaRescueLevel.level2:
+        return 'Merepääste tase 2';
       default:
-        return 2;
+        return 'Merepääste pädevus puudub';
     }
   }
 
@@ -107,6 +117,8 @@ class _MembersScreenState extends State<MembersScreen> {
               final membership = membershipDoc.data();
               final targetUid = (membership['userId'] ?? '') as String;
               final membershipRole = _membershipRoleFromData(membership);
+              final seaRescueLevel =
+                  _seaRescueLevelLabel(membership['seaRescueLevel']);
 
               return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
                 future: FirebaseFirestore.instance
@@ -141,7 +153,10 @@ class _MembersScreenState extends State<MembersScreen> {
 
                   return ListTile(
                     title: Text(title),
-                    subtitle: Text('$subtitle - roll: $membershipRole'),
+                    subtitle: Text(
+                      '$subtitle\n'
+                      '${_roleLabel(membershipRole)} • $seaRescueLevel',
+                    ),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -159,23 +174,17 @@ class _MembersScreenState extends State<MembersScreen> {
                           PopupMenuButton<String>(
                             onSelected: (value) async {
                               try {
-                                if (value == 'make_admin') {
+                                if (value == 'make_org_admin') {
                                   await _updateMembershipRole(
                                     membershipId: membershipDoc.id,
                                     targetUid: targetUid,
-                                    newRole: 'admin',
-                                  );
-                                } else if (value == 'make_board_member') {
-                                  await _updateMembershipRole(
-                                    membershipId: membershipDoc.id,
-                                    targetUid: targetUid,
-                                    newRole: 'boardMember',
+                                    newRole: MembershipRole.orgAdmin,
                                   );
                                 } else if (value == 'make_member') {
                                   await _updateMembershipRole(
                                     membershipId: membershipDoc.id,
                                     targetUid: targetUid,
-                                    newRole: 'member',
+                                    newRole: MembershipRole.member,
                                   );
                                 }
 
@@ -194,12 +203,10 @@ class _MembersScreenState extends State<MembersScreen> {
                             },
                             itemBuilder: (context) => const [
                               PopupMenuItem(
-                                value: 'make_admin',
-                                child: Text('Tee adminiks'),
-                              ),
-                              PopupMenuItem(
-                                value: 'make_board_member',
-                                child: Text('Tee juhatuse liikmeks'),
+                                value: 'make_org_admin',
+                                child: Text(
+                                  'Tee organisatsiooni administraatoriks',
+                                ),
                               ),
                               PopupMenuItem(
                                 value: 'make_member',

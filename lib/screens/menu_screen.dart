@@ -18,7 +18,7 @@ class MenuScreen extends StatelessWidget {
     required this.currentUid,
     required this.currentUserName,
     required this.isOrganizationAdmin,
-    required this.isPlatformOwner,
+    required this.isPlatformAdmin,
     required this.canCreateActivities,
     required this.canViewStatistics,
     required this.onOpenOrganizationSettings,
@@ -29,7 +29,7 @@ class MenuScreen extends StatelessWidget {
   final String currentUid;
   final String currentUserName;
   final bool isOrganizationAdmin;
-  final bool isPlatformOwner;
+  final bool isPlatformAdmin;
   final bool canCreateActivities;
   final bool canViewStatistics;
   final VoidCallback onOpenOrganizationSettings;
@@ -44,7 +44,7 @@ class MenuScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final canOpenReadinessOverview =
-        isPlatformOwner || isOrganizationAdmin;
+        isPlatformAdmin || isOrganizationAdmin;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Menüü')),
@@ -182,7 +182,7 @@ class MenuScreen extends StatelessWidget {
                         activeOrganizationId: organizationId,
                         activeOrganizationName: organizationName,
                         canManageOwnSummary: isOrganizationAdmin,
-                        isPlatformOwner: isPlatformOwner,
+                        isPlatformAdmin: isPlatformAdmin,
                       ),
                     )
                 : null,

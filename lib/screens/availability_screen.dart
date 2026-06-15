@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../models/availability_model.dart';
+import '../models/membership_model.dart';
 import '../models/availability_reminder_settings_model.dart';
 import '../models/platform_readiness_model.dart';
 import '../services/availability_reminder_settings_service.dart';
@@ -610,14 +611,9 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
   }
 
   String _roleLabel(String role) {
-    switch (role) {
-      case 'admin':
-        return 'Administraator';
-      case 'boardMember':
-        return 'Juhatuse liige';
-      default:
-        return 'Liige';
-    }
+    return MembershipRole.isOrgAdmin(role)
+        ? 'Organisatsiooni administraator'
+        : 'Liige';
   }
 
   List<String> _reminderTimeOptions(String selectedTime) {

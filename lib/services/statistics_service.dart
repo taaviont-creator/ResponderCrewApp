@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/availability_model.dart';
 import '../models/certificate_model.dart';
 import '../models/equipment_model.dart';
+import '../models/membership_model.dart';
 import '../models/statistics_model.dart';
 import 'membership_service.dart';
 
@@ -176,7 +177,7 @@ class StatisticsService {
       throw Exception('Sul puudub õigus seda vaadet kasutada');
     }
 
-    if (membership['role'] == 'admin') return;
+    if (MembershipRole.isOrgAdmin(membership['role'])) return;
 
     final commandSnapshot =
         await _firestore.collection('commands').doc(organizationId).get();
