@@ -38,6 +38,7 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
       await _equipmentService.checkMaintenanceDueNotifications(
         organizationId: widget.organizationId,
         createdBy: widget.currentUid,
+        canManageOrganizationEquipment: widget.canManageEquipment,
       );
     } catch (e) {
       if (!mounted) return;
@@ -56,6 +57,9 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
     final noteController = TextEditingController();
     var selectedCategory = EquipmentCategory.other;
     var selectedStatus = EquipmentStatus.ok;
+    var selectedScope = widget.canManageEquipment
+        ? EquipmentScope.organization
+        : EquipmentScope.personal;
 
     final shouldCreate = await showDialog<bool>(
       context: context,
@@ -71,6 +75,23 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
                     controller: nameController,
                     decoration: const InputDecoration(labelText: 'Nimi'),
                   ),
+                  if (widget.canManageEquipment) ...[
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      initialValue: selectedScope,
+                      decoration: const InputDecoration(labelText: 'Omand'),
+                      items: EquipmentScope.values.map((scope) {
+                        return DropdownMenuItem<String>(
+                          value: scope,
+                          child: Text(_equipmentScopeLabel(scope)),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        if (value == null) return;
+                        setDialogState(() => selectedScope = value);
+                      },
+                    ),
+                  ],
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     initialValue: selectedCategory,
@@ -143,6 +164,10 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
     try {
       await _equipmentService.addEquipment(
         organizationId: widget.organizationId,
+        scope: selectedScope,
+        ownerUserId: selectedScope == EquipmentScope.personal
+            ? widget.currentUid
+            : '',
         name: nameController.text,
         category: selectedCategory,
         status: selectedStatus,
@@ -150,8 +175,11 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
         nextMaintenanceDate: nextMaintenanceDateController.text,
         note: noteController.text,
         createdBy: widget.currentUid,
+        canManageOrganizationEquipment: widget.canManageEquipment,
       );
-      await _checkMaintenanceDueNotifications();
+      if (selectedScope == EquipmentScope.organization) {
+        await _checkMaintenanceDueNotifications();
+      }
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -269,8 +297,11 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
         nextMaintenanceDate: nextMaintenanceDateController.text,
         note: noteController.text,
         updatedBy: widget.currentUid,
+        canManageOrganizationEquipment: widget.canManageEquipment,
       );
-      await _checkMaintenanceDueNotifications();
+      if (item.scope == EquipmentScope.organization) {
+        await _checkMaintenanceDueNotifications();
+      }
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -290,12 +321,10 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
       appBar: AppBar(
         title: const Text('Varustus'),
       ),
-      floatingActionButton: widget.canManageEquipment
-          ? FloatingActionButton(
-              onPressed: _showAddEquipmentDialog,
-              child: const Icon(Icons.add),
-            )
-          : null,
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showAddEquipmentDialog,
+        child: const Icon(Icons.add),
+      ),
       body: StreamBuilder<List<EquipmentModel>>(
         stream: _equipmentService.streamOrganizationEquipment(
           organizationId: widget.organizationId,
@@ -324,6 +353,7 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
               final item = equipment[index];
               final maintenanceStatus = _maintenanceStatusLabel(item);
               final subtitleParts = [
+                _equipmentScopeLabel(item.scope),
                 _equipmentCategoryLabel(item.category),
                 _equipmentStatusLabel(item.status),
                 if (item.location.isNotEmpty) item.location,
@@ -337,7 +367,7 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
                 contentPadding: EdgeInsets.zero,
                 title: Text(item.name),
                 subtitle: Text(subtitleParts.join(' - ')),
-                trailing: widget.canManageEquipment
+                trailing: _canEditEquipment(item)
                     ? IconButton(
                         icon: const Icon(Icons.edit),
                         tooltip: 'Muuda varustust',
@@ -369,6 +399,19 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
       default:
         return 'Other';
     }
+  }
+
+  bool _canEditEquipment(EquipmentModel item) {
+    if (item.isPersonal) {
+      return item.ownerUserId == widget.currentUid;
+    }
+    return widget.canManageEquipment;
+  }
+
+  String _equipmentScopeLabel(String scope) {
+    return scope == EquipmentScope.personal
+        ? 'Isiklik varustus'
+        : 'Organisatsiooni varustus';
   }
 
   String _equipmentStatusLabel(String status) {

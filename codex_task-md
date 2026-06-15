@@ -1,0 +1,193 @@
+You are working in the original RespondCrew Flutter + Firebase app.
+
+This is NOT the Lovable React/Vite/Supabase prototype.
+Do not copy Lovable code.
+Use only the existing Flutter/Firebase architecture in this repository.
+
+Task:
+Audit and fix role/permission handling across core MVP modules.
+
+Important correction:
+Do not use an overly simple rule where members cannot manage equipment at all.
+The app must distinguish between member-owned/personal data and organization-owned data.
+
+Core permission principle:
+A normal member can view, add, and edit data that belongs to themselves.
+A normal member cannot change organization-level data, organization roles, or data owned by other members unless existing rules explicitly allow it.
+
+Current context:
+- The app already has multi-organization support.
+- The app already has activeOrganizationId.
+- The app already has membership-based organization roles.
+- The app already has organization switching.
+- Core MVP modules already exist:
+  - members;
+  - availability/readiness;
+  - callouts;
+  - callout responses;
+  - equipment;
+  - operation log;
+  - activities/trainings;
+  - certificates;
+  - statistics;
+  - notifications;
+  - platform readiness foundation.
+- Organization scoping may already have been audited.
+- The current phase is MVP stability and safety.
+- Do not add unrelated new major features in this task.
+
+Goal:
+Make sure role-based and ownership-based access is consistent across the core MVP modules.
+
+Expected member logic:
+1. A normal member should be able to:
+   - view relevant organization data where appropriate;
+   - update their own availability/readiness;
+   - respond to callouts;
+   - view notifications;
+   - mark notifications as read if that exists;
+   - view and update their own profile/member-related data where appropriate;
+   - view, add, and edit their own personal equipment;
+   - view their own certificates/qualifications if the module supports it;
+   - view statistics if the current app design allows member statistics access;
+   - add activities/trainings if the app design supports member-created activities or if there is an existing permission pattern for this.
+
+2. A normal member must NOT be able to:
+   - change their own organization role;
+   - change other members’ roles;
+   - change organization settings/details;
+   - manage organization-owned equipment unless they are admin or another explicit permission exists;
+   - edit another member’s personal equipment;
+   - modify another organization’s data;
+   - perform platform admin actions.
+
+Expected admin logic:
+3. Admins should be able to:
+   - do everything members can do;
+   - create callouts;
+   - manage members/roles inside their own organization;
+   - manage organization-owned equipment;
+   - manage activities/trainings;
+   - manage certificates if the module exists;
+   - manage operation logs;
+   - view organization statistics;
+   - manage organization settings if such UI exists.
+
+Expected platform owner/platform admin logic:
+4. Platform owner/platform admin, if already implemented, should:
+   - keep existing platform-level access;
+   - not lose any existing platform-level functionality;
+   - still be handled safely and explicitly.
+
+Requirements:
+1. Inspect the existing membership model and role values.
+2. Inspect role helper methods or permission checks if they already exist.
+3. Inspect ownership fields in relevant models, especially equipment:
+   - ownerUserId
+   - ownerMembershipId
+   - assignedToUserId
+   - createdBy
+   - organizationId
+   - equipmentScope
+   - type
+   - or any existing field that distinguishes personal/member equipment from organization equipment.
+4. Do not invent a large new permission system.
+5. Reuse existing role names and permission patterns.
+6. Do not rename existing roles.
+7. Do not change authentication flow.
+8. Do not redesign UI.
+
+Module-specific checks:
+9. Members module:
+   - members can view relevant member data;
+   - members cannot change roles;
+   - admins can manage roles within their own organization.
+
+10. Availability/readiness:
+   - members can update their own availability;
+   - admins can view organization readiness;
+   - no user can update another organization’s readiness data.
+
+11. Callouts:
+   - members can respond to callouts;
+   - admins can create/manage callouts;
+   - member response permission must remain working.
+
+12. Equipment:
+   - members can view/add/edit their own personal equipment;
+   - members cannot edit organization-owned equipment unless admin;
+   - members cannot edit another member’s personal equipment;
+   - admins can manage organization-owned equipment;
+   - keep all equipment organization-scoped.
+   - If the current model does not clearly distinguish personal equipment from organization equipment, add the smallest safe distinction needed, for example:
+     - ownerUserId for personal equipment;
+     - scope: "personal" or "organization";
+     - or reuse an existing suitable field.
+   - Keep old equipment documents backward compatible.
+
+13. Activities/trainings:
+   - inspect whether members are currently allowed or should be allowed to add activities/trainings;
+   - if the existing UI/logic already allows member-created activities, keep it safe and organization-scoped;
+   - if only admins can create them right now, do not break this;
+   - do not implement a large approval workflow in this task.
+   - If adding a minimal permission flag is already present in the app, reuse it.
+
+14. Certificates:
+   - members may view their own certificates/qualifications if the module supports it;
+   - members should not modify other members’ certificates unless admin;
+   - admins can manage certificates if the current module supports it.
+
+15. Statistics:
+   - inspect existing statistics screen/service;
+   - allow member access if current app design already shows statistics to members or if there is no sensitive admin-only data;
+   - do not expose cross-organization data;
+   - do not add complex statistics permissions in this task.
+
+16. Notifications:
+   - members can view organization-scoped notifications;
+   - members can mark their own/read state if this exists;
+   - no cross-organization notification access.
+
+17. Operation log:
+   - keep existing permissions safe;
+   - do not work on operation log participants/crew management in this task.
+
+Safety requirements:
+18. Keep all permission checks organization-scoped.
+19. A user who is admin in one organization must not automatically be admin in another organization.
+20. If activeOrganizationId or active membership is missing, do not allow unsafe writes.
+21. Hide or disable actions in the UI when the user does not have permission.
+22. Add service-level guards for important write actions.
+23. Use clear Estonian fallback/error messages where UI messages are needed.
+
+Firestore rules:
+24. Inspect firestore.rules if role/ownership behavior appears inconsistent.
+25. Update firestore.rules if needed, especially for member-owned personal equipment.
+26. Do not weaken security rules.
+27. Keep rules consistent with the existing organization/membership access model.
+28. Make sure a member can write their own personal equipment but cannot write organization equipment unless admin.
+29. Make sure members cannot change role fields.
+
+Important:
+- Keep this task focused on role, permission, and ownership consistency.
+- Do not add unrelated new features.
+- Do not add SMS.
+- Do not add push notifications.
+- Do not add GPS/map/export logic.
+- Do not work on operation log participants/crew management in this task.
+- Do not run flutter analyze.
+- Do not run flutter test.
+- Do not run flutter run.
+- Do not run dart format.
+- Only inspect and edit files.
+
+After changes, explain:
+1. which files were changed;
+2. which modules were checked;
+3. what role/permission issues were found;
+4. how member-owned personal equipment is handled;
+5. whether members can add activities/trainings or whether that remained admin-only;
+6. how statistics access is handled;
+7. what was fixed;
+8. whether firestore.rules was changed;
+9. what command I should run myself.

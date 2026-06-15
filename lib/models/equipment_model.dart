@@ -34,11 +34,23 @@ class EquipmentCategory {
   };
 }
 
+class EquipmentScope {
+  static const organization = 'organization';
+  static const personal = 'personal';
+
+  static const values = {
+    organization,
+    personal,
+  };
+}
+
 class EquipmentModel {
   const EquipmentModel({
     required this.id,
     required this.organizationId,
     required this.commandId,
+    required this.scope,
+    required this.ownerUserId,
     required this.name,
     required this.category,
     required this.status,
@@ -53,6 +65,8 @@ class EquipmentModel {
   final String id;
   final String organizationId;
   final String commandId;
+  final String scope;
+  final String ownerUserId;
   final String name;
   final String category;
   final String status;
@@ -72,6 +86,11 @@ class EquipmentModel {
       id: document.id,
       organizationId: _stringValue(data['organizationId']),
       commandId: _stringValue(data['commandId']),
+      scope: _stringValue(
+        data['scope'],
+        fallback: EquipmentScope.organization,
+      ),
+      ownerUserId: _stringValue(data['ownerUserId']),
       name: _stringValue(data['name']),
       category: _stringValue(
         data['category'],
@@ -95,6 +114,8 @@ class EquipmentModel {
       'id': id,
       'organizationId': organizationId,
       'commandId': commandId,
+      'scope': scope,
+      'ownerUserId': ownerUserId,
       'name': name,
       'category': category,
       'status': status,
@@ -106,6 +127,8 @@ class EquipmentModel {
       'updatedAt': updatedAt == null ? null : Timestamp.fromDate(updatedAt!),
     };
   }
+
+  bool get isPersonal => scope == EquipmentScope.personal;
 }
 
 String _stringValue(Object? value, {String fallback = ''}) {

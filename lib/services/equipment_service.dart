@@ -37,6 +37,8 @@ class EquipmentService {
 
   Future<void> addEquipment({
     required String organizationId,
+    required String scope,
+    required String ownerUserId,
     required String name,
     required String category,
     required String status,
@@ -44,8 +46,15 @@ class EquipmentService {
     required String nextMaintenanceDate,
     required String note,
     required String createdBy,
+    required bool canManageOrganizationEquipment,
   }) async {
     _requireOrganizationId(organizationId);
+    _validateEquipmentOwnership(
+      scope: scope,
+      ownerUserId: ownerUserId,
+      currentUserId: createdBy,
+      canManageOrganizationEquipment: canManageOrganizationEquipment,
+    );
     if (name.trim().isEmpty) {
       throw Exception('Equipment name is required');
     }
@@ -65,6 +74,8 @@ class EquipmentService {
       'organizationId': organizationId,
       // TODO: Remove commandId after all equipment reads use organizationId.
       'commandId': organizationId,
+      'scope': scope,
+      if (scope == EquipmentScope.personal) 'ownerUserId': ownerUserId,
       'name': name.trim(),
       'category': category,
       'status': status,
@@ -77,14 +88,16 @@ class EquipmentService {
     };
 
     batch.set(doc, equipmentData);
-    _addProblemStatusNotificationToBatch(
-      batch: batch,
-      organizationId: organizationId,
-      equipmentId: doc.id,
-      equipmentName: name.trim(),
-      status: status,
-      createdBy: createdBy,
-    );
+    if (scope == EquipmentScope.organization) {
+      _addProblemStatusNotificationToBatch(
+        batch: batch,
+        organizationId: organizationId,
+        equipmentId: doc.id,
+        equipmentName: name.trim(),
+        status: status,
+        createdBy: createdBy,
+      );
+    }
 
     await batch.commit();
   }
@@ -99,6 +112,7 @@ class EquipmentService {
     required String nextMaintenanceDate,
     required String note,
     required String updatedBy,
+    required bool canManageOrganizationEquipment,
   }) async {
     _requireOrganizationId(organizationId);
     if (name.trim().isEmpty) {
@@ -125,6 +139,14 @@ class EquipmentService {
     if (existingOrganizationId != organizationId) {
       throw Exception('Equipment item belongs to another organization');
     }
+    final scope = _equipmentScope(existing);
+    final ownerUserId = (existing['ownerUserId'] ?? '').toString();
+    _validateEquipmentOwnership(
+      scope: scope,
+      ownerUserId: ownerUserId,
+      currentUserId: updatedBy,
+      canManageOrganizationEquipment: canManageOrganizationEquipment,
+    );
     final createdBy = (existing['createdBy'] ?? '').toString();
     final previousStatus = (existing['status'] ?? EquipmentStatus.ok).toString();
 
@@ -135,6 +157,8 @@ class EquipmentService {
       'organizationId': organizationId,
       // TODO: Remove commandId after all equipment reads use organizationId.
       'commandId': organizationId,
+      'scope': scope,
+      if (scope == EquipmentScope.personal) 'ownerUserId': ownerUserId,
       'name': name.trim(),
       'category': category,
       'status': status,
@@ -145,7 +169,7 @@ class EquipmentService {
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
 
-    if (previousStatus != status) {
+    if (scope == EquipmentScope.organization && previousStatus != status) {
       _addProblemStatusNotificationToBatch(
         batch: batch,
         organizationId: organizationId,
@@ -165,11 +189,46 @@ class EquipmentService {
     }
   }
 
+  String _equipmentScope(Map<String, dynamic> data) {
+    final scope = (data['scope'] ?? '').toString();
+    return EquipmentScope.values.contains(scope)
+        ? scope
+        : EquipmentScope.organization;
+  }
+
+  void _validateEquipmentOwnership({
+    required String scope,
+    required String ownerUserId,
+    required String currentUserId,
+    required bool canManageOrganizationEquipment,
+  }) {
+    if (!EquipmentScope.values.contains(scope)) {
+      throw Exception('Unsupported equipment scope: $scope');
+    }
+
+    if (scope == EquipmentScope.personal) {
+      if (ownerUserId.isEmpty || ownerUserId != currentUserId) {
+        throw Exception('Isiklikku varustust saab muuta ainult selle omanik');
+      }
+      return;
+    }
+
+    if (!canManageOrganizationEquipment) {
+      throw Exception('Organisatsiooni varustust saab muuta ainult administraator');
+    }
+  }
+
   Future<void> checkMaintenanceDueNotifications({
     required String organizationId,
     required String createdBy,
+    required bool canManageOrganizationEquipment,
   }) async {
     _requireOrganizationId(organizationId);
+    if (!canManageOrganizationEquipment) {
+      throw Exception(
+        'Organisatsiooni hooldusteavitusi saab kontrollida ainult administraator',
+      );
+    }
     final snapshot = await _equipment
         .where(
           Filter.or(
@@ -188,6 +247,7 @@ class EquipmentService {
           ? item.organizationId
           : item.commandId;
       if (itemOrganizationId != organizationId) continue;
+      if (item.scope != EquipmentScope.organization) continue;
 
       final parsedDueDate =
           DateTime.tryParse(item.nextMaintenanceDate.trim());
