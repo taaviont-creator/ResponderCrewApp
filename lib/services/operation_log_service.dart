@@ -216,6 +216,66 @@ class OperationLogService {
       });
     });
   }
+
+  Future<void> updateFinalSummary({
+    required String operationLogId,
+    required String organizationId,
+    required String summary,
+    required String outcome,
+    required String completedBy,
+  }) async {
+    final trimmedSummary = summary.trim();
+    final trimmedOutcome = outcome.trim();
+    final doc = _operationLogs.doc(operationLogId);
+    final eventDoc = doc.collection('events').doc();
+
+    await _firestore.runTransaction((transaction) async {
+      final snapshot = await transaction.get(doc);
+      final data = snapshot.data();
+      if (data == null) {
+        throw Exception('Operation log entry not found');
+      }
+
+      final logOrganizationId =
+          (data['organizationId'] ?? data['commandId'] ?? '').toString();
+      if (logOrganizationId != organizationId) {
+        throw Exception('Operation log belongs to another organization');
+      }
+
+      final status =
+          (data['status'] ?? OperationLogStatus.created).toString();
+      if (status != OperationLogStatus.completed) {
+        throw Exception('Only a completed operation can have a final summary');
+      }
+
+      final currentSummary = (data['summary'] ?? '').toString();
+      final currentOutcome = (data['outcome'] ?? '').toString();
+      if (currentSummary == trimmedSummary &&
+          currentOutcome == trimmedOutcome) {
+        return;
+      }
+
+      transaction.update(doc, {
+        'summary': trimmedSummary,
+        'outcome': trimmedOutcome,
+        'completedAt': FieldValue.serverTimestamp(),
+        'completedBy': completedBy,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      transaction.set(eventDoc, {
+        'id': eventDoc.id,
+        'organizationId': organizationId,
+        'commandId': organizationId,
+        'operationLogId': operationLogId,
+        'type': OperationLogEventType.summarySaved,
+        'status': OperationLogStatus.completed,
+        'title': 'Lõppkokkuvõte salvestatud',
+        'description': trimmedOutcome,
+        'createdBy': completedBy,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    });
+  }
 }
 
 String _operationLogStatusLabel(String status) {

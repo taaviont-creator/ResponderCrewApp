@@ -113,6 +113,62 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
     }
   }
 
+  Future<void> _showFinalSummaryDialog(OperationLogModel log) async {
+    final summaryController = TextEditingController(text: log.summary);
+    final outcomeController = TextEditingController(text: log.outcome);
+    final shouldSave = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Lõppkokkuvõte'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: summaryController,
+                decoration: const InputDecoration(labelText: 'Lõppkokkuvõte'),
+                maxLines: 4,
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: outcomeController,
+                decoration: const InputDecoration(labelText: 'Tulemus'),
+                maxLines: 2,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Tühista'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Salvesta kokkuvõte'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldSave != true) return;
+
+    try {
+      await _operationLogService.updateFinalSummary(
+        operationLogId: log.id,
+        organizationId: widget.organizationId,
+        summary: summaryController.text,
+        outcome: outcomeController.text,
+        completedBy: widget.currentUid,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lõppkokkuvõtte salvestamine ebaõnnestus: $e')),
+      );
+    }
+  }
+
   Future<void> _showAddOperationLogDialog() async {
     final titleController = TextEditingController();
     final descriptionController = TextEditingController();
@@ -268,6 +324,28 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
                   },
                 ),
                 children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      log.summary.isEmpty
+                          ? 'Kokkuvõte puudub'
+                          : 'Lõppkokkuvõte: ${log.summary}',
+                    ),
+                  ),
+                  if (log.outcome.isNotEmpty)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text('Tulemus: ${log.outcome}'),
+                    ),
+                  if (log.status == OperationLogStatus.completed)
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        onPressed: () => _showFinalSummaryDialog(log),
+                        icon: const Icon(Icons.summarize_outlined),
+                        label: const Text('Salvesta kokkuvõte'),
+                      ),
+                    ),
                   const Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
@@ -391,6 +469,8 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
 
   IconData _operationLogEventIcon(String type) {
     switch (type) {
+      case OperationLogEventType.summarySaved:
+        return Icons.summarize_outlined;
       case OperationLogEventType.quickAction:
         return Icons.bolt;
       case OperationLogEventType.manualNote:

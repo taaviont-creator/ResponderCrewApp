@@ -48,11 +48,13 @@ class OperationLogEventType {
   static const statusChange = 'statusChange';
   static const manualNote = 'manualNote';
   static const quickAction = 'quickAction';
+  static const summarySaved = 'summarySaved';
 
   static const values = {
     statusChange,
     manualNote,
     quickAction,
+    summarySaved,
   };
 }
 
@@ -67,10 +69,14 @@ class OperationLogModel {
     required this.title,
     required this.description,
     required this.status,
+    required this.summary,
+    required this.outcome,
+    required this.completedBy,
     this.calloutId,
     this.timestamp,
     this.createdAt,
     this.updatedAt,
+    this.completedAt,
   });
 
   final String id;
@@ -82,10 +88,14 @@ class OperationLogModel {
   final String title;
   final String description;
   final String status;
+  final String summary;
+  final String outcome;
+  final String completedBy;
   final String? calloutId;
   final DateTime? timestamp;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final DateTime? completedAt;
 
   factory OperationLogModel.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> document,
@@ -108,10 +118,14 @@ class OperationLogModel {
         data['status'],
         fallback: OperationLogStatus.created,
       ),
+      summary: _stringValue(data['summary']),
+      outcome: _stringValue(data['outcome']),
+      completedBy: _stringValue(data['completedBy']),
       calloutId: _nullableStringValue(data['calloutId']),
       timestamp: _dateTimeValue(data['timestamp']),
       createdAt: _dateTimeValue(data['createdAt']),
       updatedAt: _dateTimeValue(data['updatedAt']),
+      completedAt: _dateTimeValue(data['completedAt']),
     );
   }
 
@@ -126,10 +140,15 @@ class OperationLogModel {
       'title': title,
       'description': description,
       'status': status,
+      'summary': summary,
+      'outcome': outcome,
+      'completedBy': completedBy,
       if (calloutId != null && calloutId!.isNotEmpty) 'calloutId': calloutId,
       'timestamp': timestamp == null ? null : Timestamp.fromDate(timestamp!),
       'createdAt': createdAt == null ? null : Timestamp.fromDate(createdAt!),
       'updatedAt': updatedAt == null ? null : Timestamp.fromDate(updatedAt!),
+      'completedAt':
+          completedAt == null ? null : Timestamp.fromDate(completedAt!),
     };
   }
 }

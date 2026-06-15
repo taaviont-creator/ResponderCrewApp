@@ -292,6 +292,23 @@ service cloud.firestore {
           isValidOperationLogStatus(data.status)
         ) &&
         (
+          !data.keys().hasAny(['summary']) ||
+          data.summary is string
+        ) &&
+        (
+          !data.keys().hasAny(['outcome']) ||
+          data.outcome is string
+        ) &&
+        (
+          !data.keys().hasAny(['completedBy']) ||
+          data.completedBy is string
+        ) &&
+        (
+          !data.keys().hasAny(['completedAt']) ||
+          data.completedAt == null ||
+          data.completedAt is timestamp
+        ) &&
+        (
           !data.keys().hasAny(['calloutId']) ||
           (
             data.calloutId is string &&
@@ -336,6 +353,33 @@ service cloud.firestore {
         isActiveMember(organizationIdFromData(resource.data));
     }
 
+    function isOperationLogSummaryUpdate(logId) {
+      return signedIn() &&
+        request.resource.data.id == resource.data.id &&
+        request.resource.data.id == logId &&
+        resource.data.status == 'completed' &&
+        request.resource.data.status == resource.data.status &&
+        request.resource.data.summary is string &&
+        request.resource.data.outcome is string &&
+        request.resource.data.completedBy == request.auth.uid &&
+        request.resource.data.completedAt == request.time &&
+        request.resource.data.updatedAt == request.time &&
+        (
+          !resource.data.keys().hasAny(['summary']) ||
+          request.resource.data.summary != resource.data.summary ||
+          !resource.data.keys().hasAny(['outcome']) ||
+          request.resource.data.outcome != resource.data.outcome
+        ) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'summary',
+          'outcome',
+          'completedAt',
+          'completedBy',
+          'updatedAt'
+        ]) &&
+        isActiveMember(organizationIdFromData(resource.data));
+    }
+
     function isOperationLogEventCreate(logId, eventId) {
       let logPath =
         /databases/$(database)/documents/operationLogs/$(logId);
@@ -361,7 +405,8 @@ service cloud.firestore {
         (
           request.resource.data.type == 'statusChange' ||
           request.resource.data.type == 'manualNote' ||
-          request.resource.data.type == 'quickAction'
+          request.resource.data.type == 'quickAction' ||
+          request.resource.data.type == 'summarySaved'
         ) &&
         request.resource.data.createdAt == request.time &&
         hasValidOrganizationReference(request.resource.data) &&
@@ -382,6 +427,17 @@ service cloud.firestore {
             ) &&
             exists(logPath) &&
             getAfter(logPath).data.status == get(logPath).data.status
+          ) ||
+          (
+            request.resource.data.type == 'summarySaved' &&
+            exists(logPath) &&
+            getAfter(logPath).data.status == 'completed' &&
+            getAfter(logPath).data.completedBy == request.auth.uid &&
+            getAfter(logPath).data.completedAt == request.time &&
+            getAfter(logPath).data.updatedAt == request.time &&
+            request.resource.data.title == 'Lõppkokkuvõte salvestatud' &&
+            request.resource.data.description ==
+              getAfter(logPath).data.outcome
           )
         ) &&
         isActiveMember(organizationIdFromData(request.resource.data));
@@ -1046,7 +1102,8 @@ service cloud.firestore {
       allow read: if signedIn() &&
         isActiveMember(organizationIdFromData(resource.data));
       allow create: if isOperationLogCreate(logId);
-      allow update: if isOperationLogStatusUpdate(logId);
+      allow update: if isOperationLogStatusUpdate(logId) ||
+        isOperationLogSummaryUpdate(logId);
 
       match /events/{eventId} {
         allow read: if signedIn() &&
