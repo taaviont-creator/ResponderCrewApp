@@ -127,6 +127,7 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
       stream: _activityService.streamMyParticipation(
         activityId: activity.id,
         userId: widget.currentUid,
+        organizationId: widget.organizationId,
       ),
       builder: (context, snapshot) {
         final status = snapshot.data?.status;
@@ -136,9 +137,7 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
             await _activityService.setMyParticipation(
               activityId: activity.id,
               userId: widget.currentUid,
-              organizationId: activity.organizationId.isNotEmpty
-                  ? activity.organizationId
-                  : activity.commandId,
+              organizationId: widget.organizationId,
               status: newStatus,
             );
           } catch (e) {

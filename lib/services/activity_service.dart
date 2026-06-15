@@ -53,13 +53,19 @@ class ActivityService {
   Stream<ActivityParticipantModel?> streamMyParticipation({
     required String activityId,
     required String userId,
+    required String organizationId,
   }) {
+    _requireOrganizationId(organizationId);
     return _participants
         .doc(participantId(activityId: activityId, userId: userId))
         .snapshots()
         .map((snapshot) {
       if (!snapshot.exists) return null;
-      return ActivityParticipantModel.fromFirestore(snapshot);
+      final participant = ActivityParticipantModel.fromFirestore(snapshot);
+      final participantOrganizationId = participant.organizationId.isNotEmpty
+          ? participant.organizationId
+          : participant.commandId;
+      return participantOrganizationId == organizationId ? participant : null;
     });
   }
 
@@ -72,6 +78,7 @@ class ActivityService {
     required String location,
     required String createdBy,
   }) async {
+    _requireOrganizationId(organizationId);
     if (title.trim().isEmpty) {
       throw Exception('Activity title is required');
     }
@@ -129,8 +136,21 @@ class ActivityService {
     required String organizationId,
     required String status,
   }) async {
+    _requireOrganizationId(organizationId);
     if (!ActivityParticipationStatus.values.contains(status)) {
       throw Exception('Unsupported participation status: $status');
+    }
+
+    final activitySnapshot = await _activities.doc(activityId).get();
+    final activityData = activitySnapshot.data();
+    if (activityData == null) {
+      throw Exception('Activity not found');
+    }
+    final activityOrganizationId =
+        (activityData['organizationId'] ?? activityData['commandId'] ?? '')
+            .toString();
+    if (activityOrganizationId != organizationId) {
+      throw Exception('Activity belongs to another organization');
     }
 
     final id = participantId(activityId: activityId, userId: userId);
@@ -147,5 +167,11 @@ class ActivityService {
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
+  }
+
+  void _requireOrganizationId(String organizationId) {
+    if (organizationId.trim().isEmpty) {
+      throw Exception('Organization id is required');
+    }
   }
 }

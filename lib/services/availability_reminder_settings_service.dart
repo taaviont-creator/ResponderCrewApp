@@ -19,6 +19,7 @@ class AvailabilityReminderSettingsService {
     required String userId,
     required String organizationId,
   }) {
+    _requireOrganizationId(organizationId);
     final id = settingId(
       userId: userId,
       organizationId: organizationId,
@@ -43,6 +44,7 @@ class AvailabilityReminderSettingsService {
     required int intervalHours,
     required String reminderTime,
   }) async {
+    _requireOrganizationId(organizationId);
     if (!AvailabilityReminderSettingsModel.allowedIntervalHours
         .contains(intervalHours)) {
       throw Exception('Unsupported reminder interval: $intervalHours');
@@ -80,5 +82,11 @@ class AvailabilityReminderSettingsService {
     if (hour == null || minute == null) return false;
 
     return hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59;
+  }
+
+  void _requireOrganizationId(String organizationId) {
+    if (organizationId.trim().isEmpty) {
+      throw Exception('Organization id is required');
+    }
   }
 }

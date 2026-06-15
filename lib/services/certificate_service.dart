@@ -73,6 +73,7 @@ class CertificateService {
     required String note,
     required String createdBy,
   }) async {
+    _requireOrganizationId(organizationId);
     if (title.trim().isEmpty) {
       throw Exception('Certificate title is required');
     }
@@ -111,6 +112,7 @@ class CertificateService {
     required String organizationId,
     required String createdBy,
   }) async {
+    _requireOrganizationId(organizationId);
     final snapshot = await _certificates
         .where(
           Filter.or(
@@ -162,6 +164,12 @@ class CertificateService {
         notificationId: 'certificate_${certificate.id}_$expiryState',
         createOnlyIfMissing: true,
       );
+    }
+  }
+
+  void _requireOrganizationId(String organizationId) {
+    if (organizationId.trim().isEmpty) {
+      throw Exception('Organization id is required');
     }
   }
 }

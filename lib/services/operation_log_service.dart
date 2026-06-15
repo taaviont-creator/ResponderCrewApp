@@ -74,6 +74,7 @@ class OperationLogService {
     required String title,
     required String description,
   }) async {
+    _requireOrganizationId(organizationId);
     if (!OperationLogType.values.contains(type)) {
       throw Exception('Unsupported operation log type: $type');
     }
@@ -125,6 +126,7 @@ class OperationLogService {
     required String status,
     required String updatedBy,
   }) async {
+    _requireOrganizationId(organizationId);
     if (!OperationLogStatus.values.contains(status)) {
       throw Exception('Unsupported operation log status: $status');
     }
@@ -175,6 +177,7 @@ class OperationLogService {
     required String createdBy,
     String type = OperationLogEventType.manualNote,
   }) async {
+    _requireOrganizationId(organizationId);
     final trimmedTitle = title.trim();
     if (trimmedTitle.isEmpty) {
       throw Exception('Operation log event title is required');
@@ -224,6 +227,7 @@ class OperationLogService {
     required String outcome,
     required String completedBy,
   }) async {
+    _requireOrganizationId(organizationId);
     final trimmedSummary = summary.trim();
     final trimmedOutcome = outcome.trim();
     final doc = _operationLogs.doc(operationLogId);
@@ -275,6 +279,12 @@ class OperationLogService {
         'createdAt': FieldValue.serverTimestamp(),
       });
     });
+  }
+
+  void _requireOrganizationId(String organizationId) {
+    if (organizationId.trim().isEmpty) {
+      throw Exception('Organization id is required');
+    }
   }
 }
 

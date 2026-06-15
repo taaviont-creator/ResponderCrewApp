@@ -131,6 +131,9 @@ class CommandService {
   Future<void> leaveCommand({required String commandId}) async {
     final user = _auth.currentUser;
     if (user == null) throw Exception('Not authenticated');
+    if (commandId.trim().isEmpty) {
+      throw Exception('Organization id is required');
+    }
 
     final uid = user.uid;
     final membershipRef = _db.collection('memberships').doc(_membershipId(uid, commandId));
@@ -142,6 +145,12 @@ class CommandService {
     }
 
     final membershipData = membershipSnap.data()!;
+    final membershipOrganizationId =
+        (membershipData['organizationId'] ?? membershipData['commandId'] ?? '')
+            .toString();
+    if (membershipOrganizationId != commandId) {
+      throw Exception('Membership belongs to another organization');
+    }
     final isActive = membershipData['isActive'] == true;
     final myRole = (membershipData['role'] ?? 'member') as String;
 

@@ -219,18 +219,12 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
   }
 
   Future<List<_MemberOption>> _loadMemberOptions() async {
-    final membershipsSnapshot =
-        await FirebaseFirestore.instance.collection('memberships').get();
+    final membershipDocs = await _membershipService
+        .loadActiveMembershipsForOrganization(widget.organizationId);
     final members = <_MemberOption>[];
 
-    for (final membershipDoc in membershipsSnapshot.docs) {
+    for (final membershipDoc in membershipDocs) {
       final membership = membershipDoc.data();
-      if (!_membershipService.isActiveMembership(membership)) continue;
-      if (_membershipService.organizationIdFromMembership(membership) !=
-          widget.organizationId) {
-        continue;
-      }
-
       final uid = (membership['userId'] ?? '').toString();
       if (uid.isEmpty) continue;
 

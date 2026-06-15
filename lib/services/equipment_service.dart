@@ -45,6 +45,7 @@ class EquipmentService {
     required String note,
     required String createdBy,
   }) async {
+    _requireOrganizationId(organizationId);
     if (name.trim().isEmpty) {
       throw Exception('Equipment name is required');
     }
@@ -90,6 +91,7 @@ class EquipmentService {
 
   Future<void> updateEquipment({
     required String equipmentId,
+    required String organizationId,
     required String name,
     required String category,
     required String status,
@@ -98,6 +100,7 @@ class EquipmentService {
     required String note,
     required String updatedBy,
   }) async {
+    _requireOrganizationId(organizationId);
     if (name.trim().isEmpty) {
       throw Exception('Equipment name is required');
     }
@@ -117,8 +120,11 @@ class EquipmentService {
       throw Exception('Equipment item not found');
     }
 
-    final organizationId =
+    final existingOrganizationId =
         (existing['organizationId'] ?? existing['commandId'] ?? '').toString();
+    if (existingOrganizationId != organizationId) {
+      throw Exception('Equipment item belongs to another organization');
+    }
     final createdBy = (existing['createdBy'] ?? '').toString();
     final previousStatus = (existing['status'] ?? EquipmentStatus.ok).toString();
 
@@ -153,10 +159,17 @@ class EquipmentService {
     await batch.commit();
   }
 
+  void _requireOrganizationId(String organizationId) {
+    if (organizationId.trim().isEmpty) {
+      throw Exception('Organization id is required');
+    }
+  }
+
   Future<void> checkMaintenanceDueNotifications({
     required String organizationId,
     required String createdBy,
   }) async {
+    _requireOrganizationId(organizationId);
     final snapshot = await _equipment
         .where(
           Filter.or(

@@ -261,6 +261,7 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
     try {
       await _equipmentService.updateEquipment(
         equipmentId: item.id,
+        organizationId: widget.organizationId,
         name: nameController.text,
         category: selectedCategory,
         status: selectedStatus,

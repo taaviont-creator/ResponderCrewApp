@@ -15,14 +15,9 @@ class StatisticsService {
     required String currentUid,
     required bool canViewOrganizationCertificates,
   }) async {
-    final membershipsSnapshot =
-        await _firestore.collection('memberships').get();
-    final activeMemberships = membershipsSnapshot.docs.where((doc) {
-      final membership = doc.data();
-      return _membershipService.isActiveMembership(membership) &&
-          _membershipService.organizationIdFromMembership(membership) ==
-              organizationId;
-    }).toList();
+    _requireOrganizationId(organizationId);
+    final activeMemberships = await _membershipService
+        .loadActiveMembershipsForOrganization(organizationId);
     final activeMemberIds = activeMemberships
         .map((doc) => (doc.data()['userId'] ?? '').toString())
         .where((userId) => userId.isNotEmpty)
@@ -134,5 +129,11 @@ class StatisticsService {
       // organizationId-only data.
       Filter('commandId', isEqualTo: organizationId),
     );
+  }
+
+  void _requireOrganizationId(String organizationId) {
+    if (organizationId.trim().isEmpty) {
+      throw Exception('Organization id is required');
+    }
   }
 }

@@ -183,9 +183,7 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
         calloutId: callout.id,
         userId: widget.currentUid,
         userName: widget.currentUserName,
-        organizationId: callout.organizationId.isNotEmpty
-            ? callout.organizationId
-            : callout.commandId,
+        organizationId: widget.organizationId,
         response: response,
         responseMinutes: responseMinutes,
         note: note,
@@ -210,6 +208,7 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
     try {
       await _calloutService.updateCalloutStatus(
         calloutId: calloutId,
+        organizationId: widget.organizationId,
         status: status,
       );
 
@@ -230,6 +229,7 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
       stream: _calloutService.streamMyResponse(
         calloutId: callout.id,
         userId: widget.currentUid,
+        organizationId: widget.organizationId,
       ),
       builder: (context, snapshot) {
         final response = snapshot.data?.response;

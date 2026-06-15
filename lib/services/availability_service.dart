@@ -62,6 +62,7 @@ class AvailabilityService {
     int? responseMinutes,
     String? note,
   }) async {
+    _requireOrganizationId(organizationId);
     if (!AvailabilityStatus.values.contains(status)) {
       throw Exception('Unsupported availability status: $status');
     }
@@ -194,6 +195,12 @@ class AvailabilityService {
         return '$memberName märkis, et hilineb reageerimisega.';
       default:
         return '$memberName märkis ennast mitte valvesse.';
+    }
+  }
+
+  void _requireOrganizationId(String organizationId) {
+    if (organizationId.trim().isEmpty) {
+      throw Exception('Organization id is required');
     }
   }
 }

@@ -1066,8 +1066,11 @@ service cloud.firestore {
     }
 
     match /memberships/{membershipId} {
-      // TODO: Restrict membership reads to same-organization members before production.
-      allow read: if signedIn();
+      allow read: if signedIn() &&
+        (
+          resource.data.userId == request.auth.uid ||
+          isActiveMember(organizationIdFromData(resource.data))
+        );
 
       allow create: if isOwnAdminMembershipForCreatedCommand() ||
         isOwnMemberMembership();
@@ -1080,14 +1083,15 @@ service cloud.firestore {
     }
 
     match /availability/{availabilityId} {
-      // TODO: Restrict availability reads to same-organization members before production.
-      allow read: if signedIn();
+      allow read: if signedIn() &&
+        isActiveMember(organizationIdFromData(resource.data));
       allow create, update: if isOwnAvailabilityWrite(availabilityId);
     }
 
     match /availabilityReminderSettings/{settingId} {
-      // TODO: Restrict reminder settings reads to self before production.
-      allow read: if signedIn();
+      allow read: if signedIn() &&
+        resource.data.userId == request.auth.uid &&
+        isActiveMember(organizationIdFromData(resource.data));
       allow create, update: if isOwnReminderSettingsWrite(settingId);
     }
 
@@ -1139,7 +1143,8 @@ service cloud.firestore {
 
     match /notificationReads/{readId} {
       allow read: if signedIn() &&
-        resource.data.userId == request.auth.uid;
+        resource.data.userId == request.auth.uid &&
+        isActiveMember(organizationIdFromData(resource.data));
       allow create, update: if isOwnNotificationReadWrite(readId);
     }
 
@@ -1152,6 +1157,7 @@ service cloud.firestore {
 
     match /calloutResponses/{responseId} {
       allow read: if signedIn() &&
+        isActiveMember(organizationIdFromData(resource.data)) &&
         (
           resource.data.userId == request.auth.uid ||
           isActiveAdmin(organizationIdFromData(resource.data))

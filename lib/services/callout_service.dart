@@ -235,7 +235,9 @@ class CalloutService {
   Stream<CalloutResponseModel?> streamMyResponse({
     required String calloutId,
     required String userId,
+    required String organizationId,
   }) {
+    _requireOrganizationId(organizationId);
     return _responses
         .where('calloutId', isEqualTo: calloutId)
         .where('userId', isEqualTo: userId)
@@ -243,7 +245,12 @@ class CalloutService {
         .snapshots()
         .map((snapshot) {
       if (snapshot.docs.isEmpty) return null;
-      return CalloutResponseModel.fromFirestore(snapshot.docs.first);
+      final response =
+          CalloutResponseModel.fromFirestore(snapshot.docs.first);
+      final responseOrganizationId = response.organizationId.isNotEmpty
+          ? response.organizationId
+          : response.commandId;
+      return responseOrganizationId == organizationId ? response : null;
     });
   }
 
@@ -256,6 +263,7 @@ class CalloutService {
     required String createdBy,
     required String createdByName,
   }) async {
+    _requireOrganizationId(organizationId);
     if (title.trim().isEmpty) {
       throw Exception('Callout title is required');
     }
@@ -349,13 +357,27 @@ class CalloutService {
 
   Future<void> updateCalloutStatus({
     required String calloutId,
+    required String organizationId,
     required String status,
   }) async {
+    _requireOrganizationId(organizationId);
     if (status != CalloutStatus.closed && status != CalloutStatus.cancelled) {
       throw Exception('Unsupported callout status update: $status');
     }
 
-    await _callouts.doc(calloutId).set({
+    final doc = _callouts.doc(calloutId);
+    final snapshot = await doc.get();
+    final data = snapshot.data();
+    if (data == null) {
+      throw Exception('Callout not found');
+    }
+    final calloutOrganizationId =
+        (data['organizationId'] ?? data['commandId'] ?? '').toString();
+    if (calloutOrganizationId != organizationId) {
+      throw Exception('Callout belongs to another organization');
+    }
+
+    await doc.set({
       'status': status,
       'updatedAt': FieldValue.serverTimestamp(),
       'closedAt': FieldValue.serverTimestamp(),
@@ -371,6 +393,7 @@ class CalloutService {
     int? responseMinutes,
     String note = '',
   }) async {
+    _requireOrganizationId(organizationId);
     if (!CalloutResponseValue.values.contains(response) ||
         response == CalloutResponseValue.noResponse) {
       throw Exception('Unsupported callout response: $response');
@@ -379,6 +402,18 @@ class CalloutService {
     if (response == CalloutResponseValue.delayed &&
         (responseMinutes == null || responseMinutes <= 0)) {
       throw Exception('Delayed response requires response minutes');
+    }
+
+    final calloutSnapshot = await _callouts.doc(calloutId).get();
+    final calloutData = calloutSnapshot.data();
+    if (calloutData == null) {
+      throw Exception('Callout not found');
+    }
+    final calloutOrganizationId =
+        (calloutData['organizationId'] ?? calloutData['commandId'] ?? '')
+            .toString();
+    if (calloutOrganizationId != organizationId) {
+      throw Exception('Callout belongs to another organization');
     }
 
     final responseId = '${calloutId}_$userId';
@@ -397,5 +432,11 @@ class CalloutService {
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
+  }
+
+  void _requireOrganizationId(String organizationId) {
+    if (organizationId.trim().isEmpty) {
+      throw Exception('Organization id is required');
+    }
   }
 }

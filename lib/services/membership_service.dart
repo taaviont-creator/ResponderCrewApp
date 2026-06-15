@@ -33,13 +33,27 @@ class MembershipService {
 
   Stream<List<QueryDocumentSnapshot<Map<String, dynamic>>>>
       streamActiveMembershipsForOrganization(String organizationId) {
-    return _memberships.snapshots().map((snapshot) {
+    _requireOrganizationId(organizationId);
+    return _organizationMembershipQuery(organizationId)
+        .snapshots()
+        .map((snapshot) {
       return snapshot.docs.where((doc) {
         final membership = doc.data();
         return isActiveMembership(membership) &&
             organizationIdFromMembership(membership) == organizationId;
       }).toList(growable: false);
     });
+  }
+
+  Future<List<QueryDocumentSnapshot<Map<String, dynamic>>>>
+      loadActiveMembershipsForOrganization(String organizationId) async {
+    _requireOrganizationId(organizationId);
+    final snapshot = await _organizationMembershipQuery(organizationId).get();
+    return snapshot.docs.where((doc) {
+      final membership = doc.data();
+      return isActiveMembership(membership) &&
+          organizationIdFromMembership(membership) == organizationId;
+    }).toList(growable: false);
   }
 
   String? organizationIdFromMembership(Map<String, dynamic> membership) {
@@ -119,6 +133,18 @@ class MembershipService {
     required String organizationId,
     required String role,
   }) async {
+    _requireOrganizationId(organizationId);
+    if (targetUserId.trim().isEmpty) {
+      throw Exception('Target user id is required');
+    }
+    final expectedMembershipId = this.membershipId(
+      userId: targetUserId,
+      organizationId: organizationId,
+    );
+    if (membershipId != expectedMembershipId) {
+      throw Exception('Membership belongs to another organization');
+    }
+
     if (!allowedRoles.contains(role)) {
       throw Exception('Unsupported membership role: $role');
     }
@@ -135,6 +161,18 @@ class MembershipService {
     }, SetOptions(merge: true));
   }
 
+  Query<Map<String, dynamic>> _organizationMembershipQuery(
+    String organizationId,
+  ) {
+    return _memberships.where(
+      Filter.or(
+        Filter('organizationId', isEqualTo: organizationId),
+        // TODO: Remove commandId fallback after membership migration.
+        Filter('commandId', isEqualTo: organizationId),
+      ),
+    );
+  }
+
   bool _hasMembership(
     String? organizationId,
     Map<String, Map<String, dynamic>> membershipsByOrganizationId,
@@ -147,5 +185,11 @@ class MembershipService {
   String? _stringValue(Object? value) {
     if (value is String && value.isNotEmpty) return value;
     return null;
+  }
+
+  void _requireOrganizationId(String organizationId) {
+    if (organizationId.trim().isEmpty) {
+      throw Exception('Organization id is required');
+    }
   }
 }

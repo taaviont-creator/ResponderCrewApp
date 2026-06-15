@@ -129,6 +129,7 @@ class NotificationService {
     String? notificationId,
     bool createOnlyIfMissing = false,
   }) async {
+    _requireOrganizationId(organizationId);
     if (title.trim().isEmpty) {
       throw Exception('Notification title is required');
     }
@@ -192,6 +193,22 @@ class NotificationService {
     required String userId,
     required String organizationId,
   }) async {
+    _requireOrganizationId(organizationId);
+    final notificationSnapshot =
+        await _notifications.doc(notificationId).get();
+    final notificationData = notificationSnapshot.data();
+    if (notificationData == null) {
+      throw Exception('Notification not found');
+    }
+    final notificationOrganizationId =
+        (notificationData['organizationId'] ??
+                notificationData['commandId'] ??
+                '')
+            .toString();
+    if (notificationOrganizationId != organizationId) {
+      throw Exception('Notification belongs to another organization');
+    }
+
     final readId = '${notificationId}_$userId';
 
     await _notificationReads.doc(readId).set(
@@ -215,6 +232,7 @@ class NotificationService {
     required String userId,
     required String organizationId,
   }) async {
+    _requireOrganizationId(organizationId);
     final unreadNotifications = notifications.where((notification) {
       final notificationOrganizationId = notification.organizationId.isNotEmpty
           ? notification.organizationId
@@ -252,6 +270,12 @@ class NotificationService {
       }
 
       await batch.commit();
+    }
+  }
+
+  void _requireOrganizationId(String organizationId) {
+    if (organizationId.trim().isEmpty) {
+      throw Exception('Organization id is required');
     }
   }
 }
