@@ -9,11 +9,13 @@ class ActivitiesScreen extends StatefulWidget {
     required this.organizationId,
     required this.currentUid,
     required this.canManageActivities,
+    this.openCreateOnLoad = false,
   });
 
   final String organizationId;
   final String currentUid;
   final bool canManageActivities;
+  final bool openCreateOnLoad;
 
   @override
   State<ActivitiesScreen> createState() => _ActivitiesScreenState();
@@ -21,6 +23,16 @@ class ActivitiesScreen extends StatefulWidget {
 
 class _ActivitiesScreenState extends State<ActivitiesScreen> {
   final _activityService = ActivityService();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.canManageActivities && widget.openCreateOnLoad) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showAddActivityDialog();
+      });
+    }
+  }
 
   Future<void> _showAddActivityDialog() async {
     final titleController = TextEditingController();

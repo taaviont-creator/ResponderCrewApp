@@ -10,12 +10,14 @@ class CalloutsScreen extends StatefulWidget {
     required this.currentUid,
     required this.currentUserName,
     required this.canManageCallouts,
+    this.openCreateOnLoad = false,
   });
 
   final String organizationId;
   final String currentUid;
   final String currentUserName;
   final bool canManageCallouts;
+  final bool openCreateOnLoad;
 
   @override
   State<CalloutsScreen> createState() => _CalloutsScreenState();
@@ -23,6 +25,16 @@ class CalloutsScreen extends StatefulWidget {
 
 class _CalloutsScreenState extends State<CalloutsScreen> {
   final _calloutService = CalloutService();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.canManageCallouts && widget.openCreateOnLoad) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showAddCalloutDialog();
+      });
+    }
+  }
 
   Future<void> _showAddCalloutDialog() async {
     final titleController = TextEditingController();

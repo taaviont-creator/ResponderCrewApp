@@ -9,11 +9,13 @@ class EquipmentScreen extends StatefulWidget {
     required this.organizationId,
     required this.currentUid,
     required this.canManageEquipment,
+    this.openOrganizationCreateOnLoad = false,
   });
 
   final String organizationId;
   final String currentUid;
   final bool canManageEquipment;
+  final bool openOrganizationCreateOnLoad;
 
   @override
   State<EquipmentScreen> createState() => _EquipmentScreenState();
@@ -29,6 +31,9 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         _checkMaintenanceDueNotifications();
+        if (widget.openOrganizationCreateOnLoad) {
+          _showAddEquipmentDialog(scope: EquipmentScope.organization);
+        }
       });
     }
   }

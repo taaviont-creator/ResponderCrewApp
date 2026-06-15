@@ -8,6 +8,7 @@ import '../services/command_service.dart';
 import '../services/membership_service.dart';
 import '../services/notification_service.dart';
 import 'activities_screen.dart';
+import 'admin_home_dashboard.dart';
 import 'availability_screen.dart';
 import 'callouts_screen.dart';
 import 'certificates_screen.dart';
@@ -1203,24 +1204,100 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   body: isOrganizationAdmin
-                      ? ListView(
-                          children: [
-                            _buildHeaderSection(
-                              user: user,
-                              displayName: displayName,
-                              commandId: selectedOrganizationId,
-                              commandName: commandName,
-                              joinCode: joinCode,
-                              canSeeJoinCode: canSeeJoinCode,
-                              isPlatformOwner: isPlatformOwner,
-                              membershipRole: myMembershipRole,
-                              allowMembersToCreateActivities:
-                                  allowMembersToCreateActivities,
-                              allowMembersToViewStatistics:
-                                  allowMembersToViewStatistics,
-                              membershipDocs: membershipDocs,
-                            ),
-                          ],
+                      ? AdminHomeDashboard(
+                          organizationId: selectedOrganizationId,
+                          organizationName: commandName,
+                          onCreateCallout: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => CalloutsScreen(
+                                  organizationId: selectedOrganizationId,
+                                  currentUid: user.uid,
+                                  currentUserName: displayName,
+                                  canManageCallouts: true,
+                                  openCreateOnLoad: true,
+                                ),
+                              ),
+                            );
+                          },
+                          onCreateActivity: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ActivitiesScreen(
+                                  organizationId: selectedOrganizationId,
+                                  currentUid: user.uid,
+                                  canManageActivities: true,
+                                  openCreateOnLoad: true,
+                                ),
+                              ),
+                            );
+                          },
+                          onCreateEquipment: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => EquipmentScreen(
+                                  organizationId: selectedOrganizationId,
+                                  currentUid: user.uid,
+                                  canManageEquipment: true,
+                                  openOrganizationCreateOnLoad: true,
+                                ),
+                              ),
+                            );
+                          },
+                          onOpenCallouts: () {
+                            setState(() => _selectedNavigationIndex = 2);
+                          },
+                          onOpenEquipment: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => EquipmentScreen(
+                                  organizationId: selectedOrganizationId,
+                                  currentUid: user.uid,
+                                  canManageEquipment: true,
+                                ),
+                              ),
+                            );
+                          },
+                          onOpenNotifications: () {
+                            setState(() => _selectedNavigationIndex = 3);
+                          },
+                          onOpenOrganizationSettings: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => Scaffold(
+                                  appBar: AppBar(
+                                    title: const Text(
+                                      'Organisatsiooni seaded',
+                                    ),
+                                  ),
+                                  body: ListView(
+                                    children: [
+                                      _buildHeaderSection(
+                                        user: user,
+                                        displayName: displayName,
+                                        commandId: selectedOrganizationId,
+                                        commandName: commandName,
+                                        joinCode: joinCode,
+                                        canSeeJoinCode: canSeeJoinCode,
+                                        isPlatformOwner: isPlatformOwner,
+                                        membershipRole: myMembershipRole,
+                                        allowMembersToCreateActivities:
+                                            allowMembersToCreateActivities,
+                                        allowMembersToViewStatistics:
+                                            allowMembersToViewStatistics,
+                                        membershipDocs: membershipDocs,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
                         )
                       : MemberHomeDashboard(
                           organizationId: selectedOrganizationId,
