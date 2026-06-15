@@ -165,7 +165,7 @@ class AvailabilityService {
                 '$minimumCrewRequired'
             : 'Valves olevate liikmete arv langes alla määratud miinimumi. '
                 'Valves: $onDutyCount / miinimum: $minimumCrewRequired',
-        'type': NotificationType.readiness,
+        'type': NotificationType.minimumCrew,
         'priority': isMinimumCrewMet
             ? NotificationPriority.normal
             : NotificationPriority.high,

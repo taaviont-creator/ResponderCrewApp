@@ -1,27 +1,28 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class NotificationType {
-  static const info = 'info';
-  static const warning = 'warning';
+  static const system = 'system';
   static const equipment = 'equipment';
   static const availability = 'availability';
-  static const readiness = 'readiness';
+  static const minimumCrew = 'minimumCrew';
   static const activity = 'activity';
-  static const operation = 'operation';
   static const callout = 'callout';
-  static const other = 'other';
 
   static const values = {
-    info,
-    warning,
+    system,
     equipment,
     availability,
-    readiness,
+    minimumCrew,
     activity,
-    operation,
     callout,
-    other,
   };
+
+  // Legacy values remain readable for existing notification documents.
+  static const info = 'info';
+  static const warning = 'warning';
+  static const readiness = 'readiness';
+  static const operation = 'operation';
+  static const other = 'other';
 }
 
 class NotificationPriority {
@@ -78,7 +79,7 @@ class NotificationModel {
       commandId: _stringValue(data['commandId']),
       title: _stringValue(data['title']),
       message: _stringValue(data['message']),
-      type: _stringValue(data['type'], fallback: NotificationType.info),
+      type: _stringValue(data['type'], fallback: NotificationType.system),
       priority: _stringValue(
         data['priority'],
         fallback: NotificationPriority.normal,

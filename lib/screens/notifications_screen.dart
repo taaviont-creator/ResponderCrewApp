@@ -25,7 +25,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Future<void> _showAddNotificationDialog() async {
     final titleController = TextEditingController();
     final messageController = TextEditingController();
-    var selectedType = NotificationType.info;
+    var selectedType = NotificationType.system;
     var selectedPriority = NotificationPriority.normal;
 
     final shouldCreate = await showDialog<bool>(
@@ -305,12 +305,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   String _notificationTypeLabel(String type) {
     switch (type) {
+      case NotificationType.system:
+        return 'Süsteem';
+      case NotificationType.info:
+        return 'Info';
       case NotificationType.warning:
         return 'Hoiatus';
       case NotificationType.equipment:
         return 'Varustus';
       case NotificationType.availability:
         return 'Valvesolek';
+      case NotificationType.minimumCrew:
+        return 'Miinimummeeskond';
       case NotificationType.readiness:
         return 'Valmisolek';
       case NotificationType.activity:
@@ -322,7 +328,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       case NotificationType.other:
         return 'Muu';
       default:
-        return 'Info';
+        return 'Süsteem';
     }
   }
 
@@ -331,7 +337,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       case NotificationPriority.low:
         return 'Madal';
       case NotificationPriority.high:
-        return 'Korge';
+        return 'Kõrge';
       case NotificationPriority.critical:
         return 'Kriitiline';
       default:

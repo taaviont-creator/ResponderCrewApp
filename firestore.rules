@@ -471,15 +471,12 @@ service cloud.firestore {
     }
 
     function isValidNotificationType(type) {
-      return type == 'info' ||
-        type == 'warning' ||
+      return type == 'system' ||
         type == 'equipment' ||
         type == 'availability' ||
-        type == 'readiness' ||
+        type == 'minimumCrew' ||
         type == 'activity' ||
-        type == 'operation' ||
-        type == 'callout' ||
-        type == 'other';
+        type == 'callout';
     }
 
     function isValidNotificationPriority(priority) {
@@ -518,7 +515,7 @@ service cloud.firestore {
         isValidNotificationData(request.resource.data) &&
         (
           isOwnAvailabilityNotificationCreate() ||
-          isOwnReadinessNotificationCreate() ||
+          isOwnMinimumCrewNotificationCreate() ||
           isActiveAdmin(organizationIdFromData(request.resource.data))
         );
     }
@@ -554,12 +551,12 @@ service cloud.firestore {
         );
     }
 
-    function isOwnReadinessNotificationCreate() {
+    function isOwnMinimumCrewNotificationCreate() {
       let organizationId =
         organizationIdFromData(request.resource.data);
       let summaryPath =
         /databases/$(database)/documents/organizationReadinessSummaries/$(organizationId);
-      return request.resource.data.type == 'readiness' &&
+      return request.resource.data.type == 'minimumCrew' &&
         request.resource.data.keys().hasAll(['relatedType', 'relatedId']) &&
         request.resource.data.relatedType == 'organizationReadiness' &&
         request.resource.data.relatedId == organizationId &&

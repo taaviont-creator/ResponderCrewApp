@@ -183,7 +183,7 @@ class EquipmentService {
       case EquipmentStatus.broken:
         return NotificationPriority.high;
       case EquipmentStatus.outOfService:
-        return NotificationPriority.critical;
+        return NotificationPriority.high;
       default:
         return null;
     }

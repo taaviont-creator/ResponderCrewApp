@@ -126,7 +126,7 @@ class CalloutService {
       'title': 'Valjakutse: $trimmedTitle',
       'message': notificationMessage,
       'type': NotificationType.callout,
-      'priority': priority,
+      'priority': NotificationPriority.high,
       'relatedType': 'callout',
       'relatedId': calloutDoc.id,
       'createdBy': createdBy,
