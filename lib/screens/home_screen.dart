@@ -693,6 +693,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     MaterialPageRoute(
                       builder: (_) => AvailabilityScreen(
                         organizationId: commandId,
+                        organizationName: commandName,
+                        membershipRole: membershipRole,
                         currentUid: user.uid,
                         currentUserName: displayName,
                         canViewOrganizationReadiness: isOrganizationAdmin,
@@ -1329,6 +1331,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   homeContent,
                   AvailabilityScreen(
                     organizationId: selectedOrganizationId,
+                    organizationName: commandName,
+                    membershipRole: myMembershipRole,
                     currentUid: user.uid,
                     currentUserName: displayName,
                     canViewOrganizationReadiness: isOrganizationAdmin,
