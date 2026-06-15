@@ -39,6 +39,23 @@ class NotificationService {
     });
   }
 
+  Stream<Set<String>> streamMyReadNotificationIds({
+    required String userId,
+    required String organizationId,
+  }) {
+    return _notificationReads
+        .where('userId', isEqualTo: userId)
+        .where('organizationId', isEqualTo: organizationId)
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs
+          .map(NotificationReadModel.fromFirestore)
+          .map((read) => read.notificationId)
+          .where((notificationId) => notificationId.isNotEmpty)
+          .toSet();
+    });
+  }
+
   Future<void> addNotification({
     required String organizationId,
     required String title,
@@ -106,5 +123,51 @@ class NotificationService {
       },
       SetOptions(merge: true),
     );
+  }
+
+  Future<void> markAllAsRead({
+    required List<NotificationModel> notifications,
+    required Set<String> readNotificationIds,
+    required String userId,
+    required String organizationId,
+  }) async {
+    final unreadNotifications = notifications.where((notification) {
+      final notificationOrganizationId = notification.organizationId.isNotEmpty
+          ? notification.organizationId
+          : notification.commandId;
+      return notificationOrganizationId == organizationId &&
+          !readNotificationIds.contains(notification.id);
+    }).toList(growable: false);
+
+    const batchSize = 450;
+    for (var start = 0;
+        start < unreadNotifications.length;
+        start += batchSize) {
+      final end = (start + batchSize < unreadNotifications.length)
+          ? start + batchSize
+          : unreadNotifications.length;
+      final batch = _firestore.batch();
+
+      for (final notification in unreadNotifications.sublist(start, end)) {
+        final readId = '${notification.id}_$userId';
+        batch.set(
+          _notificationReads.doc(readId),
+          {
+            'id': readId,
+            'notificationId': notification.id,
+            'userId': userId,
+            'organizationId': organizationId,
+            // TODO: Remove commandId after all notification reads use
+            // organizationId.
+            'commandId': organizationId,
+            'readAt': FieldValue.serverTimestamp(),
+            'createdAt': FieldValue.serverTimestamp(),
+          },
+          SetOptions(merge: true),
+        );
+      }
+
+      await batch.commit();
+    }
   }
 }

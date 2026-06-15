@@ -148,6 +148,30 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
+  Future<void> _markAllAsRead({
+    required List<NotificationModel> notifications,
+    required Set<String> readNotificationIds,
+  }) async {
+    try {
+      await _notificationService.markAllAsRead(
+        notifications: notifications,
+        readNotificationIds: readNotificationIds,
+        userId: widget.currentUid,
+        organizationId: widget.organizationId,
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Kõik teavitused märgitud loetuks')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Kõigi loetuks märkimine ebaõnnestus: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -180,29 +204,97 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             return const Center(child: Text('Teavitusi ei ole lisatud'));
           }
 
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: notifications.length,
-            separatorBuilder: (_, _) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              final notification = notifications[index];
-              final subtitleParts = [
-                _notificationTypeLabel(notification.type),
-                _notificationPriorityLabel(notification.priority),
-                if (notification.createdAt != null)
-                  _shortDateTime(notification.createdAt!),
-              ];
+          return StreamBuilder<Set<String>>(
+            stream: _notificationService.streamMyReadNotificationIds(
+              userId: widget.currentUid,
+              organizationId: widget.organizationId,
+            ),
+            builder: (context, readsSnapshot) {
+              if (readsSnapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-              return ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(notification.title),
-                subtitle: Text(
-                  '${subtitleParts.join(' - ')}\n${notification.message}',
-                ),
-                trailing: TextButton(
-                  onPressed: () => _markAsRead(notification),
-                  child: const Text('Loetud'),
-                ),
+              if (readsSnapshot.hasError) {
+                return Center(
+                  child: Text(
+                    'Lugemisoleku laadimine ebaõnnestus: '
+                    '${readsSnapshot.error}',
+                  ),
+                );
+              }
+
+              final readNotificationIds =
+                  readsSnapshot.data ?? const <String>{};
+              final unreadCount = notifications
+                  .where(
+                    (notification) =>
+                        !readNotificationIds.contains(notification.id),
+                  )
+                  .length;
+
+              return ListView.separated(
+                padding: const EdgeInsets.all(16),
+                itemCount: notifications.length + (unreadCount > 0 ? 1 : 0),
+                separatorBuilder: (_, _) => const Divider(height: 1),
+                itemBuilder: (context, index) {
+                  if (unreadCount > 0 && index == 0) {
+                    return Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        onPressed: () => _markAllAsRead(
+                          notifications: notifications,
+                          readNotificationIds: readNotificationIds,
+                        ),
+                        icon: const Icon(Icons.done_all),
+                        label: const Text('Märgi kõik loetuks'),
+                      ),
+                    );
+                  }
+
+                  final notificationIndex =
+                      index - (unreadCount > 0 ? 1 : 0);
+                  final notification = notifications[notificationIndex];
+                  final isRead =
+                      readNotificationIds.contains(notification.id);
+                  final subtitleParts = [
+                    isRead ? 'Loetud' : 'Lugemata',
+                    _notificationTypeLabel(notification.type),
+                    _notificationPriorityLabel(notification.priority),
+                    if (notification.createdAt != null)
+                      _shortDateTime(notification.createdAt!),
+                  ];
+
+                  return ListTile(
+                    tileColor: isRead
+                        ? null
+                        : Theme.of(context)
+                            .colorScheme
+                            .primaryContainer
+                            .withValues(alpha: 0.35),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                    leading: Icon(
+                      isRead
+                          ? Icons.notifications_none
+                          : Icons.notifications_active,
+                    ),
+                    title: Text(
+                      notification.title,
+                      style: TextStyle(
+                        fontWeight:
+                            isRead ? FontWeight.normal : FontWeight.bold,
+                      ),
+                    ),
+                    subtitle: Text(
+                      '${subtitleParts.join(' - ')}\n${notification.message}',
+                    ),
+                    trailing: isRead
+                        ? const Text('Loetud')
+                        : TextButton(
+                            onPressed: () => _markAsRead(notification),
+                            child: const Text('Märgi loetuks'),
+                          ),
+                  );
+                },
               );
             },
           );
