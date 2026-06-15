@@ -14,6 +14,7 @@ import 'certificates_screen.dart';
 import 'equipment_screen.dart';
 import 'main_navigation_shell.dart';
 import 'members_screen.dart';
+import 'member_home_dashboard.dart';
 import 'menu_screen.dart';
 import 'notifications_screen.dart';
 import 'operation_log_screen.dart';
@@ -1201,25 +1202,50 @@ class _HomeScreenState extends State<HomeScreen> {
                       currentCommandName: commandName,
                     ),
                   ),
-                  body: ListView(
-                    children: [
-                      _buildHeaderSection(
-                        user: user,
-                        displayName: displayName,
-                        commandId: selectedOrganizationId,
-                        commandName: commandName,
-                        joinCode: joinCode,
-                        canSeeJoinCode: canSeeJoinCode,
-                        isPlatformOwner: isPlatformOwner,
-                        membershipRole: myMembershipRole,
-                        allowMembersToCreateActivities:
-                            allowMembersToCreateActivities,
-                        allowMembersToViewStatistics:
-                            allowMembersToViewStatistics,
-                        membershipDocs: membershipDocs,
-                      ),
-                    ],
-                  ),
+                  body: isOrganizationAdmin
+                      ? ListView(
+                          children: [
+                            _buildHeaderSection(
+                              user: user,
+                              displayName: displayName,
+                              commandId: selectedOrganizationId,
+                              commandName: commandName,
+                              joinCode: joinCode,
+                              canSeeJoinCode: canSeeJoinCode,
+                              isPlatformOwner: isPlatformOwner,
+                              membershipRole: myMembershipRole,
+                              allowMembersToCreateActivities:
+                                  allowMembersToCreateActivities,
+                              allowMembersToViewStatistics:
+                                  allowMembersToViewStatistics,
+                              membershipDocs: membershipDocs,
+                            ),
+                          ],
+                        )
+                      : MemberHomeDashboard(
+                          organizationId: selectedOrganizationId,
+                          organizationName: commandName,
+                          currentUid: user.uid,
+                          currentUserName: displayName,
+                          onOpenCallouts: () {
+                            setState(() => _selectedNavigationIndex = 2);
+                          },
+                          onOpenNotifications: () {
+                            setState(() => _selectedNavigationIndex = 3);
+                          },
+                          onOpenActivities: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ActivitiesScreen(
+                                  organizationId: selectedOrganizationId,
+                                  currentUid: user.uid,
+                                  canManageActivities: canCreateActivities,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                 );
 
                 final screens = <Widget>[
