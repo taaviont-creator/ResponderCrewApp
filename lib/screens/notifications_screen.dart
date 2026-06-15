@@ -3,6 +3,12 @@ import 'package:flutter/material.dart';
 import '../models/notification_model.dart';
 import '../services/notification_service.dart';
 
+enum _NotificationFilter {
+  all,
+  unread,
+  highPriority,
+}
+
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({
     super.key,
@@ -21,6 +27,7 @@ class NotificationsScreen extends StatefulWidget {
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
   final _notificationService = NotificationService();
+  var _selectedFilter = _NotificationFilter.all;
 
   Future<void> _showAddNotificationDialog() async {
     final titleController = TextEditingController();
@@ -231,13 +238,62 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         !readNotificationIds.contains(notification.id),
                   )
                   .length;
+              final filteredNotifications = notifications.where((notification) {
+                switch (_selectedFilter) {
+                  case _NotificationFilter.unread:
+                    return !readNotificationIds.contains(notification.id);
+                  case _NotificationFilter.highPriority:
+                    return notification.priority ==
+                            NotificationPriority.high ||
+                        notification.priority ==
+                            NotificationPriority.critical;
+                  case _NotificationFilter.all:
+                    return true;
+                }
+              }).toList(growable: false);
 
               return ListView.separated(
                 padding: const EdgeInsets.all(16),
-                itemCount: notifications.length + (unreadCount > 0 ? 1 : 0),
+                itemCount: filteredNotifications.length +
+                    (unreadCount > 0 ? 2 : 1) +
+                    (filteredNotifications.isEmpty ? 1 : 0),
                 separatorBuilder: (_, _) => const Divider(height: 1),
                 itemBuilder: (context, index) {
-                  if (unreadCount > 0 && index == 0) {
+                  if (index == 0) {
+                    return Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        ChoiceChip(
+                          label: const Text('Kõik'),
+                          selected:
+                              _selectedFilter == _NotificationFilter.all,
+                          onSelected: (_) => setState(
+                            () => _selectedFilter = _NotificationFilter.all,
+                          ),
+                        ),
+                        ChoiceChip(
+                          label: const Text('Lugemata'),
+                          selected:
+                              _selectedFilter == _NotificationFilter.unread,
+                          onSelected: (_) => setState(
+                            () => _selectedFilter = _NotificationFilter.unread,
+                          ),
+                        ),
+                        ChoiceChip(
+                          label: const Text('Kõrge tähtsusega'),
+                          selected: _selectedFilter ==
+                              _NotificationFilter.highPriority,
+                          onSelected: (_) => setState(
+                            () => _selectedFilter =
+                                _NotificationFilter.highPriority,
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+
+                  if (unreadCount > 0 && index == 1) {
                     return Align(
                       alignment: Alignment.centerRight,
                       child: TextButton.icon(
@@ -251,11 +307,25 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     );
                   }
 
+                  if (filteredNotifications.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 32),
+                      child: Center(
+                        child: Text('Selle filtriga teavitusi ei ole'),
+                      ),
+                    );
+                  }
+
                   final notificationIndex =
-                      index - (unreadCount > 0 ? 1 : 0);
-                  final notification = notifications[notificationIndex];
+                      index - (unreadCount > 0 ? 2 : 1);
+                  final notification =
+                      filteredNotifications[notificationIndex];
                   final isRead =
                       readNotificationIds.contains(notification.id);
+                  final isHighPriority =
+                      notification.priority == NotificationPriority.high ||
+                          notification.priority ==
+                              NotificationPriority.critical;
                   final subtitleParts = [
                     isRead ? 'Loetud' : 'Lugemata',
                     _notificationTypeLabel(notification.type),
@@ -276,6 +346,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       isRead
                           ? Icons.notifications_none
                           : Icons.notifications_active,
+                      color: isHighPriority
+                          ? Theme.of(context).colorScheme.error
+                          : null,
                     ),
                     title: Text(
                       notification.title,
