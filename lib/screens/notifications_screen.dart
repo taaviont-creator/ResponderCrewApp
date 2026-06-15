@@ -219,6 +219,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         return 'Varustus';
       case NotificationType.availability:
         return 'Valvesolek';
+      case NotificationType.readiness:
+        return 'Valmisolek';
       case NotificationType.activity:
         return 'Tegevus';
       case NotificationType.operation:

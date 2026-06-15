@@ -5,6 +5,7 @@ class NotificationType {
   static const warning = 'warning';
   static const equipment = 'equipment';
   static const availability = 'availability';
+  static const readiness = 'readiness';
   static const activity = 'activity';
   static const operation = 'operation';
   static const callout = 'callout';
@@ -15,6 +16,7 @@ class NotificationType {
     warning,
     equipment,
     availability,
+    readiness,
     activity,
     operation,
     callout,

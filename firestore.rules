@@ -475,6 +475,7 @@ service cloud.firestore {
         type == 'warning' ||
         type == 'equipment' ||
         type == 'availability' ||
+        type == 'readiness' ||
         type == 'activity' ||
         type == 'operation' ||
         type == 'callout' ||
@@ -516,8 +517,9 @@ service cloud.firestore {
         request.resource.data.createdBy == request.auth.uid &&
         isValidNotificationData(request.resource.data) &&
         (
-          isActiveAdmin(organizationIdFromData(request.resource.data)) ||
-          isOwnAvailabilityNotificationCreate()
+          isOwnAvailabilityNotificationCreate() ||
+          isOwnReadinessNotificationCreate() ||
+          isActiveAdmin(organizationIdFromData(request.resource.data))
         );
     }
 
@@ -548,6 +550,36 @@ service cloud.firestore {
             exists(availabilityPath) &&
             get(availabilityPath).data.status !=
               getAfter(availabilityPath).data.status
+          )
+        );
+    }
+
+    function isOwnReadinessNotificationCreate() {
+      let organizationId =
+        organizationIdFromData(request.resource.data);
+      let summaryPath =
+        /databases/$(database)/documents/organizationReadinessSummaries/$(organizationId);
+      return request.resource.data.type == 'readiness' &&
+        request.resource.data.keys().hasAll(['relatedType', 'relatedId']) &&
+        request.resource.data.relatedType == 'organizationReadiness' &&
+        request.resource.data.relatedId == organizationId &&
+        isActiveMember(organizationId) &&
+        exists(summaryPath) &&
+        existsAfter(summaryPath) &&
+        getAfter(summaryPath).data.lastUpdatedBy == request.auth.uid &&
+        getAfter(summaryPath).data.updatedAt == request.time &&
+        (
+          (
+            get(summaryPath).data.minimumCrewMet == true &&
+            getAfter(summaryPath).data.minimumCrewMet == false &&
+            request.resource.data.title == 'Meeskond alla miinimumi' &&
+            request.resource.data.priority == 'high'
+          ) ||
+          (
+            get(summaryPath).data.minimumCrewMet == false &&
+            getAfter(summaryPath).data.minimumCrewMet == true &&
+            request.resource.data.title == 'Meeskond taastatud' &&
+            request.resource.data.priority == 'normal'
           )
         );
     }
@@ -803,6 +835,65 @@ service cloud.firestore {
         isActiveAdmin(summaryId);
     }
 
+    function isOwnAvailabilityReadinessSummaryUpdate(summaryId) {
+      let availabilityId = request.auth.uid + '_' + summaryId;
+      let availabilityPath =
+        /databases/$(database)/documents/availability/$(availabilityId);
+      return signedIn() &&
+        isActiveMember(summaryId) &&
+        request.resource.data.id == summaryId &&
+        request.resource.data.organizationId == summaryId &&
+        request.resource.data.commandId == summaryId &&
+        request.resource.data.lastUpdatedBy == request.auth.uid &&
+        request.resource.data.lastUpdatedAt == request.time &&
+        request.resource.data.updatedAt == request.time &&
+        request.resource.data.minimumCrewRequired > 0 &&
+        request.resource.data.minimumCrewMet ==
+          (
+            request.resource.data.onDutyCount >=
+              request.resource.data.minimumCrewRequired
+          ) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'onDutyCount',
+          'minimumCrewMet',
+          'lastUpdatedBy',
+          'lastUpdatedAt',
+          'updatedAt'
+        ]) &&
+        isValidReadinessSummaryData(request.resource.data) &&
+        existsAfter(availabilityPath) &&
+        getAfter(availabilityPath).data.userId == request.auth.uid &&
+        organizationIdFromData(getAfter(availabilityPath).data) == summaryId &&
+        getAfter(availabilityPath).data.updatedAt == request.time &&
+        (
+          (
+            (
+              !exists(availabilityPath) ||
+              get(availabilityPath).data.status != 'onDuty'
+            ) &&
+            getAfter(availabilityPath).data.status == 'onDuty' &&
+            request.resource.data.onDutyCount ==
+              resource.data.onDutyCount + 1
+          ) ||
+          (
+            exists(availabilityPath) &&
+            get(availabilityPath).data.status == 'onDuty' &&
+            getAfter(availabilityPath).data.status != 'onDuty' &&
+            (
+              (
+                resource.data.onDutyCount > 0 &&
+                request.resource.data.onDutyCount ==
+                  resource.data.onDutyCount - 1
+              ) ||
+              (
+                resource.data.onDutyCount == 0 &&
+                request.resource.data.onDutyCount == 0
+              )
+            )
+          )
+        );
+    }
+
     match /users/{userId} {
       // TODO: Restrict user reads to self + same-organization members before production.
       allow read: if signedIn();
@@ -914,7 +1005,9 @@ service cloud.firestore {
             isActiveMember(organizationIdFromData(resource.data))
           )
         );
-      allow create, update: if isReadinessSummaryWrite(summaryId);
+      allow create: if isReadinessSummaryWrite(summaryId);
+      allow update: if isReadinessSummaryWrite(summaryId) ||
+        isOwnAvailabilityReadinessSummaryUpdate(summaryId);
     }
   }
 }
