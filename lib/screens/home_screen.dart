@@ -12,7 +12,9 @@ import 'availability_screen.dart';
 import 'callouts_screen.dart';
 import 'certificates_screen.dart';
 import 'equipment_screen.dart';
+import 'main_navigation_shell.dart';
 import 'members_screen.dart';
+import 'menu_screen.dart';
 import 'notifications_screen.dart';
 import 'operation_log_screen.dart';
 import 'platform_readiness_screen.dart';
@@ -30,6 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final _commandService = CommandService();
   final _membershipService = MembershipService();
   final _notificationService = NotificationService();
+  var _selectedNavigationIndex = 0;
 
   Future<void> _signOut() async {
     await FirebaseAuth.instance.signOut();
@@ -1167,10 +1170,12 @@ class _HomeScreenState extends State<HomeScreen> {
               );
             }
 
+            final String selectedOrganizationId = activeCommandId;
+
             return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
               stream: FirebaseFirestore.instance
                   .collection('commands')
-                  .doc(activeCommandId)
+                  .doc(selectedOrganizationId)
                   .snapshots(),
               builder: (context, commandSnapshot) {
                 final commandData = commandSnapshot.data?.data();
@@ -1181,12 +1186,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 final allowMembersToViewStatistics =
                     commandData?['allowMembersToViewStatistics'] == true;
 
-                return Scaffold(
+                final isOrganizationAdmin = myMembershipRole == 'admin';
+                final canCreateActivities =
+                    isOrganizationAdmin || allowMembersToCreateActivities;
+                final canViewStatistics =
+                    isOrganizationAdmin || allowMembersToViewStatistics;
+
+                final homeContent = Scaffold(
                   appBar: AppBar(
                     title: const Text('RespondCrew'),
                     actions: _buildAppBarActions(
                       membershipDocs: membershipDocs,
-                      currentActiveCommandId: activeCommandId,
+                      currentActiveCommandId: selectedOrganizationId,
                       currentCommandName: commandName,
                     ),
                   ),
@@ -1195,7 +1206,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       _buildHeaderSection(
                         user: user,
                         displayName: displayName,
-                        commandId: activeCommandId,
+                        commandId: selectedOrganizationId,
                         commandName: commandName,
                         joinCode: joinCode,
                         canSeeJoinCode: canSeeJoinCode,
@@ -1209,6 +1220,50 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ],
                   ),
+                );
+
+                final screens = <Widget>[
+                  homeContent,
+                  AvailabilityScreen(
+                    organizationId: selectedOrganizationId,
+                    currentUid: user.uid,
+                    currentUserName: displayName,
+                    canViewOrganizationReadiness: isOrganizationAdmin,
+                  ),
+                  CalloutsScreen(
+                    organizationId: selectedOrganizationId,
+                    currentUid: user.uid,
+                    currentUserName: displayName,
+                    canManageCallouts: isOrganizationAdmin,
+                  ),
+                  NotificationsScreen(
+                    organizationId: selectedOrganizationId,
+                    currentUid: user.uid,
+                    currentUserName: displayName,
+                    canManageNotifications: isOrganizationAdmin,
+                    canCreateActivities: canCreateActivities,
+                  ),
+                  MenuScreen(
+                    organizationId: selectedOrganizationId,
+                    organizationName: commandName,
+                    currentUid: user.uid,
+                    currentUserName: displayName,
+                    isOrganizationAdmin: isOrganizationAdmin,
+                    isPlatformOwner: isPlatformOwner,
+                    canCreateActivities: canCreateActivities,
+                    canViewStatistics: canViewStatistics,
+                    onOpenOrganizationSettings: () {
+                      setState(() => _selectedNavigationIndex = 0);
+                    },
+                  ),
+                ];
+
+                return MainNavigationShell(
+                  currentIndex: _selectedNavigationIndex,
+                  onDestinationSelected: (index) {
+                    setState(() => _selectedNavigationIndex = index);
+                  },
+                  child: screens[_selectedNavigationIndex],
                 );
               },
             );
