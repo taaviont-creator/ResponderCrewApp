@@ -208,13 +208,13 @@ class EquipmentService {
 
     if (scope == EquipmentScope.personal) {
       if (ownerUserId.isEmpty || ownerUserId != currentUserId) {
-        throw Exception('Isiklikku varustust saab muuta ainult selle omanik');
+        throw Exception('Sul puudub õigus seda varustust muuta');
       }
       return;
     }
 
     if (!canManageOrganizationEquipment) {
-      throw Exception('Organisatsiooni varustust saab muuta ainult administraator');
+      throw Exception('Sul puudub õigus seda varustust muuta');
     }
   }
 

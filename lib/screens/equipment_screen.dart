@@ -50,23 +50,26 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
     }
   }
 
-  Future<void> _showAddEquipmentDialog() async {
+  Future<void> _showAddEquipmentDialog({
+    required String scope,
+  }) async {
     final nameController = TextEditingController();
     final locationController = TextEditingController();
     final nextMaintenanceDateController = TextEditingController();
     final noteController = TextEditingController();
     var selectedCategory = EquipmentCategory.other;
     var selectedStatus = EquipmentStatus.ok;
-    var selectedScope = widget.canManageEquipment
-        ? EquipmentScope.organization
-        : EquipmentScope.personal;
 
     final shouldCreate = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) {
           return AlertDialog(
-            title: const Text('Lisa varustus'),
+            title: Text(
+              scope == EquipmentScope.personal
+                  ? 'Lisa minu varustus'
+                  : 'Lisa ühingu varustus',
+            ),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -75,23 +78,6 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
                     controller: nameController,
                     decoration: const InputDecoration(labelText: 'Nimi'),
                   ),
-                  if (widget.canManageEquipment) ...[
-                    const SizedBox(height: 8),
-                    DropdownButtonFormField<String>(
-                      initialValue: selectedScope,
-                      decoration: const InputDecoration(labelText: 'Omand'),
-                      items: EquipmentScope.values.map((scope) {
-                        return DropdownMenuItem<String>(
-                          value: scope,
-                          child: Text(_equipmentScopeLabel(scope)),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        if (value == null) return;
-                        setDialogState(() => selectedScope = value);
-                      },
-                    ),
-                  ],
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     initialValue: selectedCategory,
@@ -164,8 +150,8 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
     try {
       await _equipmentService.addEquipment(
         organizationId: widget.organizationId,
-        scope: selectedScope,
-        ownerUserId: selectedScope == EquipmentScope.personal
+        scope: scope,
+        ownerUserId: scope == EquipmentScope.personal
             ? widget.currentUid
             : '',
         name: nameController.text,
@@ -177,7 +163,7 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
         createdBy: widget.currentUid,
         canManageOrganizationEquipment: widget.canManageEquipment,
       );
-      if (selectedScope == EquipmentScope.organization) {
+      if (scope == EquipmentScope.organization) {
         await _checkMaintenanceDueNotifications();
       }
 
@@ -321,10 +307,6 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
       appBar: AppBar(
         title: const Text('Varustus'),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showAddEquipmentDialog,
-        child: const Icon(Icons.add),
-      ),
       body: StreamBuilder<List<EquipmentModel>>(
         stream: _equipmentService.streamOrganizationEquipment(
           organizationId: widget.organizationId,
@@ -341,44 +323,113 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
           }
 
           final equipment = snapshot.data ?? const <EquipmentModel>[];
-          if (equipment.isEmpty) {
-            return const Center(child: Text('Varustust ei ole veel lisatud'));
-          }
+          final personalEquipment = equipment
+              .where(
+                (item) =>
+                    item.isPersonal &&
+                    item.ownerUserId == widget.currentUid,
+              )
+              .toList(growable: false);
+          final organizationEquipment = equipment
+              .where((item) => !item.isPersonal)
+              .toList(growable: false);
 
-          return ListView.separated(
+          return ListView(
             padding: const EdgeInsets.all(16),
-            itemCount: equipment.length,
-            separatorBuilder: (_, _) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              final item = equipment[index];
-              final maintenanceStatus = _maintenanceStatusLabel(item);
-              final subtitleParts = [
-                _equipmentScopeLabel(item.scope),
-                _equipmentCategoryLabel(item.category),
-                _equipmentStatusLabel(item.status),
-                if (item.location.isNotEmpty) item.location,
-                if (item.nextMaintenanceDate.isNotEmpty)
-                  'Hooldus ${item.nextMaintenanceDate}',
-                ?maintenanceStatus,
-                if (item.note.isNotEmpty) item.note,
-              ];
-
-              return ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(item.name),
-                subtitle: Text(subtitleParts.join(' - ')),
-                trailing: _canEditEquipment(item)
-                    ? IconButton(
-                        icon: const Icon(Icons.edit),
-                        tooltip: 'Muuda varustust',
-                        onPressed: () => _showEditEquipmentDialog(item),
-                      )
+            children: [
+              _buildEquipmentSection(
+                title: 'Minu varustus',
+                equipment: personalEquipment,
+                emptyText: 'Isiklikku varustust ei ole lisatud',
+                addLabel: 'Lisa minu varustus',
+                onAdd: () => _showAddEquipmentDialog(
+                  scope: EquipmentScope.personal,
+                ),
+              ),
+              const SizedBox(height: 24),
+              _buildEquipmentSection(
+                title: 'Ühingu varustus',
+                equipment: organizationEquipment,
+                emptyText: 'Ühingu varustust ei ole lisatud',
+                addLabel: 'Lisa ühingu varustus',
+                onAdd: widget.canManageEquipment
+                    ? () => _showAddEquipmentDialog(
+                          scope: EquipmentScope.organization,
+                        )
                     : null,
-              );
-            },
+              ),
+            ],
           );
         },
       ),
+    );
+  }
+
+  Widget _buildEquipmentSection({
+    required String title,
+    required List<EquipmentModel> equipment,
+    required String emptyText,
+    required String addLabel,
+    required VoidCallback? onAdd,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            if (onAdd != null)
+              TextButton.icon(
+                onPressed: onAdd,
+                icon: const Icon(Icons.add),
+                label: Text(addLabel),
+              ),
+          ],
+        ),
+        if (equipment.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Text(emptyText),
+          )
+        else
+          ...equipment.map(_buildEquipmentTile),
+      ],
+    );
+  }
+
+  Widget _buildEquipmentTile(EquipmentModel item) {
+    final maintenanceStatus = _maintenanceStatusLabel(item);
+    final subtitleParts = [
+      _equipmentCategoryLabel(item.category),
+      _equipmentStatusLabel(item.status),
+      if (item.location.isNotEmpty) item.location,
+      if (item.nextMaintenanceDate.isNotEmpty)
+        'Hooldus ${item.nextMaintenanceDate}',
+      ?maintenanceStatus,
+      if (item.note.isNotEmpty) item.note,
+    ];
+
+    return Column(
+      children: [
+        const Divider(height: 1),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          title: Text(item.name),
+          subtitle: Text(subtitleParts.join(' - ')),
+          trailing: _canEditEquipment(item)
+              ? IconButton(
+                  icon: const Icon(Icons.edit),
+                  tooltip: 'Muuda varustust',
+                  onPressed: () => _showEditEquipmentDialog(item),
+                )
+              : null,
+        ),
+      ],
     );
   }
 
@@ -406,12 +457,6 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
       return item.ownerUserId == widget.currentUid;
     }
     return widget.canManageEquipment;
-  }
-
-  String _equipmentScopeLabel(String scope) {
-    return scope == EquipmentScope.personal
-        ? 'Isiklik varustus'
-        : 'Organisatsiooni varustus';
   }
 
   String _equipmentStatusLabel(String status) {
