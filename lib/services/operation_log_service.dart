@@ -173,10 +173,15 @@ class OperationLogService {
     required String organizationId,
     required String title,
     required String createdBy,
+    String type = OperationLogEventType.manualNote,
   }) async {
     final trimmedTitle = title.trim();
     if (trimmedTitle.isEmpty) {
       throw Exception('Operation log event title is required');
+    }
+    if (type != OperationLogEventType.manualNote &&
+        type != OperationLogEventType.quickAction) {
+      throw Exception('Unsupported manual operation log event type: $type');
     }
 
     final doc = _operationLogs.doc(operationLogId);
@@ -202,7 +207,7 @@ class OperationLogService {
         'organizationId': organizationId,
         'commandId': organizationId,
         'operationLogId': operationLogId,
-        'type': OperationLogEventType.manualNote,
+        'type': type,
         'status': currentStatus,
         'title': trimmedTitle,
         'description': '',

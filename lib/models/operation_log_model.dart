@@ -47,10 +47,12 @@ class OperationLogStatus {
 class OperationLogEventType {
   static const statusChange = 'statusChange';
   static const manualNote = 'manualNote';
+  static const quickAction = 'quickAction';
 
   static const values = {
     statusChange,
     manualNote,
+    quickAction,
   };
 }
 

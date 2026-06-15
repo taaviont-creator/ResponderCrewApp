@@ -22,6 +22,16 @@ class OperationLogScreen extends StatefulWidget {
 class _OperationLogScreenState extends State<OperationLogScreen> {
   final _operationLogService = OperationLogService();
 
+  static const _quickActions = [
+    'Otsing alustatud',
+    'Kannatanu leitud',
+    'Esmaabi antud',
+    'JRCC teavitatud',
+    'Otsinguala laiendatud',
+    'Pukseerimine alustatud',
+    'Operatsioon lõpetatud',
+  ];
+
   Future<void> _updateStatus(
     OperationLogModel log,
     String status,
@@ -79,6 +89,26 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Märke lisamine ebaõnnestus: $e')),
+      );
+    }
+  }
+
+  Future<void> _addQuickAction(
+    OperationLogModel log,
+    String title,
+  ) async {
+    try {
+      await _operationLogService.addManualEvent(
+        operationLogId: log.id,
+        organizationId: widget.organizationId,
+        title: title,
+        createdBy: widget.currentUid,
+        type: OperationLogEventType.quickAction,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Kiirtegevuse lisamine ebaõnnestus: $e')),
       );
     }
   }
@@ -238,6 +268,27 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
                   },
                 ),
                 children: [
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Kiirtegevused',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: _quickActions.map((title) {
+                        return ActionChip(
+                          label: Text(title),
+                          onPressed: () => _addQuickAction(log, title),
+                        );
+                      }).toList(),
+                    ),
+                  ),
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton.icon(
@@ -277,11 +328,7 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
                           return ListTile(
                             dense: true,
                             contentPadding: EdgeInsets.zero,
-                            leading: Icon(
-                              event.type == OperationLogEventType.manualNote
-                                  ? Icons.notes
-                                  : Icons.history,
-                            ),
+                            leading: Icon(_operationLogEventIcon(event.type)),
                             title: Text(event.title),
                             subtitle: event.createdAt == null
                                 ? null
@@ -339,6 +386,17 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
         return 'Tagasi baasis';
       default:
         return 'Loodud';
+    }
+  }
+
+  IconData _operationLogEventIcon(String type) {
+    switch (type) {
+      case OperationLogEventType.quickAction:
+        return Icons.bolt;
+      case OperationLogEventType.manualNote:
+        return Icons.notes;
+      default:
+        return Icons.history;
     }
   }
 
