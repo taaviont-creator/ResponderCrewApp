@@ -109,13 +109,8 @@ class ActivityService {
       'organizationId': organizationId,
       // TODO: Remove commandId after all notification reads use organizationId.
       'commandId': organizationId,
-      'title': 'Tegevus: $trimmedTitle',
-      'message': _activityNotificationMessage(
-        title: trimmedTitle,
-        type: type,
-        startTime: trimmedStartTime,
-        location: trimmedLocation,
-      ),
+      'title': 'Uus tegevus',
+      'message': 'Lisatud on uus tegevus või koolitus: $trimmedTitle',
       'type': NotificationType.activity,
       'priority': NotificationPriority.normal,
       'relatedType': 'activity',
@@ -152,38 +147,5 @@ class ActivityService {
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
-  }
-
-  String _activityNotificationMessage({
-    required String title,
-    required String type,
-    required String startTime,
-    required String location,
-  }) {
-    final parts = [
-      _activityTypeLabel(type),
-      if (startTime.isNotEmpty) startTime,
-      if (location.isNotEmpty) location,
-    ];
-
-    if (parts.isEmpty) return title;
-    return '$title - ${parts.join(' - ')}';
-  }
-
-  String _activityTypeLabel(String type) {
-    switch (type) {
-      case ActivityType.training:
-        return 'Training';
-      case ActivityType.meeting:
-        return 'Meeting';
-      case ActivityType.maintenance:
-        return 'Maintenance';
-      case ActivityType.exercise:
-        return 'Exercise';
-      case ActivityType.event:
-        return 'Event';
-      default:
-        return 'Other';
-    }
   }
 }
