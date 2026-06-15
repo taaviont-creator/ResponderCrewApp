@@ -31,6 +31,7 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
         operationLogId: log.id,
         organizationId: widget.organizationId,
         status: status,
+        updatedBy: widget.currentUid,
       );
     } catch (e) {
       if (!mounted) return;
@@ -167,8 +168,13 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
                 if (log.timestamp != null) _shortDateTime(log.timestamp!),
               ];
 
-              return ListTile(
-                contentPadding: EdgeInsets.zero,
+              return ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                childrenPadding: const EdgeInsets.only(
+                  left: 16,
+                  right: 16,
+                  bottom: 12,
+                ),
                 title: Text(log.title),
                 subtitle: Text(
                   log.description.isEmpty
@@ -189,6 +195,49 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
                     _updateStatus(log, status);
                   },
                 ),
+                children: [
+                  StreamBuilder<List<OperationLogEventModel>>(
+                    stream: _operationLogService.streamLogEvents(
+                      operationLogId: log.id,
+                      organizationId: widget.organizationId,
+                    ),
+                    builder: (context, eventSnapshot) {
+                      if (eventSnapshot.connectionState ==
+                          ConnectionState.waiting) {
+                        return const LinearProgressIndicator();
+                      }
+                      if (eventSnapshot.hasError) {
+                        return const Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text('Sündmuste ajaloo laadimine ebaõnnestus.'),
+                        );
+                      }
+
+                      final events = eventSnapshot.data ??
+                          const <OperationLogEventModel>[];
+                      if (events.isEmpty) {
+                        return const Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text('Sündmuste ajalugu puudub.'),
+                        );
+                      }
+
+                      return Column(
+                        children: events.map((event) {
+                          return ListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            leading: const Icon(Icons.history),
+                            title: Text(event.title),
+                            subtitle: event.createdAt == null
+                                ? null
+                                : Text(_shortDateTime(event.createdAt!)),
+                          );
+                        }).toList(),
+                      );
+                    },
+                  ),
+                ],
               );
             },
           );

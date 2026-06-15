@@ -122,6 +122,51 @@ class OperationLogModel {
   }
 }
 
+class OperationLogEventModel {
+  const OperationLogEventModel({
+    required this.id,
+    required this.organizationId,
+    required this.commandId,
+    required this.operationLogId,
+    required this.status,
+    required this.title,
+    required this.description,
+    required this.createdBy,
+    this.createdAt,
+  });
+
+  final String id;
+  final String organizationId;
+  final String commandId;
+  final String operationLogId;
+  final String status;
+  final String title;
+  final String description;
+  final String createdBy;
+  final DateTime? createdAt;
+
+  factory OperationLogEventModel.fromFirestore(
+    DocumentSnapshot<Map<String, dynamic>> document,
+  ) {
+    final data = document.data() ?? <String, dynamic>{};
+
+    return OperationLogEventModel(
+      id: document.id,
+      organizationId: _stringValue(data['organizationId']),
+      commandId: _stringValue(data['commandId']),
+      operationLogId: _stringValue(data['operationLogId']),
+      status: _stringValue(
+        data['status'],
+        fallback: OperationLogStatus.created,
+      ),
+      title: _stringValue(data['title']),
+      description: _stringValue(data['description']),
+      createdBy: _stringValue(data['createdBy']),
+      createdAt: _dateTimeValue(data['createdAt']),
+    );
+  }
+}
+
 String _stringValue(Object? value, {String fallback = ''}) {
   return value is String && value.isNotEmpty ? value : fallback;
 }

@@ -324,12 +324,48 @@ service cloud.firestore {
         request.resource.data.id == logId &&
         request.resource.data.status is string &&
         isValidOperationLogStatus(request.resource.data.status) &&
+        (
+          !resource.data.keys().hasAny(['status']) ||
+          request.resource.data.status != resource.data.status
+        ) &&
         request.resource.data.updatedAt == request.time &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'status',
           'updatedAt'
         ]) &&
         isActiveMember(organizationIdFromData(resource.data));
+    }
+
+    function isOperationLogEventCreate(logId, eventId) {
+      let logPath =
+        /databases/$(database)/documents/operationLogs/$(logId);
+      return signedIn() &&
+        request.resource.data.id == eventId &&
+        request.resource.data.operationLogId == logId &&
+        request.resource.data.createdBy == request.auth.uid &&
+        request.resource.data.keys().hasAll([
+          'id',
+          'organizationId',
+          'commandId',
+          'operationLogId',
+          'status',
+          'title',
+          'description',
+          'createdBy',
+          'createdAt'
+        ]) &&
+        request.resource.data.title is string &&
+        request.resource.data.title.size() > 0 &&
+        request.resource.data.description is string &&
+        request.resource.data.createdAt == request.time &&
+        hasValidOrganizationReference(request.resource.data) &&
+        isValidOperationLogStatus(request.resource.data.status) &&
+        existsAfter(logPath) &&
+        organizationIdFromData(getAfter(logPath).data) ==
+          organizationIdFromData(request.resource.data) &&
+        getAfter(logPath).data.status == request.resource.data.status &&
+        getAfter(logPath).data.updatedAt == request.time &&
+        isActiveMember(organizationIdFromData(request.resource.data));
     }
 
     function isValidActivityType(type) {
@@ -992,6 +1028,12 @@ service cloud.firestore {
         isActiveMember(organizationIdFromData(resource.data));
       allow create: if isOperationLogCreate(logId);
       allow update: if isOperationLogStatusUpdate(logId);
+
+      match /events/{eventId} {
+        allow read: if signedIn() &&
+          isActiveMember(organizationIdFromData(resource.data));
+        allow create: if isOperationLogEventCreate(logId, eventId);
+      }
     }
 
     match /activities/{activityId} {

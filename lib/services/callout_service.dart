@@ -96,6 +96,8 @@ class CalloutService {
     final notificationDoc = _notifications.doc();
     final operationLogDoc =
         _operationLogs.doc('callout_${calloutDoc.id}_created');
+    final operationLogCreatedEvent =
+        operationLogDoc.collection('events').doc('created');
     final batch = _firestore.batch();
     final trimmedTitle = title.trim();
     final trimmedDescription = description.trim();
@@ -155,6 +157,18 @@ class CalloutService {
       'timestamp': FieldValue.serverTimestamp(),
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    batch.set(operationLogCreatedEvent, {
+      'id': operationLogCreatedEvent.id,
+      'organizationId': organizationId,
+      'commandId': organizationId,
+      'operationLogId': operationLogDoc.id,
+      'status': OperationLogStatus.created,
+      'title': 'Logi loodud',
+      'description': '',
+      'createdBy': createdBy,
+      'createdAt': FieldValue.serverTimestamp(),
     });
 
     await batch.commit();

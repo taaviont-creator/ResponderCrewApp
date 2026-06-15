@@ -36,6 +36,36 @@ class OperationLogService {
     });
   }
 
+  Stream<List<OperationLogEventModel>> streamLogEvents({
+    required String operationLogId,
+    required String organizationId,
+  }) {
+    return _operationLogs
+        .doc(operationLogId)
+        .collection('events')
+        .snapshots()
+        .map((snapshot) {
+      final events = snapshot.docs
+          .map(OperationLogEventModel.fromFirestore)
+          .where((event) {
+        final eventOrganizationId = event.organizationId.isNotEmpty
+            ? event.organizationId
+            : event.commandId;
+        return event.operationLogId == operationLogId &&
+            eventOrganizationId == organizationId;
+      }).toList();
+
+      events.sort((a, b) {
+        final aTime =
+            a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final bTime =
+            b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        return aTime.compareTo(bTime);
+      });
+      return events;
+    });
+  }
+
   Future<void> addLog({
     required String organizationId,
     required String createdBy,
@@ -54,7 +84,10 @@ class OperationLogService {
 
     final doc = _operationLogs.doc();
 
-    await doc.set({
+    final createdEvent = doc.collection('events').doc('created');
+    final batch = _firestore.batch();
+
+    batch.set(doc, {
       'id': doc.id,
       'organizationId': organizationId,
       // TODO: Remove commandId after all operation log reads use organizationId.
@@ -69,37 +102,84 @@ class OperationLogService {
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
+
+    batch.set(createdEvent, {
+      'id': createdEvent.id,
+      'organizationId': organizationId,
+      'commandId': organizationId,
+      'operationLogId': doc.id,
+      'status': OperationLogStatus.created,
+      'title': _operationLogStatusLabel(OperationLogStatus.created),
+      'description': '',
+      'createdBy': createdBy,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
+    await batch.commit();
   }
 
   Future<void> updateLogStatus({
     required String operationLogId,
     required String organizationId,
     required String status,
+    required String updatedBy,
   }) async {
     if (!OperationLogStatus.values.contains(status)) {
       throw Exception('Unsupported operation log status: $status');
     }
 
     final doc = _operationLogs.doc(operationLogId);
-    final snapshot = await doc.get();
-    final data = snapshot.data();
-    if (data == null) {
-      throw Exception('Operation log entry not found');
-    }
+    final eventDoc = doc.collection('events').doc();
 
-    final logOrganizationId =
-        (data['organizationId'] ?? data['commandId'] ?? '').toString();
-    if (logOrganizationId != organizationId) {
-      throw Exception('Operation log belongs to another organization');
-    }
+    await _firestore.runTransaction((transaction) async {
+      final snapshot = await transaction.get(doc);
+      final data = snapshot.data();
+      if (data == null) {
+        throw Exception('Operation log entry not found');
+      }
 
-    final currentStatus =
-        (data['status'] ?? OperationLogStatus.created).toString();
-    if (currentStatus == status) return;
+      final logOrganizationId =
+          (data['organizationId'] ?? data['commandId'] ?? '').toString();
+      if (logOrganizationId != organizationId) {
+        throw Exception('Operation log belongs to another organization');
+      }
 
-    await doc.set({
-      'status': status,
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+      final currentStatus =
+          (data['status'] ?? OperationLogStatus.created).toString();
+      if (currentStatus == status) return;
+
+      transaction.update(doc, {
+        'status': status,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      transaction.set(eventDoc, {
+        'id': eventDoc.id,
+        'organizationId': organizationId,
+        'commandId': organizationId,
+        'operationLogId': operationLogId,
+        'status': status,
+        'title': _operationLogStatusLabel(status),
+        'description': '',
+        'createdBy': updatedBy,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    });
+  }
+}
+
+String _operationLogStatusLabel(String status) {
+  switch (status) {
+    case OperationLogStatus.departed:
+      return 'Väljasõit';
+    case OperationLogStatus.arrived:
+      return 'Kohal';
+    case OperationLogStatus.inProgress:
+      return 'Tegevus käib';
+    case OperationLogStatus.completed:
+      return 'Lõpetatud';
+    case OperationLogStatus.returnedToBase:
+      return 'Tagasi baasis';
+    default:
+      return 'Logi loodud';
   }
 }
