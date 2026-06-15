@@ -76,24 +76,38 @@ class CalloutService {
     required String calloutId,
     required String organizationId,
   }) {
-    late StreamController<CalloutResponseSummary> controller;
+    return streamCalloutResponseDetails(
+      calloutId: calloutId,
+      organizationId: organizationId,
+    ).map((details) => details.summary);
+  }
+
+  Stream<CalloutResponseDetails> streamCalloutResponseDetails({
+    required String calloutId,
+    required String organizationId,
+  }) {
+    late StreamController<CalloutResponseDetails> controller;
     StreamSubscription<List<CalloutResponseModel>>? responseSubscription;
     StreamSubscription<
             List<QueryDocumentSnapshot<Map<String, dynamic>>>>?
         membershipSubscription;
     List<CalloutResponseModel>? responses;
     List<QueryDocumentSnapshot<Map<String, dynamic>>>? memberships;
+    final displayNameCache = <String, String>{};
+    var emissionVersion = 0;
 
-    void emitSummary() {
+    Future<void> emitDetails() async {
       if (responses == null || memberships == null || controller.isClosed) {
         return;
       }
 
+      final currentVersion = ++emissionVersion;
       final memberIds = memberships!
           .map((membership) => (membership.data()['userId'] ?? '').toString())
           .where((userId) => userId.isNotEmpty)
           .toSet();
       final responsesByUserId = <String, CalloutResponseModel>{};
+      final displayNames = Map<String, String>.from(displayNameCache);
       for (final response in responses!) {
         if (response.userId.isEmpty || !memberIds.contains(response.userId)) {
           continue;
@@ -104,36 +118,90 @@ class CalloutService {
           continue;
         }
         responsesByUserId[response.userId] = response;
-      }
-
-      var responding = 0;
-      var delayed = 0;
-      var unavailable = 0;
-      for (final response in responsesByUserId.values) {
-        switch (response.response) {
-          case CalloutResponseValue.responding:
-            responding++;
-            break;
-          case CalloutResponseValue.delayed:
-            delayed++;
-            break;
-          case CalloutResponseValue.unavailable:
-            unavailable++;
-            break;
+        if (response.userName.trim().isNotEmpty) {
+          displayNames[response.userId] = response.userName.trim();
         }
       }
 
+      await Future.wait(
+        memberIds.where((userId) => !displayNames.containsKey(userId)).map(
+          (userId) async {
+            try {
+              final userSnapshot =
+                  await _firestore.collection('users').doc(userId).get();
+              final userData = userSnapshot.data() ?? <String, dynamic>{};
+              final name = (userData['name'] ?? '').toString().trim();
+              final email = (userData['email'] ?? '').toString().trim();
+              displayNames[userId] =
+                  name.isNotEmpty ? name : (email.isNotEmpty ? email : 'Liige');
+            } catch (_) {
+              displayNames[userId] = 'Liige';
+            }
+            displayNameCache[userId] = displayNames[userId]!;
+          },
+        ),
+      );
+
+      if (currentVersion != emissionVersion || controller.isClosed) return;
+
+      final responding = <CalloutResponseMember>[];
+      final delayed = <CalloutResponseMember>[];
+      final unavailable = <CalloutResponseMember>[];
+      final noResponse = <CalloutResponseMember>[];
+
+      for (final userId in memberIds) {
+        final response = responsesByUserId[userId];
+        final member = CalloutResponseMember(
+          userId: userId,
+          displayName: displayNames[userId] ?? 'Liige',
+          response: response?.response ?? CalloutResponseValue.noResponse,
+          responseMinutes: response?.responseMinutes,
+        );
+
+        switch (member.response) {
+          case CalloutResponseValue.responding:
+            responding.add(member);
+            break;
+          case CalloutResponseValue.delayed:
+            delayed.add(member);
+            break;
+          case CalloutResponseValue.unavailable:
+            unavailable.add(member);
+            break;
+          default:
+            noResponse.add(member);
+        }
+      }
+
+      int compareMembers(
+        CalloutResponseMember a,
+        CalloutResponseMember b,
+      ) =>
+          a.displayName.compareTo(b.displayName);
+      responding.sort(compareMembers);
+      delayed.sort(compareMembers);
+      unavailable.sort(compareMembers);
+      noResponse.sort(compareMembers);
+
       controller.add(
-        CalloutResponseSummary(
+        CalloutResponseDetails(
           responding: responding,
           delayed: delayed,
           unavailable: unavailable,
-          noResponse: memberIds.length - responsesByUserId.length,
+          noResponse: noResponse,
         ),
       );
     }
 
-    controller = StreamController<CalloutResponseSummary>(
+    void scheduleDetails() {
+      emitDetails().catchError((Object error, StackTrace stackTrace) {
+        if (!controller.isClosed) {
+          controller.addError(error, stackTrace);
+        }
+      });
+    }
+
+    controller = StreamController<CalloutResponseDetails>(
       onListen: () {
         responseSubscription = streamCalloutResponses(
           calloutId: calloutId,
@@ -141,7 +209,7 @@ class CalloutService {
         ).listen(
           (value) {
             responses = value;
-            emitSummary();
+            scheduleDetails();
           },
           onError: controller.addError,
         );
@@ -150,7 +218,7 @@ class CalloutService {
             .listen(
           (value) {
             memberships = value;
-            emitSummary();
+            scheduleDetails();
           },
           onError: controller.addError,
         );

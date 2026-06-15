@@ -459,14 +459,15 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
   }
 
   Widget _buildCalloutResponseSummary(String calloutId) {
-    return StreamBuilder<CalloutResponseSummary>(
-      stream: _calloutService.streamCalloutResponseSummary(
+    return StreamBuilder<CalloutResponseDetails>(
+      stream: _calloutService.streamCalloutResponseDetails(
         calloutId: calloutId,
         organizationId: widget.organizationId,
       ),
       builder: (context, snapshot) {
-        final summary = snapshot.data;
-        if (summary == null) return const SizedBox.shrink();
+        final details = snapshot.data;
+        if (details == null) return const SizedBox.shrink();
+        final summary = details.summary;
 
         return Align(
           alignment: Alignment.centerLeft,
@@ -491,11 +492,42 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
                     Text('Kokku vastanud: ${summary.totalResponded}'),
                   ],
                 ),
+                if (summary.totalResponded == 0)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 4),
+                    child: Text('Vastuseid pole veel'),
+                  ),
+                _buildResponseGroup('Tuleb', details.responding),
+                _buildResponseGroup(
+                  'Hilineb',
+                  details.delayed,
+                  showDelay: true,
+                ),
+                _buildResponseGroup('Ei saa tulla', details.unavailable),
+                _buildResponseGroup('Vastamata', details.noResponse),
               ],
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildResponseGroup(
+    String label,
+    List<CalloutResponseMember> members, {
+    bool showDelay = false,
+  }) {
+    final memberLabels = members.map((member) {
+      if (showDelay && member.responseMinutes != null) {
+        return '${member.displayName} (${member.responseMinutes} min)';
+      }
+      return member.displayName;
+    }).join(', ');
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Text('$label: ${memberLabels.isEmpty ? '-' : memberLabels}'),
     );
   }
 

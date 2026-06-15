@@ -266,30 +266,72 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
   }
 
   Widget _buildAdminResponseCounts(CalloutModel callout) {
-    return StreamBuilder<CalloutResponseSummary>(
-      stream: _calloutService.streamCalloutResponseSummary(
+    return StreamBuilder<CalloutResponseDetails>(
+      stream: _calloutService.streamCalloutResponseDetails(
         calloutId: callout.id,
         organizationId: widget.organizationId,
       ),
       builder: (context, snapshot) {
-        final summary = snapshot.data;
-        if (summary == null) return const SizedBox.shrink();
+        final details = snapshot.data;
+        if (details == null) return const SizedBox.shrink();
+        final summary = details.summary;
 
         return Padding(
           padding: const EdgeInsets.only(top: 8),
-          child: Wrap(
-            spacing: 12,
-            runSpacing: 8,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Tuleb: ${summary.responding}'),
-              Text('Hilineb: ${summary.delayed}'),
-              Text('Ei saa tulla: ${summary.unavailable}'),
-              Text('Vastamata: ${summary.noResponse}'),
-              Text('Kokku vastanud: ${summary.totalResponded}'),
+              const Text(
+                'Vastajad',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 4),
+              Wrap(
+                spacing: 12,
+                runSpacing: 4,
+                children: [
+                  Text('Tuleb: ${summary.responding}'),
+                  Text('Hilineb: ${summary.delayed}'),
+                  Text('Ei saa tulla: ${summary.unavailable}'),
+                  Text('Vastamata: ${summary.noResponse}'),
+                  Text('Kokku vastanud: ${summary.totalResponded}'),
+                ],
+              ),
+              if (summary.totalResponded == 0)
+                const Padding(
+                  padding: EdgeInsets.only(top: 4),
+                  child: Text('Vastuseid pole veel'),
+                ),
+              _buildResponseGroup('Tuleb', details.responding),
+              _buildResponseGroup(
+                'Hilineb',
+                details.delayed,
+                showDelay: true,
+              ),
+              _buildResponseGroup('Ei saa tulla', details.unavailable),
+              _buildResponseGroup('Vastamata', details.noResponse),
             ],
           ),
         );
       },
+    );
+  }
+
+  Widget _buildResponseGroup(
+    String label,
+    List<CalloutResponseMember> members, {
+    bool showDelay = false,
+  }) {
+    final memberLabels = members.map((member) {
+      if (showDelay && member.responseMinutes != null) {
+        return '${member.displayName} (${member.responseMinutes} min)';
+      }
+      return member.displayName;
+    }).join(', ');
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Text('$label: ${memberLabels.isEmpty ? '-' : memberLabels}'),
     );
   }
 

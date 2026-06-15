@@ -198,6 +198,41 @@ class CalloutResponseSummary {
   int get totalResponded => responding + delayed + unavailable;
 }
 
+class CalloutResponseMember {
+  const CalloutResponseMember({
+    required this.userId,
+    required this.displayName,
+    required this.response,
+    this.responseMinutes,
+  });
+
+  final String userId;
+  final String displayName;
+  final String response;
+  final int? responseMinutes;
+}
+
+class CalloutResponseDetails {
+  const CalloutResponseDetails({
+    required this.responding,
+    required this.delayed,
+    required this.unavailable,
+    required this.noResponse,
+  });
+
+  final List<CalloutResponseMember> responding;
+  final List<CalloutResponseMember> delayed;
+  final List<CalloutResponseMember> unavailable;
+  final List<CalloutResponseMember> noResponse;
+
+  CalloutResponseSummary get summary => CalloutResponseSummary(
+        responding: responding.length,
+        delayed: delayed.length,
+        unavailable: unavailable.length,
+        noResponse: noResponse.length,
+      );
+}
+
 String _stringValue(Object? value, {String fallback = ''}) {
   return value is String && value.isNotEmpty ? value : fallback;
 }
