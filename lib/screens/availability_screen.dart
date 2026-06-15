@@ -12,10 +12,12 @@ class AvailabilityScreen extends StatefulWidget {
     super.key,
     required this.organizationId,
     required this.currentUid,
+    required this.currentUserName,
   });
 
   final String organizationId;
   final String currentUid;
+  final String currentUserName;
 
   @override
   State<AvailabilityScreen> createState() => _AvailabilityScreenState();
@@ -46,6 +48,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
             await _availabilityService.setMyAvailability(
               userId: widget.currentUid,
               organizationId: widget.organizationId,
+              memberName: widget.currentUserName,
               status: newStatus,
               responseMinutes: minutes,
             );

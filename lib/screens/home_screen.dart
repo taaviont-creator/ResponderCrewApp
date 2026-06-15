@@ -511,6 +511,7 @@ class _HomeScreenState extends State<HomeScreen> {
             _buildAvailabilityControl(
               user: user,
               organizationId: commandId,
+              memberName: displayName,
             ),
             const SizedBox(height: 16),
             _buildReadinessSummary(organizationId: commandId),
@@ -562,6 +563,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       builder: (_) => AvailabilityScreen(
                         organizationId: commandId,
                         currentUid: user.uid,
+                        currentUserName: displayName,
                       ),
                     ),
                   ),
@@ -743,6 +745,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildAvailabilityControl({
     required User user,
     required String organizationId,
+    required String memberName,
   }) {
     return StreamBuilder<AvailabilityModel?>(
       stream: _availabilityService.streamMyAvailability(
@@ -762,6 +765,7 @@ class _HomeScreenState extends State<HomeScreen> {
             await _availabilityService.setMyAvailability(
               userId: user.uid,
               organizationId: organizationId,
+              memberName: memberName,
               status: newStatus,
               responseMinutes: minutes,
             );

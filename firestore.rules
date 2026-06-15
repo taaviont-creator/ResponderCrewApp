@@ -515,7 +515,41 @@ service cloud.firestore {
         request.resource.data.id == notificationId &&
         request.resource.data.createdBy == request.auth.uid &&
         isValidNotificationData(request.resource.data) &&
-        isActiveAdmin(organizationIdFromData(request.resource.data));
+        (
+          isActiveAdmin(organizationIdFromData(request.resource.data)) ||
+          isOwnAvailabilityNotificationCreate()
+        );
+    }
+
+    function isOwnAvailabilityNotificationCreate() {
+      let organizationId =
+        organizationIdFromData(request.resource.data);
+      let availabilityId = request.auth.uid + '_' + organizationId;
+      let availabilityPath =
+        /databases/$(database)/documents/availability/$(availabilityId);
+      return request.resource.data.type == 'availability' &&
+        request.resource.data.priority == 'normal' &&
+        request.resource.data.title == 'Valvesoleku muudatus' &&
+        request.resource.data.keys().hasAll(['relatedType', 'relatedId']) &&
+        request.resource.data.relatedType == 'availability' &&
+        request.resource.data.relatedId == availabilityId &&
+        isActiveMember(organizationId) &&
+        existsAfter(availabilityPath) &&
+        getAfter(availabilityPath).data.userId == request.auth.uid &&
+        organizationIdFromData(getAfter(availabilityPath).data) ==
+          organizationId &&
+        getAfter(availabilityPath).data.updatedAt == request.time &&
+        (
+          (
+            !exists(availabilityPath) &&
+            getAfter(availabilityPath).data.status != 'offDuty'
+          ) ||
+          (
+            exists(availabilityPath) &&
+            get(availabilityPath).data.status !=
+              getAfter(availabilityPath).data.status
+          )
+        );
     }
 
     function notificationExists(notificationId) {
