@@ -21,12 +21,14 @@ class NotificationsScreen extends StatefulWidget {
     required this.currentUid,
     required this.currentUserName,
     required this.canManageNotifications,
+    required this.canCreateActivities,
   });
 
   final String organizationId;
   final String currentUid;
   final String currentUserName;
   final bool canManageNotifications;
+  final bool canCreateActivities;
 
   @override
   State<NotificationsScreen> createState() => _NotificationsScreenState();
@@ -250,7 +252,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         targetScreen = ActivitiesScreen(
           organizationId: widget.organizationId,
           currentUid: widget.currentUid,
-          canManageActivities: widget.canManageNotifications,
+          canManageActivities: widget.canCreateActivities,
         );
         break;
       case 'availability':

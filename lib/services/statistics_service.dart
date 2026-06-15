@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/availability_model.dart';
 import '../models/certificate_model.dart';
@@ -8,6 +9,7 @@ import 'membership_service.dart';
 
 class StatisticsService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
   final MembershipService _membershipService = MembershipService();
 
   Future<StatisticsSummary> loadOrganizationStatistics({
@@ -16,6 +18,10 @@ class StatisticsService {
     required bool canViewOrganizationCertificates,
   }) async {
     _requireOrganizationId(organizationId);
+    await _ensureCanViewStatistics(
+      organizationId: organizationId,
+      currentUid: currentUid,
+    );
     final activeMemberships = await _membershipService
         .loadActiveMembershipsForOrganization(organizationId);
     final activeMemberIds = activeMemberships
@@ -134,6 +140,48 @@ class StatisticsService {
   void _requireOrganizationId(String organizationId) {
     if (organizationId.trim().isEmpty) {
       throw Exception('Organization id is required');
+    }
+  }
+
+  Future<void> _ensureCanViewStatistics({
+    required String organizationId,
+    required String currentUid,
+  }) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null || currentUser.uid != currentUid) {
+      throw Exception('Sul puudub õigus seda vaadet kasutada');
+    }
+
+    final membershipSnapshot = await _firestore
+        .collection('memberships')
+        .doc('${currentUser.uid}_$organizationId')
+        .get();
+    final membership = membershipSnapshot.data();
+    final membershipIsActive = membership != null &&
+        ((membership['status'] == 'active') ||
+            (membership['isActive'] == true)) &&
+        (!membership.containsKey('status') ||
+            membership['status'] == 'active') &&
+        (!membership.containsKey('isActive') ||
+            membership['isActive'] == true);
+    if (membership == null ||
+        !membershipIsActive) {
+      throw Exception('Sul puudub õigus seda vaadet kasutada');
+    }
+
+    final membershipOrganizationId =
+        (membership['organizationId'] ?? membership['commandId'] ?? '')
+            .toString();
+    if (membershipOrganizationId != organizationId) {
+      throw Exception('Sul puudub õigus seda vaadet kasutada');
+    }
+
+    if (membership['role'] == 'admin') return;
+
+    final commandSnapshot =
+        await _firestore.collection('commands').doc(organizationId).get();
+    if (commandSnapshot.data()?['allowMembersToViewStatistics'] != true) {
+      throw Exception('Sul puudub õigus seda vaadet kasutada');
     }
   }
 }

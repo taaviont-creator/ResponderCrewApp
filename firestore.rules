@@ -88,6 +88,42 @@ service cloud.firestore {
         get(/databases/$(database)/documents/memberships/$(activeMembershipId(commandId))).data.role == 'admin';
     }
 
+    function commandAllowsMemberActivityCreate(commandId) {
+      let commandPath =
+        /databases/$(database)/documents/commands/$(commandId);
+      return exists(commandPath) &&
+        get(commandPath).data.keys().hasAny([
+          'allowMembersToCreateActivities'
+        ]) &&
+        get(commandPath).data.allowMembersToCreateActivities == true;
+    }
+
+    function hasValidCommandMemberPermissions(data) {
+      return (
+          !data.keys().hasAny(['allowMembersToCreateActivities']) ||
+          data.allowMembersToCreateActivities is bool
+        ) &&
+        (
+          !data.keys().hasAny(['allowMembersToViewStatistics']) ||
+          data.allowMembersToViewStatistics is bool
+        );
+    }
+
+    function isCommandMemberPermissionUpdate(commandId) {
+      return signedIn() &&
+        isActiveAdmin(commandId) &&
+        request.resource.data.allowMembersToCreateActivities is bool &&
+        request.resource.data.allowMembersToViewStatistics is bool &&
+        request.resource.data.updatedBy == request.auth.uid &&
+        request.resource.data.updatedAt == request.time &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'allowMembersToCreateActivities',
+          'allowMembersToViewStatistics',
+          'updatedBy',
+          'updatedAt'
+        ]);
+    }
+
     function isOwnMembershipCreate() {
       return signedIn() &&
         request.resource.data.userId == request.auth.uid &&
@@ -539,11 +575,19 @@ service cloud.firestore {
     }
 
     function isActivityCreate(activityId) {
+      let organizationId =
+        organizationIdFromData(request.resource.data);
       return signedIn() &&
         request.resource.data.id == activityId &&
         request.resource.data.createdBy == request.auth.uid &&
         isValidActivityData(request.resource.data) &&
-        isActiveAdmin(organizationIdFromData(request.resource.data));
+        (
+          isActiveAdmin(organizationId) ||
+          (
+            isActiveMember(organizationId) &&
+            commandAllowsMemberActivityCreate(organizationId)
+          )
+        );
     }
 
     function isActivityUpdate(activityId) {
@@ -735,8 +779,34 @@ service cloud.firestore {
         (
           isOwnAvailabilityNotificationCreate() ||
           isOwnMinimumCrewNotificationCreate() ||
+          isOwnActivityNotificationCreate() ||
           isActiveAdmin(organizationIdFromData(request.resource.data))
         );
+    }
+
+    function isOwnActivityNotificationCreate() {
+      let organizationId =
+        organizationIdFromData(request.resource.data);
+      let activityId = request.resource.data.keys().hasAny(['relatedId'])
+        ? request.resource.data.relatedId
+        : '';
+      let activityPath =
+        /databases/$(database)/documents/activities/$(activityId);
+      return request.resource.data.type == 'activity' &&
+        request.resource.data.priority == 'normal' &&
+        request.resource.data.title == 'Uus tegevus' &&
+        request.resource.data.keys().hasAll(['relatedType', 'relatedId']) &&
+        request.resource.data.relatedType == 'activity' &&
+        request.resource.data.relatedId is string &&
+        request.resource.data.relatedId.size() > 0 &&
+        isActiveMember(organizationId) &&
+        commandAllowsMemberActivityCreate(organizationId) &&
+        !exists(activityPath) &&
+        existsAfter(activityPath) &&
+        getAfter(activityPath).data.createdBy == request.auth.uid &&
+        getAfter(activityPath).data.createdAt == request.time &&
+        organizationIdFromData(getAfter(activityPath).data) ==
+          organizationId;
     }
 
     function isOwnAvailabilityNotificationCreate() {
@@ -1120,10 +1190,10 @@ service cloud.firestore {
     match /commands/{commandId} {
       allow read: if signedIn();
       allow create: if signedIn() &&
-        request.resource.data.createdBy == request.auth.uid;
+        request.resource.data.createdBy == request.auth.uid &&
+        hasValidCommandMemberPermissions(request.resource.data);
 
-      // TODO: Restrict command updates to command admins with field validation.
-      allow update: if signedIn() && isActiveAdmin(commandId);
+      allow update: if isCommandMemberPermissionUpdate(commandId);
     }
 
     match /memberships/{membershipId} {

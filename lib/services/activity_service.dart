@@ -1,10 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/activity_model.dart';
 import '../models/notification_model.dart';
 
 class ActivityService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   CollectionReference<Map<String, dynamic>> get _activities =>
       _firestore.collection('activities');
@@ -79,6 +81,10 @@ class ActivityService {
     required String createdBy,
   }) async {
     _requireOrganizationId(organizationId);
+    await _ensureCanCreateActivity(
+      organizationId: organizationId,
+      createdBy: createdBy,
+    );
     if (title.trim().isEmpty) {
       throw Exception('Activity title is required');
     }
@@ -172,6 +178,48 @@ class ActivityService {
   void _requireOrganizationId(String organizationId) {
     if (organizationId.trim().isEmpty) {
       throw Exception('Organization id is required');
+    }
+  }
+
+  Future<void> _ensureCanCreateActivity({
+    required String organizationId,
+    required String createdBy,
+  }) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null || currentUser.uid != createdBy) {
+      throw Exception('Sul puudub õigus tegevust lisada');
+    }
+
+    final membershipSnapshot = await _firestore
+        .collection('memberships')
+        .doc('${currentUser.uid}_$organizationId')
+        .get();
+    final membership = membershipSnapshot.data();
+    final membershipIsActive = membership != null &&
+        ((membership['status'] == 'active') ||
+            (membership['isActive'] == true)) &&
+        (!membership.containsKey('status') ||
+            membership['status'] == 'active') &&
+        (!membership.containsKey('isActive') ||
+            membership['isActive'] == true);
+    if (membership == null ||
+        !membershipIsActive) {
+      throw Exception('Sul puudub õigus tegevust lisada');
+    }
+
+    final membershipOrganizationId =
+        (membership['organizationId'] ?? membership['commandId'] ?? '')
+            .toString();
+    if (membershipOrganizationId != organizationId) {
+      throw Exception('Sul puudub õigus tegevust lisada');
+    }
+
+    if (membership['role'] == 'admin') return;
+
+    final commandSnapshot =
+        await _firestore.collection('commands').doc(organizationId).get();
+    if (commandSnapshot.data()?['allowMembersToCreateActivities'] != true) {
+      throw Exception('Sul puudub õigus tegevust lisada');
     }
   }
 }

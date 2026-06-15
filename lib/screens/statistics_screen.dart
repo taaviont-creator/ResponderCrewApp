@@ -8,11 +8,13 @@ class StatisticsScreen extends StatefulWidget {
     super.key,
     required this.organizationId,
     required this.currentUid,
+    required this.canViewStatistics,
     required this.canViewOrganizationCertificates,
   });
 
   final String organizationId;
   final String currentUid;
+  final bool canViewStatistics;
   final bool canViewOrganizationCertificates;
 
   @override
@@ -21,12 +23,14 @@ class StatisticsScreen extends StatefulWidget {
 
 class _StatisticsScreenState extends State<StatisticsScreen> {
   final _statisticsService = StatisticsService();
-  late Future<StatisticsSummary> _statisticsFuture;
+  Future<StatisticsSummary>? _statisticsFuture;
 
   @override
   void initState() {
     super.initState();
-    _statisticsFuture = _loadStatistics();
+    if (widget.canViewStatistics) {
+      _statisticsFuture = _loadStatistics();
+    }
   }
 
   Future<StatisticsSummary> _loadStatistics() {
@@ -38,6 +42,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   }
 
   void _refreshStatistics() {
+    if (!widget.canViewStatistics) return;
     setState(() {
       _statisticsFuture = _loadStatistics();
     });
@@ -45,6 +50,14 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!widget.canViewStatistics) {
+      return const Scaffold(
+        body: Center(
+          child: Text('Sul puudub õigus seda vaadet kasutada'),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Statistika'),
@@ -57,7 +70,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         ],
       ),
       body: FutureBuilder<StatisticsSummary>(
-        future: _statisticsFuture,
+        future: _statisticsFuture!,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());

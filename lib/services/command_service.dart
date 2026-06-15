@@ -55,6 +55,8 @@ class CommandService {
       'name': trimmedName,
       'joinCode': joinCode,
       'createdBy': user.uid,
+      'allowMembersToCreateActivities': false,
+      'allowMembersToViewStatistics': false,
       'createdAt': FieldValue.serverTimestamp(),
       'isOnDuty': false,
     });
@@ -126,6 +128,50 @@ class CommandService {
     await batch.commit();
 
     return commandId;
+  }
+
+  Future<void> updateMemberPermissions({
+    required String organizationId,
+    required bool allowMembersToCreateActivities,
+    required bool allowMembersToViewStatistics,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('Not authenticated');
+    if (organizationId.trim().isEmpty) {
+      throw Exception('Organization id is required');
+    }
+
+    final membershipSnapshot = await _db
+        .collection('memberships')
+        .doc(_membershipId(user.uid, organizationId))
+        .get();
+    final membership = membershipSnapshot.data();
+    final membershipIsActive = membership != null &&
+        ((membership['status'] == 'active') ||
+            (membership['isActive'] == true)) &&
+        (!membership.containsKey('status') ||
+            membership['status'] == 'active') &&
+        (!membership.containsKey('isActive') ||
+            membership['isActive'] == true);
+    if (membership == null ||
+        membership['role'] != 'admin' ||
+        !membershipIsActive) {
+      throw Exception('Sul puudub õigus neid seadeid muuta');
+    }
+
+    final membershipOrganizationId =
+        (membership['organizationId'] ?? membership['commandId'] ?? '')
+            .toString();
+    if (membershipOrganizationId != organizationId) {
+      throw Exception('Membership belongs to another organization');
+    }
+
+    await _db.collection('commands').doc(organizationId).update({
+      'allowMembersToCreateActivities': allowMembersToCreateActivities,
+      'allowMembersToViewStatistics': allowMembersToViewStatistics,
+      'updatedBy': user.uid,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   }
 
   Future<void> leaveCommand({required String commandId}) async {

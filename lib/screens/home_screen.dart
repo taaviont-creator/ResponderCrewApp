@@ -430,8 +430,16 @@ class _HomeScreenState extends State<HomeScreen> {
     required bool canSeeJoinCode,
     required bool isPlatformOwner,
     required String? membershipRole,
+    required bool allowMembersToCreateActivities,
+    required bool allowMembersToViewStatistics,
     required List<QueryDocumentSnapshot<Map<String, dynamic>>> membershipDocs,
   }) {
+    final isOrganizationAdmin = membershipRole == 'admin';
+    final canCreateActivities =
+        isOrganizationAdmin || allowMembersToCreateActivities;
+    final canViewStatistics =
+        isOrganizationAdmin || allowMembersToViewStatistics;
+
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -483,6 +491,41 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ],
                 ),
+              ),
+            ),
+          ],
+          if (isOrganizationAdmin &&
+              commandId != null &&
+              commandId.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Card(
+              child: Column(
+                children: [
+                  SwitchListTile(
+                    title: const Text(
+                      'Liikmed võivad lisada tegevusi/koolitusi',
+                    ),
+                    value: allowMembersToCreateActivities,
+                    onChanged: (value) => _updateMemberPermissions(
+                      organizationId: commandId,
+                      allowMembersToCreateActivities: value,
+                      allowMembersToViewStatistics:
+                          allowMembersToViewStatistics,
+                    ),
+                  ),
+                  SwitchListTile(
+                    title: const Text(
+                      'Liikmed võivad näha statistikat',
+                    ),
+                    value: allowMembersToViewStatistics,
+                    onChanged: (value) => _updateMemberPermissions(
+                      organizationId: commandId,
+                      allowMembersToCreateActivities:
+                          allowMembersToCreateActivities,
+                      allowMembersToViewStatistics: value,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -609,7 +652,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       builder: (_) => ActivitiesScreen(
                         organizationId: commandId,
                         currentUid: user.uid,
-                        canManageActivities: membershipRole == 'admin',
+                        canManageActivities: canCreateActivities,
                       ),
                     ),
                   ),
@@ -631,17 +674,30 @@ class _HomeScreenState extends State<HomeScreen> {
                 _buildModuleButton(
                   icon: Icons.insights,
                   label: 'Statistika',
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => StatisticsScreen(
-                        organizationId: commandId,
-                        currentUid: user.uid,
-                        canViewOrganizationCertificates:
-                            membershipRole == 'admin',
+                  onPressed: () {
+                    if (!canViewStatistics) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Sul puudub õigus seda vaadet kasutada',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => StatisticsScreen(
+                          organizationId: commandId,
+                          currentUid: user.uid,
+                          canViewStatistics: canViewStatistics,
+                          canViewOrganizationCertificates:
+                              isOrganizationAdmin,
+                        ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 ),
                 StreamBuilder<int>(
                   stream: _notificationService.streamUnreadNotificationCount(
@@ -664,6 +720,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             currentUserName: displayName,
                             canManageNotifications:
                                 membershipRole == 'admin',
+                            canCreateActivities: canCreateActivities,
                           ),
                         ),
                       ),
@@ -676,6 +733,25 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _updateMemberPermissions({
+    required String organizationId,
+    required bool allowMembersToCreateActivities,
+    required bool allowMembersToViewStatistics,
+  }) async {
+    try {
+      await _commandService.updateMemberPermissions(
+        organizationId: organizationId,
+        allowMembersToCreateActivities: allowMembersToCreateActivities,
+        allowMembersToViewStatistics: allowMembersToViewStatistics,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Seadete muutmine ebaõnnestus: $e')),
+      );
+    }
   }
 
   Widget _buildReadinessSummary({
@@ -1011,6 +1087,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       canSeeJoinCode: canSeeJoinCode,
                       isPlatformOwner: isPlatformOwner,
                       membershipRole: myMembershipRole,
+                      allowMembersToCreateActivities: false,
+                      allowMembersToViewStatistics: false,
                       membershipDocs: membershipDocs,
                     ),
                     const Padding(
@@ -1033,6 +1111,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 final commandData = commandSnapshot.data?.data();
                 final commandName = commandData?['name'] as String?;
                 final joinCode = commandData?['joinCode'] as String?;
+                final allowMembersToCreateActivities =
+                    commandData?['allowMembersToCreateActivities'] == true;
+                final allowMembersToViewStatistics =
+                    commandData?['allowMembersToViewStatistics'] == true;
 
                 return Scaffold(
                   appBar: AppBar(
@@ -1054,6 +1136,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         canSeeJoinCode: canSeeJoinCode,
                         isPlatformOwner: isPlatformOwner,
                         membershipRole: myMembershipRole,
+                        allowMembersToCreateActivities:
+                            allowMembersToCreateActivities,
+                        allowMembersToViewStatistics:
+                            allowMembersToViewStatistics,
                         membershipDocs: membershipDocs,
                       ),
                     ],
