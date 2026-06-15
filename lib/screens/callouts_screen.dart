@@ -202,24 +202,65 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
   }
 
   Future<void> _updateCalloutStatus({
-    required String calloutId,
+    required CalloutModel callout,
     required String status,
   }) async {
+    if (!widget.canManageCallouts) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Sul puudub õigus väljakutset lõpetada'),
+        ),
+      );
+      return;
+    }
+
+    final isClosing = status == CalloutStatus.closed;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          isClosing ? 'Lõpeta väljakutse' : 'Tühista väljakutse',
+        ),
+        content: Text(
+          isClosing
+              ? 'Kas soovid väljakutse "${callout.title}" lõpetada?'
+              : 'Kas soovid väljakutse "${callout.title}" tühistada?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Katkesta'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(isClosing ? 'Lõpeta' : 'Tühista'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
     try {
       await _calloutService.updateCalloutStatus(
-        calloutId: calloutId,
+        calloutId: callout.id,
         organizationId: widget.organizationId,
         status: status,
       );
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Valjakutse uuendatud')),
+        SnackBar(
+          content: Text(
+            isClosing
+                ? 'Väljakutse lõpetatud'
+                : 'Väljakutse tühistatud',
+          ),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Valjakutse uuendamine ebaonnestus: $e')),
+        SnackBar(content: Text('Väljakutse uuendamine ebaõnnestus: $e')),
       );
     }
   }
@@ -336,49 +377,88 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
   }
 
   Widget _buildCalloutTile(CalloutModel callout) {
+    final isActive = callout.status == CalloutStatus.active;
     final subtitleParts = [
+      _statusLabel(callout.status),
       _priorityLabel(callout.priority),
       if (callout.location.isNotEmpty) callout.location,
       if (callout.createdByName.isNotEmpty) callout.createdByName,
       if (callout.createdAt != null) _shortDateTime(callout.createdAt!),
+      if (!isActive && callout.closedAt != null)
+        'Lõpetatud ${_shortDateTime(callout.closedAt!)}',
     ];
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(callout.title),
-            subtitle: Text(
-              callout.description.isEmpty
-                  ? subtitleParts.join(' - ')
-                  : '${subtitleParts.join(' - ')}\n${callout.description}',
+    return Opacity(
+      opacity: isActive ? 1 : 0.7,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(
+                _statusIcon(callout.status),
+              ),
+              title: Text(callout.title),
+              subtitle: Text(
+                callout.description.isEmpty
+                    ? subtitleParts.join(' - ')
+                    : '${subtitleParts.join(' - ')}\n${callout.description}',
+              ),
+              trailing: widget.canManageCallouts && isActive
+                  ? PopupMenuButton<String>(
+                      onSelected: (value) => _updateCalloutStatus(
+                        callout: callout,
+                        status: value,
+                      ),
+                      itemBuilder: (context) => const [
+                        PopupMenuItem(
+                          value: CalloutStatus.closed,
+                          child: Text('Lõpeta väljakutse'),
+                        ),
+                        PopupMenuItem(
+                          value: CalloutStatus.cancelled,
+                          child: Text('Tühista väljakutse'),
+                        ),
+                      ],
+                    )
+                  : null,
             ),
-            trailing: widget.canManageCallouts
-                ? PopupMenuButton<String>(
-                    onSelected: (value) => _updateCalloutStatus(
-                      calloutId: callout.id,
-                      status: value,
-                    ),
-                    itemBuilder: (context) => const [
-                      PopupMenuItem(
-                        value: CalloutStatus.closed,
-                        child: Text('Sulge'),
-                      ),
-                      PopupMenuItem(
-                        value: CalloutStatus.cancelled,
-                        child: Text('Tuhista'),
-                      ),
-                    ],
-                  )
-                : null,
-          ),
-          _buildResponseControls(callout),
-          if (widget.canManageCallouts) _buildAdminResponseCounts(callout),
-        ],
+            if (isActive) _buildResponseControls(callout),
+            if (widget.canManageCallouts) _buildAdminResponseCounts(callout),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildCalloutSection({
+    required String title,
+    required List<CalloutModel> callouts,
+    required String emptyText,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: 8),
+        if (callouts.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Text(emptyText),
+          )
+        else
+          ...callouts.map((callout) => Column(
+                children: [
+                  _buildCalloutTile(callout),
+                  const Divider(height: 1),
+                ],
+              )),
+      ],
     );
   }
 
@@ -395,7 +475,7 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
             )
           : null,
       body: StreamBuilder<List<CalloutModel>>(
-        stream: _calloutService.streamActiveCallouts(
+        stream: _calloutService.streamOrganizationCallouts(
           organizationId: widget.organizationId,
         ),
         builder: (context, snapshot) {
@@ -412,17 +492,28 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
           }
 
           final callouts = snapshot.data ?? const <CalloutModel>[];
-          if (callouts.isEmpty) {
-            return const Center(child: Text('Aktiivseid valjakutseid ei ole'));
-          }
+          final activeCallouts = callouts
+              .where((callout) => callout.status == CalloutStatus.active)
+              .toList(growable: false);
+          final completedCallouts = callouts
+              .where((callout) => callout.status != CalloutStatus.active)
+              .toList(growable: false);
 
-          return ListView.separated(
+          return ListView(
             padding: const EdgeInsets.all(16),
-            itemCount: callouts.length,
-            separatorBuilder: (_, _) => const Divider(height: 1),
-            itemBuilder: (context, index) => _buildCalloutTile(
-              callouts[index],
-            ),
+            children: [
+              _buildCalloutSection(
+                title: 'Aktiivsed väljakutsed',
+                callouts: activeCallouts,
+                emptyText: 'Aktiivseid väljakutseid ei ole',
+              ),
+              const SizedBox(height: 24),
+              _buildCalloutSection(
+                title: 'Lõpetatud väljakutsed',
+                callouts: completedCallouts,
+                emptyText: 'Lõpetatud väljakutseid ei ole',
+              ),
+            ],
           );
         },
       ),
@@ -434,11 +525,33 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
       case CalloutPriority.low:
         return 'Madal';
       case CalloutPriority.high:
-        return 'Korge';
+        return 'Kõrge';
       case CalloutPriority.critical:
         return 'Kriitiline';
       default:
         return 'Tavaline';
+    }
+  }
+
+  String _statusLabel(String status) {
+    switch (status) {
+      case CalloutStatus.closed:
+        return 'Lõpetatud';
+      case CalloutStatus.cancelled:
+        return 'Tühistatud';
+      default:
+        return 'Aktiivne';
+    }
+  }
+
+  IconData _statusIcon(String status) {
+    switch (status) {
+      case CalloutStatus.closed:
+        return Icons.check_circle_outline;
+      case CalloutStatus.cancelled:
+        return Icons.cancel_outlined;
+      default:
+        return Icons.campaign;
     }
   }
 

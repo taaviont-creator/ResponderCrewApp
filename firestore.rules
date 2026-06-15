@@ -952,13 +952,28 @@ service cloud.firestore {
         isActiveAdmin(organizationIdFromData(request.resource.data));
     }
 
-    function isCalloutUpdate(calloutId) {
+    function isCalloutStatusUpdate(calloutId) {
       return signedIn() &&
         request.resource.data.id == resource.data.id &&
         request.resource.data.id == calloutId &&
         request.resource.data.createdBy == resource.data.createdBy &&
         organizationIdFromData(request.resource.data) ==
           organizationIdFromData(resource.data) &&
+        (
+          !resource.data.keys().hasAny(['status']) ||
+          resource.data.status == 'active'
+        ) &&
+        (
+          request.resource.data.status == 'closed' ||
+          request.resource.data.status == 'cancelled'
+        ) &&
+        request.resource.data.updatedAt == request.time &&
+        request.resource.data.closedAt == request.time &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status',
+          'updatedAt',
+          'closedAt'
+        ]) &&
         isValidCalloutData(request.resource.data) &&
         isActiveAdmin(organizationIdFromData(resource.data));
     }
@@ -1002,7 +1017,10 @@ service cloud.firestore {
 
     function calloutIsActive(calloutId) {
       return calloutExists(calloutId) &&
-        calloutData(calloutId).status == 'active';
+        (
+          !calloutData(calloutId).keys().hasAny(['status']) ||
+          calloutData(calloutId).status == 'active'
+        );
     }
 
     function isValidCalloutResponseData(data) {
@@ -1283,7 +1301,7 @@ service cloud.firestore {
       allow read: if signedIn() &&
         isActiveMember(organizationIdFromData(resource.data));
       allow create: if isCalloutCreate(calloutId);
-      allow update: if isCalloutUpdate(calloutId);
+      allow update: if isCalloutStatusUpdate(calloutId);
     }
 
     match /calloutResponses/{responseId} {

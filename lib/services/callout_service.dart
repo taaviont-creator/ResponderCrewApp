@@ -23,7 +23,7 @@ class CalloutService {
   CollectionReference<Map<String, dynamic>> get _operationLogs =>
       _firestore.collection('operationLogs');
 
-  Stream<List<CalloutModel>> streamActiveCallouts({
+  Stream<List<CalloutModel>> streamOrganizationCallouts({
     required String organizationId,
   }) {
     _requireOrganizationId(organizationId);
@@ -39,19 +39,38 @@ class CalloutService {
         .map((snapshot) {
       final callouts = snapshot.docs
           .map(CalloutModel.fromFirestore)
-          .where((callout) => callout.status == CalloutStatus.active)
+          .where((callout) {
+            final calloutOrganizationId = callout.organizationId.isNotEmpty
+                ? callout.organizationId
+                : callout.commandId;
+            return calloutOrganizationId == organizationId;
+          })
           .toList();
 
       callouts.sort((a, b) {
-        final aTime =
-            a.createdAt ?? a.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final bTime =
-            b.createdAt ?? b.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+        final aTime = a.updatedAt ??
+            a.createdAt ??
+            DateTime.fromMillisecondsSinceEpoch(0);
+        final bTime = b.updatedAt ??
+            b.createdAt ??
+            DateTime.fromMillisecondsSinceEpoch(0);
         return bTime.compareTo(aTime);
       });
 
       return callouts;
     });
+  }
+
+  Stream<List<CalloutModel>> streamActiveCallouts({
+    required String organizationId,
+  }) {
+    return streamOrganizationCallouts(
+      organizationId: organizationId,
+    ).map(
+      (callouts) => callouts
+          .where((callout) => callout.status == CalloutStatus.active)
+          .toList(growable: false),
+    );
   }
 
   Stream<List<CalloutResponseModel>> streamCalloutResponses({
@@ -379,6 +398,11 @@ class CalloutService {
     if (calloutOrganizationId != organizationId) {
       throw Exception('Callout belongs to another organization');
     }
+    final currentStatus =
+        (data['status'] ?? CalloutStatus.active).toString();
+    if (currentStatus != CalloutStatus.active) {
+      throw Exception('Väljakutse on juba lõpetatud');
+    }
 
     await doc.set({
       'status': status,
@@ -417,6 +441,11 @@ class CalloutService {
             .toString();
     if (calloutOrganizationId != organizationId) {
       throw Exception('Callout belongs to another organization');
+    }
+    final calloutStatus =
+        (calloutData['status'] ?? CalloutStatus.active).toString();
+    if (calloutStatus != CalloutStatus.active) {
+      throw Exception('Lõpetatud väljakutsele ei saa vastata');
     }
 
     final responseId = '${calloutId}_$userId';
