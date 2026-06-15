@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+
+<html class="light" lang="et"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>RespondCrew - Login</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "inverse-surface": "#2a313d",
+                    "on-background": "#151c27",
+                    "on-tertiary-container": "#5ead5c",
+                    "on-error": "#ffffff",
+                    "surface-container-highest": "#dce2f3",
+                    "tertiary-fixed-dim": "#88d982",
+                    "on-secondary-fixed-variant": "#3b4951",
+                    "primary-fixed-dim": "#a7c8ff",
+                    "surface-container": "#e7eefe",
+                    "inverse-primary": "#a7c8ff",
+                    "secondary-container": "#d3e2ed",
+                    "background": "#f9f9ff",
+                    "error-container": "#ffdad6",
+                    "tertiary": "#002504",
+                    "on-secondary-fixed": "#0f1d25",
+                    "surface-container-low": "#f0f3ff",
+                    "surface-dim": "#d3daea",
+                    "primary": "#001e40",
+                    "surface-variant": "#dce2f3",
+                    "on-tertiary": "#ffffff",
+                    "inverse-on-surface": "#ebf1ff",
+                    "secondary": "#526069",
+                    "on-secondary-container": "#56656e",
+                    "secondary-fixed-dim": "#bac9d3",
+                    "on-tertiary-fixed-variant": "#005312",
+                    "on-primary": "#ffffff",
+                    "on-secondary": "#ffffff",
+                    "surface-container-high": "#e2e8f8",
+                    "outline-variant": "#c3c6d1",
+                    "on-primary-fixed": "#001b3c",
+                    "on-surface": "#151c27",
+                    "on-surface-variant": "#43474f",
+                    "tertiary-container": "#003d0b",
+                    "primary-fixed": "#d5e3ff",
+                    "on-error-container": "#93000a",
+                    "surface-bright": "#f9f9ff",
+                    "on-primary-container": "#799dd6",
+                    "on-tertiary-fixed": "#002204",
+                    "secondary-fixed": "#d6e5ef",
+                    "primary-container": "#003366",
+                    "outline": "#737780",
+                    "on-primary-fixed-variant": "#1f477b",
+                    "surface": "#f9f9ff",
+                    "tertiary-fixed": "#a3f69c",
+                    "surface-tint": "#3a5f94",
+                    "error": "#ba1a1a",
+                    "surface-container-lowest": "#ffffff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "stack-gap": "12px",
+                    "touch-target-min": "48px",
+                    "section-margin": "24px",
+                    "container-padding": "16px",
+                    "unit": "4px"
+            },
+            "fontFamily": {
+                    "label-bold": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "body-md": ["Inter"],
+                    "headline-md": ["Inter"],
+                    "display-lg": ["Inter"],
+                    "headline-sm": ["Inter"],
+                    "label-md": ["Inter"],
+                    "status-badge": ["Inter"]
+            },
+            "fontSize": {
+                    "label-bold": ["14px", {"lineHeight": "20px", "fontWeight": "700"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                    "display-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "headline-sm": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "label-md": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                    "status-badge": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background min-h-screen flex flex-col font-body-md antialiased selection:bg-primary-fixed selection:text-on-primary-fixed">
+<main class="flex-grow flex items-center justify-center p-container-padding relative overflow-hidden">
+<!-- Background Image/Texture -->
+<div class="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat opacity-20" data-alt="A dramatic and professional wide shot of a stormy sea with a rescue vessel in the distance, cutting through the waves. The scene is rendered in deep sea blues and cool grays, evoking a sense of high-stakes reliability and maritime authority. The lighting is moody yet clear, emphasizing the harsh yet focused nature of sea rescue operations. The overall aesthetic perfectly matches a corporate modern interface focusing on utility and calm under pressure." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAt2D0EwmVS1TbbVyMLk4l0tPl5cUxuDE7mLst_BIn10cL0Q6nhRvXaKIOEQC7LMICdt2uEaQX83WI3k_aqYsLuRXceRypnXLJsnlE1Xh-IlxNNPiMlQ2SNz3tAluI52-FAURuzef1NJ4GuEl6n5Pvaj5klR5n4QQwxB3Lg_M5TXhBpAmomhDueiTblZWc81Mdc34bPKeDORAzhPtQg8I-Yh7328fOfsWHdnd-B7OkUueFo_zC0tYQJ7r0YmDFhtuQa939NBAMGxaGo')">
+</div>
+<div class="absolute inset-0 z-0 bg-gradient-to-b from-background/80 via-background/95 to-background"></div>
+<!-- Login Card -->
+<div class="relative z-10 w-full max-w-md bg-surface border border-outline-variant rounded-xl shadow-[0_4px_12px_rgba(0,0,0,0.05)] p-section-margin flex flex-col gap-section-margin">
+<!-- Header -->
+<div class="text-center flex flex-col items-center gap-stack-gap">
+<div class="w-16 h-16 bg-primary rounded-full flex items-center justify-center shadow-md mb-2">
+<span class="material-symbols-outlined text-on-primary text-4xl" data-icon="anchor" style="font-variation-settings: 'FILL' 1;">anchor</span>
+</div>
+<h1 class="font-display-lg text-display-lg text-primary tracking-tight uppercase">RespondCrew</h1>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-[280px]">Vabatahtliku pääste valmisoleku ja väljakutsete juhtimine</p>
+</div>
+<!-- Form -->
+<form action="#" class="flex flex-col gap-stack-gap" method="POST">
+<div class="flex flex-col gap-unit">
+<label class="font-label-bold text-label-bold text-on-surface" for="email">E-post</label>
+<div class="relative">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-outline" data-icon="mail">mail</span>
+</div>
+<input class="block w-full pl-10 pr-3 py-3 border border-outline-variant rounded-lg bg-surface text-on-surface font-body-md focus:ring-2 focus:ring-primary focus:border-primary transition-shadow h-touch-target-min" id="email" name="email" placeholder="nimi@organisatsioon.ee" required="" type="email"/>
+</div>
+</div>
+<div class="flex flex-col gap-unit">
+<label class="font-label-bold text-label-bold text-on-surface" for="password">Salasõna</label>
+<div class="relative">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-outline" data-icon="lock">lock</span>
+</div>
+<input class="block w-full pl-10 pr-3 py-3 border border-outline-variant rounded-lg bg-surface text-on-surface font-body-md focus:ring-2 focus:ring-primary focus:border-primary transition-shadow h-touch-target-min" id="password" name="password" placeholder="••••••••" required="" type="password"/>
+</div>
+</div>
+<div class="flex items-center justify-between mt-2">
+<div class="flex items-center">
+<input class="h-4 w-4 text-primary focus:ring-primary border-outline-variant rounded bg-surface" id="remember-me" name="remember-me" type="checkbox"/>
+<label class="ml-2 block font-body-md text-body-md text-on-surface-variant" for="remember-me">Pea mind meeles</label>
+</div>
+<div class="text-sm">
+<a class="font-label-bold text-label-bold text-primary hover:text-primary-container transition-colors" href="#">Unustasid salasõna?</a>
+</div>
+</div>
+<!-- Actions -->
+<div class="flex flex-col gap-stack-gap mt-4">
+<button class="w-full flex items-center justify-center bg-primary text-on-primary font-label-bold text-label-bold rounded-lg h-[56px] uppercase tracking-wider shadow-sm hover:bg-primary-container active:scale-95 transition-all" type="submit">
+                        Logi sisse
+                        <span class="material-symbols-outlined ml-2" data-icon="login">login</span>
+</button>
+<button class="w-full flex items-center justify-center bg-surface border border-outline text-primary font-label-bold text-label-bold rounded-lg h-touch-target-min hover:bg-surface-container-low active:scale-95 transition-all" type="button">
+                        Loo konto
+                    </button>
+</div>
+</form>
+<!-- Security Badge -->
+<div class="flex items-center justify-center gap-2 mt-4 text-on-surface-variant opacity-70">
+<span class="material-symbols-outlined text-sm" data-icon="verified_user">verified_user</span>
+<span class="font-status-badge text-status-badge uppercase">Turvaline ühendus</span>
+</div>
+</div>
+</main>
+</body></html>

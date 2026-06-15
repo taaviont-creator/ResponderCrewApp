@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+
+<html lang="et"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>RespondCrew - Väljakutse Detail</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "inverse-surface": "#2a313d",
+                      "on-background": "#151c27",
+                      "on-tertiary-container": "#5ead5c",
+                      "on-error": "#ffffff",
+                      "surface-container-highest": "#dce2f3",
+                      "tertiary-fixed-dim": "#88d982",
+                      "on-secondary-fixed-variant": "#3b4951",
+                      "primary-fixed-dim": "#a7c8ff",
+                      "surface-container": "#e7eefe",
+                      "inverse-primary": "#a7c8ff",
+                      "secondary-container": "#d3e2ed",
+                      "background": "#f9f9ff",
+                      "error-container": "#ffdad6",
+                      "tertiary": "#002504",
+                      "on-secondary-fixed": "#0f1d25",
+                      "surface-container-low": "#f0f3ff",
+                      "surface-dim": "#d3daea",
+                      "primary": "#001e40",
+                      "surface-variant": "#dce2f3",
+                      "on-tertiary": "#ffffff",
+                      "inverse-on-surface": "#ebf1ff",
+                      "secondary": "#526069",
+                      "on-secondary-container": "#56656e",
+                      "secondary-fixed-dim": "#bac9d3",
+                      "on-tertiary-fixed-variant": "#005312",
+                      "on-primary": "#ffffff",
+                      "on-secondary": "#ffffff",
+                      "surface-container-high": "#e2e8f8",
+                      "outline-variant": "#c3c6d1",
+                      "on-primary-fixed": "#001b3c",
+                      "on-surface": "#151c27",
+                      "on-surface-variant": "#43474f",
+                      "tertiary-container": "#003d0b",
+                      "primary-fixed": "#d5e3ff",
+                      "on-error-container": "#93000a",
+                      "surface-bright": "#f9f9ff",
+                      "on-primary-container": "#799dd6",
+                      "on-tertiary-fixed": "#002204",
+                      "secondary-fixed": "#d6e5ef",
+                      "primary-container": "#003366",
+                      "outline": "#737780",
+                      "on-primary-fixed-variant": "#1f477b",
+                      "surface": "#f9f9ff",
+                      "tertiary-fixed": "#a3f69c",
+                      "surface-tint": "#3a5f94",
+                      "error": "#ba1a1a",
+                      "surface-container-lowest": "#ffffff"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "stack-gap": "12px",
+                      "touch-target-min": "48px",
+                      "section-margin": "24px",
+                      "container-padding": "16px",
+                      "unit": "4px"
+              },
+              "fontFamily": {
+                      "label-bold": ["Inter"],
+                      "body-lg": ["Inter"],
+                      "body-md": ["Inter"],
+                      "headline-md": ["Inter"],
+                      "display-lg": ["Inter"],
+                      "headline-sm": ["Inter"],
+                      "label-md": ["Inter"],
+                      "status-badge": ["Inter"]
+              },
+              "fontSize": {
+                      "label-bold": ["14px", {"lineHeight": "20px", "fontWeight": "700"}],
+                      "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                      "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                      "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                      "display-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                      "headline-sm": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                      "label-md": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                      "status-badge": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}]
+              }
+            }
+          }
+        }
+      </script>
+<style>
+        .material-symbols-outlined {
+          font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.fill {
+            font-variation-settings: 'FILL' 1;
+        }
+      </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background antialiased pb-safe min-h-screen flex flex-col">
+<!-- TopAppBar -->
+<header class="flex justify-between items-center px-container-padding h-touch-target-min w-full z-50 bg-surface dark:bg-on-background border-b border-outline-variant dark:border-outline flat no shadows sticky top-0">
+<div class="flex items-center gap-2 text-primary dark:text-primary-fixed press:scale-95 duration-100 cursor-pointer hover:bg-surface-container dark:hover:bg-inverse-surface transition-colors p-2 rounded-full" onclick="window.history.back()">
+<span class="material-symbols-outlined">arrow_back</span>
+</div>
+<div class="font-headline-md text-headline-md text-primary dark:text-primary-fixed uppercase tracking-tight text-center flex-1">
+            RespondCrew
+        </div>
+<div class="text-on-surface-variant dark:text-surface-variant flex items-center gap-1 font-label-md text-label-md bg-surface-container-low px-3 py-1.5 rounded-full press:scale-95 duration-100 cursor-pointer">
+<span>Tallinna Vabatahtlik Merepääste</span>
+<span class="material-symbols-outlined text-[18px]">arrow_drop_down</span>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-1 px-container-padding pt-section-margin pb-32 flex flex-col gap-section-margin max-w-3xl mx-auto w-full">
+<!-- Header & Priority Card -->
+<section class="bg-surface border-l-[4px] border-l-error border border-outline-variant rounded-lg shadow-[0_2px_4px_rgba(0,0,0,0.05)] p-4 flex flex-col gap-3">
+<div class="flex justify-between items-start gap-4">
+<h1 class="font-headline-sm text-headline-sm text-on-surface">Uppumis- ja veeõnnetus</h1>
+<div class="bg-error-container text-on-error-container font-status-badge text-status-badge px-2 py-1 rounded flex items-center gap-1 whitespace-nowrap">
+<span class="material-symbols-outlined fill text-[14px]">warning</span>
+                    KÕRGE PRIORITEET
+                </div>
+</div>
+<div class="flex items-center gap-2 text-on-surface-variant font-body-md text-body-md">
+<span class="material-symbols-outlined text-[20px]">schedule</span>
+<span>Loodud: 14:32 (10 min tagasi)</span>
+<span class="text-outline mx-1">•</span>
+<span>JRCC Tallinn</span>
+</div>
+</section>
+<!-- Bento Grid: Map & Info -->
+<section class="grid grid-cols-1 md:grid-cols-2 gap-stack-gap">
+<!-- Map Placeholder -->
+<div class="bg-surface border border-outline-variant rounded-lg shadow-[0_2px_4px_rgba(0,0,0,0.05)] overflow-hidden h-48 relative">
+<img alt="Map snippet" class="w-full h-full object-cover" data-location="Pirita laht" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDQNuvAXk_CrWQv8NKowqQVDh7PDokUVZrBTfkLkVI8dSt3-N8CdbnjOhO0tlrWrMZXxy0CSeSX1PJCG9zG8Gj4Ed-Uxm6I32MF_wPe9EMWvxmGwCh1GE97iKc7PNZmStWaapzWiQ0dcHuQHnfRWZqZmzaT22UjWC43TFxW7b7uoLwDmHUY4VCYCHLEdFldit7-j6tkwZA2luQ-eyXAeF7L_dmJcNKyOaiqvyR_euB_I6iGt_bX5VHbmHP1BvdkhbvRTe78NUeHQsF7"/>
+<div class="absolute bottom-2 right-2 bg-surface/90 backdrop-blur-sm px-3 py-1.5 rounded font-label-bold text-label-bold text-on-surface border border-outline-variant shadow-sm flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px] text-primary">my_location</span>
+                     Pirita rand, sektor 4
+                 </div>
+</div>
+<!-- Description -->
+<div class="bg-surface border border-outline-variant rounded-lg shadow-[0_2px_4px_rgba(0,0,0,0.05)] p-4 flex flex-col gap-2">
+<h2 class="font-label-bold text-label-bold text-primary flex items-center gap-2 border-b border-surface-variant pb-2">
+<span class="material-symbols-outlined text-[20px]">description</span>
+                    Sündmuse kirjeldus
+                </h2>
+<p class="font-body-md text-body-md text-on-surface leading-relaxed mt-1">
+                    Teataja sõnul on näha kummipaati, mis on ümber läinud. Kaks inimest vees, hoiavad paadist kinni. Ilmastikuolud halvenemas, tuul 12 m/s. Vajalik kiire reageerimine.
+                </p>
+</div>
+</section>
+<!-- Response Summary -->
+<section class="bg-surface border border-outline-variant rounded-lg shadow-[0_2px_4px_rgba(0,0,0,0.05)] p-4 flex flex-col gap-4">
+<h2 class="font-label-bold text-label-bold text-primary flex items-center gap-2 border-b border-surface-variant pb-2">
+<span class="material-symbols-outlined text-[20px]">groups</span>
+                Meeskonna valmidus (3/6)
+            </h2>
+<div class="w-full bg-surface-container-high rounded-full h-2 mt-2">
+<div class="bg-on-tertiary-container h-2 rounded-full" style="width: 50%"></div>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+<!-- Responding Member -->
+<div class="flex items-center gap-3 bg-surface-container-low p-2 rounded border border-surface-variant">
+<div class="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center font-label-bold text-label-bold">
+                        MM
+                    </div>
+<div class="flex flex-col">
+<span class="font-label-bold text-label-bold text-on-surface">Marko K.</span>
+<span class="font-label-md text-label-md text-on-tertiary-container flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">check_circle</span> Reageerib
+                        </span>
+</div>
+</div>
+<!-- Responding Member -->
+<div class="flex items-center gap-3 bg-surface-container-low p-2 rounded border border-surface-variant">
+<div class="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center font-label-bold text-label-bold">
+                        TS
+                    </div>
+<div class="flex flex-col">
+<span class="font-label-bold text-label-bold text-on-surface">Tiit S.</span>
+<span class="font-label-md text-label-md text-on-tertiary-container flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">check_circle</span> Reageerib
+                        </span>
+</div>
+</div>
+<!-- Delayed Member -->
+<div class="flex items-center gap-3 bg-surface-container-low p-2 rounded border border-surface-variant">
+<div class="w-10 h-10 rounded-full bg-primary-fixed-dim text-on-primary-fixed-variant flex items-center justify-center font-label-bold text-label-bold">
+                        JL
+                    </div>
+<div class="flex flex-col">
+<span class="font-label-bold text-label-bold text-on-surface">Jaan L.</span>
+<span class="font-label-md text-label-md text-surface-tint flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">timer</span> Hilineb (15m)
+                        </span>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Sticky Action Area -->
+<div class="fixed bottom-0 left-0 w-full bg-surface border-t border-outline-variant shadow-[0_-4px_12px_rgba(0,0,0,0.1)] p-container-padding z-40 pb-safe">
+<div class="max-w-3xl mx-auto flex flex-col sm:flex-row gap-3">
+<button class="flex-1 h-[56px] bg-primary text-on-primary font-headline-sm text-headline-sm uppercase rounded shadow flex items-center justify-center gap-2 press:scale-95 transition-transform">
+<span class="material-symbols-outlined">directions_boat</span>
+                Reageerin
+            </button>
+<div class="flex gap-3 flex-1">
+<button class="flex-1 h-touch-target-min bg-surface-container border border-primary text-primary font-label-bold text-label-bold rounded flex items-center justify-center gap-2 press:scale-95 transition-transform">
+<span class="material-symbols-outlined">timer</span>
+                    Hilinen
+                </button>
+<button class="flex-1 h-touch-target-min bg-error-container text-on-error-container font-label-bold text-label-bold rounded flex items-center justify-center gap-2 press:scale-95 transition-transform">
+<span class="material-symbols-outlined">cancel</span>
+                    Ei saa tulla
+                </button>
+</div>
+</div>
+</div>
+</body></html>

@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+
+<html class="light" lang="et"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>RespondCrew - Valmisolek</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-surface": "#2a313d",
+                        "on-background": "#151c27",
+                        "on-tertiary-container": "#5ead5c",
+                        "on-error": "#ffffff",
+                        "surface-container-highest": "#dce2f3",
+                        "tertiary-fixed-dim": "#88d982",
+                        "on-secondary-fixed-variant": "#3b4951",
+                        "primary-fixed-dim": "#a7c8ff",
+                        "surface-container": "#e7eefe",
+                        "inverse-primary": "#a7c8ff",
+                        "secondary-container": "#d3e2ed",
+                        "background": "#f9f9ff",
+                        "error-container": "#ffdad6",
+                        "tertiary": "#002504",
+                        "on-secondary-fixed": "#0f1d25",
+                        "surface-container-low": "#f0f3ff",
+                        "surface-dim": "#d3daea",
+                        "primary": "#001e40",
+                        "surface-variant": "#dce2f3",
+                        "on-tertiary": "#ffffff",
+                        "inverse-on-surface": "#ebf1ff",
+                        "secondary": "#526069",
+                        "on-secondary-container": "#56656e",
+                        "secondary-fixed-dim": "#bac9d3",
+                        "on-tertiary-fixed-variant": "#005312",
+                        "on-primary": "#ffffff",
+                        "on-secondary": "#ffffff",
+                        "surface-container-high": "#e2e8f8",
+                        "outline-variant": "#c3c6d1",
+                        "on-primary-fixed": "#001b3c",
+                        "on-surface": "#151c27",
+                        "on-surface-variant": "#43474f",
+                        "tertiary-container": "#003d0b",
+                        "primary-fixed": "#d5e3ff",
+                        "on-error-container": "#93000a",
+                        "surface-bright": "#f9f9ff",
+                        "on-primary-container": "#799dd6",
+                        "on-tertiary-fixed": "#002204",
+                        "secondary-fixed": "#d6e5ef",
+                        "primary-container": "#003366",
+                        "outline": "#737780",
+                        "on-primary-fixed-variant": "#1f477b",
+                        "surface": "#f9f9ff",
+                        "tertiary-fixed": "#a3f69c",
+                        "surface-tint": "#3a5f94",
+                        "error": "#ba1a1a",
+                        "surface-container-lowest": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "stack-gap": "12px",
+                        "touch-target-min": "48px",
+                        "section-margin": "24px",
+                        "container-padding": "16px",
+                        "unit": "4px"
+                    },
+                    "fontFamily": {
+                        "label-bold": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "body-md": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "headline-sm": ["Inter"],
+                        "label-md": ["Inter"],
+                        "status-badge": ["Inter"]
+                    },
+                    "fontSize": {
+                        "label-bold": ["14px", { "lineHeight": "20px", "fontWeight": "700" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+                        "display-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "headline-sm": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "label-md": ["14px", { "lineHeight": "20px", "fontWeight": "500" }],
+                        "status-badge": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background antialiased pb-24 md:pb-0">
+<!-- TopAppBar (Mobile & Desktop Anchor) -->
+<header class="flex justify-between items-center px-container-padding h-[64px] w-full z-50 bg-surface dark:bg-on-background border-b border-outline-variant dark:border-outline fixed top-0 left-0 right-0">
+<div class="flex items-center gap-2 text-primary dark:text-primary-fixed">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">anchor</span>
+<span class="font-headline-md text-headline-md uppercase tracking-tight">RespondCrew</span>
+</div>
+<!-- Desktop Nav (Hidden on Mobile) -->
+<nav class="hidden md:flex gap-6 items-center">
+<a class="flex items-center gap-1 text-on-surface-variant dark:text-surface-variant font-label-md text-label-md hover:bg-surface-container transition-colors p-2 rounded-DEFAULT" href="#">
+<span class="material-symbols-outlined">home</span> Avaleht
+             </a>
+<a class="flex items-center gap-1 text-primary dark:text-primary-fixed font-bold font-label-md text-label-md hover:bg-surface-container transition-colors p-2 rounded-DEFAULT border-b-2 border-primary" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">verified_user</span> Valmisolek
+             </a>
+<a class="flex items-center gap-1 text-on-surface-variant dark:text-surface-variant font-label-md text-label-md hover:bg-surface-container transition-colors p-2 rounded-DEFAULT" href="#">
+<span class="material-symbols-outlined">emergency_share</span> Väljakutsed
+             </a>
+<a class="flex items-center gap-1 text-on-surface-variant dark:text-surface-variant font-label-md text-label-md hover:bg-surface-container transition-colors p-2 rounded-DEFAULT" href="#">
+<span class="material-symbols-outlined">notifications</span> Teavitused
+             </a>
+</nav>
+<div class="flex items-center gap-2 cursor-pointer hover:bg-surface-container p-2 rounded-DEFAULT transition-colors">
+<span class="font-label-md text-label-md text-on-surface-variant hidden md:block">Tallinna Vabatahtlik Merepääste</span>
+<span class="material-symbols-outlined text-primary">arrow_drop_down</span>
+</div>
+</header>
+<main class="mt-[64px] px-container-padding py-section-margin max-w-4xl mx-auto space-y-section-margin">
+<!-- Status Management Header & Update Time -->
+<div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-2 border-b border-outline-variant pb-4">
+<div>
+<h1 class="font-headline-md text-headline-md text-primary mb-1">Minu Valmisolek</h1>
+<p class="font-body-md text-body-md text-on-surface-variant">Määra oma operatiivne staatus.</p>
+</div>
+<div class="flex items-center gap-1 text-secondary font-label-md text-label-md bg-surface-container px-3 py-1.5 rounded-full">
+<span class="material-symbols-outlined text-[16px]">sync</span>
+                Viimati uuendatud: 14:30
+            </div>
+</div>
+<!-- User Status Toggle -->
+<section class="space-y-stack-gap">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-unit">
+<!-- Active Toggle -->
+<label class="relative cursor-pointer">
+<input checked="" class="peer sr-only" name="status" type="radio" value="valves"/>
+<div class="h-touch-target-min flex items-center justify-center gap-2 bg-surface border border-outline-variant rounded-l-lg md:rounded-l-lg md:rounded-r-none rounded-t-lg md:rounded-b-none peer-checked:bg-tertiary peer-checked:text-on-tertiary peer-checked:border-tertiary transition-colors shadow-sm">
+<span class="material-symbols-outlined peer-checked:text-on-tertiary text-on-surface-variant" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="font-label-bold text-label-bold">Valves</span>
+</div>
+</label>
+<!-- Delayed Toggle -->
+<label class="relative cursor-pointer">
+<input class="peer sr-only" name="status" type="radio" value="hilinen"/>
+<div class="h-touch-target-min flex items-center justify-center gap-2 bg-surface border-y border-outline-variant md:border-x-0 peer-checked:bg-[#eab308] peer-checked:text-on-primary peer-checked:border-[#eab308] transition-colors shadow-sm">
+<span class="material-symbols-outlined peer-checked:text-on-primary text-on-surface-variant" style="font-variation-settings: 'FILL' 1;">schedule</span>
+<span class="font-label-bold text-label-bold">Hilinen</span>
+</div>
+</label>
+<!-- Inactive Toggle -->
+<label class="relative cursor-pointer">
+<input class="peer sr-only" name="status" type="radio" value="ei_ole"/>
+<div class="h-touch-target-min flex items-center justify-center gap-2 bg-surface border border-outline-variant rounded-b-lg md:rounded-r-lg md:rounded-l-none md:rounded-b-none peer-checked:bg-error peer-checked:text-on-error peer-checked:border-error transition-colors shadow-sm">
+<span class="material-symbols-outlined peer-checked:text-on-error text-on-surface-variant" style="font-variation-settings: 'FILL' 1;">cancel</span>
+<span class="font-label-bold text-label-bold">Ei ole valves</span>
+</div>
+</label>
+</div>
+<!-- Contextual Options (Visible when 'Hilinen' is selected - simulated with generic layout here) -->
+<div class="bg-surface-container-low p-4 rounded-lg border border-surface-container flex flex-col md:flex-row gap-4 items-start md:items-center">
+<div class="w-full md:w-1/3">
+<label class="block font-label-bold text-label-bold text-on-background mb-1">Reageerimise viide</label>
+<select class="w-full h-touch-target-min rounded-DEFAULT border-outline-variant bg-surface text-on-background font-body-md text-body-md focus:ring-primary focus:border-primary">
+<option>Kohe valmis</option>
+<option>+ 5 min</option>
+<option selected="">+ 15 min</option>
+<option>+ 30 min</option>
+<option>+ 1 h</option>
+</select>
+</div>
+<div class="w-full md:w-2/3">
+<label class="block font-label-bold text-label-bold text-on-background mb-1">Märkus (valikuline)</label>
+<input class="w-full h-touch-target-min rounded-DEFAULT border-outline-variant bg-surface text-on-background font-body-md text-body-md focus:ring-primary focus:border-primary" placeholder="Nt: Olen teel sadamasse..." type="text"/>
+</div>
+</div>
+</section>
+<!-- Organization Overview Bento Grid -->
+<section>
+<h2 class="font-headline-sm text-headline-sm text-primary mb-4 border-l-4 border-primary pl-2">Meeskonna Ülevaade</h2>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+<!-- Valves Card -->
+<div class="bg-surface rounded-xl border border-outline-variant shadow-sm flex flex-col">
+<div class="p-4 border-b border-outline-variant bg-surface-container-low rounded-t-xl flex justify-between items-center">
+<div class="flex items-center gap-2 text-tertiary">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<h3 class="font-label-bold text-label-bold">Valves (4)</h3>
+</div>
+</div>
+<ul class="p-2 space-y-1">
+<li class="flex items-center gap-3 p-2 hover:bg-surface-container rounded-DEFAULT transition-colors">
+<div class="w-8 h-8 rounded-full bg-tertiary-container text-on-tertiary-container flex items-center justify-center font-label-bold text-label-bold">MM</div>
+<div>
+<p class="font-label-md text-label-md text-on-background">Markus Meri</p>
+<p class="font-body-md text-[12px] text-on-surface-variant leading-none">Paadijuht</p>
+</div>
+</li>
+<li class="flex items-center gap-3 p-2 hover:bg-surface-container rounded-DEFAULT transition-colors">
+<div class="w-8 h-8 rounded-full bg-surface-variant text-on-surface-variant flex items-center justify-center font-label-bold text-label-bold">LT</div>
+<div>
+<p class="font-label-md text-label-md text-on-background">Laura Tuul</p>
+<p class="font-body-md text-[12px] text-on-surface-variant leading-none">Päästja</p>
+</div>
+</li>
+<li class="flex items-center gap-3 p-2 hover:bg-surface-container rounded-DEFAULT transition-colors">
+<div class="w-8 h-8 rounded-full bg-surface-variant text-on-surface-variant flex items-center justify-center font-label-bold text-label-bold">KT</div>
+<div>
+<p class="font-label-md text-label-md text-on-background">Karl Tamm</p>
+<p class="font-body-md text-[12px] text-on-surface-variant leading-none">Päästja</p>
+</div>
+</li>
+<li class="flex items-center gap-3 p-2 hover:bg-surface-container rounded-DEFAULT transition-colors">
+<div class="w-8 h-8 rounded-full bg-surface-variant text-on-surface-variant flex items-center justify-center font-label-bold text-label-bold">AK</div>
+<div>
+<p class="font-label-md text-label-md text-on-background">Anna Kallas</p>
+<p class="font-body-md text-[12px] text-on-surface-variant leading-none">Meedik</p>
+</div>
+</li>
+</ul>
+</div>
+<!-- Hilinen Card -->
+<div class="bg-surface rounded-xl border border-outline-variant shadow-sm flex flex-col">
+<div class="p-4 border-b border-outline-variant bg-surface-container-low rounded-t-xl flex justify-between items-center">
+<div class="flex items-center gap-2 text-[#b45309]">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">schedule</span>
+<h3 class="font-label-bold text-label-bold">Hilinen (2)</h3>
+</div>
+</div>
+<ul class="p-2 space-y-1">
+<li class="flex items-center gap-3 p-2 hover:bg-surface-container rounded-DEFAULT transition-colors">
+<div class="w-8 h-8 rounded-full bg-surface-variant text-on-surface-variant flex items-center justify-center font-label-bold text-label-bold">TP</div>
+<div class="flex-1">
+<p class="font-label-md text-label-md text-on-background">Toomas Pärn</p>
+<p class="font-body-md text-[12px] text-[#b45309] font-medium leading-none">+ 15 min</p>
+</div>
+</li>
+<li class="flex items-center gap-3 p-2 hover:bg-surface-container rounded-DEFAULT transition-colors">
+<div class="w-8 h-8 rounded-full bg-surface-variant text-on-surface-variant flex items-center justify-center font-label-bold text-label-bold">ER</div>
+<div class="flex-1">
+<p class="font-label-md text-label-md text-on-background">Eeva Rand</p>
+<p class="font-body-md text-[12px] text-[#b45309] font-medium leading-none">+ 30 min (Ummikus)</p>
+</div>
+</li>
+</ul>
+</div>
+<!-- Ei saa tulla Card -->
+<div class="bg-surface rounded-xl border border-outline-variant shadow-sm flex flex-col">
+<div class="p-4 border-b border-outline-variant bg-surface-container-low rounded-t-xl flex justify-between items-center">
+<div class="flex items-center gap-2 text-error">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">cancel</span>
+<h3 class="font-label-bold text-label-bold">Ei ole valves (1)</h3>
+</div>
+</div>
+<ul class="p-2 space-y-1 opacity-70">
+<li class="flex items-center gap-3 p-2 hover:bg-surface-container rounded-DEFAULT transition-colors">
+<div class="w-8 h-8 rounded-full bg-surface-variant text-on-surface-variant flex items-center justify-center font-label-bold text-label-bold">MO</div>
+<div>
+<p class="font-label-md text-label-md text-on-background line-through">Mikk Oks</p>
+</div>
+</li>
+</ul>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar (Mobile Only) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full h-[72px] bg-surface dark:bg-on-background flex justify-around items-center px-container-padding pb-safe shadow-[0_-4px_12px_rgba(0,0,0,0.1)] dark:shadow-none border-t border-outline-variant dark:border-outline z-50">
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim pt-1 hover:bg-surface-container-low dark:hover:bg-inverse-surface w-full h-full" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="font-label-md text-label-md mt-1">Avaleht</span>
+</a>
+<a class="flex flex-col items-center justify-center text-primary dark:text-primary-fixed border-t-2 border-primary dark:border-primary-fixed pt-1 opacity-80 scale-95 transition-all w-full h-full" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">verified_user</span>
+<span class="font-label-md text-label-md mt-1">Valmisolek</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim pt-1 hover:bg-surface-container-low dark:hover:bg-inverse-surface w-full h-full" href="#">
+<span class="material-symbols-outlined">emergency_share</span>
+<span class="font-label-md text-label-md mt-1">Väljakutsed</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim pt-1 hover:bg-surface-container-low dark:hover:bg-inverse-surface w-full h-full" href="#">
+<span class="material-symbols-outlined">notifications</span>
+<span class="font-label-md text-label-md mt-1">Teavitused</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim pt-1 hover:bg-surface-container-low dark:hover:bg-inverse-surface w-full h-full" href="#">
+<span class="material-symbols-outlined">menu</span>
+<span class="font-label-md text-label-md mt-1">Menüü</span>
+</a>
+</nav>
+</body></html>

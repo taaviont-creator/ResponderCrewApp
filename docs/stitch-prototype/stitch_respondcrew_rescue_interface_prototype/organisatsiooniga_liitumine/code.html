@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+
+<html class="light" lang="et"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>RespondCrew - Onboarding</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-surface": "#2a313d",
+                        "on-background": "#151c27",
+                        "on-tertiary-container": "#5ead5c",
+                        "on-error": "#ffffff",
+                        "surface-container-highest": "#dce2f3",
+                        "tertiary-fixed-dim": "#88d982",
+                        "on-secondary-fixed-variant": "#3b4951",
+                        "primary-fixed-dim": "#a7c8ff",
+                        "surface-container": "#e7eefe",
+                        "inverse-primary": "#a7c8ff",
+                        "secondary-container": "#d3e2ed",
+                        "background": "#f9f9ff",
+                        "error-container": "#ffdad6",
+                        "tertiary": "#002504",
+                        "on-secondary-fixed": "#0f1d25",
+                        "surface-container-low": "#f0f3ff",
+                        "surface-dim": "#d3daea",
+                        "primary": "#001e40",
+                        "surface-variant": "#dce2f3",
+                        "on-tertiary": "#ffffff",
+                        "inverse-on-surface": "#ebf1ff",
+                        "secondary": "#526069",
+                        "on-secondary-container": "#56656e",
+                        "secondary-fixed-dim": "#bac9d3",
+                        "on-tertiary-fixed-variant": "#005312",
+                        "on-primary": "#ffffff",
+                        "on-secondary": "#ffffff",
+                        "surface-container-high": "#e2e8f8",
+                        "outline-variant": "#c3c6d1",
+                        "on-primary-fixed": "#001b3c",
+                        "on-surface": "#151c27",
+                        "on-surface-variant": "#43474f",
+                        "tertiary-container": "#003d0b",
+                        "primary-fixed": "#d5e3ff",
+                        "on-error-container": "#93000a",
+                        "surface-bright": "#f9f9ff",
+                        "on-primary-container": "#799dd6",
+                        "on-tertiary-fixed": "#002204",
+                        "secondary-fixed": "#d6e5ef",
+                        "primary-container": "#003366",
+                        "outline": "#737780",
+                        "on-primary-fixed-variant": "#1f477b",
+                        "surface": "#f9f9ff",
+                        "tertiary-fixed": "#a3f69c",
+                        "surface-tint": "#3a5f94",
+                        "error": "#ba1a1a",
+                        "surface-container-lowest": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "stack-gap": "12px",
+                        "touch-target-min": "48px",
+                        "section-margin": "24px",
+                        "container-padding": "16px",
+                        "unit": "4px"
+                    },
+                    "fontFamily": {
+                        "label-bold": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "body-md": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "headline-sm": ["Inter"],
+                        "label-md": ["Inter"],
+                        "status-badge": ["Inter"]
+                    },
+                    "fontSize": {
+                        "label-bold": ["14px", { "lineHeight": "20px", "fontWeight": "700" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+                        "display-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "headline-sm": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "label-md": ["14px", { "lineHeight": "20px", "fontWeight": "500" }],
+                        "status-badge": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body-md min-h-screen flex flex-col items-center justify-center p-container-padding antialiased">
+<!-- Top Navigation suppressed for Onboarding / Linear flow -->
+<main class="w-full max-w-md mx-auto bg-surface rounded-xl shadow-[0_2px_4px_rgba(0,0,0,0.05)] border border-outline-variant p-section-margin flex flex-col gap-section-margin">
+<!-- Header -->
+<header class="text-center flex flex-col gap-stack-gap">
+<div class="mx-auto w-16 h-16 bg-primary-container text-on-primary-container rounded-full flex items-center justify-center mb-unit">
+<span class="material-symbols-outlined text-3xl" style="font-variation-settings: 'FILL' 1;">directions_boat</span>
+</div>
+<h1 class="font-headline-md text-headline-md text-primary tracking-tight">Tere tulemast, RespondCrew</h1>
+<p class="font-body-md text-body-md text-on-surface-variant">Alustamiseks loo uus organisatsioon või liitu olemasolevaga.</p>
+</header>
+<!-- Options Container (Bento-style) -->
+<div class="grid grid-cols-1 gap-stack-gap">
+<!-- Option 1: Join Organization -->
+<label class="group relative flex flex-col p-container-padding border-2 border-outline-variant rounded-lg cursor-pointer hover:bg-surface-container-low hover:border-primary transition-all duration-200 has-[:checked]:border-primary has-[:checked]:bg-surface-container">
+<input checked="" class="peer sr-only" name="onboarding_choice" type="radio" value="join"/>
+<div class="flex items-start gap-stack-gap">
+<div class="mt-1 flex-shrink-0 w-6 h-6 rounded-full border-2 border-outline-variant group-hover:border-primary peer-checked:border-primary peer-checked:bg-primary flex items-center justify-center transition-colors">
+<span class="material-symbols-outlined text-[14px] text-on-primary opacity-0 peer-checked:opacity-100 transition-opacity" style="font-variation-settings: 'wght' 700;">check</span>
+</div>
+<div class="flex flex-col">
+<span class="font-headline-sm text-headline-sm text-on-surface">Liitu organisatsiooniga</span>
+<span class="font-body-md text-body-md text-on-surface-variant mt-unit">Mul on kutsekood või liitumislink.</span>
+</div>
+</div>
+<!-- Expanded Content for Join (visible when selected) -->
+<div class="mt-stack-gap pl-[36px] overflow-hidden transition-all duration-300 max-h-0 peer-checked:max-h-40 opacity-0 peer-checked:opacity-100">
+<div class="flex flex-col gap-unit">
+<label class="font-label-bold text-label-bold text-on-surface" for="join_code">Sisesta liitumiskood</label>
+<input class="w-full h-touch-target-min px-container-padding rounded-md border border-outline-variant bg-surface text-on-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors placeholder:text-outline font-body-lg text-body-lg uppercase tracking-widest" id="join_code" placeholder="nt. X7Y-9B2" type="text"/>
+</div>
+</div>
+</label>
+<!-- Option 2: Create Organization -->
+<label class="group relative flex flex-col p-container-padding border-2 border-outline-variant rounded-lg cursor-pointer hover:bg-surface-container-low hover:border-primary transition-all duration-200 has-[:checked]:border-primary has-[:checked]:bg-surface-container">
+<input class="peer sr-only" name="onboarding_choice" type="radio" value="create"/>
+<div class="flex items-start gap-stack-gap">
+<div class="mt-1 flex-shrink-0 w-6 h-6 rounded-full border-2 border-outline-variant group-hover:border-primary peer-checked:border-primary peer-checked:bg-primary flex items-center justify-center transition-colors">
+<span class="material-symbols-outlined text-[14px] text-on-primary opacity-0 peer-checked:opacity-100 transition-opacity" style="font-variation-settings: 'wght' 700;">check</span>
+</div>
+<div class="flex flex-col">
+<span class="font-headline-sm text-headline-sm text-on-surface">Loo uus organisatsioon</span>
+<span class="font-body-md text-body-md text-on-surface-variant mt-unit">Olen administraator ja soovin süsteemi seadistada.</span>
+</div>
+</div>
+</label>
+</div>
+<!-- Actions -->
+<div class="pt-stack-gap mt-auto">
+<button class="w-full h-[56px] bg-primary text-on-primary font-label-bold text-label-bold uppercase rounded-lg shadow-md hover:bg-primary-container transition-colors active:scale-[0.98] duration-100 flex items-center justify-center gap-unit">
+<span>Edasi</span>
+<span class="material-symbols-outlined">arrow_forward</span>
+</button>
+</div>
+</main>
+<script>
+        // Simple script to handle visual states if needed beyond CSS, though CSS handles the radio expansion well here.
+        document.addEventListener('DOMContentLoaded', () => {
+            const radios = document.querySelectorAll('input[name="onboarding_choice"]');
+            const joinCodeInput = document.getElementById('join_code');
+
+            radios.forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    if (e.target.value === 'join') {
+                        setTimeout(() => joinCodeInput.focus(), 300); // Focus after expansion animation
+                    } else {
+                        joinCodeInput.blur();
+                        joinCodeInput.value = ''; // clear on switch
+                    }
+                });
+            });
+        });
+    </script>
+</body></html>

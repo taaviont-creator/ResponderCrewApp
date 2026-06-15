@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+
+<html lang="et"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Operatsioonilogi - RespondCrew</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-surface": "#2a313d",
+                        "on-background": "#151c27",
+                        "on-tertiary-container": "#5ead5c",
+                        "on-error": "#ffffff",
+                        "surface-container-highest": "#dce2f3",
+                        "tertiary-fixed-dim": "#88d982",
+                        "on-secondary-fixed-variant": "#3b4951",
+                        "primary-fixed-dim": "#a7c8ff",
+                        "surface-container": "#e7eefe",
+                        "inverse-primary": "#a7c8ff",
+                        "secondary-container": "#d3e2ed",
+                        "background": "#f9f9ff",
+                        "error-container": "#ffdad6",
+                        "tertiary": "#002504",
+                        "on-secondary-fixed": "#0f1d25",
+                        "surface-container-low": "#f0f3ff",
+                        "surface-dim": "#d3daea",
+                        "primary": "#001e40",
+                        "surface-variant": "#dce2f3",
+                        "on-tertiary": "#ffffff",
+                        "inverse-on-surface": "#ebf1ff",
+                        "secondary": "#526069",
+                        "on-secondary-container": "#56656e",
+                        "secondary-fixed-dim": "#bac9d3",
+                        "on-tertiary-fixed-variant": "#005312",
+                        "on-primary": "#ffffff",
+                        "on-secondary": "#ffffff",
+                        "surface-container-high": "#e2e8f8",
+                        "outline-variant": "#c3c6d1",
+                        "on-primary-fixed": "#001b3c",
+                        "on-surface": "#151c27",
+                        "on-surface-variant": "#43474f",
+                        "tertiary-container": "#003d0b",
+                        "primary-fixed": "#d5e3ff",
+                        "on-error-container": "#93000a",
+                        "surface-bright": "#f9f9ff",
+                        "on-primary-container": "#799dd6",
+                        "on-tertiary-fixed": "#002204",
+                        "secondary-fixed": "#d6e5ef",
+                        "primary-container": "#003366",
+                        "outline": "#737780",
+                        "on-primary-fixed-variant": "#1f477b",
+                        "surface": "#f9f9ff",
+                        "tertiary-fixed": "#a3f69c",
+                        "surface-tint": "#3a5f94",
+                        "error": "#ba1a1a",
+                        "surface-container-lowest": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "stack-gap": "12px",
+                        "touch-target-min": "48px",
+                        "section-margin": "24px",
+                        "container-padding": "16px",
+                        "unit": "4px"
+                    },
+                    "fontFamily": {
+                        "label-bold": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "body-md": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "headline-sm": ["Inter"],
+                        "label-md": ["Inter"],
+                        "status-badge": ["Inter"]
+                    },
+                    "fontSize": {
+                        "label-bold": ["14px", { "lineHeight": "20px", "fontWeight": "700" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+                        "display-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "headline-sm": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "label-md": ["14px", { "lineHeight": "20px", "fontWeight": "500" }],
+                        "status-badge": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.filled {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body-md antialiased min-h-screen flex flex-col pb-safe">
+<!-- TopAppBar -->
+<header class="flex justify-between items-center px-container-padding h-touch-target-min w-full z-50 bg-surface dark:bg-on-background border-b border-outline-variant dark:border-outline flat no shadows docked full-width top-0 sticky">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary dark:text-primary-fixed filled" style="font-size: 24px;">anchor</span>
+<span class="font-headline-md text-headline-md text-primary dark:text-primary-fixed uppercase tracking-tight">RespondCrew</span>
+</div>
+<div>
+<span class="font-label-md text-label-md text-primary dark:text-primary-fixed">Tallinna Vabatahtlik Merepääste</span>
+</div>
+</header>
+<!-- Main Content -->
+<main class="flex-grow px-container-padding py-section-margin max-w-3xl mx-auto w-full flex flex-col gap-section-margin">
+<!-- Header / Status -->
+<div class="flex flex-col gap-stack-gap">
+<div class="flex justify-between items-start">
+<div>
+<h1 class="font-display-lg text-display-lg text-primary">Operatsioonilogi</h1>
+<p class="font-body-md text-body-md text-on-surface-variant">Väljakutse #1042 - Mootoririke, Naissaare lähistel</p>
+</div>
+<div class="bg-tertiary-container text-on-tertiary-container px-3 py-1 rounded-full flex items-center gap-2">
+<span class="material-symbols-outlined filled" style="font-size: 16px;">directions_boat</span>
+<span class="font-status-badge text-status-badge uppercase">Aktiivne</span>
+</div>
+</div>
+</div>
+<!-- Action Buttons (High Priority) -->
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-stack-gap">
+<button class="bg-primary text-on-primary h-touch-target-min rounded-lg font-label-bold text-label-bold uppercase flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-lg">
+<span class="material-symbols-outlined">sailing</span>
+                Märgi väljasõit
+            </button>
+<button class="bg-secondary-container text-primary h-touch-target-min rounded-lg font-label-bold text-label-bold uppercase flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-md">
+<span class="material-symbols-outlined">location_on</span>
+                Märgi kohal
+            </button>
+<button class="bg-error-container text-on-error-container h-touch-target-min rounded-lg font-label-bold text-label-bold uppercase flex items-center justify-center gap-2 active:scale-95 transition-transform shadow-md">
+<span class="material-symbols-outlined">flag</span>
+                Lõpeta operatsioon
+            </button>
+</div>
+<!-- Timeline (Bento Grid Style) -->
+<section class="bg-surface rounded-xl shadow-sm border border-outline-variant p-container-padding">
+<h2 class="font-headline-sm text-headline-sm text-primary mb-stack-gap">Sündmuste Jada</h2>
+<div class="relative pl-6 border-l-2 border-outline-variant space-y-6">
+<!-- Step 1: Completed -->
+<div class="relative">
+<div class="absolute -left-[31px] bg-tertiary text-on-tertiary rounded-full w-6 h-6 flex items-center justify-center shadow-md">
+<span class="material-symbols-outlined" style="font-size: 14px;">check</span>
+</div>
+<div>
+<h3 class="font-label-bold text-label-bold text-on-surface">Väljakutse loodud</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">14:02 - Häirekeskus edastas info.</p>
+</div>
+</div>
+<!-- Step 2: Completed -->
+<div class="relative">
+<div class="absolute -left-[31px] bg-tertiary text-on-tertiary rounded-full w-6 h-6 flex items-center justify-center shadow-md">
+<span class="material-symbols-outlined" style="font-size: 14px;">check</span>
+</div>
+<div>
+<h3 class="font-label-bold text-label-bold text-on-surface">Meeskond teavitatud</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">14:05 - SMS ja rakenduse teavitus saadetud.</p>
+</div>
+</div>
+<!-- Step 3: Active -->
+<div class="relative">
+<div class="absolute -left-[31px] bg-primary text-on-primary rounded-full w-6 h-6 flex items-center justify-center ring-4 ring-primary-fixed-dim shadow-lg">
+<span class="material-symbols-outlined" style="font-size: 14px;">sailing</span>
+</div>
+<div class="bg-surface-container-low p-3 rounded-lg border-l-4 border-primary">
+<h3 class="font-label-bold text-label-bold text-primary">Väljasõit</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Ootab kinnitust. Alus: M/B Laine.</p>
+</div>
+</div>
+<!-- Step 4: Pending -->
+<div class="relative">
+<div class="absolute -left-[31px] bg-surface border-2 border-outline rounded-full w-6 h-6"></div>
+<div>
+<h3 class="font-label-bold text-label-bold text-outline">Kohal</h3>
+</div>
+</div>
+<!-- Step 5: Pending -->
+<div class="relative">
+<div class="absolute -left-[31px] bg-surface border-2 border-outline rounded-full w-6 h-6"></div>
+<div>
+<h3 class="font-label-bold text-label-bold text-outline">Tegevus</h3>
+</div>
+</div>
+<!-- Step 6: Pending -->
+<div class="relative">
+<div class="absolute -left-[31px] bg-surface border-2 border-outline rounded-full w-6 h-6"></div>
+<div>
+<h3 class="font-label-bold text-label-bold text-outline">Tagasisõit</h3>
+</div>
+</div>
+<!-- Step 7: Pending -->
+<div class="relative">
+<div class="absolute -left-[31px] bg-surface border-2 border-outline rounded-full w-6 h-6"></div>
+<div>
+<h3 class="font-label-bold text-label-bold text-outline">Baasis tagasi / Lõpetatud</h3>
+</div>
+</div>
+</div>
+</section>
+<!-- Log/Notes Input -->
+<section class="bg-surface rounded-xl shadow-sm border border-outline-variant p-container-padding flex flex-col gap-stack-gap">
+<h2 class="font-headline-sm text-headline-sm text-primary">Lisa Märge</h2>
+<div class="flex flex-col gap-2">
+<textarea class="w-full rounded-lg border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary bg-surface-bright font-body-md text-body-md text-on-surface p-3 resize-none h-24" placeholder="Kirjelda tegevust või lisa täpsustusi..."></textarea>
+<div class="flex justify-end">
+<button class="bg-secondary-container text-primary h-10 px-4 rounded-lg font-label-md text-label-md uppercase flex items-center justify-center gap-2 active:scale-95 transition-transform">
+<span class="material-symbols-outlined" style="font-size: 18px;">add_comment</span>
+                        Salvesta
+                    </button>
+</div>
+</div>
+<!-- Existing Notes -->
+<div class="mt-4 flex flex-col gap-3">
+<div class="bg-surface-container-lowest p-3 rounded-lg border border-outline-variant text-sm">
+<div class="flex justify-between items-center mb-1">
+<span class="font-label-bold text-primary">Jaanus K.</span>
+<span class="text-on-surface-variant text-xs">14:10</span>
+</div>
+<p class="text-on-surface">Varustus kontrollitud, kütus tangitud. Valmis väljasõiduks 5 minuti pärast.</p>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar (Hidden on md, visible on mobile as it's a top-level destination equivalent context for demo purposes, though strictly this might be a sub-page depending on routing. We will show it as requested by the shell mandate for destinations if we consider "Väljakutsed" the parent context. We'll highlight Väljakutsed.) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full h-[72px] bg-surface dark:bg-on-background flex justify-around items-center px-container-padding pb-safe shadow-[0_-4px_12px_rgba(0,0,0,0.1)] dark:shadow-none border-t border-outline-variant dark:border-outline z-50">
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim pt-1 hover:bg-surface-container-low dark:hover:bg-inverse-surface active:opacity-80 active:scale-95 transition-all w-16 h-full rounded-lg" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="font-label-md text-label-md mt-1 text-[10px]">Avaleht</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim pt-1 hover:bg-surface-container-low dark:hover:bg-inverse-surface active:opacity-80 active:scale-95 transition-all w-16 h-full rounded-lg" href="#">
+<span class="material-symbols-outlined">verified_user</span>
+<span class="font-label-md text-label-md mt-1 text-[10px]">Valmisolek</span>
+</a>
+<a class="flex flex-col items-center justify-center text-primary dark:text-primary-fixed border-t-2 border-primary dark:border-primary-fixed pt-1 hover:bg-surface-container-low dark:hover:bg-inverse-surface active:opacity-80 active:scale-95 transition-all w-16 h-full rounded-lg bg-surface-container-low" href="#">
+<span class="material-symbols-outlined filled">emergency_share</span>
+<span class="font-label-md text-label-md mt-1 text-[10px] font-bold">Väljakutsed</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim pt-1 hover:bg-surface-container-low dark:hover:bg-inverse-surface active:opacity-80 active:scale-95 transition-all w-16 h-full rounded-lg" href="#">
+<span class="material-symbols-outlined">notifications</span>
+<span class="font-label-md text-label-md mt-1 text-[10px]">Teavitused</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim pt-1 hover:bg-surface-container-low dark:hover:bg-inverse-surface active:opacity-80 active:scale-95 transition-all w-16 h-full rounded-lg" href="#">
+<span class="material-symbols-outlined">menu</span>
+<span class="font-label-md text-label-md mt-1 text-[10px]">Menüü</span>
+</a>
+</nav>
+</body></html>

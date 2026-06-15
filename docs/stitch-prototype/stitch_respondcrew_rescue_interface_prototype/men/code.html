@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+
+<html class="light" lang="et"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>RespondCrew - Menüü</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-surface": "#2a313d",
+                        "on-background": "#151c27",
+                        "on-tertiary-container": "#5ead5c",
+                        "on-error": "#ffffff",
+                        "surface-container-highest": "#dce2f3",
+                        "tertiary-fixed-dim": "#88d982",
+                        "on-secondary-fixed-variant": "#3b4951",
+                        "primary-fixed-dim": "#a7c8ff",
+                        "surface-container": "#e7eefe",
+                        "inverse-primary": "#a7c8ff",
+                        "secondary-container": "#d3e2ed",
+                        "background": "#f9f9ff",
+                        "error-container": "#ffdad6",
+                        "tertiary": "#002504",
+                        "on-secondary-fixed": "#0f1d25",
+                        "surface-container-low": "#f0f3ff",
+                        "surface-dim": "#d3daea",
+                        "primary": "#001e40",
+                        "surface-variant": "#dce2f3",
+                        "on-tertiary": "#ffffff",
+                        "inverse-on-surface": "#ebf1ff",
+                        "secondary": "#526069",
+                        "on-secondary-container": "#56656e",
+                        "secondary-fixed-dim": "#bac9d3",
+                        "on-tertiary-fixed-variant": "#005312",
+                        "on-primary": "#ffffff",
+                        "on-secondary": "#ffffff",
+                        "surface-container-high": "#e2e8f8",
+                        "outline-variant": "#c3c6d1",
+                        "on-primary-fixed": "#001b3c",
+                        "on-surface": "#151c27",
+                        "on-surface-variant": "#43474f",
+                        "tertiary-container": "#003d0b",
+                        "primary-fixed": "#d5e3ff",
+                        "on-error-container": "#93000a",
+                        "surface-bright": "#f9f9ff",
+                        "on-primary-container": "#799dd6",
+                        "on-tertiary-fixed": "#002204",
+                        "secondary-fixed": "#d6e5ef",
+                        "primary-container": "#003366",
+                        "outline": "#737780",
+                        "on-primary-fixed-variant": "#1f477b",
+                        "surface": "#f9f9ff",
+                        "tertiary-fixed": "#a3f69c",
+                        "surface-tint": "#3a5f94",
+                        "error": "#ba1a1a",
+                        "surface-container-lowest": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "stack-gap": "12px",
+                        "touch-target-min": "48px",
+                        "section-margin": "24px",
+                        "container-padding": "16px",
+                        "unit": "4px"
+                    },
+                    "fontFamily": {
+                        "label-bold": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "body-md": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "headline-sm": ["Inter"],
+                        "label-md": ["Inter"],
+                        "status-badge": ["Inter"]
+                    },
+                    "fontSize": {
+                        "label-bold": ["14px", { "lineHeight": "20px", "fontWeight": "700" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+                        "display-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "headline-sm": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "label-md": ["14px", { "lineHeight": "20px", "fontWeight": "500" }],
+                        "status-badge": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { -webkit-tap-highlight-color: transparent; }
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background min-h-screen flex flex-col font-body-md antialiased pb-[72px] md:pb-0 pt-[64px]">
+<!-- TopAppBar -->
+<header class="flex justify-between items-center px-container-padding h-touch-target-min w-full z-50 bg-surface dark:bg-on-background docked full-width top-0 border-b border-outline-variant dark:border-outline flat no shadows fixed">
+<div class="flex items-center gap-unit">
+<span class="material-symbols-outlined text-primary dark:text-primary-fixed" data-icon="anchor" data-weight="fill" style="font-variation-settings: 'FILL' 1;">anchor</span>
+<span class="font-headline-md text-headline-md text-primary dark:text-primary-fixed uppercase tracking-tight">RespondCrew</span>
+</div>
+<div>
+<span class="font-label-md text-label-md text-on-surface-variant dark:text-surface-variant">Tallinna Vabatahtlik Merepääste</span>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-grow flex flex-col w-full max-w-3xl mx-auto px-container-padding py-section-margin gap-section-margin">
+<!-- User Profile Card -->
+<section class="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-[0_2px_4px_rgba(0,0,0,0.05)] p-container-padding flex items-center gap-container-padding">
+<div class="w-16 h-16 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center flex-shrink-0">
+<span class="font-headline-sm text-headline-sm">JP</span>
+</div>
+<div class="flex flex-col">
+<h1 class="font-headline-sm text-headline-sm text-on-surface">Jaanus Päästja</h1>
+<p class="font-body-md text-body-md text-on-surface-variant">Tallinna Vabatahtlik Merepääste</p>
+<div class="mt-2 flex">
+<span class="bg-tertiary-container text-on-tertiary-container font-status-badge text-status-badge px-2 py-1 rounded-full flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-tertiary-fixed-dim inline-block"></span>
+                        VALVES
+                    </span>
+</div>
+</div>
+</section>
+<!-- Navigation Grid (Bento style) -->
+<section class="grid grid-cols-2 gap-stack-gap">
+<a class="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-[0_2px_4px_rgba(0,0,0,0.05)] p-container-padding flex flex-col items-start gap-unit hover:bg-surface-container transition-colors active:scale-95 duration-100 min-h-[100px] justify-center" href="#">
+<span class="material-symbols-outlined text-primary mb-2" data-icon="groups">groups</span>
+<span class="font-label-bold text-label-bold text-on-surface">Liikmed</span>
+</a>
+<a class="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-[0_2px_4px_rgba(0,0,0,0.05)] p-container-padding flex flex-col items-start gap-unit hover:bg-surface-container transition-colors active:scale-95 duration-100 min-h-[100px] justify-center" href="#">
+<span class="material-symbols-outlined text-primary mb-2" data-icon="construction">construction</span>
+<span class="font-label-bold text-label-bold text-on-surface">Varustus</span>
+</a>
+<a class="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-[0_2px_4px_rgba(0,0,0,0.05)] p-container-padding flex flex-col items-start gap-unit hover:bg-surface-container transition-colors active:scale-95 duration-100 min-h-[100px] justify-center" href="#">
+<span class="material-symbols-outlined text-primary mb-2" data-icon="history">history</span>
+<span class="font-label-bold text-label-bold text-on-surface">Operatsioonilogi</span>
+</a>
+<a class="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-[0_2px_4px_rgba(0,0,0,0.05)] p-container-padding flex flex-col items-start gap-unit hover:bg-surface-container transition-colors active:scale-95 duration-100 min-h-[100px] justify-center" href="#">
+<span class="material-symbols-outlined text-primary mb-2" data-icon="directions_run">directions_run</span>
+<span class="font-label-bold text-label-bold text-on-surface">Tegevused</span>
+</a>
+<a class="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-[0_2px_4px_rgba(0,0,0,0.05)] p-container-padding flex flex-col items-start gap-unit hover:bg-surface-container transition-colors active:scale-95 duration-100 min-h-[100px] justify-center" href="#">
+<span class="material-symbols-outlined text-primary mb-2" data-icon="school">school</span>
+<span class="font-label-bold text-label-bold text-on-surface">Koolitused</span>
+</a>
+<a class="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-[0_2px_4px_rgba(0,0,0,0.05)] p-container-padding flex flex-col items-start gap-unit hover:bg-surface-container transition-colors active:scale-95 duration-100 min-h-[100px] justify-center" href="#">
+<span class="material-symbols-outlined text-primary mb-2" data-icon="badge">badge</span>
+<span class="font-label-bold text-label-bold text-on-surface">Sertifikaadid</span>
+</a>
+<a class="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-[0_2px_4px_rgba(0,0,0,0.05)] p-container-padding flex flex-col items-start gap-unit hover:bg-surface-container transition-colors active:scale-95 duration-100 min-h-[100px] justify-center" href="#">
+<span class="material-symbols-outlined text-primary mb-2" data-icon="bar_chart">bar_chart</span>
+<span class="font-label-bold text-label-bold text-on-surface">Statistika</span>
+</a>
+<a class="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-[0_2px_4px_rgba(0,0,0,0.05)] p-container-padding flex flex-col items-start gap-unit hover:bg-surface-container transition-colors active:scale-95 duration-100 min-h-[100px] justify-center" href="#">
+<span class="material-symbols-outlined text-primary mb-2" data-icon="settings">settings</span>
+<span class="font-label-bold text-label-bold text-on-surface">Organisatsiooni seaded</span>
+</a>
+</section>
+<!-- Admin Section -->
+<section class="flex flex-col gap-stack-gap">
+<h2 class="font-label-bold text-label-bold text-secondary uppercase tracking-wider pl-unit">Platvormi Admin</h2>
+<a class="bg-surface-container-highest rounded-xl border border-outline-variant shadow-[0_2px_4px_rgba(0,0,0,0.05)] p-container-padding flex items-center justify-between hover:bg-surface-variant transition-colors active:scale-95 duration-100 min-h-touch-target-min" href="#">
+<div class="flex items-center gap-container-padding">
+<span class="material-symbols-outlined text-primary" data-icon="admin_panel_settings">admin_panel_settings</span>
+<span class="font-label-bold text-label-bold text-on-surface">Juhtimiskeskuse koondvaade</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="chevron_right">chevron_right</span>
+</a>
+</section>
+<!-- Account Actions -->
+<section class="flex flex-col gap-stack-gap mt-auto pt-section-margin">
+<a class="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-[0_2px_4px_rgba(0,0,0,0.05)] p-container-padding flex items-center gap-container-padding hover:bg-surface-container transition-colors active:scale-95 duration-100 min-h-touch-target-min" href="#">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="manage_accounts">manage_accounts</span>
+<span class="font-body-md text-body-md text-on-surface">Konto seaded</span>
+</a>
+<button class="bg-error-container text-on-error-container rounded-xl border border-error/20 p-container-padding flex items-center justify-center gap-container-padding hover:opacity-90 transition-opacity active:scale-95 duration-100 min-h-touch-target-min w-full">
+<span class="material-symbols-outlined" data-icon="logout">logout</span>
+<span class="font-label-bold text-label-bold">Logi välja</span>
+</button>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full h-[72px] bg-surface dark:bg-on-background flex justify-around items-center px-container-padding pb-safe shadow-lg dark:shadow-none shadow-[0_-4px_12px_rgba(0,0,0,0.1)] dark:shadow-none border-t border-outline-variant dark:border-outline z-50">
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim pt-1 hover:bg-surface-container-low dark:hover:bg-inverse-surface w-full h-full" href="#">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="font-label-md text-label-md mt-1">Avaleht</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim pt-1 hover:bg-surface-container-low dark:hover:bg-inverse-surface w-full h-full" href="#">
+<span class="material-symbols-outlined" data-icon="verified_user">verified_user</span>
+<span class="font-label-md text-label-md mt-1">Valmisolek</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim pt-1 hover:bg-surface-container-low dark:hover:bg-inverse-surface w-full h-full" href="#">
+<span class="material-symbols-outlined" data-icon="emergency_share">emergency_share</span>
+<span class="font-label-md text-label-md mt-1">Väljakutsed</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim pt-1 hover:bg-surface-container-low dark:hover:bg-inverse-surface w-full h-full" href="#">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="font-label-md text-label-md mt-1">Teavitused</span>
+</a>
+<a class="flex flex-col items-center justify-center text-primary dark:text-primary-fixed border-t-2 border-primary dark:border-primary-fixed pt-1 w-full h-full Active: opacity-80 scale-95 transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="menu" data-weight="fill" style="font-variation-settings: 'FILL' 1;">menu</span>
+<span class="font-label-md text-label-md mt-1">Menüü</span>
+</a>
+</nav>
+</body></html>

@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+
+<html lang="et"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Liikmed - RespondCrew</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "inverse-surface": "#2a313d",
+                        "on-background": "#151c27",
+                        "on-tertiary-container": "#5ead5c",
+                        "on-error": "#ffffff",
+                        "surface-container-highest": "#dce2f3",
+                        "tertiary-fixed-dim": "#88d982",
+                        "on-secondary-fixed-variant": "#3b4951",
+                        "primary-fixed-dim": "#a7c8ff",
+                        "surface-container": "#e7eefe",
+                        "inverse-primary": "#a7c8ff",
+                        "secondary-container": "#d3e2ed",
+                        "background": "#f9f9ff",
+                        "error-container": "#ffdad6",
+                        "tertiary": "#002504",
+                        "on-secondary-fixed": "#0f1d25",
+                        "surface-container-low": "#f0f3ff",
+                        "surface-dim": "#d3daea",
+                        "primary": "#001e40",
+                        "surface-variant": "#dce2f3",
+                        "on-tertiary": "#ffffff",
+                        "inverse-on-surface": "#ebf1ff",
+                        "secondary": "#526069",
+                        "on-secondary-container": "#56656e",
+                        "secondary-fixed-dim": "#bac9d3",
+                        "on-tertiary-fixed-variant": "#005312",
+                        "on-primary": "#ffffff",
+                        "on-secondary": "#ffffff",
+                        "surface-container-high": "#e2e8f8",
+                        "outline-variant": "#c3c6d1",
+                        "on-primary-fixed": "#001b3c",
+                        "on-surface": "#151c27",
+                        "on-surface-variant": "#43474f",
+                        "tertiary-container": "#003d0b",
+                        "primary-fixed": "#d5e3ff",
+                        "on-error-container": "#93000a",
+                        "surface-bright": "#f9f9ff",
+                        "on-primary-container": "#799dd6",
+                        "on-tertiary-fixed": "#002204",
+                        "secondary-fixed": "#d6e5ef",
+                        "primary-container": "#003366",
+                        "outline": "#737780",
+                        "on-primary-fixed-variant": "#1f477b",
+                        "surface": "#f9f9ff",
+                        "tertiary-fixed": "#a3f69c",
+                        "surface-tint": "#3a5f94",
+                        "error": "#ba1a1a",
+                        "surface-container-lowest": "#ffffff"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    spacing: {
+                        "stack-gap": "12px",
+                        "touch-target-min": "48px",
+                        "section-margin": "24px",
+                        "container-padding": "16px",
+                        "unit": "4px"
+                    },
+                    fontFamily: {
+                        "label-bold": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "body-md": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "headline-sm": ["Inter"],
+                        "label-md": ["Inter"],
+                        "status-badge": ["Inter"]
+                    },
+                    fontSize: {
+                        "label-bold": ["14px", { lineHeight: "20px", fontWeight: "700" }],
+                        "body-lg": ["18px", { lineHeight: "28px", fontWeight: "400" }],
+                        "body-md": ["16px", { lineHeight: "24px", fontWeight: "400" }],
+                        "headline-md": ["24px", { lineHeight: "32px", letterSpacing: "-0.01em", fontWeight: "700" }],
+                        "display-lg": ["32px", { lineHeight: "40px", letterSpacing: "-0.02em", fontWeight: "700" }],
+                        "headline-sm": ["20px", { lineHeight: "28px", fontWeight: "600" }],
+                        "label-md": ["14px", { lineHeight: "20px", fontWeight: "500" }],
+                        "status-badge": ["12px", { lineHeight: "16px", letterSpacing: "0.05em", fontWeight: "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background min-h-screen pb-[90px] md:pb-0 pt-[64px] md:pt-[72px]">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-surface dark:bg-on-background border-b border-outline-variant dark:border-outline flex justify-between items-center px-container-padding h-touch-target-min md:h-[72px]">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary dark:text-primary-fixed">anchor</span>
+<span class="font-headline-md text-headline-md text-primary dark:text-primary-fixed uppercase tracking-tight">RespondCrew</span>
+</div>
+<!-- Desktop Nav -->
+<nav class="hidden md:flex gap-6 items-center">
+<a class="text-on-surface-variant hover:bg-surface-container transition-colors px-3 py-2 rounded-lg font-label-md text-label-md flex items-center gap-2" href="#">
+<span class="material-symbols-outlined">home</span>
+                Avaleht
+            </a>
+<a class="text-on-surface-variant hover:bg-surface-container transition-colors px-3 py-2 rounded-lg font-label-md text-label-md flex items-center gap-2" href="#">
+<span class="material-symbols-outlined">verified_user</span>
+                Valmisolek
+            </a>
+<a class="text-on-surface-variant hover:bg-surface-container transition-colors px-3 py-2 rounded-lg font-label-md text-label-md flex items-center gap-2" href="#">
+<span class="material-symbols-outlined">emergency_share</span>
+                Väljakutsed
+            </a>
+<a class="text-on-surface-variant hover:bg-surface-container transition-colors px-3 py-2 rounded-lg font-label-md text-label-md flex items-center gap-2" href="#">
+<span class="material-symbols-outlined">notifications</span>
+                Teavitused
+            </a>
+<a class="text-primary font-bold hover:bg-surface-container transition-colors px-3 py-2 rounded-lg font-label-md text-label-md flex items-center gap-2 bg-surface-container-low" href="#">
+<span class="material-symbols-outlined">groups</span>
+                Liikmed
+            </a>
+<button class="flex items-center gap-2 text-on-surface hover:bg-surface-container px-3 py-2 rounded-lg transition-colors font-label-md text-label-md ml-4 border border-outline-variant">
+<span>Tallinna Vabatahtlik Merepääste</span>
+<span class="material-symbols-outlined">expand_more</span>
+</button>
+</nav>
+<!-- Mobile Organization & Menu Action -->
+<div class="md:hidden flex items-center gap-2 text-primary font-label-md text-label-md">
+            Tallinna Vabatahtlik Merepääste
+        </div>
+</header>
+<main class="max-w-4xl mx-auto px-container-padding py-section-margin">
+<!-- Page Header & Actions -->
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-section-margin">
+<div>
+<h1 class="font-display-lg text-display-lg text-primary">Liikmed</h1>
+<p class="font-body-md text-body-md text-on-surface-variant mt-1">Haldage meeskonna liikmeid ja nende valmisolekut.</p>
+</div>
+<button class="bg-primary hover:bg-primary-container text-on-primary font-label-bold text-label-bold h-touch-target-min px-6 rounded-lg flex items-center gap-2 shadow-sm transition-colors active:scale-95 w-full md:w-auto justify-center">
+<span class="material-symbols-outlined">person_add</span>
+                KUTSU LIIGE
+            </button>
+</div>
+<!-- Search & Filter -->
+<div class="bg-surface rounded-xl border border-outline-variant shadow-sm p-4 mb-section-margin flex flex-col sm:flex-row gap-4">
+<div class="relative flex-1">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">search</span>
+<input class="w-full h-12 pl-10 pr-4 rounded-lg border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary bg-surface-container-lowest text-on-surface font-body-md text-body-md outline-none transition-shadow" placeholder="Otsi liiget..." type="text"/>
+</div>
+<button class="h-12 px-4 rounded-lg border border-outline-variant bg-surface hover:bg-surface-container-low text-on-surface flex items-center gap-2 transition-colors">
+<span class="material-symbols-outlined">filter_list</span>
+<span class="font-label-md text-label-md">Filtrid</span>
+</button>
+</div>
+<!-- Juhatus Section -->
+<section class="mb-section-margin">
+<h2 class="font-headline-sm text-headline-sm text-primary mb-stack-gap flex items-center gap-2 border-b border-outline-variant pb-2">
+<span class="material-symbols-outlined text-secondary">admin_panel_settings</span>
+                Juhatus
+                <span class="bg-surface-container text-on-surface-variant rounded-full px-2 py-0.5 text-xs ml-2">2</span>
+</h2>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-stack-gap">
+<!-- Member Card -->
+<div class="bg-surface rounded-xl border border-outline-variant shadow-[0_2px_4px_rgba(0,0,0,0.05)] p-4 flex items-center gap-4 hover:shadow-[0_4px_12px_rgba(0,0,0,0.1)] transition-shadow cursor-pointer relative overflow-hidden group">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-tertiary-fixed-dim"></div>
+<div class="w-12 h-12 rounded-full bg-primary text-on-primary flex items-center justify-center font-headline-sm text-headline-sm font-bold flex-shrink-0">
+                        MM
+                    </div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center justify-between gap-2">
+<h3 class="font-label-bold text-label-bold text-on-surface truncate">Mati Kask</h3>
+<span class="bg-tertiary-container text-on-tertiary-fixed rounded px-2 py-0.5 font-status-badge text-status-badge flex items-center gap-1 flex-shrink-0">
+<span class="w-2 h-2 rounded-full bg-tertiary-fixed"></span> VALVES
+                            </span>
+</div>
+<p class="font-body-sm text-sm text-on-surface-variant truncate mt-0.5">Juhatuse esimees</p>
+</div>
+<button class="opacity-0 group-hover:opacity-100 transition-opacity p-2 text-outline hover:text-primary rounded-full hover:bg-surface-container">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<!-- Member Card -->
+<div class="bg-surface rounded-xl border border-outline-variant shadow-[0_2px_4px_rgba(0,0,0,0.05)] p-4 flex items-center gap-4 hover:shadow-[0_4px_12px_rgba(0,0,0,0.1)] transition-shadow cursor-pointer relative overflow-hidden group">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-outline-variant"></div>
+<div class="w-12 h-12 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center font-headline-sm text-headline-sm font-bold flex-shrink-0">
+                        TP
+                    </div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center justify-between gap-2">
+<h3 class="font-label-bold text-label-bold text-on-surface truncate">Toomas Pärn</h3>
+<span class="bg-surface-container text-on-surface-variant rounded px-2 py-0.5 font-status-badge text-status-badge flex items-center gap-1 flex-shrink-0">
+<span class="w-2 h-2 rounded-full bg-outline"></span> EEMAL
+                            </span>
+</div>
+<p class="font-body-sm text-sm text-on-surface-variant truncate mt-0.5">Juhatuse liige</p>
+</div>
+<button class="opacity-0 group-hover:opacity-100 transition-opacity p-2 text-outline hover:text-primary rounded-full hover:bg-surface-container">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+</div>
+</section>
+<!-- Admin Section -->
+<section class="mb-section-margin">
+<h2 class="font-headline-sm text-headline-sm text-primary mb-stack-gap flex items-center gap-2 border-b border-outline-variant pb-2">
+<span class="material-symbols-outlined text-secondary">manage_accounts</span>
+                Administraatorid
+                <span class="bg-surface-container text-on-surface-variant rounded-full px-2 py-0.5 text-xs ml-2">1</span>
+</h2>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-stack-gap">
+<!-- Member Card -->
+<div class="bg-surface rounded-xl border border-outline-variant shadow-[0_2px_4px_rgba(0,0,0,0.05)] p-4 flex items-center gap-4 hover:shadow-[0_4px_12px_rgba(0,0,0,0.1)] transition-shadow cursor-pointer relative overflow-hidden group">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-tertiary-fixed-dim"></div>
+<img alt="Avatar" class="w-12 h-12 rounded-full object-cover border border-outline-variant flex-shrink-0" data-alt="A professional headshot of a middle-aged male sea rescue volunteer wearing a dark blue uniform. The lighting is bright and clear, reflecting a modern, reliable identity. The background is a soft, blurred harbor scene indicating his maritime role. The overall aesthetic is clean, high-contrast, and authoritative." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCTVtOqpvMdsa-KKWeHJl7f-psjgAMUDzDodiHm50uzTQkRnWlYg-Bi-Gw7dbAnKd0Sjj7Mku_n_CBoUaqfnznW3tXY0fimgFtnxA7T5kjcy0oN5pHOPEM9NcZuj3_0zoF1ED9YO_O-5AoQgBE3svnH1NxX5wVyYNHLowA5ZV1ZuLKTBMYdC2m5HAmIhzBmGcdj6Tfb7bX1rV769BYJFSge5jF1os487zMZQQ7FsJdPdAQiJvD8fea6sxtNcfl8VCR_yG2l4eLTr3zV"/>
+<div class="flex-1 min-w-0">
+<div class="flex items-center justify-between gap-2">
+<h3 class="font-label-bold text-label-bold text-on-surface truncate">Siim Saar</h3>
+<span class="bg-tertiary-container text-on-tertiary-fixed rounded px-2 py-0.5 font-status-badge text-status-badge flex items-center gap-1 flex-shrink-0">
+<span class="w-2 h-2 rounded-full bg-tertiary-fixed"></span> VALVES
+                            </span>
+</div>
+<p class="font-body-sm text-sm text-on-surface-variant truncate mt-0.5">Tehnikajuht</p>
+</div>
+<button class="opacity-0 group-hover:opacity-100 transition-opacity p-2 text-outline hover:text-primary rounded-full hover:bg-surface-container">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+</div>
+</section>
+<!-- Liikmed Section -->
+<section>
+<h2 class="font-headline-sm text-headline-sm text-primary mb-stack-gap flex items-center gap-2 border-b border-outline-variant pb-2">
+<span class="material-symbols-outlined text-secondary">group</span>
+                Liikmed
+                <span class="bg-surface-container text-on-surface-variant rounded-full px-2 py-0.5 text-xs ml-2">4</span>
+</h2>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-stack-gap">
+<!-- Member Card -->
+<div class="bg-surface rounded-xl border border-outline-variant shadow-[0_2px_4px_rgba(0,0,0,0.05)] p-4 flex items-center gap-4 hover:shadow-[0_4px_12px_rgba(0,0,0,0.1)] transition-shadow cursor-pointer relative overflow-hidden group">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-tertiary-fixed-dim"></div>
+<div class="w-12 h-12 rounded-full bg-primary text-on-primary flex items-center justify-center font-headline-sm text-headline-sm font-bold flex-shrink-0">
+                        KT
+                    </div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center justify-between gap-2">
+<h3 class="font-label-bold text-label-bold text-on-surface truncate">Kalle Tamm</h3>
+<span class="bg-tertiary-container text-on-tertiary-fixed rounded px-2 py-0.5 font-status-badge text-status-badge flex items-center gap-1 flex-shrink-0">
+<span class="w-2 h-2 rounded-full bg-tertiary-fixed"></span> VALVES
+                            </span>
+</div>
+<p class="font-body-sm text-sm text-on-surface-variant truncate mt-0.5">Paadijuht</p>
+</div>
+<button class="opacity-0 group-hover:opacity-100 transition-opacity p-2 text-outline hover:text-primary rounded-full hover:bg-surface-container">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<!-- Member Card -->
+<div class="bg-surface rounded-xl border border-outline-variant shadow-[0_2px_4px_rgba(0,0,0,0.05)] p-4 flex items-center gap-4 hover:shadow-[0_4px_12px_rgba(0,0,0,0.1)] transition-shadow cursor-pointer relative overflow-hidden group">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-tertiary-fixed-dim"></div>
+<img alt="Avatar" class="w-12 h-12 rounded-full object-cover border border-outline-variant flex-shrink-0" data-alt="A portrait of a young female rescue volunteer looking confident and alert. The photo has high-key lighting emphasizing a modern, professional look suitable for a corporate utility application. She is wearing a practical dark blue jacket. The background is a clean, bright white to maintain a light-mode interface consistency." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDSiKQW4-AYiajYKRiDrwsomj9yZDoAVOdng_M7zYUIZXN8Rqouag2l1MGT2bdUGFFs73QyfHvzQh9IiJRMPwg5b5ug0-LaQd1ZDIgN9uU6tZJvEhVm1JyTnek7TuDZWhoclBLfFM6vzOGMnSMbqkPTZGzAs--Lf3ZfKLjBqZjxgOJtPxbfP6eJic0wR_Q8fhAQ9GAQGPftMR0NV0tSSc1q4xuaYkSMWHa4mlyYXLisgjTT2riuyoqABllN4zcOx1zZyGQLs07tZdZg"/>
+<div class="flex-1 min-w-0">
+<div class="flex items-center justify-between gap-2">
+<h3 class="font-label-bold text-label-bold text-on-surface truncate">Liisa Kask</h3>
+<span class="bg-tertiary-container text-on-tertiary-fixed rounded px-2 py-0.5 font-status-badge text-status-badge flex items-center gap-1 flex-shrink-0">
+<span class="w-2 h-2 rounded-full bg-tertiary-fixed"></span> VALVES
+                            </span>
+</div>
+<p class="font-body-sm text-sm text-on-surface-variant truncate mt-0.5">Päästja</p>
+</div>
+<button class="opacity-0 group-hover:opacity-100 transition-opacity p-2 text-outline hover:text-primary rounded-full hover:bg-surface-container">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<!-- Member Card -->
+<div class="bg-surface rounded-xl border border-outline-variant shadow-[0_2px_4px_rgba(0,0,0,0.05)] p-4 flex items-center gap-4 hover:shadow-[0_4px_12px_rgba(0,0,0,0.1)] transition-shadow cursor-pointer relative overflow-hidden group">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-outline-variant"></div>
+<div class="w-12 h-12 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center font-headline-sm text-headline-sm font-bold flex-shrink-0">
+                        AL
+                    </div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center justify-between gap-2">
+<h3 class="font-label-bold text-label-bold text-on-surface truncate">Andres Lõhmus</h3>
+<span class="bg-surface-container text-on-surface-variant rounded px-2 py-0.5 font-status-badge text-status-badge flex items-center gap-1 flex-shrink-0">
+<span class="w-2 h-2 rounded-full bg-outline"></span> EEMAL
+                            </span>
+</div>
+<p class="font-body-sm text-sm text-on-surface-variant truncate mt-0.5">Meeskonnaliige</p>
+</div>
+<button class="opacity-0 group-hover:opacity-100 transition-opacity p-2 text-outline hover:text-primary rounded-full hover:bg-surface-container">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<!-- Member Card -->
+<div class="bg-surface rounded-xl border border-outline-variant shadow-[0_2px_4px_rgba(0,0,0,0.05)] p-4 flex items-center gap-4 hover:shadow-[0_4px_12px_rgba(0,0,0,0.1)] transition-shadow cursor-pointer relative overflow-hidden group">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-outline-variant"></div>
+<div class="w-12 h-12 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center font-headline-sm text-headline-sm font-bold flex-shrink-0">
+                        PN
+                    </div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center justify-between gap-2">
+<h3 class="font-label-bold text-label-bold text-on-surface truncate">Priit Nõlvak</h3>
+<span class="bg-surface-container text-on-surface-variant rounded px-2 py-0.5 font-status-badge text-status-badge flex items-center gap-1 flex-shrink-0">
+<span class="w-2 h-2 rounded-full bg-outline"></span> PUHKUSEL
+                            </span>
+</div>
+<p class="font-body-sm text-sm text-on-surface-variant truncate mt-0.5">Paadijuht</p>
+</div>
+<button class="opacity-0 group-hover:opacity-100 transition-opacity p-2 text-outline hover:text-primary rounded-full hover:bg-surface-container">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar (Mobile Only) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full h-[72px] bg-surface dark:bg-on-background flex justify-around items-center px-container-padding pb-safe shadow-[0_-4px_12px_rgba(0,0,0,0.1)] dark:shadow-none border-t border-outline-variant dark:border-outline z-50">
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim pt-1 w-16 hover:bg-surface-container-low transition-all" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="font-label-md text-label-md text-[10px] mt-1">Avaleht</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim pt-1 w-16 hover:bg-surface-container-low transition-all" href="#">
+<span class="material-symbols-outlined">verified_user</span>
+<span class="font-label-md text-label-md text-[10px] mt-1">Valmisolek</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim pt-1 w-16 hover:bg-surface-container-low transition-all" href="#">
+<span class="material-symbols-outlined">emergency_share</span>
+<span class="font-label-md text-label-md text-[10px] mt-1">Väljakutsed</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary dark:text-secondary-fixed-dim pt-1 w-16 hover:bg-surface-container-low transition-all relative" href="#">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-1 right-3 w-2 h-2 bg-error rounded-full"></span>
+<span class="font-label-md text-label-md text-[10px] mt-1">Teavitused</span>
+</a>
+<a class="flex flex-col items-center justify-center text-primary dark:text-primary-fixed border-t-2 border-primary dark:border-primary-fixed pt-1 w-16 active:opacity-80 active:scale-95 transition-all" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">groups</span>
+<span class="font-label-md text-label-md text-[10px] mt-1 font-bold">Menüü</span>
+</a>
+</nav>
+</body></html>
