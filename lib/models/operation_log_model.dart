@@ -36,6 +36,7 @@ class OperationLogModel {
     required this.type,
     required this.title,
     required this.description,
+    this.calloutId,
     this.timestamp,
     this.createdAt,
     this.updatedAt,
@@ -49,6 +50,7 @@ class OperationLogModel {
   final String type;
   final String title;
   final String description;
+  final String? calloutId;
   final DateTime? timestamp;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -70,6 +72,7 @@ class OperationLogModel {
       ),
       title: _stringValue(data['title']),
       description: _stringValue(data['description']),
+      calloutId: _nullableStringValue(data['calloutId']),
       timestamp: _dateTimeValue(data['timestamp']),
       createdAt: _dateTimeValue(data['createdAt']),
       updatedAt: _dateTimeValue(data['updatedAt']),
@@ -86,6 +89,7 @@ class OperationLogModel {
       'type': type,
       'title': title,
       'description': description,
+      if (calloutId != null && calloutId!.isNotEmpty) 'calloutId': calloutId,
       'timestamp': timestamp == null ? null : Timestamp.fromDate(timestamp!),
       'createdAt': createdAt == null ? null : Timestamp.fromDate(createdAt!),
       'updatedAt': updatedAt == null ? null : Timestamp.fromDate(updatedAt!),
@@ -95,6 +99,10 @@ class OperationLogModel {
 
 String _stringValue(Object? value, {String fallback = ''}) {
   return value is String && value.isNotEmpty ? value : fallback;
+}
+
+String? _nullableStringValue(Object? value) {
+  return value is String && value.isNotEmpty ? value : null;
 }
 
 DateTime? _dateTimeValue(Object? value) {

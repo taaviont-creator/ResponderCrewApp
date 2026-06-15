@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/callout_model.dart';
 import '../models/notification_model.dart';
+import '../models/operation_log_model.dart';
 
 class CalloutService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -14,6 +15,9 @@ class CalloutService {
 
   CollectionReference<Map<String, dynamic>> get _notifications =>
       _firestore.collection('notifications');
+
+  CollectionReference<Map<String, dynamic>> get _operationLogs =>
+      _firestore.collection('operationLogs');
 
   Stream<List<CalloutModel>> streamActiveCallouts({
     required String organizationId,
@@ -90,6 +94,8 @@ class CalloutService {
 
     final calloutDoc = _callouts.doc();
     final notificationDoc = _notifications.doc();
+    final operationLogDoc =
+        _operationLogs.doc('callout_${calloutDoc.id}_created');
     final batch = _firestore.batch();
     final trimmedTitle = title.trim();
     final trimmedDescription = description.trim();
@@ -130,6 +136,22 @@ class CalloutService {
       'relatedType': 'callout',
       'relatedId': calloutDoc.id,
       'createdBy': createdBy,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    batch.set(operationLogDoc, {
+      'id': operationLogDoc.id,
+      'organizationId': organizationId,
+      // TODO: Remove commandId after all operation log reads use organizationId.
+      'commandId': organizationId,
+      'createdBy': createdBy,
+      'createdByName': trimmedCreatedByName,
+      'type': OperationLogType.note,
+      'title': 'Väljakutse loodud: $trimmedTitle',
+      'description': notificationMessage,
+      'calloutId': calloutDoc.id,
+      'timestamp': FieldValue.serverTimestamp(),
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
