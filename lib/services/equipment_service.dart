@@ -2,9 +2,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/equipment_model.dart';
 import '../models/notification_model.dart';
+import 'notification_service.dart';
 
 class EquipmentService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final NotificationService _notificationService = NotificationService();
 
   CollectionReference<Map<String, dynamic>> get _equipment =>
       _firestore.collection('equipment');
@@ -39,6 +41,7 @@ class EquipmentService {
     required String category,
     required String status,
     required String location,
+    required String nextMaintenanceDate,
     required String note,
     required String createdBy,
   }) async {
@@ -65,6 +68,7 @@ class EquipmentService {
       'category': category,
       'status': status,
       'location': location.trim(),
+      'nextMaintenanceDate': nextMaintenanceDate.trim(),
       'note': note.trim(),
       'createdBy': createdBy,
       'createdAt': FieldValue.serverTimestamp(),
@@ -90,6 +94,7 @@ class EquipmentService {
     required String category,
     required String status,
     required String location,
+    required String nextMaintenanceDate,
     required String note,
     required String updatedBy,
   }) async {
@@ -128,6 +133,7 @@ class EquipmentService {
       'category': category,
       'status': status,
       'location': location.trim(),
+      'nextMaintenanceDate': nextMaintenanceDate.trim(),
       'note': note.trim(),
       'createdBy': createdBy,
       'updatedAt': FieldValue.serverTimestamp(),
@@ -145,6 +151,66 @@ class EquipmentService {
     }
 
     await batch.commit();
+  }
+
+  Future<void> checkMaintenanceDueNotifications({
+    required String organizationId,
+    required String createdBy,
+  }) async {
+    final snapshot = await _equipment
+        .where(
+          Filter.or(
+            Filter('organizationId', isEqualTo: organizationId),
+            // TODO: Remove commandId fallback after equipment migration.
+            Filter('commandId', isEqualTo: organizationId),
+          ),
+        )
+        .get();
+    final today = _dateOnly(DateTime.now());
+    final warningLimit = today.add(const Duration(days: 30));
+
+    for (final document in snapshot.docs) {
+      final item = EquipmentModel.fromFirestore(document);
+      final itemOrganizationId = item.organizationId.isNotEmpty
+          ? item.organizationId
+          : item.commandId;
+      if (itemOrganizationId != organizationId) continue;
+
+      final parsedDueDate =
+          DateTime.tryParse(item.nextMaintenanceDate.trim());
+      if (parsedDueDate == null) continue;
+
+      final dueDate = _dateOnly(parsedDueDate);
+      final isOverdue = dueDate.isBefore(today);
+      final isDueSoon = !isOverdue && !dueDate.isAfter(warningLimit);
+      if (!isOverdue && !isDueSoon) continue;
+
+      final equipmentName =
+          item.name.trim().isEmpty ? 'Varustus' : item.name.trim();
+      final dueDateKey = _dateKey(dueDate);
+      final dueState = isOverdue ? 'overdue' : 'dueSoon';
+
+      await _notificationService.addNotification(
+        organizationId: organizationId,
+        title: isOverdue
+            ? 'Varustuse hooldus üle tähtaja'
+            : 'Varustuse hooldus läheneb',
+        message: isOverdue
+            ? 'Varustuse „$equipmentName” hooldus või kontroll on üle tähtaja.'
+            : 'Varustuse „$equipmentName” hoolduse või kontrolli tähtaeg '
+                'läheneb.',
+        type: NotificationType.equipment,
+        priority: isOverdue
+            ? NotificationPriority.high
+            : NotificationPriority.normal,
+        createdBy: createdBy,
+        relatedType: NotificationType.equipment,
+        relatedId: item.id,
+        notificationId:
+            'equipment_${item.id}_maintenance_${dueDateKey}_$dueState',
+        createOnlyIfMissing: true,
+      );
+    }
   }
 
   void _addProblemStatusNotificationToBatch({
@@ -201,4 +267,14 @@ class EquipmentService {
         return 'ok';
     }
   }
+}
+
+DateTime _dateOnly(DateTime value) {
+  return DateTime(value.year, value.month, value.day);
+}
+
+String _dateKey(DateTime value) {
+  return '${value.year.toString().padLeft(4, '0')}'
+      '${value.month.toString().padLeft(2, '0')}'
+      '${value.day.toString().padLeft(2, '0')}';
 }

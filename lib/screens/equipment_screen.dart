@@ -22,9 +22,37 @@ class EquipmentScreen extends StatefulWidget {
 class _EquipmentScreenState extends State<EquipmentScreen> {
   final _equipmentService = EquipmentService();
 
+  @override
+  void initState() {
+    super.initState();
+    if (widget.canManageEquipment) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _checkMaintenanceDueNotifications();
+      });
+    }
+  }
+
+  Future<void> _checkMaintenanceDueNotifications() async {
+    try {
+      await _equipmentService.checkMaintenanceDueNotifications(
+        organizationId: widget.organizationId,
+        createdBy: widget.currentUid,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Varustuse hooldustähtaegade kontroll ebaõnnestus: $e'),
+        ),
+      );
+    }
+  }
+
   Future<void> _showAddEquipmentDialog() async {
     final nameController = TextEditingController();
     final locationController = TextEditingController();
+    final nextMaintenanceDateController = TextEditingController();
     final noteController = TextEditingController();
     var selectedCategory = EquipmentCategory.other;
     var selectedStatus = EquipmentStatus.ok;
@@ -80,6 +108,14 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
                   ),
                   const SizedBox(height: 8),
                   TextField(
+                    controller: nextMaintenanceDateController,
+                    decoration: const InputDecoration(
+                      labelText: 'Järgmine hooldus või kontroll',
+                      hintText: 'nt 2026-07-15',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
                     controller: noteController,
                     decoration: const InputDecoration(labelText: 'Markus'),
                     maxLines: 2,
@@ -111,9 +147,11 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
         category: selectedCategory,
         status: selectedStatus,
         location: locationController.text,
+        nextMaintenanceDate: nextMaintenanceDateController.text,
         note: noteController.text,
         createdBy: widget.currentUid,
       );
+      await _checkMaintenanceDueNotifications();
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -130,6 +168,9 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
   Future<void> _showEditEquipmentDialog(EquipmentModel item) async {
     final nameController = TextEditingController(text: item.name);
     final locationController = TextEditingController(text: item.location);
+    final nextMaintenanceDateController = TextEditingController(
+      text: item.nextMaintenanceDate,
+    );
     final noteController = TextEditingController(text: item.note);
     var selectedCategory = item.category;
     var selectedStatus = item.status;
@@ -185,6 +226,14 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
                   ),
                   const SizedBox(height: 8),
                   TextField(
+                    controller: nextMaintenanceDateController,
+                    decoration: const InputDecoration(
+                      labelText: 'Järgmine hooldus või kontroll',
+                      hintText: 'nt 2026-07-15',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
                     controller: noteController,
                     decoration: const InputDecoration(labelText: 'Markus'),
                     maxLines: 2,
@@ -216,9 +265,11 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
         category: selectedCategory,
         status: selectedStatus,
         location: locationController.text,
+        nextMaintenanceDate: nextMaintenanceDateController.text,
         note: noteController.text,
         updatedBy: widget.currentUid,
       );
+      await _checkMaintenanceDueNotifications();
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -270,10 +321,14 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
             separatorBuilder: (_, _) => const Divider(height: 1),
             itemBuilder: (context, index) {
               final item = equipment[index];
+              final maintenanceStatus = _maintenanceStatusLabel(item);
               final subtitleParts = [
                 _equipmentCategoryLabel(item.category),
                 _equipmentStatusLabel(item.status),
                 if (item.location.isNotEmpty) item.location,
+                if (item.nextMaintenanceDate.isNotEmpty)
+                  'Hooldus ${item.nextMaintenanceDate}',
+                ?maintenanceStatus,
                 if (item.note.isNotEmpty) item.note,
               ];
 
@@ -326,5 +381,24 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
       default:
         return 'OK';
     }
+  }
+
+  String? _maintenanceStatusLabel(EquipmentModel item) {
+    final parsedDueDate =
+        DateTime.tryParse(item.nextMaintenanceDate.trim());
+    if (parsedDueDate == null) return null;
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final dueDate = DateTime(
+      parsedDueDate.year,
+      parsedDueDate.month,
+      parsedDueDate.day,
+    );
+    if (dueDate.isBefore(today)) return 'Hooldus üle tähtaja';
+    if (!dueDate.isAfter(today.add(const Duration(days: 30)))) {
+      return 'Hooldus läheneb';
+    }
+    return null;
   }
 }

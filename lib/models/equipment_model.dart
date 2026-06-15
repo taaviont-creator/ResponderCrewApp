@@ -43,6 +43,7 @@ class EquipmentModel {
     required this.category,
     required this.status,
     required this.location,
+    required this.nextMaintenanceDate,
     required this.note,
     required this.createdBy,
     this.createdAt,
@@ -56,6 +57,7 @@ class EquipmentModel {
   final String category;
   final String status;
   final String location;
+  final String nextMaintenanceDate;
   final String note;
   final String createdBy;
   final DateTime? createdAt;
@@ -80,6 +82,7 @@ class EquipmentModel {
         fallback: EquipmentStatus.ok,
       ),
       location: _stringValue(data['location']),
+      nextMaintenanceDate: _stringValue(data['nextMaintenanceDate']),
       note: _stringValue(data['note']),
       createdBy: _stringValue(data['createdBy']),
       createdAt: _dateTimeValue(data['createdAt']),
@@ -96,6 +99,7 @@ class EquipmentModel {
       'category': category,
       'status': status,
       'location': location,
+      'nextMaintenanceDate': nextMaintenanceDate,
       'note': note,
       'createdBy': createdBy,
       'createdAt': createdAt == null ? null : Timestamp.fromDate(createdAt!),

@@ -218,6 +218,10 @@ service cloud.firestore {
         data.name is string &&
         data.name.size() > 0 &&
         data.location is string &&
+        (
+          !data.keys().hasAny(['nextMaintenanceDate']) ||
+          data.nextMaintenanceDate is string
+        ) &&
         data.note is string &&
         data.createdBy is string &&
         hasValidOrganizationReference(data) &&
