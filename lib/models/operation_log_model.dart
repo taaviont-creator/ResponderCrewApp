@@ -26,6 +26,24 @@ class OperationLogType {
   };
 }
 
+class OperationLogStatus {
+  static const created = 'created';
+  static const departed = 'departed';
+  static const arrived = 'arrived';
+  static const inProgress = 'inProgress';
+  static const completed = 'completed';
+  static const returnedToBase = 'returnedToBase';
+
+  static const values = {
+    created,
+    departed,
+    arrived,
+    inProgress,
+    completed,
+    returnedToBase,
+  };
+}
+
 class OperationLogModel {
   const OperationLogModel({
     required this.id,
@@ -36,6 +54,7 @@ class OperationLogModel {
     required this.type,
     required this.title,
     required this.description,
+    required this.status,
     this.calloutId,
     this.timestamp,
     this.createdAt,
@@ -50,6 +69,7 @@ class OperationLogModel {
   final String type;
   final String title;
   final String description;
+  final String status;
   final String? calloutId;
   final DateTime? timestamp;
   final DateTime? createdAt;
@@ -72,6 +92,10 @@ class OperationLogModel {
       ),
       title: _stringValue(data['title']),
       description: _stringValue(data['description']),
+      status: _stringValue(
+        data['status'],
+        fallback: OperationLogStatus.created,
+      ),
       calloutId: _nullableStringValue(data['calloutId']),
       timestamp: _dateTimeValue(data['timestamp']),
       createdAt: _dateTimeValue(data['createdAt']),
@@ -89,6 +113,7 @@ class OperationLogModel {
       'type': type,
       'title': title,
       'description': description,
+      'status': status,
       if (calloutId != null && calloutId!.isNotEmpty) 'calloutId': calloutId,
       'timestamp': timestamp == null ? null : Timestamp.fromDate(timestamp!),
       'createdAt': createdAt == null ? null : Timestamp.fromDate(createdAt!),

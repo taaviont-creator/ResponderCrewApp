@@ -64,9 +64,42 @@ class OperationLogService {
       'type': type,
       'title': title.trim(),
       'description': description.trim(),
+      'status': OperationLogStatus.created,
       'timestamp': FieldValue.serverTimestamp(),
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
+  }
+
+  Future<void> updateLogStatus({
+    required String operationLogId,
+    required String organizationId,
+    required String status,
+  }) async {
+    if (!OperationLogStatus.values.contains(status)) {
+      throw Exception('Unsupported operation log status: $status');
+    }
+
+    final doc = _operationLogs.doc(operationLogId);
+    final snapshot = await doc.get();
+    final data = snapshot.data();
+    if (data == null) {
+      throw Exception('Operation log entry not found');
+    }
+
+    final logOrganizationId =
+        (data['organizationId'] ?? data['commandId'] ?? '').toString();
+    if (logOrganizationId != organizationId) {
+      throw Exception('Operation log belongs to another organization');
+    }
+
+    final currentStatus =
+        (data['status'] ?? OperationLogStatus.created).toString();
+    if (currentStatus == status) return;
+
+    await doc.set({
+      'status': status,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 }

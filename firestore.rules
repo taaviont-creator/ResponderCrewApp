@@ -261,6 +261,15 @@ service cloud.firestore {
         type == 'other';
     }
 
+    function isValidOperationLogStatus(status) {
+      return status == 'created' ||
+        status == 'departed' ||
+        status == 'arrived' ||
+        status == 'inProgress' ||
+        status == 'completed' ||
+        status == 'returnedToBase';
+    }
+
     function isValidOperationLogData(data) {
       return data.keys().hasAll([
           'id',
@@ -278,6 +287,10 @@ service cloud.firestore {
         data.title is string &&
         data.title.size() > 0 &&
         data.description is string &&
+        (
+          !data.keys().hasAny(['status']) ||
+          isValidOperationLogStatus(data.status)
+        ) &&
         (
           !data.keys().hasAny(['calloutId']) ||
           (
@@ -303,6 +316,20 @@ service cloud.firestore {
         request.resource.data.createdBy == request.auth.uid &&
         isValidOperationLogData(request.resource.data) &&
         isActiveMember(organizationIdFromData(request.resource.data));
+    }
+
+    function isOperationLogStatusUpdate(logId) {
+      return signedIn() &&
+        request.resource.data.id == resource.data.id &&
+        request.resource.data.id == logId &&
+        request.resource.data.status is string &&
+        isValidOperationLogStatus(request.resource.data.status) &&
+        request.resource.data.updatedAt == request.time &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status',
+          'updatedAt'
+        ]) &&
+        isActiveMember(organizationIdFromData(resource.data));
     }
 
     function isValidActivityType(type) {
@@ -964,6 +991,7 @@ service cloud.firestore {
       allow read: if signedIn() &&
         isActiveMember(organizationIdFromData(resource.data));
       allow create: if isOperationLogCreate(logId);
+      allow update: if isOperationLogStatusUpdate(logId);
     }
 
     match /activities/{activityId} {

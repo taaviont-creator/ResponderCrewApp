@@ -150,6 +150,7 @@ class CalloutService {
       'type': OperationLogType.note,
       'title': 'Väljakutse loodud: $trimmedTitle',
       'description': notificationMessage,
+      'status': OperationLogStatus.created,
       'calloutId': calloutDoc.id,
       'timestamp': FieldValue.serverTimestamp(),
       'createdAt': FieldValue.serverTimestamp(),

@@ -22,6 +22,24 @@ class OperationLogScreen extends StatefulWidget {
 class _OperationLogScreenState extends State<OperationLogScreen> {
   final _operationLogService = OperationLogService();
 
+  Future<void> _updateStatus(
+    OperationLogModel log,
+    String status,
+  ) async {
+    try {
+      await _operationLogService.updateLogStatus(
+        operationLogId: log.id,
+        organizationId: widget.organizationId,
+        status: status,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Staatuse muutmine ebaõnnestus: $e')),
+      );
+    }
+  }
+
   Future<void> _showAddOperationLogDialog() async {
     final titleController = TextEditingController();
     final descriptionController = TextEditingController();
@@ -143,6 +161,7 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
             itemBuilder: (context, index) {
               final log = logs[index];
               final subtitleParts = [
+                _operationLogStatusLabel(log.status),
                 _operationLogTypeLabel(log.type),
                 if (log.createdByName.isNotEmpty) log.createdByName,
                 if (log.timestamp != null) _shortDateTime(log.timestamp!),
@@ -155,6 +174,20 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
                   log.description.isEmpty
                       ? subtitleParts.join(' - ')
                       : '${subtitleParts.join(' - ')}\n${log.description}',
+                ),
+                trailing: DropdownButton<String>(
+                  value: log.status,
+                  underline: const SizedBox.shrink(),
+                  items: OperationLogStatus.values.map((status) {
+                    return DropdownMenuItem<String>(
+                      value: status,
+                      child: Text(_operationLogStatusLabel(status)),
+                    );
+                  }).toList(),
+                  onChanged: (status) {
+                    if (status == null || status == log.status) return;
+                    _updateStatus(log, status);
+                  },
                 ),
               );
             },
@@ -186,6 +219,23 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
         return 'Other';
       default:
         return 'Note';
+    }
+  }
+
+  String _operationLogStatusLabel(String status) {
+    switch (status) {
+      case OperationLogStatus.departed:
+        return 'Väljasõit';
+      case OperationLogStatus.arrived:
+        return 'Kohal';
+      case OperationLogStatus.inProgress:
+        return 'Tegevus käib';
+      case OperationLogStatus.completed:
+        return 'Lõpetatud';
+      case OperationLogStatus.returnedToBase:
+        return 'Tagasi baasis';
+      default:
+        return 'Loodud';
     }
   }
 
