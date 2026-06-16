@@ -181,6 +181,7 @@ class OperationLogEventModel {
     required this.type,
     required this.status,
     required this.title,
+    required this.text,
     required this.description,
     required this.createdBy,
     this.createdAt,
@@ -193,6 +194,7 @@ class OperationLogEventModel {
   final String type;
   final String status;
   final String title;
+  final String text;
   final String description;
   final String createdBy;
   final DateTime? createdAt;
@@ -213,6 +215,7 @@ class OperationLogEventModel {
       ),
       status: OperationLogStatus.normalize(data['status']),
       title: _stringValue(data['title']),
+      text: _stringValue(data['text'], fallback: _stringValue(data['title'])),
       description: _stringValue(data['description']),
       createdBy: _stringValue(data['createdBy']),
       createdAt: _dateTimeValue(data['createdAt']),

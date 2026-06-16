@@ -606,6 +606,15 @@ service cloud.firestore {
         request.resource.data.title.size() > 0 &&
         request.resource.data.description is string &&
         (
+          request.resource.data.type != 'manualNote' ||
+          (
+            request.resource.data.keys().hasAny(['text']) &&
+            request.resource.data.text is string &&
+            request.resource.data.text.size() > 0 &&
+            request.resource.data.text == request.resource.data.title
+          )
+        ) &&
+        (
           request.resource.data.type == 'statusChange' ||
           request.resource.data.type == 'manualNote' ||
           request.resource.data.type == 'quickAction' ||

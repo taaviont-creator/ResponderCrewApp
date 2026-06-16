@@ -70,10 +70,10 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
     final shouldCreate = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Lisa sündmuse kirje'),
+        title: const Text('Lisa märge'),
         content: TextField(
           controller: noteController,
-          decoration: const InputDecoration(labelText: 'Märkus / tegevus'),
+          decoration: const InputDecoration(labelText: 'Märkuse tekst'),
           maxLines: 3,
           autofocus: true,
         ),
@@ -400,17 +400,9 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
                           ? () => _showAddManualEventDialog(log)
                           : null,
                       icon: const Icon(Icons.note_add_outlined),
-                      label: const Text('Lisa sündmuse kirje'),
+                      label: const Text('Lisa märge'),
                     ),
                   ),
-                  const Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Ajajoon',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
                   StreamBuilder<List<OperationLogEventModel>>(
                     stream: _operationLogService.streamLogEvents(
                       operationLogId: log.id,
@@ -431,30 +423,51 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
                       final events = eventSnapshot.data ??
                           const <OperationLogEventModel>[];
                       if (events.isEmpty) {
-                        return const Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text('Sündmuste ajalugu puudub.'),
+                        return const Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Märkmed',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            SizedBox(height: 4),
+                            Text('Märkmeid pole lisatud.'),
+                            SizedBox(height: 12),
+                            Text(
+                              'Ajajoon',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            SizedBox(height: 4),
+                            Text('Sündmuste ajalugu puudub.'),
+                          ],
                         );
                       }
 
+                      final notes = events
+                          .where((event) =>
+                              event.type == OperationLogEventType.manualNote)
+                          .toList();
+
                       return Column(
-                        children: events.map((event) {
-                          final subtitleLines = [
-                            if (event.description.isNotEmpty)
-                              event.description,
-                            if (event.createdAt != null)
-                              _shortDateTime(event.createdAt!),
-                          ];
-                          return ListTile(
-                            dense: true,
-                            contentPadding: EdgeInsets.zero,
-                            leading: Icon(_operationLogEventIcon(event.type)),
-                            title: Text(event.title),
-                            subtitle: subtitleLines.isEmpty
-                                ? null
-                                : Text(subtitleLines.join('\n')),
-                          );
-                        }).toList(),
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Märkmed',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 4),
+                          if (notes.isEmpty)
+                            const Text('Märkmeid pole lisatud.')
+                          else
+                            ...notes.map(_buildOperationLogEventTile),
+                          const SizedBox(height: 12),
+                          const Text(
+                            'Ajajoon',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 4),
+                          ...events.map(_buildOperationLogEventTile),
+                        ],
                       );
                     },
                   ),
@@ -464,6 +477,25 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
           );
         },
       ),
+    );
+  }
+
+  Widget _buildOperationLogEventTile(OperationLogEventModel event) {
+    final title = event.type == OperationLogEventType.manualNote &&
+            event.text.isNotEmpty
+        ? event.text
+        : event.title;
+    final subtitleLines = [
+      if (event.description.isNotEmpty) event.description,
+      if (event.createdAt != null) _shortDateTime(event.createdAt!),
+    ];
+
+    return ListTile(
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(_operationLogEventIcon(event.type)),
+      title: Text(title),
+      subtitle: subtitleLines.isEmpty ? null : Text(subtitleLines.join('\n')),
     );
   }
 

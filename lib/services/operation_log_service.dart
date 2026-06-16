@@ -355,6 +355,7 @@ class OperationLogService {
         'type': type,
         'status': currentStatus,
         'title': trimmedTitle,
+        if (type == OperationLogEventType.manualNote) 'text': trimmedTitle,
         'description': '',
         'createdBy': createdBy,
         'createdAt': FieldValue.serverTimestamp(),
