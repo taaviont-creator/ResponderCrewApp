@@ -513,6 +513,7 @@ class _HomeScreenState extends State<HomeScreen> {
     required String? membershipRole,
     required bool allowMembersToCreateActivities,
     required bool allowMembersToViewStatistics,
+    required bool allowMembersToStartOperationLog,
     required List<QueryDocumentSnapshot<Map<String, dynamic>>> membershipDocs,
   }) {
     final isOrganizationAdmin =
@@ -521,6 +522,8 @@ class _HomeScreenState extends State<HomeScreen> {
         isOrganizationAdmin || allowMembersToCreateActivities;
     final canViewStatistics =
         isOrganizationAdmin || allowMembersToViewStatistics;
+    final canStartOperationLog =
+        isOrganizationAdmin || allowMembersToStartOperationLog;
 
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -577,7 +580,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ],
-          if (isOrganizationAdmin &&
+          if ((isPlatformAdmin || isOrganizationAdmin) &&
               commandId != null &&
               commandId.isNotEmpty) ...[
             const SizedBox(height: 12),
@@ -594,6 +597,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       allowMembersToCreateActivities: value,
                       allowMembersToViewStatistics:
                           allowMembersToViewStatistics,
+                      allowMembersToStartOperationLog:
+                          allowMembersToStartOperationLog,
                     ),
                   ),
                   SwitchListTile(
@@ -606,6 +611,22 @@ class _HomeScreenState extends State<HomeScreen> {
                       allowMembersToCreateActivities:
                           allowMembersToCreateActivities,
                       allowMembersToViewStatistics: value,
+                      allowMembersToStartOperationLog:
+                          allowMembersToStartOperationLog,
+                    ),
+                  ),
+                  SwitchListTile(
+                    title: const Text(
+                      'Liikmed võivad alustada operatsioonilogi',
+                    ),
+                    value: allowMembersToStartOperationLog,
+                    onChanged: (value) => _updateMemberPermissions(
+                      organizationId: commandId,
+                      allowMembersToCreateActivities:
+                          allowMembersToCreateActivities,
+                      allowMembersToViewStatistics:
+                          allowMembersToViewStatistics,
+                      allowMembersToStartOperationLog: value,
                     ),
                   ),
                 ],
@@ -729,6 +750,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         currentUid: user.uid,
                         currentUserName: displayName,
                         canViewCalloutResponseSummary: isOrganizationAdmin,
+                        canStartOperationLog: canStartOperationLog,
                       ),
                     ),
                   ),
@@ -821,12 +843,14 @@ class _HomeScreenState extends State<HomeScreen> {
     required String organizationId,
     required bool allowMembersToCreateActivities,
     required bool allowMembersToViewStatistics,
+    required bool allowMembersToStartOperationLog,
   }) async {
     try {
       await _commandService.updateMemberPermissions(
         organizationId: organizationId,
         allowMembersToCreateActivities: allowMembersToCreateActivities,
         allowMembersToViewStatistics: allowMembersToViewStatistics,
+        allowMembersToStartOperationLog: allowMembersToStartOperationLog,
       );
     } catch (e) {
       if (!mounted) return;
@@ -1164,6 +1188,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       membershipRole: myMembershipRole,
                       allowMembersToCreateActivities: false,
                       allowMembersToViewStatistics: false,
+                      allowMembersToStartOperationLog: false,
                       membershipDocs: membershipDocs,
                     ),
                     _buildMissingOrganizationState(
@@ -1190,11 +1215,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     commandData?['allowMembersToCreateActivities'] == true;
                 final allowMembersToViewStatistics =
                     commandData?['allowMembersToViewStatistics'] == true;
+                final allowMembersToStartOperationLog =
+                    commandData?['allowMembersToStartOperationLog'] == true;
 
                 final canCreateActivities =
                     isOrganizationAdmin || allowMembersToCreateActivities;
                 final canViewStatistics =
                     isOrganizationAdmin || allowMembersToViewStatistics;
+                final canStartOperationLog =
+                    isOrganizationAdmin || allowMembersToStartOperationLog;
 
                 final homeContent = Scaffold(
                   appBar: AppBar(
@@ -1292,6 +1321,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                             allowMembersToCreateActivities,
                                         allowMembersToViewStatistics:
                                             allowMembersToViewStatistics,
+                                        allowMembersToStartOperationLog:
+                                            allowMembersToStartOperationLog,
                                         membershipDocs: membershipDocs,
                                       ),
                                     ],
@@ -1359,8 +1390,41 @@ class _HomeScreenState extends State<HomeScreen> {
                     isPlatformAdmin: isPlatformAdmin,
                     canCreateActivities: canCreateActivities,
                     canViewStatistics: canViewStatistics,
+                    canStartOperationLog: canStartOperationLog,
                     onOpenOrganizationSettings: () {
-                      setState(() => _selectedNavigationIndex = 0);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => Scaffold(
+                            appBar: AppBar(
+                              title: const Text(
+                                'Organisatsiooni seaded',
+                              ),
+                            ),
+                            body: ListView(
+                              children: [
+                                _buildHeaderSection(
+                                  user: user,
+                                  displayName: displayName,
+                                  commandId: selectedOrganizationId,
+                                  commandName: commandName,
+                                  joinCode: joinCode,
+                                  canSeeJoinCode: canSeeJoinCode,
+                                  isPlatformAdmin: isPlatformAdmin,
+                                  membershipRole: myMembershipRole,
+                                  allowMembersToCreateActivities:
+                                      allowMembersToCreateActivities,
+                                  allowMembersToViewStatistics:
+                                      allowMembersToViewStatistics,
+                                  allowMembersToStartOperationLog:
+                                      allowMembersToStartOperationLog,
+                                  membershipDocs: membershipDocs,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
                     },
                   ),
                 ];

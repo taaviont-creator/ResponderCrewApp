@@ -59,6 +59,7 @@ class CommandService {
       'createdBy': user.uid,
       'allowMembersToCreateActivities': false,
       'allowMembersToViewStatistics': false,
+      'allowMembersToStartOperationLog': false,
       'createdAt': FieldValue.serverTimestamp(),
       'isOnDuty': false,
     });
@@ -138,12 +139,18 @@ class CommandService {
     required String organizationId,
     required bool allowMembersToCreateActivities,
     required bool allowMembersToViewStatistics,
+    required bool allowMembersToStartOperationLog,
   }) async {
     final user = _auth.currentUser;
     if (user == null) throw Exception('Not authenticated');
     if (organizationId.trim().isEmpty) {
       throw Exception('Selle toimingu jaoks puudub aktiivne organisatsioon');
     }
+
+    final userSnapshot = await _db.collection('users').doc(user.uid).get();
+    final isPlatformAdmin = PlatformRole.isPlatformAdmin(
+      userSnapshot.data()?['systemRole'],
+    );
 
     final membershipSnapshot = await _db
         .collection('memberships')
@@ -157,22 +164,26 @@ class CommandService {
             membership['status'] == 'active') &&
         (!membership.containsKey('isActive') ||
             membership['isActive'] == true);
-    if (membership == null ||
-        !MembershipRole.isOrgAdmin(membership['role']) ||
-        !membershipIsActive) {
+    if (!isPlatformAdmin &&
+        (membership == null ||
+            !MembershipRole.isOrgAdmin(membership['role']) ||
+            !membershipIsActive)) {
       throw Exception('Sul puudub õigus neid seadeid muuta');
     }
 
-    final membershipOrganizationId =
-        (membership['organizationId'] ?? membership['commandId'] ?? '')
-            .toString();
-    if (membershipOrganizationId != organizationId) {
-      throw Exception('Membership belongs to another organization');
+    if (!isPlatformAdmin) {
+      final membershipOrganizationId =
+          (membership!['organizationId'] ?? membership['commandId'] ?? '')
+              .toString();
+      if (membershipOrganizationId != organizationId) {
+        throw Exception('Membership belongs to another organization');
+      }
     }
 
     await _db.collection('commands').doc(organizationId).update({
       'allowMembersToCreateActivities': allowMembersToCreateActivities,
       'allowMembersToViewStatistics': allowMembersToViewStatistics,
+      'allowMembersToStartOperationLog': allowMembersToStartOperationLog,
       'updatedBy': user.uid,
       'updatedAt': FieldValue.serverTimestamp(),
     });

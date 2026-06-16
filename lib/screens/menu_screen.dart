@@ -21,6 +21,7 @@ class MenuScreen extends StatelessWidget {
     required this.isPlatformAdmin,
     required this.canCreateActivities,
     required this.canViewStatistics,
+    required this.canStartOperationLog,
     required this.onOpenOrganizationSettings,
   });
 
@@ -32,6 +33,7 @@ class MenuScreen extends StatelessWidget {
   final bool isPlatformAdmin;
   final bool canCreateActivities;
   final bool canViewStatistics;
+  final bool canStartOperationLog;
   final VoidCallback onOpenOrganizationSettings;
 
   void _open(BuildContext context, Widget screen) {
@@ -103,6 +105,7 @@ class MenuScreen extends StatelessWidget {
                 currentUid: currentUid,
                 currentUserName: currentUserName,
                 canViewCalloutResponseSummary: isOrganizationAdmin,
+                canStartOperationLog: canStartOperationLog,
               ),
             ),
           ),
@@ -161,7 +164,7 @@ class MenuScreen extends StatelessWidget {
                 ),
               ),
             ),
-          if (isOrganizationAdmin)
+          if (isPlatformAdmin || isOrganizationAdmin)
             _MenuEntry(
               icon: Icons.settings_outlined,
               title: 'Organisatsiooni seaded',

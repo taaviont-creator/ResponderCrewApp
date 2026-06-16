@@ -12,12 +12,14 @@ class OperationLogScreen extends StatefulWidget {
     required this.currentUid,
     required this.currentUserName,
     required this.canViewCalloutResponseSummary,
+    required this.canStartOperationLog,
   });
 
   final String organizationId;
   final String currentUid;
   final String currentUserName;
   final bool canViewCalloutResponseSummary;
+  final bool canStartOperationLog;
 
   @override
   State<OperationLogScreen> createState() => _OperationLogScreenState();
@@ -175,6 +177,13 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
   }
 
   Future<void> _showAddOperationLogDialog() async {
+    if (!widget.canStartOperationLog) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sul puudub õigus seda toimingut teha')),
+      );
+      return;
+    }
+
     final titleController = TextEditingController();
     final descriptionController = TextEditingController();
     var selectedType = OperationLogType.note;
@@ -264,10 +273,12 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
       appBar: AppBar(
         title: const Text('Operatsioonilogi'),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showAddOperationLogDialog,
-        child: const Icon(Icons.add),
-      ),
+      floatingActionButton: widget.canStartOperationLog
+          ? FloatingActionButton(
+              onPressed: _showAddOperationLogDialog,
+              child: const Icon(Icons.add),
+            )
+          : null,
       body: StreamBuilder<List<OperationLogModel>>(
         stream: _operationLogService.streamOrganizationLogs(
           organizationId: widget.organizationId,

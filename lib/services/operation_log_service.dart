@@ -1,9 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
+import '../models/membership_model.dart';
 import '../models/operation_log_model.dart';
 
 class OperationLogService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   CollectionReference<Map<String, dynamic>> get _operationLogs =>
       _firestore.collection('operationLogs');
@@ -77,6 +80,10 @@ class OperationLogService {
     required String description,
   }) async {
     _requireOrganizationId(organizationId);
+    await _ensureCanStartOperationLog(
+      organizationId: organizationId,
+      createdBy: createdBy,
+    );
     if (!OperationLogType.values.contains(type)) {
       throw Exception('Unsupported operation log type: $type');
     }
@@ -286,6 +293,47 @@ class OperationLogService {
   void _requireOrganizationId(String organizationId) {
     if (organizationId.trim().isEmpty) {
       throw Exception('Selle toimingu jaoks puudub aktiivne organisatsioon');
+    }
+  }
+
+  Future<void> _ensureCanStartOperationLog({
+    required String organizationId,
+    required String createdBy,
+  }) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null || currentUser.uid != createdBy) {
+      throw Exception('Sul puudub õigus seda toimingut teha');
+    }
+
+    final membershipSnapshot = await _firestore
+        .collection('memberships')
+        .doc('${currentUser.uid}_$organizationId')
+        .get();
+    final membership = membershipSnapshot.data();
+    final membershipIsActive = membership != null &&
+        ((membership['status'] == 'active') ||
+            (membership['isActive'] == true)) &&
+        (!membership.containsKey('status') ||
+            membership['status'] == 'active') &&
+        (!membership.containsKey('isActive') ||
+            membership['isActive'] == true);
+    if (membership == null || !membershipIsActive) {
+      throw Exception('Sul puudub õigus seda toimingut teha');
+    }
+
+    final membershipOrganizationId =
+        (membership['organizationId'] ?? membership['commandId'] ?? '')
+            .toString();
+    if (membershipOrganizationId != organizationId) {
+      throw Exception('Sul puudub õigus seda toimingut teha');
+    }
+
+    if (MembershipRole.isOrgAdmin(membership['role'])) return;
+
+    final commandSnapshot =
+        await _firestore.collection('commands').doc(organizationId).get();
+    if (commandSnapshot.data()?['allowMembersToStartOperationLog'] != true) {
+      throw Exception('Sul puudub õigus seda toimingut teha');
     }
   }
 }

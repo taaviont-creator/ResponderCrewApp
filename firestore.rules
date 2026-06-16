@@ -114,6 +114,16 @@ service cloud.firestore {
         get(commandPath).data.allowMembersToCreateActivities == true;
     }
 
+    function commandAllowsMemberOperationLogStart(commandId) {
+      let commandPath =
+        /databases/$(database)/documents/commands/$(commandId);
+      return exists(commandPath) &&
+        get(commandPath).data.keys().hasAny([
+          'allowMembersToStartOperationLog'
+        ]) &&
+        get(commandPath).data.allowMembersToStartOperationLog == true;
+    }
+
     function hasValidCommandMemberPermissions(data) {
       return (
           !data.keys().hasAny(['allowMembersToCreateActivities']) ||
@@ -122,19 +132,25 @@ service cloud.firestore {
         (
           !data.keys().hasAny(['allowMembersToViewStatistics']) ||
           data.allowMembersToViewStatistics is bool
+        ) &&
+        (
+          !data.keys().hasAny(['allowMembersToStartOperationLog']) ||
+          data.allowMembersToStartOperationLog is bool
         );
     }
 
     function isCommandMemberPermissionUpdate(commandId) {
       return signedIn() &&
-        isActiveOrgAdmin(commandId) &&
+        (isPlatformAdmin() || isActiveOrgAdmin(commandId)) &&
         request.resource.data.allowMembersToCreateActivities is bool &&
         request.resource.data.allowMembersToViewStatistics is bool &&
+        request.resource.data.allowMembersToStartOperationLog is bool &&
         request.resource.data.updatedBy == request.auth.uid &&
         request.resource.data.updatedAt == request.time &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'allowMembersToCreateActivities',
           'allowMembersToViewStatistics',
+          'allowMembersToStartOperationLog',
           'updatedBy',
           'updatedAt'
         ]);
@@ -476,11 +492,19 @@ service cloud.firestore {
     }
 
     function isOperationLogCreate(logId) {
+      let organizationId =
+        organizationIdFromData(request.resource.data);
       return signedIn() &&
         request.resource.data.id == logId &&
         request.resource.data.createdBy == request.auth.uid &&
         isValidOperationLogData(request.resource.data) &&
-        isActiveMember(organizationIdFromData(request.resource.data));
+        (
+          isActiveOrgAdmin(organizationId) ||
+          (
+            isActiveMember(organizationId) &&
+            commandAllowsMemberOperationLogStart(organizationId)
+          )
+        );
     }
 
     function isOperationLogStatusUpdate(logId) {
