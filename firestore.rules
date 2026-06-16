@@ -370,24 +370,33 @@ service cloud.firestore {
     }
 
     function isEquipmentCreate(equipmentId) {
+      let organizationId =
+        organizationIdFromData(request.resource.data);
       return signedIn() &&
         request.resource.data.id == equipmentId &&
         request.resource.data.createdBy == request.auth.uid &&
         isValidEquipmentData(request.resource.data) &&
-        isActiveMember(organizationIdFromData(request.resource.data)) &&
         (
+          isPlatformAdmin() ||
           (
-            equipmentScope(request.resource.data) == 'personal' &&
-            request.resource.data.ownerUserId == request.auth.uid
-          ) ||
-          (
-            equipmentScope(request.resource.data) == 'organization' &&
-            isActiveOrgAdmin(organizationIdFromData(request.resource.data))
+            isActiveMember(organizationId) &&
+            (
+              (
+                equipmentScope(request.resource.data) == 'personal' &&
+                request.resource.data.ownerUserId == request.auth.uid
+              ) ||
+              (
+                equipmentScope(request.resource.data) == 'organization' &&
+                isActiveOrgAdmin(organizationId)
+              )
+            )
           )
         );
     }
 
     function isEquipmentUpdate(equipmentId) {
+      let organizationId =
+        organizationIdFromData(resource.data);
       return signedIn() &&
         request.resource.data.id == resource.data.id &&
         request.resource.data.id == equipmentId &&
@@ -396,18 +405,30 @@ service cloud.firestore {
           organizationIdFromData(resource.data) &&
         equipmentScope(request.resource.data) ==
           equipmentScope(resource.data) &&
-        isValidEquipmentData(request.resource.data) &&
-        isActiveMember(organizationIdFromData(resource.data)) &&
         (
+          equipmentScope(resource.data) != 'personal' ||
+          request.resource.data.ownerUserId == resource.data.ownerUserId
+        ) &&
+        isValidEquipmentData(request.resource.data) &&
+        (
+          isPlatformAdmin() ||
           (
-            equipmentScope(resource.data) == 'personal' &&
-            resource.data.ownerUserId == request.auth.uid &&
-            request.resource.data.ownerUserId ==
-              resource.data.ownerUserId
-          ) ||
-          (
-            equipmentScope(resource.data) == 'organization' &&
-            isActiveOrgAdmin(organizationIdFromData(resource.data))
+            isActiveMember(organizationId) &&
+            (
+              (
+                equipmentScope(resource.data) == 'personal' &&
+                request.resource.data.ownerUserId ==
+                  resource.data.ownerUserId &&
+                (
+                  resource.data.ownerUserId == request.auth.uid ||
+                  isActiveOrgAdmin(organizationId)
+                )
+              ) ||
+              (
+                equipmentScope(resource.data) == 'organization' &&
+                isActiveOrgAdmin(organizationId)
+              )
+            )
           )
         );
     }
@@ -855,6 +876,7 @@ service cloud.firestore {
           isOwnAvailabilityNotificationCreate() ||
           isOwnMinimumCrewNotificationCreate() ||
           isOwnActivityNotificationCreate() ||
+          isPlatformAdmin() ||
           isActiveOrgAdmin(organizationIdFromData(request.resource.data))
         );
     }
@@ -1325,7 +1347,10 @@ service cloud.firestore {
 
     match /equipment/{equipmentId} {
       allow read: if signedIn() &&
-        isActiveMember(organizationIdFromData(resource.data));
+        (
+          isPlatformAdmin() ||
+          isActiveMember(organizationIdFromData(resource.data))
+        );
       allow create: if isEquipmentCreate(equipmentId);
       allow update: if isEquipmentUpdate(equipmentId);
     }

@@ -47,6 +47,7 @@ class MenuScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final canOpenReadinessOverview =
         isPlatformAdmin || isOrganizationAdmin;
+    final canManageEquipment = isPlatformAdmin || isOrganizationAdmin;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Menüü')),
@@ -83,14 +84,14 @@ class MenuScreen extends StatelessWidget {
             ),
           _MenuEntry(
             icon: Icons.inventory_2_outlined,
-            title: isOrganizationAdmin ? 'Varustus' : 'Minu varustus',
+            title: canManageEquipment ? 'Varustus' : 'Minu varustus',
             subtitle: 'Varustuse seisund ja hooldus',
             onTap: () => _open(
               context,
               EquipmentScreen(
                 organizationId: organizationId,
                 currentUid: currentUid,
-                canManageEquipment: isOrganizationAdmin,
+                canManageEquipment: canManageEquipment,
               ),
             ),
           ),

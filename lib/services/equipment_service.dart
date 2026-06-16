@@ -208,7 +208,8 @@ class EquipmentService {
     }
 
     if (scope == EquipmentScope.personal) {
-      if (ownerUserId.isEmpty || ownerUserId != currentUserId) {
+      if (ownerUserId.isEmpty ||
+          (ownerUserId != currentUserId && !canManageOrganizationEquipment)) {
         throw Exception('Sul puudub õigus seda varustust muuta');
       }
       return;

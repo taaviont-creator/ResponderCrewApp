@@ -351,18 +351,18 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
                   scope: EquipmentScope.personal,
                 ),
               ),
-              if (widget.canManageEquipment) ...[
-                const SizedBox(height: 24),
-                _buildEquipmentSection(
+              const SizedBox(height: 24),
+              _buildEquipmentSection(
                   title: 'Ühingu varustus',
-                  equipment: organizationEquipment,
+                equipment: organizationEquipment,
                   emptyText: 'Ühingu varustust ei ole lisatud',
                   addLabel: 'Lisa ühingu varustus',
-                  onAdd: () => _showAddEquipmentDialog(
-                    scope: EquipmentScope.organization,
-                  ),
-                ),
-              ],
+                onAdd: widget.canManageEquipment
+                    ? () => _showAddEquipmentDialog(
+                          scope: EquipmentScope.organization,
+                        )
+                    : null,
+              ),
             ],
           );
         },

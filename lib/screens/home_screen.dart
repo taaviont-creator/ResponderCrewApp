@@ -524,6 +524,7 @@ class _HomeScreenState extends State<HomeScreen> {
         isOrganizationAdmin || allowMembersToViewStatistics;
     final canStartOperationLog =
         isOrganizationAdmin || allowMembersToStartOperationLog;
+    final canManageEquipment = isPlatformAdmin || isOrganizationAdmin;
 
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -727,14 +728,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 _buildModuleButton(
                   icon: Icons.inventory_2,
-                  label: isOrganizationAdmin ? 'Varustus' : 'Minu varustus',
+                  label: canManageEquipment ? 'Varustus' : 'Minu varustus',
                   onPressed: () => Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (_) => EquipmentScreen(
                         organizationId: commandId,
                         currentUid: user.uid,
-                        canManageEquipment: isOrganizationAdmin,
+                        canManageEquipment: canManageEquipment,
                       ),
                     ),
                   ),
@@ -823,7 +824,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             organizationId: commandId,
                             currentUid: user.uid,
                             currentUserName: displayName,
-                            canManageNotifications: isOrganizationAdmin,
+                            canManageNotifications: canManageEquipment,
                             canCreateActivities: canCreateActivities,
                           ),
                         ),
@@ -1224,6 +1225,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     isOrganizationAdmin || allowMembersToViewStatistics;
                 final canStartOperationLog =
                     isOrganizationAdmin || allowMembersToStartOperationLog;
+                final canManageEquipment =
+                    isPlatformAdmin || isOrganizationAdmin;
 
                 final homeContent = Scaffold(
                   appBar: AppBar(
@@ -1272,7 +1275,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 builder: (_) => EquipmentScreen(
                                   organizationId: selectedOrganizationId,
                                   currentUid: user.uid,
-                                  canManageEquipment: true,
+                                  canManageEquipment: canManageEquipment,
                                   openOrganizationCreateOnLoad: true,
                                 ),
                               ),
@@ -1288,7 +1291,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 builder: (_) => EquipmentScreen(
                                   organizationId: selectedOrganizationId,
                                   currentUid: user.uid,
-                                  canManageEquipment: true,
+                                  canManageEquipment: canManageEquipment,
                                 ),
                               ),
                             );
@@ -1378,7 +1381,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     organizationId: selectedOrganizationId,
                     currentUid: user.uid,
                     currentUserName: displayName,
-                    canManageNotifications: isOrganizationAdmin,
+                    canManageNotifications: canManageEquipment,
                     canCreateActivities: canCreateActivities,
                   ),
                   MenuScreen(
