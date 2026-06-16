@@ -389,26 +389,39 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
                   if (widget.canViewCalloutResponseSummary &&
                       log.calloutId != null)
                     _buildCalloutResponseSummary(log.calloutId!),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Lõppkokkuvõte',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
                   Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      log.summary.isEmpty
-                          ? 'Kokkuvõte puudub'
-                          : 'Lõppkokkuvõte: ${log.summary}',
+                      log.summary.isEmpty ? 'Kokkuvõte puudub' : log.summary,
                     ),
                   ),
-                  if (log.outcome.isNotEmpty)
+                  if (log.outcome.isNotEmpty) ...[
+                    const SizedBox(height: 4),
                     Align(
                       alignment: Alignment.centerLeft,
                       child: Text('Tulemus: ${log.outcome}'),
                     ),
-                  if (log.status == OperationLogStatus.completed)
+                  ],
+                  if (log.status == OperationLogStatus.completed &&
+                      widget.canStartOperationLog)
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton.icon(
                         onPressed: () => _showFinalSummaryDialog(log),
                         icon: const Icon(Icons.summarize_outlined),
-                        label: const Text('Salvesta kokkuvõte'),
+                        label: Text(
+                          log.summary.isEmpty
+                              ? 'Lisa lõppkokkuvõte'
+                              : 'Muuda lõppkokkuvõtet',
+                        ),
                       ),
                     ),
                   const Align(
