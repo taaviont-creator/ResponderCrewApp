@@ -4,6 +4,7 @@ import '../models/callout_model.dart';
 import '../models/operation_log_model.dart';
 import '../services/callout_service.dart';
 import '../services/operation_log_service.dart';
+import '../widgets/operation_log_timeline_view.dart';
 
 class OperationLogScreen extends StatefulWidget {
   const OperationLogScreen({
@@ -466,73 +467,9 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
                       label: const Text('Lisa märge'),
                     ),
                   ),
-                  StreamBuilder<List<OperationLogEventModel>>(
-                    stream: _operationLogService.streamLogEvents(
-                      operationLogId: log.id,
-                      organizationId: widget.organizationId,
-                    ),
-                    builder: (context, eventSnapshot) {
-                      if (eventSnapshot.connectionState ==
-                          ConnectionState.waiting) {
-                        return const LinearProgressIndicator();
-                      }
-                      if (eventSnapshot.hasError) {
-                        return const Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text('Sündmuste ajaloo laadimine ebaõnnestus.'),
-                        );
-                      }
-
-                      final events = eventSnapshot.data ??
-                          const <OperationLogEventModel>[];
-                      if (events.isEmpty) {
-                        return const Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Märkmed',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            SizedBox(height: 4),
-                            Text('Märkmeid pole lisatud.'),
-                            SizedBox(height: 12),
-                            Text(
-                              'Ajajoon',
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            SizedBox(height: 4),
-                            Text('Sündmuste ajalugu puudub.'),
-                          ],
-                        );
-                      }
-
-                      final notes = events
-                          .where((event) =>
-                              event.type == OperationLogEventType.manualNote)
-                          .toList();
-
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Märkmed',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 4),
-                          if (notes.isEmpty)
-                            const Text('Märkmeid pole lisatud.')
-                          else
-                            ...notes.map(_buildOperationLogEventTile),
-                          const SizedBox(height: 12),
-                          const Text(
-                            'Ajajoon',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 4),
-                          ...events.map(_buildOperationLogEventTile),
-                        ],
-                      );
-                    },
+                  OperationLogTimelineView(
+                    operationLogId: log.id,
+                    organizationId: widget.organizationId,
                   ),
                 ],
               );
@@ -543,25 +480,6 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
     );
   }
 
-  Widget _buildOperationLogEventTile(OperationLogEventModel event) {
-    final title = event.type == OperationLogEventType.manualNote &&
-            event.text.isNotEmpty
-        ? event.text
-        : event.title;
-    final subtitleLines = [
-      if (event.type == OperationLogEventType.manualNote) 'Käsitsi märge',
-      if (event.description.isNotEmpty) event.description,
-      if (event.createdAt != null) _shortDateTime(event.createdAt!),
-    ];
-
-    return ListTile(
-      dense: true,
-      contentPadding: EdgeInsets.zero,
-      leading: Icon(_operationLogEventIcon(event.type)),
-      title: Text(title),
-      subtitle: subtitleLines.isEmpty ? null : Text(subtitleLines.join('\n')),
-    );
-  }
 
   String _operationLogTypeLabel(String type) {
     switch (type) {
@@ -742,18 +660,6 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
     }
   }
 
-  IconData _operationLogEventIcon(String type) {
-    switch (type) {
-      case OperationLogEventType.summarySaved:
-        return Icons.summarize_outlined;
-      case OperationLogEventType.quickAction:
-        return Icons.bolt;
-      case OperationLogEventType.manualNote:
-        return Icons.notes;
-      default:
-        return Icons.history;
-    }
-  }
 
   String _shortDateTime(DateTime value) {
     String twoDigits(int number) => number.toString().padLeft(2, '0');
