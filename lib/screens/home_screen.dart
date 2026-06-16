@@ -1318,6 +1318,8 @@ class _HomeScreenState extends State<HomeScreen> {
             }
 
             final String selectedOrganizationId = activeCommandId;
+            final organizationCount =
+                _organizationIdsFromMembershipDocs(membershipDocs).length;
 
             return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
               stream: FirebaseFirestore.instance
@@ -1560,6 +1562,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       );
                     },
+                    onSwitchOrganization: organizationCount > 1
+                        ? () => _showSwitchOrganizationDialog(
+                              membershipDocs: membershipDocs,
+                              currentActiveCommandId: selectedOrganizationId,
+                            )
+                        : null,
                   ),
                 ];
 

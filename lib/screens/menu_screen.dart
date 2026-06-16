@@ -23,6 +23,7 @@ class MenuScreen extends StatelessWidget {
     required this.canViewStatistics,
     required this.canStartOperationLog,
     required this.onOpenOrganizationSettings,
+    this.onSwitchOrganization,
   });
 
   final String organizationId;
@@ -35,6 +36,7 @@ class MenuScreen extends StatelessWidget {
   final bool canViewStatistics;
   final bool canStartOperationLog;
   final VoidCallback onOpenOrganizationSettings;
+  final VoidCallback? onSwitchOrganization;
 
   void _open(BuildContext context, Widget screen) {
     Navigator.push(
@@ -164,6 +166,13 @@ class MenuScreen extends StatelessWidget {
                   canViewOrganizationCertificates: isOrganizationAdmin,
                 ),
               ),
+            ),
+          if (onSwitchOrganization != null)
+            _MenuEntry(
+              icon: Icons.swap_horiz_outlined,
+              title: 'Vaheta organisatsiooni',
+              subtitle: 'Lülitu teise komando vaatele',
+              onTap: onSwitchOrganization,
             ),
           if (isPlatformAdmin || isOrganizationAdmin)
             _MenuEntry(
