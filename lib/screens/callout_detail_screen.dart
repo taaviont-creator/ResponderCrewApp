@@ -15,6 +15,7 @@ class CalloutDetailScreen extends StatefulWidget {
     required this.currentUid,
     required this.currentUserName,
     required this.canManageCallouts,
+    required this.canCloseCallouts,
   });
 
   final CalloutModel callout;
@@ -22,6 +23,7 @@ class CalloutDetailScreen extends StatefulWidget {
   final String currentUid;
   final String currentUserName;
   final bool canManageCallouts;
+  final bool canCloseCallouts;
 
   @override
   State<CalloutDetailScreen> createState() => _CalloutDetailScreenState();
@@ -129,7 +131,7 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
   }
 
   Future<void> _updateCalloutStatus(String status) async {
-    if (!widget.canManageCallouts || _isUpdatingStatus || !_isActive) return;
+    if (!widget.canCloseCallouts || _isUpdatingStatus || !_isActive) return;
 
     final isClosing = status == CalloutStatus.closed;
     final confirmed = await showDialog<bool>(
@@ -192,7 +194,7 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
       appBar: AppBar(
         title: const Text('Väljakutse info'),
         actions: [
-          if (widget.canManageCallouts && _isActive)
+          if (widget.canCloseCallouts && _isActive)
             PopupMenuButton<String>(
               tooltip: 'Väljakutse toimingud',
               onSelected: _updateCalloutStatus,
@@ -217,7 +219,7 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
             const SizedBox(height: AppTheme.sectionSpacing),
             _buildResponseActions(),
           ],
-          if (widget.canManageCallouts && _isActive) ...[
+          if (widget.canCloseCallouts && _isActive) ...[
             const SizedBox(height: AppTheme.sectionSpacing),
             PrimaryActionButton(
               label: 'Lõpeta väljakutse',

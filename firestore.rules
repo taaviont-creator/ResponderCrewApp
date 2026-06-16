@@ -1072,7 +1072,10 @@ service cloud.firestore {
           'closedAt'
         ]) &&
         isValidCalloutData(request.resource.data) &&
-        isActiveOrgAdmin(organizationIdFromData(resource.data));
+        (
+          isPlatformAdmin() ||
+          isActiveOrgAdmin(organizationIdFromData(resource.data))
+        );
     }
 
     function isValidCalloutResponseValue(response) {
@@ -1403,7 +1406,10 @@ service cloud.firestore {
 
     match /callouts/{calloutId} {
       allow read: if signedIn() &&
-        isActiveMember(organizationIdFromData(resource.data));
+        (
+          isPlatformAdmin() ||
+          isActiveMember(organizationIdFromData(resource.data))
+        );
       allow create: if isCalloutCreate(calloutId);
       allow update: if isCalloutStatusUpdate(calloutId);
     }

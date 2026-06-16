@@ -62,6 +62,7 @@ class _HomePermissions {
       canManageOrganization || allowMembersToViewStatistics;
   bool get canStartOperationLog =>
       canManageOrganization || allowMembersToStartOperationLog;
+  bool get canCloseCallout => isPlatformAdmin || isOrganizationAdmin;
 }
 
 class _HomeScreenState extends State<HomeScreen> {
@@ -786,6 +787,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         currentUid: user.uid,
                         currentUserName: displayName,
                         canManageCallouts: permissions.canCreateCallout,
+                        canCloseCallouts: permissions.canCloseCallout,
                       ),
                     ),
                   ),
@@ -1363,6 +1365,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                   currentUserName: displayName,
                                   canManageCallouts:
                                       permissions.canCreateCallout,
+                                  canCloseCallouts:
+                                      permissions.canCloseCallout,
                                   openCreateOnLoad: true,
                                 ),
                               ),
@@ -1494,6 +1498,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     currentUid: user.uid,
                     currentUserName: displayName,
                     canManageCallouts: permissions.canCreateCallout,
+                    canCloseCallouts: permissions.canCloseCallout,
                   ),
                   NotificationsScreen(
                     organizationId: selectedOrganizationId,

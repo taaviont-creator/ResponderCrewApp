@@ -14,6 +14,7 @@ class CalloutsScreen extends StatefulWidget {
     required this.currentUid,
     required this.currentUserName,
     required this.canManageCallouts,
+    required this.canCloseCallouts,
     this.openCreateOnLoad = false,
   });
 
@@ -21,6 +22,7 @@ class CalloutsScreen extends StatefulWidget {
   final String currentUid;
   final String currentUserName;
   final bool canManageCallouts;
+  final bool canCloseCallouts;
   final bool openCreateOnLoad;
 
   @override
@@ -136,6 +138,7 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
           currentUid: widget.currentUid,
           currentUserName: widget.currentUserName,
           canManageCallouts: widget.canManageCallouts,
+          canCloseCallouts: widget.canCloseCallouts,
         ),
       ),
     );
@@ -220,14 +223,14 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
                 ),
               const SizedBox(height: AppTheme.sectionSpacing),
               _SectionHeading(
-                title: 'Varasemad väljakutsed',
+                title: 'Lõpetatud väljakutsed',
                 count: pastCallouts.length,
               ),
               const SizedBox(height: AppTheme.itemSpacing),
               if (pastCallouts.isEmpty)
                 const _SectionEmptyState(
                   icon: Icons.history,
-                  text: 'Varasemaid väljakutseid ei ole.',
+                  text: 'Lõpetatud väljakutseid ei ole.',
                 )
               else
                 ...pastCallouts.map(

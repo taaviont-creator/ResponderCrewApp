@@ -239,6 +239,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           currentUid: widget.currentUid,
           currentUserName: widget.currentUserName,
           canManageCallouts: widget.canManageNotifications,
+          canCloseCallouts: widget.canManageNotifications,
         );
         break;
       case 'equipment':
