@@ -30,6 +30,40 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
+class _HomePermissions {
+  const _HomePermissions({
+    required this.isPlatformAdmin,
+    required this.isOrganizationAdmin,
+    required this.allowMembersToCreateActivities,
+    required this.allowMembersToViewStatistics,
+    required this.allowMembersToStartOperationLog,
+  });
+
+  final bool isPlatformAdmin;
+  final bool isOrganizationAdmin;
+  final bool allowMembersToCreateActivities;
+  final bool allowMembersToViewStatistics;
+  final bool allowMembersToStartOperationLog;
+
+  bool get canManageOrganization => isOrganizationAdmin;
+  bool get canManageMembers => canManageOrganization;
+  bool get canManageOrganizationEquipment =>
+      isPlatformAdmin || isOrganizationAdmin;
+  bool get canManageOrganizationSettings =>
+      isPlatformAdmin || isOrganizationAdmin;
+  bool get canCreateCallout => canManageOrganization;
+  bool get canManageCertificates => canManageOrganization;
+  bool get canViewOrganizationReadiness =>
+      isPlatformAdmin || isOrganizationAdmin;
+  bool get canManageNotifications => canManageOrganization;
+  bool get canCreateActivity =>
+      canManageOrganization || allowMembersToCreateActivities;
+  bool get canViewStatistics =>
+      canManageOrganization || allowMembersToViewStatistics;
+  bool get canStartOperationLog =>
+      canManageOrganization || allowMembersToStartOperationLog;
+}
+
 class _HomeScreenState extends State<HomeScreen> {
   final _availabilityService = AvailabilityService();
   final _commandService = CommandService();
@@ -516,15 +550,14 @@ class _HomeScreenState extends State<HomeScreen> {
     required bool allowMembersToStartOperationLog,
     required List<QueryDocumentSnapshot<Map<String, dynamic>>> membershipDocs,
   }) {
-    final isOrganizationAdmin =
-        MembershipRole.isOrgAdmin(membershipRole);
-    final canCreateActivities =
-        isOrganizationAdmin || allowMembersToCreateActivities;
-    final canViewStatistics =
-        isOrganizationAdmin || allowMembersToViewStatistics;
-    final canStartOperationLog =
-        isOrganizationAdmin || allowMembersToStartOperationLog;
-    final canManageEquipment = isPlatformAdmin || isOrganizationAdmin;
+    final isOrganizationAdmin = MembershipRole.isOrgAdmin(membershipRole);
+    final permissions = _HomePermissions(
+      isPlatformAdmin: isPlatformAdmin,
+      isOrganizationAdmin: isOrganizationAdmin,
+      allowMembersToCreateActivities: allowMembersToCreateActivities,
+      allowMembersToViewStatistics: allowMembersToViewStatistics,
+      allowMembersToStartOperationLog: allowMembersToStartOperationLog,
+    );
 
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -581,7 +614,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ],
-          if ((isPlatformAdmin || isOrganizationAdmin) &&
+          if (permissions.canManageOrganizationSettings &&
               commandId != null &&
               commandId.isNotEmpty) ...[
             const SizedBox(height: 12),
@@ -635,7 +668,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
           if (isPlatformAdmin ||
-              (isOrganizationAdmin &&
+              (permissions.canViewOrganizationReadiness &&
                   commandId != null &&
                   commandId.isNotEmpty)) ...[
             const SizedBox(height: 16),
@@ -650,7 +683,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       currentUid: user.uid,
                       activeOrganizationId: commandId,
                       activeOrganizationName: commandName,
-                      canManageOwnSummary: isOrganizationAdmin,
+                      canManageOwnSummary: permissions.canManageOrganization,
                       isPlatformAdmin: isPlatformAdmin,
                     ),
                   ),
@@ -665,7 +698,7 @@ class _HomeScreenState extends State<HomeScreen> {
               organizationId: commandId,
               memberName: displayName,
             ),
-            if (isOrganizationAdmin) ...[
+            if (permissions.canViewOrganizationReadiness) ...[
               const SizedBox(height: 16),
               _buildReadinessSummary(organizationId: commandId),
             ],
@@ -679,7 +712,7 @@ class _HomeScreenState extends State<HomeScreen> {
               spacing: 8,
               runSpacing: 8,
               children: [
-                if (isOrganizationAdmin)
+                if (permissions.canManageMembers)
                   _buildModuleButton(
                     icon: Icons.group,
                     label: 'Liikmed',
@@ -689,7 +722,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         builder: (_) => MembersScreen(
                           organizationId: commandId,
                           currentUid: user.uid,
-                          canManageRoles: true,
+                          canManageRoles: permissions.canManageMembers,
                         ),
                       ),
                     ),
@@ -704,7 +737,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         organizationId: commandId,
                         currentUid: user.uid,
                         currentUserName: displayName,
-                        canManageCallouts: isOrganizationAdmin,
+                        canManageCallouts: permissions.canCreateCallout,
                       ),
                     ),
                   ),
@@ -721,21 +754,25 @@ class _HomeScreenState extends State<HomeScreen> {
                         membershipRole: membershipRole,
                         currentUid: user.uid,
                         currentUserName: displayName,
-                        canViewOrganizationReadiness: isOrganizationAdmin,
+                        canViewOrganizationReadiness:
+                            permissions.canViewOrganizationReadiness,
                       ),
                     ),
                   ),
                 ),
                 _buildModuleButton(
                   icon: Icons.inventory_2,
-                  label: canManageEquipment ? 'Varustus' : 'Minu varustus',
+                  label: permissions.canManageOrganizationEquipment
+                      ? 'Varustus'
+                      : 'Minu varustus',
                   onPressed: () => Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (_) => EquipmentScreen(
                         organizationId: commandId,
                         currentUid: user.uid,
-                        canManageEquipment: canManageEquipment,
+                        canManageEquipment:
+                            permissions.canManageOrganizationEquipment,
                       ),
                     ),
                   ),
@@ -750,8 +787,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         organizationId: commandId,
                         currentUid: user.uid,
                         currentUserName: displayName,
-                        canViewCalloutResponseSummary: isOrganizationAdmin,
-                        canStartOperationLog: canStartOperationLog,
+                        canViewCalloutResponseSummary:
+                            permissions.canManageOrganization,
+                        canStartOperationLog:
+                            permissions.canStartOperationLog,
                       ),
                     ),
                   ),
@@ -765,14 +804,14 @@ class _HomeScreenState extends State<HomeScreen> {
                       builder: (_) => ActivitiesScreen(
                         organizationId: commandId,
                         currentUid: user.uid,
-                        canManageActivities: canCreateActivities,
+                        canManageActivities: permissions.canCreateActivity,
                       ),
                     ),
                   ),
                 ),
                 _buildModuleButton(
                   icon: Icons.card_membership,
-                  label: isOrganizationAdmin
+                  label: permissions.canManageCertificates
                       ? 'Kvalifikatsioonid'
                       : 'Minu kvalifikatsioonid',
                   onPressed: () => Navigator.push(
@@ -781,12 +820,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       builder: (_) => CertificatesScreen(
                         organizationId: commandId,
                         currentUid: user.uid,
-                        canManageCertificates: isOrganizationAdmin,
+                        canManageCertificates:
+                            permissions.canManageCertificates,
                       ),
                     ),
                   ),
                 ),
-                if (canViewStatistics)
+                if (permissions.canViewStatistics)
                   _buildModuleButton(
                     icon: Icons.insights,
                     label: 'Statistika',
@@ -799,7 +839,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             currentUid: user.uid,
                             canViewStatistics: true,
                             canViewOrganizationCertificates:
-                                isOrganizationAdmin,
+                                permissions.canManageOrganization,
                           ),
                         ),
                       );
@@ -824,8 +864,10 @@ class _HomeScreenState extends State<HomeScreen> {
                             organizationId: commandId,
                             currentUid: user.uid,
                             currentUserName: displayName,
-                            canManageNotifications: canManageEquipment,
-                            canCreateActivities: canCreateActivities,
+                            canManageNotifications:
+                                permissions.canManageNotifications,
+                            canCreateActivities:
+                                permissions.canCreateActivity,
                           ),
                         ),
                       ),
@@ -1219,14 +1261,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 final allowMembersToStartOperationLog =
                     commandData?['allowMembersToStartOperationLog'] == true;
 
-                final canCreateActivities =
-                    isOrganizationAdmin || allowMembersToCreateActivities;
-                final canViewStatistics =
-                    isOrganizationAdmin || allowMembersToViewStatistics;
-                final canStartOperationLog =
-                    isOrganizationAdmin || allowMembersToStartOperationLog;
-                final canManageEquipment =
-                    isPlatformAdmin || isOrganizationAdmin;
+                final permissions = _HomePermissions(
+                  isPlatformAdmin: isPlatformAdmin,
+                  isOrganizationAdmin: isOrganizationAdmin,
+                  allowMembersToCreateActivities:
+                      allowMembersToCreateActivities,
+                  allowMembersToViewStatistics:
+                      allowMembersToViewStatistics,
+                  allowMembersToStartOperationLog:
+                      allowMembersToStartOperationLog,
+                );
 
                 final homeContent = Scaffold(
                   appBar: AppBar(
@@ -1237,7 +1281,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       currentCommandName: commandName,
                     ),
                   ),
-                  body: isOrganizationAdmin
+                  body: permissions.canManageOrganization
                       ? AdminHomeDashboard(
                           organizationId: selectedOrganizationId,
                           organizationName: commandName,
@@ -1249,7 +1293,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                   organizationId: selectedOrganizationId,
                                   currentUid: user.uid,
                                   currentUserName: displayName,
-                                  canManageCallouts: true,
+                                  canManageCallouts:
+                                      permissions.canCreateCallout,
                                   openCreateOnLoad: true,
                                 ),
                               ),
@@ -1262,7 +1307,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                 builder: (_) => ActivitiesScreen(
                                   organizationId: selectedOrganizationId,
                                   currentUid: user.uid,
-                                  canManageActivities: true,
+                                  canManageActivities:
+                                      permissions.canCreateActivity,
                                   openCreateOnLoad: true,
                                 ),
                               ),
@@ -1275,7 +1321,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                 builder: (_) => EquipmentScreen(
                                   organizationId: selectedOrganizationId,
                                   currentUid: user.uid,
-                                  canManageEquipment: canManageEquipment,
+                                  canManageEquipment: permissions
+                                      .canManageOrganizationEquipment,
                                   openOrganizationCreateOnLoad: true,
                                 ),
                               ),
@@ -1291,7 +1338,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                 builder: (_) => EquipmentScreen(
                                   organizationId: selectedOrganizationId,
                                   currentUid: user.uid,
-                                  canManageEquipment: canManageEquipment,
+                                  canManageEquipment: permissions
+                                      .canManageOrganizationEquipment,
                                 ),
                               ),
                             );
@@ -1353,7 +1401,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                 builder: (_) => ActivitiesScreen(
                                   organizationId: selectedOrganizationId,
                                   currentUid: user.uid,
-                                  canManageActivities: canCreateActivities,
+                                  canManageActivities:
+                                      permissions.canCreateActivity,
                                 ),
                               ),
                             );
@@ -1369,31 +1418,32 @@ class _HomeScreenState extends State<HomeScreen> {
                     membershipRole: myMembershipRole,
                     currentUid: user.uid,
                     currentUserName: displayName,
-                    canViewOrganizationReadiness: isOrganizationAdmin,
+                    canViewOrganizationReadiness:
+                        permissions.canViewOrganizationReadiness,
                   ),
                   CalloutsScreen(
                     organizationId: selectedOrganizationId,
                     currentUid: user.uid,
                     currentUserName: displayName,
-                    canManageCallouts: isOrganizationAdmin,
+                    canManageCallouts: permissions.canCreateCallout,
                   ),
                   NotificationsScreen(
                     organizationId: selectedOrganizationId,
                     currentUid: user.uid,
                     currentUserName: displayName,
-                    canManageNotifications: canManageEquipment,
-                    canCreateActivities: canCreateActivities,
+                    canManageNotifications: permissions.canManageNotifications,
+                    canCreateActivities: permissions.canCreateActivity,
                   ),
                   MenuScreen(
                     organizationId: selectedOrganizationId,
                     organizationName: commandName,
                     currentUid: user.uid,
                     currentUserName: displayName,
-                    isOrganizationAdmin: isOrganizationAdmin,
+                    isOrganizationAdmin: permissions.canManageOrganization,
                     isPlatformAdmin: isPlatformAdmin,
-                    canCreateActivities: canCreateActivities,
-                    canViewStatistics: canViewStatistics,
-                    canStartOperationLog: canStartOperationLog,
+                    canCreateActivities: permissions.canCreateActivity,
+                    canViewStatistics: permissions.canViewStatistics,
+                    canStartOperationLog: permissions.canStartOperationLog,
                     onOpenOrganizationSettings: () {
                       Navigator.push(
                         context,
