@@ -27,16 +27,7 @@ class OperationLogScreen extends StatefulWidget {
 }
 
 class _OperationLogScreenState extends State<OperationLogScreen> {
-  final _calloutService = CalloutService();
   final _operationLogService = OperationLogService();
-
-  static const _quickActions = [
-    'Teel',
-    'Kohal',
-    'Otsing algas',
-    'Kannatanu leitud',
-    'Sündmus lõpetatud',
-  ];
 
   Future<void> _updateStatus(
     OperationLogModel log,
@@ -150,29 +141,6 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
       case 'Sündmus lõpetatud':
         await _updateStatus(log, OperationLogStatus.completed);
         break;
-    }
-  }
-
-  bool _isQuickActionEnabled(OperationLogModel log, String action) {
-    if (!widget.canStartOperationLog) return false;
-
-    final normalizedStatus = OperationLogStatus.normalize(log.status);
-    if (normalizedStatus == OperationLogStatus.completed ||
-        normalizedStatus == OperationLogStatus.returnedToBase) {
-      return false;
-    }
-
-    switch (action) {
-      case 'Teel':
-        return normalizedStatus == OperationLogStatus.open;
-      case 'Kohal':
-        return normalizedStatus == OperationLogStatus.open ||
-            normalizedStatus == OperationLogStatus.enRoute;
-      case 'Sündmus lõpetatud':
-        return normalizedStatus != OperationLogStatus.completed &&
-            normalizedStatus != OperationLogStatus.returnedToBase;
-      default:
-        return true;
     }
   }
 
@@ -361,117 +329,16 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
             separatorBuilder: (_, _) => const Divider(height: 1),
             itemBuilder: (context, index) {
               final log = logs[index];
-              final subtitleParts = [
-                _operationLogStatusLabel(log.status),
-                _operationLogTypeLabel(log.type),
-                if (log.createdByName.isNotEmpty) log.createdByName,
-                if (log.timestamp != null) _shortDateTime(log.timestamp!),
-              ];
-
-              return ExpansionTile(
-                tilePadding: EdgeInsets.zero,
-                childrenPadding: const EdgeInsets.only(
-                  left: 16,
-                  right: 16,
-                  bottom: 12,
-                ),
-                title: Text(log.title),
-                subtitle: Text(
-                  log.description.isEmpty
-                      ? subtitleParts.join(' - ')
-                      : '${subtitleParts.join(' - ')}\n${log.description}',
-                ),
-                trailing: Chip(
-                  label: Text(_operationLogStatusLabel(log.status)),
-                  visualDensity: VisualDensity.compact,
-                ),
-                children: [
-                  _buildStatusFlowControls(log),
-                  if (widget.canViewCalloutResponseSummary &&
-                      log.calloutId != null)
-                    _buildCalloutResponseSummary(log.calloutId!),
-                  const Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Lõppkokkuvõte',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      log.summary.isEmpty ? 'Kokkuvõte puudub' : log.summary,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  const Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Tulemus',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      log.outcome.isEmpty ? 'Tulemus puudub' : log.outcome,
-                    ),
-                  ),
-                  if (log.status == OperationLogStatus.completed &&
-                      widget.canStartOperationLog)
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton.icon(
-                        onPressed: () => _showFinalSummaryDialog(log),
-                        icon: const Icon(Icons.summarize_outlined),
-                        label: Text(
-                          log.summary.isEmpty
-                              ? 'Lisa lõppkokkuvõte'
-                              : 'Muuda lõppkokkuvõtet',
-                        ),
-                      ),
-                    ),
-                  const Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Kiirtegevused',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Wrap(
-                      spacing: 8,
-                      runSpacing: 4,
-                      children: _quickActions.map((title) {
-                        final enabled = _isQuickActionEnabled(log, title);
-                        return ActionChip(
-                          label: Text(title),
-                          onPressed: enabled
-                              ? () => _handleQuickAction(log, title)
-                              : null,
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton.icon(
-                      onPressed: widget.canStartOperationLog
-                          ? () => _showAddManualEventDialog(log)
-                          : null,
-                      icon: const Icon(Icons.note_add_outlined),
-                      label: const Text('Lisa märge'),
-                    ),
-                  ),
-                  OperationLogTimelineView(
-                    operationLogId: log.id,
-                    organizationId: widget.organizationId,
-                  ),
-                ],
+              return _OperationLogCard(
+                log: log,
+                organizationId: widget.organizationId,
+                canStartOperationLog: widget.canStartOperationLog,
+                canViewCalloutResponseSummary:
+                    widget.canViewCalloutResponseSummary,
+                onUpdateStatus: _updateStatus,
+                onShowAddManualEventDialog: _showAddManualEventDialog,
+                onHandleQuickAction: _handleQuickAction,
+                onShowFinalSummaryDialog: _showFinalSummaryDialog,
               );
             },
           );
@@ -479,31 +346,193 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
       ),
     );
   }
+}
 
+// ---------------------------------------------------------------------------
+// Per-card widget — owns expand/collapse state and mounts the timeline stream
+// only while the card is expanded.
+// ---------------------------------------------------------------------------
 
-  String _operationLogTypeLabel(String type) {
-    switch (type) {
-      case OperationLogType.departure:
-        return 'Departure';
-      case OperationLogType.arrivalOnScene:
-        return 'Arrival on scene';
-      case OperationLogType.searchStarted:
-        return 'Search started';
-      case OperationLogType.searchEnded:
-        return 'Search ended';
-      case OperationLogType.patientRecovered:
-        return 'Patient recovered';
-      case OperationLogType.towingStarted:
-        return 'Towing started';
-      case OperationLogType.towingEnded:
-        return 'Towing ended';
-      case OperationLogType.returnedToBase:
-        return 'Returned to base';
-      case OperationLogType.other:
-        return 'Other';
-      default:
-        return 'Note';
+class _OperationLogCard extends StatefulWidget {
+  const _OperationLogCard({
+    required this.log,
+    required this.organizationId,
+    required this.canStartOperationLog,
+    required this.canViewCalloutResponseSummary,
+    required this.onUpdateStatus,
+    required this.onShowAddManualEventDialog,
+    required this.onHandleQuickAction,
+    required this.onShowFinalSummaryDialog,
+  });
+
+  final OperationLogModel log;
+  final String organizationId;
+  final bool canStartOperationLog;
+  final bool canViewCalloutResponseSummary;
+  final Future<void> Function(OperationLogModel, String) onUpdateStatus;
+  final Future<void> Function(OperationLogModel) onShowAddManualEventDialog;
+  final Future<void> Function(OperationLogModel, String) onHandleQuickAction;
+  final Future<void> Function(OperationLogModel) onShowFinalSummaryDialog;
+
+  @override
+  State<_OperationLogCard> createState() => _OperationLogCardState();
+}
+
+class _OperationLogCardState extends State<_OperationLogCard> {
+  static const _quickActions = [
+    'Teel',
+    'Kohal',
+    'Otsing algas',
+    'Kannatanu leitud',
+    'Sündmus lõpetatud',
+  ];
+
+  final _calloutService = CalloutService();
+  bool _expanded = false;
+
+  bool _isQuickActionEnabled(OperationLogModel log, String action) {
+    if (!widget.canStartOperationLog) return false;
+
+    final normalizedStatus = OperationLogStatus.normalize(log.status);
+    if (normalizedStatus == OperationLogStatus.completed ||
+        normalizedStatus == OperationLogStatus.returnedToBase) {
+      return false;
     }
+
+    switch (action) {
+      case 'Teel':
+        return normalizedStatus == OperationLogStatus.open;
+      case 'Kohal':
+        return normalizedStatus == OperationLogStatus.open ||
+            normalizedStatus == OperationLogStatus.enRoute;
+      case 'Sündmus lõpetatud':
+        return normalizedStatus != OperationLogStatus.completed &&
+            normalizedStatus != OperationLogStatus.returnedToBase;
+      default:
+        return true;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final log = widget.log;
+    final subtitleParts = [
+      _operationLogStatusLabel(log.status),
+      _operationLogTypeLabel(log.type),
+      if (log.createdByName.isNotEmpty) log.createdByName,
+      if (log.timestamp != null) _shortDateTime(log.timestamp!),
+    ];
+
+    return ExpansionTile(
+      tilePadding: EdgeInsets.zero,
+      childrenPadding: const EdgeInsets.only(
+        left: 16,
+        right: 16,
+        bottom: 12,
+      ),
+      title: Text(log.title),
+      subtitle: Text(
+        log.description.isEmpty
+            ? subtitleParts.join(' - ')
+            : '${subtitleParts.join(' - ')}\n${log.description}',
+      ),
+      trailing: Chip(
+        label: Text(_operationLogStatusLabel(log.status)),
+        visualDensity: VisualDensity.compact,
+      ),
+      onExpansionChanged: (expanded) =>
+          setState(() => _expanded = expanded),
+      children: _expanded ? _buildExpandedChildren(log) : [],
+    );
+  }
+
+  List<Widget> _buildExpandedChildren(OperationLogModel log) {
+    return [
+      _buildStatusFlowControls(log),
+      if (widget.canViewCalloutResponseSummary && log.calloutId != null)
+        _buildCalloutResponseSummary(log.calloutId!),
+      const Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          'Lõppkokkuvõte',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+      ),
+      const SizedBox(height: 4),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          log.summary.isEmpty ? 'Kokkuvõte puudub' : log.summary,
+        ),
+      ),
+      const SizedBox(height: 12),
+      const Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          'Tulemus',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+      ),
+      const SizedBox(height: 4),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          log.outcome.isEmpty ? 'Tulemus puudub' : log.outcome,
+        ),
+      ),
+      if (log.status == OperationLogStatus.completed &&
+          widget.canStartOperationLog)
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton.icon(
+            onPressed: () => widget.onShowFinalSummaryDialog(log),
+            icon: const Icon(Icons.summarize_outlined),
+            label: Text(
+              log.summary.isEmpty
+                  ? 'Lisa lõppkokkuvõte'
+                  : 'Muuda lõppkokkuvõtet',
+            ),
+          ),
+        ),
+      const Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          'Kiirtegevused',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+      ),
+      const SizedBox(height: 4),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          children: _quickActions.map((title) {
+            final enabled = _isQuickActionEnabled(log, title);
+            return ActionChip(
+              label: Text(title),
+              onPressed: enabled
+                  ? () => widget.onHandleQuickAction(log, title)
+                  : null,
+            );
+          }).toList(),
+        ),
+      ),
+      Align(
+        alignment: Alignment.centerRight,
+        child: TextButton.icon(
+          onPressed: widget.canStartOperationLog
+              ? () => widget.onShowAddManualEventDialog(log)
+              : null,
+          icon: const Icon(Icons.note_add_outlined),
+          label: const Text('Lisa märge'),
+        ),
+      ),
+      OperationLogTimelineView(
+        operationLogId: log.id,
+        organizationId: widget.organizationId,
+      ),
+    ];
   }
 
   Widget _buildStatusFlowControls(OperationLogModel log) {
@@ -526,7 +555,7 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
             ),
             if (canUpdateStatus)
               OutlinedButton.icon(
-                onPressed: () => _updateStatus(log, nextStatus),
+                onPressed: () => widget.onUpdateStatus(log, nextStatus),
                 icon: const Icon(Icons.arrow_forward),
                 label: Text(
                   'Märgi: ${_operationLogStatusLabel(nextStatus)}',
@@ -540,23 +569,6 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
         ),
       ),
     );
-  }
-
-  String? _nextOperationLogStatus(String status) {
-    switch (OperationLogStatus.normalize(status)) {
-      case OperationLogStatus.open:
-        return OperationLogStatus.enRoute;
-      case OperationLogStatus.enRoute:
-        return OperationLogStatus.onScene;
-      case OperationLogStatus.onScene:
-        return OperationLogStatus.inProgress;
-      case OperationLogStatus.inProgress:
-        return OperationLogStatus.completed;
-      case OperationLogStatus.completed:
-        return OperationLogStatus.returnedToBase;
-      default:
-        return null;
-    }
   }
 
   Widget _buildCalloutResponseSummary(String calloutId) {
@@ -631,41 +643,87 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
       child: Text('$label: ${memberLabels.isEmpty ? '-' : memberLabels}'),
     );
   }
+}
 
-  String _operationLogStatusLabel(String status) {
-    const labels = {
-      OperationLogStatus.open: 'Avatud',
-      OperationLogStatus.enRoute: 'Teel',
-      OperationLogStatus.onScene: 'Kohal',
-      OperationLogStatus.inProgress: 'Tegevuses',
-      OperationLogStatus.completed: 'Lõpetatud',
-      OperationLogStatus.returnedToBase: 'Baasis tagasi',
-    };
-    final label = labels[OperationLogStatus.normalize(status)];
-    if (label != null) return label;
+// ---------------------------------------------------------------------------
+// Top-level private helpers — pure functions, no state or context access.
+// Shared by _OperationLogScreenState (dialog labels) and _OperationLogCard.
+// ---------------------------------------------------------------------------
 
-    switch (OperationLogStatus.normalize(status)) {
-      case OperationLogStatus.departed:
-        return 'Väljasõit';
-      case OperationLogStatus.arrived:
-        return 'Kohal';
-      case OperationLogStatus.inProgress:
-        return 'Tegevus käib';
-      case OperationLogStatus.completed:
-        return 'Lõpetatud';
-      case OperationLogStatus.returnedToBase:
-        return 'Tagasi baasis';
-      default:
-        return 'Loodud';
-    }
+String _operationLogStatusLabel(String status) {
+  const labels = {
+    OperationLogStatus.open: 'Avatud',
+    OperationLogStatus.enRoute: 'Teel',
+    OperationLogStatus.onScene: 'Kohal',
+    OperationLogStatus.inProgress: 'Tegevuses',
+    OperationLogStatus.completed: 'Lõpetatud',
+    OperationLogStatus.returnedToBase: 'Baasis tagasi',
+  };
+  final label = labels[OperationLogStatus.normalize(status)];
+  if (label != null) return label;
+
+  switch (OperationLogStatus.normalize(status)) {
+    case OperationLogStatus.departed:
+      return 'Väljasõit';
+    case OperationLogStatus.arrived:
+      return 'Kohal';
+    case OperationLogStatus.inProgress:
+      return 'Tegevus käib';
+    case OperationLogStatus.completed:
+      return 'Lõpetatud';
+    case OperationLogStatus.returnedToBase:
+      return 'Tagasi baasis';
+    default:
+      return 'Loodud';
   }
+}
 
-
-  String _shortDateTime(DateTime value) {
-    String twoDigits(int number) => number.toString().padLeft(2, '0');
-
-    final date = '${twoDigits(value.day)}.${twoDigits(value.month)}';
-    final time = '${twoDigits(value.hour)}:${twoDigits(value.minute)}';
-    return '$date $time';
+String _operationLogTypeLabel(String type) {
+  switch (type) {
+    case OperationLogType.departure:
+      return 'Departure';
+    case OperationLogType.arrivalOnScene:
+      return 'Arrival on scene';
+    case OperationLogType.searchStarted:
+      return 'Search started';
+    case OperationLogType.searchEnded:
+      return 'Search ended';
+    case OperationLogType.patientRecovered:
+      return 'Patient recovered';
+    case OperationLogType.towingStarted:
+      return 'Towing started';
+    case OperationLogType.towingEnded:
+      return 'Towing ended';
+    case OperationLogType.returnedToBase:
+      return 'Returned to base';
+    case OperationLogType.other:
+      return 'Other';
+    default:
+      return 'Note';
   }
+}
+
+String? _nextOperationLogStatus(String status) {
+  switch (OperationLogStatus.normalize(status)) {
+    case OperationLogStatus.open:
+      return OperationLogStatus.enRoute;
+    case OperationLogStatus.enRoute:
+      return OperationLogStatus.onScene;
+    case OperationLogStatus.onScene:
+      return OperationLogStatus.inProgress;
+    case OperationLogStatus.inProgress:
+      return OperationLogStatus.completed;
+    case OperationLogStatus.completed:
+      return OperationLogStatus.returnedToBase;
+    default:
+      return null;
+  }
+}
+
+String _shortDateTime(DateTime value) {
+  String twoDigits(int number) => number.toString().padLeft(2, '0');
+
+  final date = '${twoDigits(value.day)}.${twoDigits(value.month)}';
+  final time = '${twoDigits(value.hour)}:${twoDigits(value.minute)}';
+  return '$date $time';
 }
