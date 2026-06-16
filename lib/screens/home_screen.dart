@@ -788,6 +788,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         currentUserName: displayName,
                         canManageCallouts: permissions.canCreateCallout,
                         canCloseCallouts: permissions.canCloseCallout,
+                        canStartOperationLog:
+                            permissions.canStartOperationLog,
                       ),
                     ),
                   ),
@@ -918,6 +920,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                 permissions.canManageNotifications,
                             canCreateActivities:
                                 permissions.canCreateActivity,
+                            canStartOperationLog:
+                                permissions.canStartOperationLog,
                           ),
                         ),
                       ),
@@ -1367,6 +1371,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                       permissions.canCreateCallout,
                                   canCloseCallouts:
                                       permissions.canCloseCallout,
+                                  canStartOperationLog:
+                                      permissions.canStartOperationLog,
                                   openCreateOnLoad: true,
                                 ),
                               ),
@@ -1499,6 +1505,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     currentUserName: displayName,
                     canManageCallouts: permissions.canCreateCallout,
                     canCloseCallouts: permissions.canCloseCallout,
+                    canStartOperationLog: permissions.canStartOperationLog,
                   ),
                   NotificationsScreen(
                     organizationId: selectedOrganizationId,
@@ -1506,6 +1513,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     currentUserName: displayName,
                     canManageNotifications: permissions.canManageNotifications,
                     canCreateActivities: permissions.canCreateActivity,
+                    canStartOperationLog: permissions.canStartOperationLog,
                   ),
                   MenuScreen(
                     organizationId: selectedOrganizationId,

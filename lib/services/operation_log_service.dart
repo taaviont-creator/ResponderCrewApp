@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../models/callout_model.dart';
 import '../models/membership_model.dart';
 import '../models/operation_log_model.dart';
 
@@ -71,6 +72,48 @@ class OperationLogService {
     });
   }
 
+  Stream<OperationLogModel?> streamLogForCallout({
+    required String calloutId,
+    required String organizationId,
+  }) {
+    _requireOrganizationId(organizationId);
+    return _operationLogs
+        .where('calloutId', isEqualTo: calloutId)
+        .where(
+          Filter.or(
+            Filter('organizationId', isEqualTo: organizationId),
+            // TODO: Remove commandId fallback after operation log migration.
+            Filter('commandId', isEqualTo: organizationId),
+          ),
+        )
+        .snapshots()
+        .map((snapshot) => _firstLogForOrganization(
+              snapshot.docs.map(OperationLogModel.fromFirestore).toList(),
+              organizationId,
+            ));
+  }
+
+  Future<OperationLogModel?> getLogForCallout({
+    required String calloutId,
+    required String organizationId,
+  }) async {
+    _requireOrganizationId(organizationId);
+    final snapshot = await _operationLogs
+        .where('calloutId', isEqualTo: calloutId)
+        .where(
+          Filter.or(
+            Filter('organizationId', isEqualTo: organizationId),
+            // TODO: Remove commandId fallback after operation log migration.
+            Filter('commandId', isEqualTo: organizationId),
+          ),
+        )
+        .get();
+    return _firstLogForOrganization(
+      snapshot.docs.map(OperationLogModel.fromFirestore).toList(),
+      organizationId,
+    );
+  }
+
   Future<void> addLog({
     required String organizationId,
     required String createdBy,
@@ -127,6 +170,89 @@ class OperationLogService {
     });
 
     await batch.commit();
+  }
+
+  Future<OperationLogModel> startFromCallout({
+    required CalloutModel callout,
+    required String organizationId,
+    required String createdBy,
+    required String createdByName,
+  }) async {
+    _requireOrganizationId(organizationId);
+    await _ensureCanStartOperationLog(
+      organizationId: organizationId,
+      createdBy: createdBy,
+    );
+
+    final calloutOrganizationId = callout.organizationId.isNotEmpty
+        ? callout.organizationId
+        : callout.commandId;
+    if (calloutOrganizationId != organizationId) {
+      throw Exception('Väljakutse kuulub teise organisatsiooni');
+    }
+
+    final existing = await getLogForCallout(
+      calloutId: callout.id,
+      organizationId: organizationId,
+    );
+    if (existing != null) return existing;
+
+    final doc = _operationLogs.doc('callout_${callout.id}_created');
+    final deterministicSnapshot = await doc.get();
+    if (deterministicSnapshot.exists) {
+      final deterministicLog =
+          OperationLogModel.fromFirestore(deterministicSnapshot);
+      final logOrganizationId = deterministicLog.organizationId.isNotEmpty
+          ? deterministicLog.organizationId
+          : deterministicLog.commandId;
+      if (logOrganizationId == organizationId) return deterministicLog;
+      throw Exception('Op-logi kuulub teise organisatsiooni');
+    }
+
+    final createdEvent = doc.collection('events').doc('created');
+    final title = callout.title.trim().isEmpty
+        ? 'Väljakutse põhjal loodud op-logi'
+        : 'Väljakutse: ${callout.title.trim()}';
+    final descriptionParts = [
+      if (callout.location.trim().isNotEmpty) callout.location.trim(),
+      if (callout.description.trim().isNotEmpty) callout.description.trim(),
+    ];
+    final description = descriptionParts.join(' - ');
+
+    final batch = _firestore.batch();
+    batch.set(doc, {
+      'id': doc.id,
+      'organizationId': organizationId,
+      // TODO: Remove commandId after all operation log reads use organizationId.
+      'commandId': organizationId,
+      'createdBy': createdBy,
+      'createdByName': createdByName.trim(),
+      'type': OperationLogType.note,
+      'title': title,
+      'description': description,
+      'status': OperationLogStatus.created,
+      'calloutId': callout.id,
+      'timestamp': FieldValue.serverTimestamp(),
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    batch.set(createdEvent, {
+      'id': createdEvent.id,
+      'organizationId': organizationId,
+      'commandId': organizationId,
+      'operationLogId': doc.id,
+      'type': OperationLogEventType.statusChange,
+      'status': OperationLogStatus.created,
+      'title': _operationLogStatusLabel(OperationLogStatus.created),
+      'description': '',
+      'createdBy': createdBy,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
+    await batch.commit();
+
+    final createdSnapshot = await doc.get();
+    return OperationLogModel.fromFirestore(createdSnapshot);
   }
 
   Future<void> updateLogStatus({
@@ -296,6 +422,27 @@ class OperationLogService {
     }
   }
 
+  OperationLogModel? _firstLogForOrganization(
+    List<OperationLogModel> logs,
+    String organizationId,
+  ) {
+    final organizationLogs = logs.where((log) {
+      final logOrganizationId =
+          log.organizationId.isNotEmpty ? log.organizationId : log.commandId;
+      return logOrganizationId == organizationId;
+    }).toList();
+    if (organizationLogs.isEmpty) return null;
+
+    organizationLogs.sort((a, b) {
+      final aTime =
+          a.timestamp ?? a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final bTime =
+          b.timestamp ?? b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return aTime.compareTo(bTime);
+    });
+    return organizationLogs.first;
+  }
+
   Future<void> _ensureCanStartOperationLog({
     required String organizationId,
     required String createdBy,
@@ -303,6 +450,13 @@ class OperationLogService {
     final currentUser = _auth.currentUser;
     if (currentUser == null || currentUser.uid != createdBy) {
       throw Exception('Sul puudub õigus seda toimingut teha');
+    }
+
+    final userSnapshot =
+        await _firestore.collection('users').doc(currentUser.uid).get();
+    final systemRole = userSnapshot.data()?['systemRole'];
+    if (systemRole == 'platformAdmin' || systemRole == 'platformOwner') {
+      return;
     }
 
     final membershipSnapshot = await _firestore

@@ -15,6 +15,7 @@ class CalloutsScreen extends StatefulWidget {
     required this.currentUserName,
     required this.canManageCallouts,
     required this.canCloseCallouts,
+    required this.canStartOperationLog,
     this.openCreateOnLoad = false,
   });
 
@@ -23,6 +24,7 @@ class CalloutsScreen extends StatefulWidget {
   final String currentUserName;
   final bool canManageCallouts;
   final bool canCloseCallouts;
+  final bool canStartOperationLog;
   final bool openCreateOnLoad;
 
   @override
@@ -139,6 +141,7 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
           currentUserName: widget.currentUserName,
           canManageCallouts: widget.canManageCallouts,
           canCloseCallouts: widget.canCloseCallouts,
+          canStartOperationLog: widget.canStartOperationLog,
         ),
       ),
     );

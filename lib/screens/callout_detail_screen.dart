@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../models/callout_model.dart';
+import '../models/operation_log_model.dart';
 import '../services/callout_service.dart';
+import '../services/operation_log_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_section_card.dart';
 import '../widgets/primary_action_button.dart';
 import '../widgets/status_badge.dart';
+import 'operation_log_screen.dart';
 
 class CalloutDetailScreen extends StatefulWidget {
   const CalloutDetailScreen({
@@ -16,6 +19,7 @@ class CalloutDetailScreen extends StatefulWidget {
     required this.currentUserName,
     required this.canManageCallouts,
     required this.canCloseCallouts,
+    required this.canStartOperationLog,
   });
 
   final CalloutModel callout;
@@ -24,6 +28,7 @@ class CalloutDetailScreen extends StatefulWidget {
   final String currentUserName;
   final bool canManageCallouts;
   final bool canCloseCallouts;
+  final bool canStartOperationLog;
 
   @override
   State<CalloutDetailScreen> createState() => _CalloutDetailScreenState();
@@ -31,8 +36,10 @@ class CalloutDetailScreen extends StatefulWidget {
 
 class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
   final _calloutService = CalloutService();
+  final _operationLogService = OperationLogService();
   bool _isSavingResponse = false;
   bool _isUpdatingStatus = false;
+  bool _isOpeningOperationLog = false;
 
   bool get _isActive => widget.callout.status == CalloutStatus.active;
 
@@ -188,6 +195,51 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
     }
   }
 
+  Future<void> _openOrStartOperationLog(OperationLogModel? existingLog) async {
+    if (_isOpeningOperationLog) return;
+
+    if (existingLog == null && !widget.canStartOperationLog) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sul puudub õigus seda toimingut teha')),
+      );
+      return;
+    }
+
+    setState(() => _isOpeningOperationLog = true);
+    try {
+      final log = existingLog ??
+          await _operationLogService.startFromCallout(
+            callout: widget.callout,
+            organizationId: widget.organizationId,
+            createdBy: widget.currentUid,
+            createdByName: widget.currentUserName,
+          );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Op-logi avatud: ${log.title}')),
+      );
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => OperationLogScreen(
+            organizationId: widget.organizationId,
+            currentUid: widget.currentUid,
+            currentUserName: widget.currentUserName,
+            canViewCalloutResponseSummary: widget.canManageCallouts,
+            canStartOperationLog: widget.canStartOperationLog,
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Op-logi avamine ebaõnnestus: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _isOpeningOperationLog = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -214,6 +266,8 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
           const SizedBox(height: AppTheme.itemSpacing),
           _buildDescriptionCard(),
           const SizedBox(height: AppTheme.itemSpacing),
+          _buildOperationLogAction(),
+          const SizedBox(height: AppTheme.itemSpacing),
           _buildResponseSummary(),
           if (_isActive) ...[
             const SizedBox(height: AppTheme.sectionSpacing),
@@ -232,6 +286,34 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
           const SizedBox(height: AppTheme.sectionSpacing),
         ],
       ),
+    );
+  }
+
+  Widget _buildOperationLogAction() {
+    return StreamBuilder<OperationLogModel?>(
+      stream: _operationLogService.streamLogForCallout(
+        calloutId: widget.callout.id,
+        organizationId: widget.organizationId,
+      ),
+      builder: (context, snapshot) {
+        final existingLog = snapshot.data;
+        final canOpenOrStart = existingLog != null || widget.canStartOperationLog;
+        if (!canOpenOrStart) return const SizedBox.shrink();
+
+        return AppSectionCard(
+          title: 'Operatsioonilogi',
+          leading: const Icon(Icons.assignment_outlined),
+          child: PrimaryActionButton(
+            label: existingLog == null ? 'Alusta op-logi' : 'Ava op-logi',
+            icon: existingLog == null
+                ? Icons.playlist_add_outlined
+                : Icons.open_in_new,
+            style: PrimaryActionButtonStyle.secondary,
+            isLoading: _isOpeningOperationLog,
+            onPressed: () => _openOrStartOperationLog(existingLog),
+          ),
+        );
+      },
     );
   }
 

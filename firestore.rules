@@ -520,6 +520,7 @@ service cloud.firestore {
         request.resource.data.createdBy == request.auth.uid &&
         isValidOperationLogData(request.resource.data) &&
         (
+          isPlatformAdmin() ||
           isActiveOrgAdmin(organizationId) ||
           (
             isActiveMember(organizationId) &&
@@ -633,7 +634,10 @@ service cloud.firestore {
               getAfter(logPath).data.outcome
           )
         ) &&
-        isActiveMember(organizationIdFromData(request.resource.data));
+        (
+          isPlatformAdmin() ||
+          isActiveMember(organizationIdFromData(request.resource.data))
+        );
     }
 
     function isValidActivityType(type) {
@@ -1360,14 +1364,20 @@ service cloud.firestore {
 
     match /operationLogs/{logId} {
       allow read: if signedIn() &&
-        isActiveMember(organizationIdFromData(resource.data));
+        (
+          isPlatformAdmin() ||
+          isActiveMember(organizationIdFromData(resource.data))
+        );
       allow create: if isOperationLogCreate(logId);
       allow update: if isOperationLogStatusUpdate(logId) ||
         isOperationLogSummaryUpdate(logId);
 
       match /events/{eventId} {
         allow read: if signedIn() &&
-          isActiveMember(organizationIdFromData(resource.data));
+          (
+            isPlatformAdmin() ||
+            isActiveMember(organizationIdFromData(resource.data))
+          );
         allow create: if isOperationLogEventCreate(logId, eventId);
       }
     }
