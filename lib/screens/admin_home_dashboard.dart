@@ -4,13 +4,12 @@ import 'package:flutter/material.dart';
 import '../models/availability_model.dart';
 import '../models/callout_model.dart';
 import '../models/equipment_model.dart';
-import '../models/notification_model.dart';
 import '../models/platform_readiness_model.dart';
 import '../services/availability_service.dart';
 import '../services/callout_service.dart';
 import '../services/equipment_service.dart';
 import '../services/membership_service.dart';
-import '../services/notification_service.dart';
+import '../widgets/latest_notifications_card.dart';
 import '../services/platform_readiness_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_section_card.dart';
@@ -45,7 +44,6 @@ class AdminHomeDashboard extends StatelessWidget {
   final CalloutService _calloutService = CalloutService();
   final EquipmentService _equipmentService = EquipmentService();
   final MembershipService _membershipService = MembershipService();
-  final NotificationService _notificationService = NotificationService();
   final PlatformReadinessService _readinessService =
       PlatformReadinessService();
 
@@ -377,41 +375,10 @@ class AdminHomeDashboard extends StatelessWidget {
   }
 
   Widget _buildLatestNotifications() {
-    return StreamBuilder<List<NotificationModel>>(
-      stream: _notificationService.streamOrganizationNotifications(
-        organizationId: organizationId,
-      ),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting &&
-            !snapshot.hasData) {
-          return const _PreviewLoadingCard();
-        }
-
-        final notifications =
-            (snapshot.data ?? const <NotificationModel>[]).take(2).toList();
-        if (notifications.isEmpty) {
-          return const _EmptyPreviewCard(
-            icon: Icons.notifications_none,
-            message: 'Uusi teavitusi ei ole.',
-          );
-        }
-
-        return AppSectionCard(
-          padding: EdgeInsets.zero,
-          child: Column(
-            children: [
-              for (var index = 0; index < notifications.length; index++) ...[
-                _NotificationTile(
-                  notification: notifications[index],
-                  onTap: onOpenNotifications,
-                ),
-                if (index < notifications.length - 1)
-                  const Divider(height: 1),
-              ],
-            ],
-          ),
-        );
-      },
+    return LatestNotificationsCard(
+      organizationId: organizationId,
+      onTap: onOpenNotifications,
+      usePriorityIcons: false,
     );
   }
 }
@@ -607,59 +574,6 @@ class _EquipmentAlertTile extends StatelessWidget {
               type: isCritical
                   ? StatusBadgeType.critical
                   : StatusBadgeType.equipmentWarning,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _NotificationTile extends StatelessWidget {
-  const _NotificationTile({
-    required this.notification,
-    required this.onTap,
-  });
-
-  final NotificationModel notification;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Icon(
-              Icons.notifications_outlined,
-              color: AppColors.navy,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    notification.title,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  if (notification.message.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      notification.message,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const Icon(
-              Icons.chevron_right,
-              color: AppColors.textSecondary,
             ),
           ],
         ),

@@ -3,11 +3,10 @@ import 'package:flutter/material.dart';
 import '../models/activity_model.dart';
 import '../models/availability_model.dart';
 import '../models/callout_model.dart';
-import '../models/notification_model.dart';
 import '../services/activity_service.dart';
 import '../services/availability_service.dart';
 import '../services/callout_service.dart';
-import '../services/notification_service.dart';
+import '../widgets/latest_notifications_card.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_section_card.dart';
 import '../widgets/status_badge.dart';
@@ -40,7 +39,6 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
   final _activityService = ActivityService();
   final _availabilityService = AvailabilityService();
   final _calloutService = CalloutService();
-  final _notificationService = NotificationService();
   var _isUpdatingAvailability = false;
 
   Future<void> _updateAvailability(
@@ -483,44 +481,10 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
   }
 
   Widget _buildLatestNotifications() {
-    return StreamBuilder<List<NotificationModel>>(
-      stream: _notificationService.streamOrganizationNotifications(
-        organizationId: widget.organizationId,
-      ),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting &&
-            !snapshot.hasData) {
-          return const _PreviewLoadingCard();
-        }
-
-        final notifications =
-            (snapshot.data ?? const <NotificationModel>[]).take(2).toList();
-        if (notifications.isEmpty) {
-          return const _EmptyPreviewCard(
-            icon: Icons.notifications_none,
-            message: 'Uusi teavitusi ei ole.',
-          );
-        }
-
-        return AppSectionCard(
-          padding: EdgeInsets.zero,
-          child: Material(
-            color: Colors.transparent,
-            child: Column(
-              children: [
-                for (var index = 0; index < notifications.length; index++) ...[
-                  _NotificationPreviewTile(
-                    notification: notifications[index],
-                    onTap: widget.onOpenNotifications,
-                  ),
-                  if (index < notifications.length - 1)
-                    const Divider(height: 1),
-                ],
-              ],
-            ),
-          ),
-        );
-      },
+    return LatestNotificationsCard(
+      organizationId: widget.organizationId,
+      onTap: widget.onOpenNotifications,
+      usePriorityIcons: true,
     );
   }
 
@@ -636,68 +600,6 @@ class _AvailabilityButton extends StatelessWidget {
         ),
         icon: Icon(icon),
         label: Text(label),
-      ),
-    );
-  }
-}
-
-class _NotificationPreviewTile extends StatelessWidget {
-  const _NotificationPreviewTile({
-    required this.notification,
-    required this.onTap,
-  });
-
-  final NotificationModel notification;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(
-              notification.priority == NotificationPriority.critical ||
-                      notification.priority == NotificationPriority.high
-                  ? Icons.warning_amber_rounded
-                  : Icons.circle,
-              size: notification.priority == NotificationPriority.normal
-                  ? 10
-                  : 22,
-              color: notification.priority == NotificationPriority.critical
-                  ? AppColors.critical
-                  : AppColors.navy,
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    notification.title,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  if (notification.message.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      notification.message,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            const Icon(
-              Icons.chevron_right,
-              color: AppColors.textSecondary,
-            ),
-          ],
-        ),
       ),
     );
   }
