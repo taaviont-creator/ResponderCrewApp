@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../models/notification_model.dart';
 import '../services/notification_service.dart';
+import '../theme/app_theme.dart';
+import '../widgets/app_section_card.dart';
+import '../widgets/status_badge.dart';
 import 'activities_screen.dart';
 import 'availability_screen.dart';
 import 'callouts_screen.dart';
@@ -11,7 +14,9 @@ import 'equipment_screen.dart';
 enum _NotificationFilter {
   all,
   unread,
-  highPriority,
+  callouts,
+  equipment,
+  readiness,
 }
 
 class NotificationsScreen extends StatefulWidget {
@@ -66,7 +71,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   TextField(
                     controller: messageController,
                     decoration: const InputDecoration(
-                      labelText: 'Sonum',
+                      labelText: 'Sõnum',
                     ),
                     maxLines: 3,
                   ),
@@ -74,7 +79,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   DropdownButtonFormField<String>(
                     initialValue: selectedType,
                     decoration: const InputDecoration(
-                      labelText: 'Tuup',
+                      labelText: 'Tüüp',
                     ),
                     items: NotificationType.values.map((type) {
                       return DropdownMenuItem<String>(
@@ -141,7 +146,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Teavituse lisamine ebaonnestus: $e')),
+        SnackBar(content: Text('Teavituse lisamine ebaõnnestus: $e')),
       );
     }
   }
@@ -156,12 +161,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Teavitus margitud loetuks')),
+        const SnackBar(content: Text('Teavitus märgitud loetuks')),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Loetuks markimine ebaonnestus: $e')),
+        SnackBar(content: Text('Loetuks märkimine ebaõnnestus: $e')),
       );
     }
   }
@@ -322,13 +327,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
           if (snapshot.hasError) {
             return Center(
-              child: Text('Teavituste laadimine ebaonnestus: ${snapshot.error}'),
+              child: Text('Teavituste laadimine ebaõnnestus: ${snapshot.error}'),
             );
           }
 
           final notifications = snapshot.data ?? const <NotificationModel>[];
           if (notifications.isEmpty) {
-            return const Center(child: Text('Teavitusi ei ole lisatud'));
+            return _buildEmptyState('Teavitusi ei ole lisatud');
           }
 
           return StreamBuilder<Set<String>>(
@@ -362,59 +367,40 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 switch (_selectedFilter) {
                   case _NotificationFilter.unread:
                     return !readNotificationIds.contains(notification.id);
-                  case _NotificationFilter.highPriority:
-                    return notification.priority ==
-                            NotificationPriority.high ||
-                        notification.priority ==
-                            NotificationPriority.critical;
+                  case _NotificationFilter.callouts:
+                    return notification.type == NotificationType.callout ||
+                        notification.relatedType == NotificationType.callout;
+                  case _NotificationFilter.equipment:
+                    return notification.type == NotificationType.equipment ||
+                        notification.relatedType == NotificationType.equipment;
+                  case _NotificationFilter.readiness:
+                    return notification.type == NotificationType.availability ||
+                        notification.type == NotificationType.minimumCrew ||
+                        notification.type == NotificationType.readiness ||
+                        notification.relatedType == 'availability' ||
+                        notification.relatedType == 'organizationReadiness';
                   case _NotificationFilter.all:
                     return true;
                 }
               }).toList(growable: false);
 
-              return ListView.separated(
-                padding: const EdgeInsets.all(16),
-                itemCount: filteredNotifications.length +
-                    (unreadCount > 0 ? 2 : 1) +
-                    (filteredNotifications.isEmpty ? 1 : 0),
-                separatorBuilder: (_, _) => const Divider(height: 1),
-                itemBuilder: (context, index) {
-                  if (index == 0) {
-                    return Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        ChoiceChip(
-                          label: const Text('Kõik'),
-                          selected:
-                              _selectedFilter == _NotificationFilter.all,
-                          onSelected: (_) => setState(
-                            () => _selectedFilter = _NotificationFilter.all,
-                          ),
-                        ),
-                        ChoiceChip(
-                          label: const Text('Lugemata'),
-                          selected:
-                              _selectedFilter == _NotificationFilter.unread,
-                          onSelected: (_) => setState(
-                            () => _selectedFilter = _NotificationFilter.unread,
-                          ),
-                        ),
-                        ChoiceChip(
-                          label: const Text('Kõrge tähtsusega'),
-                          selected: _selectedFilter ==
-                              _NotificationFilter.highPriority,
-                          onSelected: (_) => setState(
-                            () => _selectedFilter =
-                                _NotificationFilter.highPriority,
-                          ),
-                        ),
-                      ],
-                    );
-                  }
-
-                  if (unreadCount > 0 && index == 1) {
-                    return Align(
+              return ListView(
+                padding: const EdgeInsets.fromLTRB(
+                  AppTheme.screenPadding,
+                  AppTheme.screenPadding,
+                  AppTheme.screenPadding,
+                  96,
+                ),
+                children: [
+                  _buildNotificationSummary(
+                    totalCount: notifications.length,
+                    unreadCount: unreadCount,
+                  ),
+                  const SizedBox(height: AppTheme.itemSpacing),
+                  _buildFilterChips(unreadCount: unreadCount),
+                  if (unreadCount > 0) ...[
+                    const SizedBox(height: 8),
+                    Align(
                       alignment: Alignment.centerRight,
                       child: TextButton.icon(
                         onPressed: () => _markAllAsRead(
@@ -424,80 +410,371 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         icon: const Icon(Icons.done_all),
                         label: const Text('Märgi kõik loetuks'),
                       ),
-                    );
-                  }
-
-                  if (filteredNotifications.isEmpty) {
-                    return const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 32),
-                      child: Center(
-                        child: Text('Selle filtriga teavitusi ei ole'),
-                      ),
-                    );
-                  }
-
-                  final notificationIndex =
-                      index - (unreadCount > 0 ? 2 : 1);
-                  final notification =
-                      filteredNotifications[notificationIndex];
-                  final isRead =
-                      readNotificationIds.contains(notification.id);
-                  final isHighPriority =
-                      notification.priority == NotificationPriority.high ||
-                          notification.priority ==
-                              NotificationPriority.critical;
-                  final subtitleParts = [
-                    isRead ? 'Loetud' : 'Lugemata',
-                    _notificationTypeLabel(notification.type),
-                    _notificationPriorityLabel(notification.priority),
-                    if (notification.createdAt != null)
-                      _shortDateTime(notification.createdAt!),
-                  ];
-
-                  return ListTile(
-                    onTap: () => _openNotification(
-                      notification: notification,
-                      isRead: isRead,
                     ),
-                    tileColor: isRead
-                        ? null
-                        : Theme.of(context)
-                            .colorScheme
-                            .primaryContainer
-                            .withValues(alpha: 0.35),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 8),
-                    leading: Icon(
-                      isRead
-                          ? Icons.notifications_none
-                          : Icons.notifications_active,
-                      color: isHighPriority
-                          ? Theme.of(context).colorScheme.error
-                          : null,
-                    ),
-                    title: Text(
-                      notification.title,
-                      style: TextStyle(
-                        fontWeight:
-                            isRead ? FontWeight.normal : FontWeight.bold,
-                      ),
-                    ),
-                    subtitle: Text(
-                      '${subtitleParts.join(' - ')}\n${notification.message}',
-                    ),
-                    trailing: isRead
-                        ? const Text('Loetud')
-                        : TextButton(
-                            onPressed: () => _markAsRead(notification),
-                            child: const Text('Märgi loetuks'),
-                          ),
-                  );
-                },
+                  ],
+                  const SizedBox(height: AppTheme.itemSpacing),
+                  if (filteredNotifications.isEmpty)
+                    _buildEmptyCard('Selle filtriga teavitusi ei ole')
+                  else
+                    ...filteredNotifications.map((notification) {
+                      final isRead =
+                          readNotificationIds.contains(notification.id);
+                      return Padding(
+                        padding: const EdgeInsets.only(
+                          bottom: AppTheme.itemSpacing,
+                        ),
+                        child: _buildNotificationCard(
+                          notification: notification,
+                          isRead: isRead,
+                        ),
+                      );
+                    }),
+                ],
               );
             },
           );
         },
       ),
     );
+  }
+
+  Widget _buildNotificationSummary({
+    required int totalCount,
+    required int unreadCount,
+  }) {
+    return AppSectionCard(
+      accentColor: unreadCount > 0 ? AppColors.deepSeaBlue : AppColors.ready,
+      leading: const Icon(Icons.notifications_outlined),
+      title: 'Teavitused',
+      subtitle: unreadCount > 0
+          ? '$unreadCount lugemata teavitust'
+          : 'Kõik teavitused on loetud',
+      trailing: StatusBadge(
+        label: '$totalCount kokku',
+        type: StatusBadgeType.neutral,
+      ),
+      child: Text(
+        'Olulised väljakutsed, valmisoleku muutused ja varustuse teated ühes vaates.',
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: AppColors.textSecondary,
+            ),
+      ),
+    );
+  }
+
+  Widget _buildFilterChips({required int unreadCount}) {
+    final filters = [
+      (_NotificationFilter.unread, 'Lugemata', unreadCount),
+      (_NotificationFilter.all, 'Kõik', null),
+      (_NotificationFilter.callouts, 'Väljakutsed', null),
+      (_NotificationFilter.equipment, 'Varustus', null),
+      (_NotificationFilter.readiness, 'Valmisolek', null),
+    ];
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: filters.map((filter) {
+          final value = filter.$1;
+          final label = filter.$3 == null
+              ? filter.$2
+              : '${filter.$2} ${filter.$3}';
+          final selected = _selectedFilter == value;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ChoiceChip(
+              label: Text(label),
+              selected: selected,
+              onSelected: (_) => setState(() => _selectedFilter = value),
+              selectedColor: AppColors.navy,
+              labelStyle: TextStyle(
+                color: selected ? Colors.white : AppColors.textPrimary,
+                fontWeight: FontWeight.w700,
+              ),
+              backgroundColor: AppColors.surfaceBlueStrong,
+              side: BorderSide(
+                color: selected ? AppColors.navy : AppColors.border,
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildNotificationCard({
+    required NotificationModel notification,
+    required bool isRead,
+  }) {
+    final isUrgent = notification.priority == NotificationPriority.high ||
+        notification.priority == NotificationPriority.critical ||
+        notification.type == NotificationType.callout;
+    final organizationId = notification.organizationId.isNotEmpty
+        ? notification.organizationId
+        : notification.commandId;
+
+    return Semantics(
+      button: true,
+      label: 'Ava teavitus ${notification.title}',
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+        onTap: () => _openNotification(
+          notification: notification,
+          isRead: isRead,
+        ),
+        child: AppSectionCard(
+          accentColor: _notificationAccentColor(notification, isRead),
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildNotificationIcon(notification),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            notification.title.isEmpty
+                                ? _notificationCategoryLabel(notification)
+                                : notification.title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
+                                  fontWeight: isRead
+                                      ? FontWeight.w700
+                                      : FontWeight.w800,
+                                ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            if (!isRead)
+                              Container(
+                                width: 10,
+                                height: 10,
+                                decoration: const BoxDecoration(
+                                  color: AppColors.activeCallout,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            if (notification.createdAt != null) ...[
+                              const SizedBox(height: 6),
+                              Text(
+                                _shortDateTime(notification.createdAt!),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .labelMedium
+                                    ?.copyWith(
+                                      color: AppColors.textSecondary,
+                                    ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      notification.message,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        StatusBadge(
+                          label: _notificationCategoryLabel(notification),
+                          type: _notificationBadgeType(notification),
+                          icon: _notificationTypeIcon(notification.type),
+                        ),
+                        StatusBadge(
+                          label: _notificationPriorityLabel(
+                            notification.priority,
+                          ),
+                          type: _notificationPriorityBadgeType(
+                            notification.priority,
+                          ),
+                        ),
+                        StatusBadge(
+                          label: isRead ? 'Loetud' : 'Lugemata',
+                          type: isRead
+                              ? StatusBadgeType.neutral
+                              : StatusBadgeType.activeCallout,
+                          icon: isRead
+                              ? Icons.mark_email_read_outlined
+                              : Icons.mark_email_unread_outlined,
+                        ),
+                        if (organizationId.isNotEmpty)
+                          StatusBadge(
+                            label: 'Org $organizationId',
+                            type: StatusBadgeType.neutral,
+                            icon: Icons.apartment_outlined,
+                          ),
+                      ],
+                    ),
+                    if (!isRead) ...[
+                      const SizedBox(height: 10),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton.icon(
+                          onPressed: () => _markAsRead(notification),
+                          icon: const Icon(Icons.done),
+                          label: const Text('Märgi loetuks'),
+                        ),
+                      ),
+                    ],
+                    if (isUrgent && !isRead) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Oluline teavitus',
+                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                              color: AppColors.activeCallout,
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNotificationIcon(NotificationModel notification) {
+    final color = _notificationAccentColor(notification, false);
+    return Container(
+      width: 52,
+      height: 52,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(
+        _notificationTypeIcon(notification.type),
+        color: color,
+        size: 26,
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(String message) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppTheme.screenPadding),
+        child: _buildEmptyCard(message),
+      ),
+    );
+  }
+
+  Widget _buildEmptyCard(String message) {
+    return AppSectionCard(
+      leading: const Icon(Icons.notifications_none),
+      title: 'Teavitused',
+      child: Text(message),
+    );
+  }
+
+  Color _notificationAccentColor(
+    NotificationModel notification,
+    bool isRead,
+  ) {
+    if (isRead) return AppColors.border;
+    if (notification.priority == NotificationPriority.critical) {
+      return AppColors.critical;
+    }
+    if (notification.type == NotificationType.callout ||
+        notification.priority == NotificationPriority.high) {
+      return AppColors.activeCallout;
+    }
+    if (notification.type == NotificationType.equipment) {
+      return AppColors.equipmentWarning;
+    }
+    if (notification.type == NotificationType.availability ||
+        notification.type == NotificationType.minimumCrew ||
+        notification.type == NotificationType.readiness) {
+      return AppColors.ready;
+    }
+    return AppColors.deepSeaBlue;
+  }
+
+  StatusBadgeType _notificationBadgeType(NotificationModel notification) {
+    switch (notification.type) {
+      case NotificationType.callout:
+        return StatusBadgeType.activeCallout;
+      case NotificationType.equipment:
+        return StatusBadgeType.equipmentWarning;
+      case NotificationType.availability:
+      case NotificationType.minimumCrew:
+      case NotificationType.readiness:
+        return StatusBadgeType.ready;
+      case NotificationType.certificate:
+        return StatusBadgeType.delayed;
+      default:
+        return StatusBadgeType.neutral;
+    }
+  }
+
+  StatusBadgeType _notificationPriorityBadgeType(String priority) {
+    switch (priority) {
+      case NotificationPriority.critical:
+        return StatusBadgeType.critical;
+      case NotificationPriority.high:
+        return StatusBadgeType.activeCallout;
+      case NotificationPriority.low:
+        return StatusBadgeType.neutral;
+      default:
+        return StatusBadgeType.ready;
+    }
+  }
+
+  IconData _notificationTypeIcon(String type) {
+    switch (type) {
+      case NotificationType.callout:
+        return Icons.campaign_outlined;
+      case NotificationType.equipment:
+        return Icons.construction_outlined;
+      case NotificationType.availability:
+      case NotificationType.readiness:
+        return Icons.verified_user_outlined;
+      case NotificationType.minimumCrew:
+        return Icons.groups_outlined;
+      case NotificationType.activity:
+        return Icons.event_outlined;
+      case NotificationType.certificate:
+        return Icons.card_membership_outlined;
+      default:
+        return Icons.notifications_outlined;
+    }
+  }
+
+  String _notificationCategoryLabel(NotificationModel notification) {
+    if (notification.type == NotificationType.activity) {
+      final text = '${notification.title} ${notification.message}'
+          .toLowerCase();
+      if (text.contains('koolitus') || text.contains('treening')) {
+        return 'Koolitus';
+      }
+    }
+    return _notificationTypeLabel(notification.type);
   }
 
   String _notificationTypeLabel(String type) {
@@ -511,9 +788,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       case NotificationType.equipment:
         return 'Varustus';
       case NotificationType.availability:
-        return 'Valvesolek';
+        return 'Valmisolek';
       case NotificationType.minimumCrew:
-        return 'Miinimummeeskond';
+        return 'Miinimumkoosseis';
       case NotificationType.readiness:
         return 'Valmisolek';
       case NotificationType.activity:
@@ -521,7 +798,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       case NotificationType.operation:
         return 'Operatsioon';
       case NotificationType.callout:
-        return 'Valjakutse';
+        return 'Väljakutse';
       case NotificationType.certificate:
         return 'Sertifikaat';
       case NotificationType.other:
@@ -545,11 +822,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   String _shortDateTime(DateTime value) {
-    final date = '${value.year.toString().padLeft(4, '0')}-'
-        '${value.month.toString().padLeft(2, '0')}-'
-        '${value.day.toString().padLeft(2, '0')}';
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final date = DateTime(value.year, value.month, value.day);
     final time = '${value.hour.toString().padLeft(2, '0')}:'
         '${value.minute.toString().padLeft(2, '0')}';
-    return '$date $time';
+
+    if (date == today) return time;
+    if (date == today.subtract(const Duration(days: 1))) return 'Eile';
+    return '${value.day.toString().padLeft(2, '0')}.'
+        '${value.month.toString().padLeft(2, '0')}';
   }
 }
