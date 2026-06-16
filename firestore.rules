@@ -645,10 +645,7 @@ service cloud.firestore {
               getAfter(logPath).data.outcome
           )
         ) &&
-        (
-          isPlatformAdmin() ||
-          isActiveMember(organizationIdFromData(request.resource.data))
-        );
+        canManageOperationLog(organizationIdFromData(request.resource.data));
     }
 
     function isValidActivityType(type) {

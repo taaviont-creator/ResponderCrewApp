@@ -316,6 +316,10 @@ class OperationLogService {
     String type = OperationLogEventType.manualNote,
   }) async {
     _requireOrganizationId(organizationId);
+    await _ensureCanStartOperationLog(
+      organizationId: organizationId,
+      createdBy: createdBy,
+    );
     final trimmedTitle = title.trim();
     if (trimmedTitle.isEmpty) {
       throw Exception('Operation log event title is required');

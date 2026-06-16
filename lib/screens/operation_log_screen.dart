@@ -59,14 +59,21 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
   }
 
   Future<void> _showAddManualEventDialog(OperationLogModel log) async {
+    if (!widget.canStartOperationLog) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sul puudub õigus seda toimingut teha')),
+      );
+      return;
+    }
+
     final noteController = TextEditingController();
     final shouldCreate = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Lisa märge'),
+        title: const Text('Lisa sündmuse kirje'),
         content: TextField(
           controller: noteController,
-          decoration: const InputDecoration(labelText: 'Märge'),
+          decoration: const InputDecoration(labelText: 'Märkus / tegevus'),
           maxLines: 3,
           autofocus: true,
         ),
@@ -104,6 +111,13 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
     OperationLogModel log,
     String title,
   ) async {
+    if (!widget.canStartOperationLog) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sul puudub õigus seda toimingut teha')),
+      );
+      return;
+    }
+
     try {
       await _operationLogService.addManualEvent(
         operationLogId: log.id,
@@ -372,7 +386,9 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
                       children: _quickActions.map((title) {
                         return ActionChip(
                           label: Text(title),
-                          onPressed: () => _addQuickAction(log, title),
+                          onPressed: widget.canStartOperationLog
+                              ? () => _addQuickAction(log, title)
+                              : null,
                         );
                       }).toList(),
                     ),
@@ -380,11 +396,21 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
                   Align(
                     alignment: Alignment.centerRight,
                     child: TextButton.icon(
-                      onPressed: () => _showAddManualEventDialog(log),
+                      onPressed: widget.canStartOperationLog
+                          ? () => _showAddManualEventDialog(log)
+                          : null,
                       icon: const Icon(Icons.note_add_outlined),
-                      label: const Text('Lisa märge'),
+                      label: const Text('Lisa sündmuse kirje'),
                     ),
                   ),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Ajajoon',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
                   StreamBuilder<List<OperationLogEventModel>>(
                     stream: _operationLogService.streamLogEvents(
                       operationLogId: log.id,
@@ -413,14 +439,20 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
 
                       return Column(
                         children: events.map((event) {
+                          final subtitleLines = [
+                            if (event.description.isNotEmpty)
+                              event.description,
+                            if (event.createdAt != null)
+                              _shortDateTime(event.createdAt!),
+                          ];
                           return ListTile(
                             dense: true,
                             contentPadding: EdgeInsets.zero,
                             leading: Icon(_operationLogEventIcon(event.type)),
                             title: Text(event.title),
-                            subtitle: event.createdAt == null
+                            subtitle: subtitleLines.isEmpty
                                 ? null
-                                : Text(_shortDateTime(event.createdAt!)),
+                                : Text(subtitleLines.join('\n')),
                           );
                         }).toList(),
                       );
