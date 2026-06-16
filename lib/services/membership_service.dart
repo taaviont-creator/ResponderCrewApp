@@ -18,6 +18,14 @@ class MembershipService {
   }
 
   Stream<List<QueryDocumentSnapshot<Map<String, dynamic>>>>
+      streamMembershipsForUser(String userId) {
+    return _memberships
+        .where('userId', isEqualTo: userId)
+        .snapshots()
+        .map((snapshot) => snapshot.docs);
+  }
+
+  Stream<List<QueryDocumentSnapshot<Map<String, dynamic>>>>
       streamActiveMembershipsForUser(String userId) {
     return _memberships
         .where('userId', isEqualTo: userId)

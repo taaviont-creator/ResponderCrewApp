@@ -403,6 +403,42 @@ class _HomeScreenState extends State<HomeScreen> {
     return organizationIds;
   }
 
+  List<QueryDocumentSnapshot<Map<String, dynamic>>> _activeMembershipDocs(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> membershipDocs,
+  ) {
+    return membershipDocs.where((membershipDoc) {
+      final membership = membershipDoc.data();
+      return _membershipService.isActiveMembership(membership) &&
+          _membershipService.organizationIdFromMembership(membership) != null;
+    }).toList(growable: false);
+  }
+
+  bool _hasPendingMembership(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> membershipDocs,
+  ) {
+    return membershipDocs.any((membershipDoc) {
+      final status =
+          (membershipDoc.data()['status'] ?? '').toString().toLowerCase();
+      return status == 'pending' ||
+          status == 'awaitingapproval' ||
+          status == 'waitingapproval';
+    });
+  }
+
+  bool _hasDisabledMembership(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> membershipDocs,
+  ) {
+    return membershipDocs.any((membershipDoc) {
+      final membership = membershipDoc.data();
+      final status = (membership['status'] ?? '').toString().toLowerCase();
+      return membership['isActive'] == false ||
+          status == 'disabled' ||
+          status == 'inactive' ||
+          status == 'removed' ||
+          status == 'rejected';
+    });
+  }
+
   Future<List<Map<String, String>>> _loadOrganizationItems(
     List<QueryDocumentSnapshot<Map<String, dynamic>>> membershipDocs,
   ) async {
@@ -488,18 +524,30 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildMissingOrganizationState({
     required bool hasMemberships,
     required List<QueryDocumentSnapshot<Map<String, dynamic>>> membershipDocs,
+    String? title,
+    String? message,
   }) {
+    final effectiveTitle =
+        title ?? (hasMemberships ? 'Vali organisatsioon' : 'Organisatsioon puudub');
+    final effectiveMessage = message ??
+        (hasMemberships
+            ? 'Enne jĆ¤tkamist vali aktiivne organisatsioon.'
+            : 'Sul puudub aktiivne organisatsiooni liikmelisus. '
+                'Loo uus organisatsioon vĆµi liitu olemasolevaga.');
+
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            hasMemberships ? 'Vali organisatsioon' : 'Organisatsioon puudub',
+            effectiveTitle,
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 8),
-          Text(
+          if (message != null) Text(effectiveMessage),
+          if (message == null)
+            Text(
             hasMemberships
                 ? 'Enne jätkamist vali aktiivne organisatsioon.'
                 : 'Sul puudub aktiivne organisatsiooni liikmelisus. '
@@ -1131,8 +1179,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
         final name = _stringValue(userData['name']) ?? '';
 
-        final activeOrganizationIdFromUser =
-            _stringValue(userData['activeOrganizationId']);
         final isPlatformAdmin =
             PlatformRole.isPlatformAdmin(userData['systemRole']);
 
@@ -1140,7 +1186,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
         return StreamBuilder<
             List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
-          stream: _membershipService.streamActiveMembershipsForUser(user.uid),
+          stream: _membershipService.streamMembershipsForUser(user.uid),
           builder: (context, membershipsSnapshot) {
             if (membershipsSnapshot.connectionState ==
                 ConnectionState.waiting) {
@@ -1175,17 +1221,20 @@ class _HomeScreenState extends State<HomeScreen> {
               );
             }
 
-            final membershipDocs = membershipsSnapshot.data ??
+            final allMembershipDocs = membershipsSnapshot.data ??
                 <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+            final membershipDocs = _activeMembershipDocs(allMembershipDocs);
 
             String? activeCommandId;
             String? myMembershipRole;
 
             if (membershipDocs.isNotEmpty) {
               final requestedOrganizationId =
-                  activeOrganizationIdFromUser?.trim();
-              final activeMembership = requestedOrganizationId == null ||
-                      requestedOrganizationId.isEmpty
+                  _membershipService.resolveActiveOrganizationId(
+                userData: userData,
+                memberships: membershipDocs,
+              );
+              final activeMembership = requestedOrganizationId == null
                   ? null
                   : _membershipService.membershipForOrganizationId(
                       organizationId: requestedOrganizationId,
@@ -1209,6 +1258,23 @@ class _HomeScreenState extends State<HomeScreen> {
                 isPlatformAdmin || isOrganizationAdmin;
 
             if (activeCommandId == null || activeCommandId.isEmpty) {
+              final hasPendingMembership =
+                  _hasPendingMembership(allMembershipDocs);
+              final hasDisabledMembership =
+                  _hasDisabledMembership(allMembershipDocs);
+              final missingOrganizationTitle = hasPendingMembership
+                  ? 'Liikmelisus ootab kinnitamist'
+                  : hasDisabledMembership
+                      ? 'Liikmelisus pole aktiivne'
+                      : null;
+              final missingOrganizationMessage = hasPendingMembership
+                  ? 'Sinu liikmelisus ootab administraatori kinnitust. '
+                      'Tavapärased moodulid avanevad pärast kinnitamist.'
+                  : hasDisabledMembership
+                      ? 'Selle kasutaja liikmelisus ei ole aktiivne. '
+                          'Organisatsiooni andmetele ligipääs on blokeeritud.'
+                      : null;
+
               return Scaffold(
                 appBar: AppBar(
                   title: const Text('RespondCrew'),
@@ -1237,6 +1303,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     _buildMissingOrganizationState(
                       hasMemberships: membershipDocs.isNotEmpty,
                       membershipDocs: membershipDocs,
+                      title: missingOrganizationTitle,
+                      message: missingOrganizationMessage,
                     ),
                   ],
                 ),
