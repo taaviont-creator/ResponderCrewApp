@@ -73,7 +73,7 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
         title: const Text('Lisa märge'),
         content: TextField(
           controller: noteController,
-          decoration: const InputDecoration(labelText: 'Märkuse tekst'),
+          decoration: const InputDecoration(labelText: 'Märkus'),
           maxLines: 3,
           autofocus: true,
         ),
@@ -84,7 +84,7 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Salvesta'),
+            child: const Text('Salvesta märge'),
           ),
         ],
       ),
@@ -486,6 +486,7 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
         ? event.text
         : event.title;
     final subtitleLines = [
+      if (event.type == OperationLogEventType.manualNote) 'Käsitsi märge',
       if (event.description.isNotEmpty) event.description,
       if (event.createdAt != null) _shortDateTime(event.createdAt!),
     ];
