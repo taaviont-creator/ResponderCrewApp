@@ -403,13 +403,21 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
                       log.summary.isEmpty ? 'Kokkuvõte puudub' : log.summary,
                     ),
                   ),
-                  if (log.outcome.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text('Tulemus: ${log.outcome}'),
+                  const SizedBox(height: 12),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Tulemus',
+                      style: TextStyle(fontWeight: FontWeight.bold),
                     ),
-                  ],
+                  ),
+                  const SizedBox(height: 4),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      log.outcome.isEmpty ? 'Tulemus puudub' : log.outcome,
+                    ),
+                  ),
                   if (log.status == OperationLogStatus.completed &&
                       widget.canStartOperationLog)
                     Align(
