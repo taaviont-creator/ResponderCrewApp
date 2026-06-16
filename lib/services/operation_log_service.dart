@@ -150,7 +150,7 @@ class OperationLogService {
       'type': type,
       'title': title.trim(),
       'description': description.trim(),
-      'status': OperationLogStatus.created,
+      'status': OperationLogStatus.open,
       'timestamp': FieldValue.serverTimestamp(),
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
@@ -162,8 +162,8 @@ class OperationLogService {
       'commandId': organizationId,
       'operationLogId': doc.id,
       'type': OperationLogEventType.statusChange,
-      'status': OperationLogStatus.created,
-      'title': _operationLogStatusLabel(OperationLogStatus.created),
+      'status': OperationLogStatus.open,
+      'title': _operationLogStatusLabel(OperationLogStatus.open),
       'description': '',
       'createdBy': createdBy,
       'createdAt': FieldValue.serverTimestamp(),
@@ -230,7 +230,7 @@ class OperationLogService {
       'type': OperationLogType.note,
       'title': title,
       'description': description,
-      'status': OperationLogStatus.created,
+      'status': OperationLogStatus.open,
       'calloutId': callout.id,
       'timestamp': FieldValue.serverTimestamp(),
       'createdAt': FieldValue.serverTimestamp(),
@@ -242,8 +242,8 @@ class OperationLogService {
       'commandId': organizationId,
       'operationLogId': doc.id,
       'type': OperationLogEventType.statusChange,
-      'status': OperationLogStatus.created,
-      'title': _operationLogStatusLabel(OperationLogStatus.created),
+      'status': OperationLogStatus.open,
+      'title': _operationLogStatusLabel(OperationLogStatus.open),
       'description': '',
       'createdBy': createdBy,
       'createdAt': FieldValue.serverTimestamp(),
@@ -262,6 +262,10 @@ class OperationLogService {
     required String updatedBy,
   }) async {
     _requireOrganizationId(organizationId);
+    await _ensureCanStartOperationLog(
+      organizationId: organizationId,
+      createdBy: updatedBy,
+    );
     if (!OperationLogStatus.values.contains(status)) {
       throw Exception('Unsupported operation log status: $status');
     }
@@ -282,8 +286,7 @@ class OperationLogService {
         throw Exception('Operation log belongs to another organization');
       }
 
-      final currentStatus =
-          (data['status'] ?? OperationLogStatus.created).toString();
+      final currentStatus = OperationLogStatus.normalize(data['status']);
       if (currentStatus == status) return;
 
       transaction.update(doc, {
@@ -339,7 +342,7 @@ class OperationLogService {
       }
 
       final currentStatus =
-          (data['status'] ?? OperationLogStatus.created).toString();
+          (data['status'] ?? OperationLogStatus.open).toString();
       transaction.set(eventDoc, {
         'id': eventDoc.id,
         'organizationId': organizationId,
@@ -381,8 +384,7 @@ class OperationLogService {
         throw Exception('Operation log belongs to another organization');
       }
 
-      final status =
-          (data['status'] ?? OperationLogStatus.created).toString();
+      final status = OperationLogStatus.normalize(data['status']);
       if (status != OperationLogStatus.completed) {
         throw Exception('Only a completed operation can have a final summary');
       }
@@ -493,10 +495,21 @@ class OperationLogService {
 }
 
 String _operationLogStatusLabel(String status) {
-  switch (status) {
-    case OperationLogStatus.departed:
+  const labels = {
+    OperationLogStatus.open: 'Avatud',
+    OperationLogStatus.enRoute: 'Teel',
+    OperationLogStatus.onScene: 'Kohal',
+    OperationLogStatus.inProgress: 'Tegevuses',
+    OperationLogStatus.completed: 'Lõpetatud',
+    OperationLogStatus.returnedToBase: 'Baasis tagasi',
+  };
+  final label = labels[OperationLogStatus.normalize(status)];
+  if (label != null) return label;
+
+  switch (OperationLogStatus.normalize(status)) {
+    case OperationLogStatus.enRoute:
       return 'Väljasõit';
-    case OperationLogStatus.arrived:
+    case OperationLogStatus.onScene:
       return 'Kohal';
     case OperationLogStatus.inProgress:
       return 'Tegevus käib';

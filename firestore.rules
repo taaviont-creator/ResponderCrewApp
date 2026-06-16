@@ -124,6 +124,15 @@ service cloud.firestore {
         get(commandPath).data.allowMembersToStartOperationLog == true;
     }
 
+    function canManageOperationLog(commandId) {
+      return isPlatformAdmin() ||
+        isActiveOrgAdmin(commandId) ||
+        (
+          isActiveMember(commandId) &&
+          commandAllowsMemberOperationLogStart(commandId)
+        );
+    }
+
     function hasValidCommandMemberPermissions(data) {
       return (
           !data.keys().hasAny(['allowMembersToCreateActivities']) ||
@@ -447,12 +456,19 @@ service cloud.firestore {
     }
 
     function isValidOperationLogStatus(status) {
-      return status == 'created' ||
-        status == 'departed' ||
-        status == 'arrived' ||
+      return status == 'open' ||
+        status == 'enRoute' ||
+        status == 'onScene' ||
         status == 'inProgress' ||
         status == 'completed' ||
-        status == 'returnedToBase';
+        status == 'returnedToBase' ||
+        status == 'created' ||
+        status == 'departed' ||
+        status == 'arrived';
+    }
+
+    function operationLogStatusFromData(data) {
+      return data.keys().hasAny(['status']) ? data.status : 'open';
     }
 
     function isValidOperationLogData(data) {
@@ -519,14 +535,7 @@ service cloud.firestore {
         request.resource.data.id == logId &&
         request.resource.data.createdBy == request.auth.uid &&
         isValidOperationLogData(request.resource.data) &&
-        (
-          isPlatformAdmin() ||
-          isActiveOrgAdmin(organizationId) ||
-          (
-            isActiveMember(organizationId) &&
-            commandAllowsMemberOperationLogStart(organizationId)
-          )
-        );
+        canManageOperationLog(organizationId);
     }
 
     function isOperationLogStatusUpdate(logId) {
@@ -544,7 +553,7 @@ service cloud.firestore {
           'status',
           'updatedAt'
         ]) &&
-        isActiveMember(organizationIdFromData(resource.data));
+        canManageOperationLog(organizationIdFromData(resource.data));
     }
 
     function isOperationLogSummaryUpdate(logId) {
@@ -608,7 +617,8 @@ service cloud.firestore {
         existsAfter(logPath) &&
         organizationIdFromData(getAfter(logPath).data) ==
           organizationIdFromData(request.resource.data) &&
-        getAfter(logPath).data.status == request.resource.data.status &&
+        operationLogStatusFromData(getAfter(logPath).data) ==
+          request.resource.data.status &&
         (
           (
             request.resource.data.type == 'statusChange' &&
@@ -620,7 +630,8 @@ service cloud.firestore {
               request.resource.data.type == 'quickAction'
             ) &&
             exists(logPath) &&
-            getAfter(logPath).data.status == get(logPath).data.status
+            operationLogStatusFromData(getAfter(logPath).data) ==
+              operationLogStatusFromData(get(logPath).data)
           ) ||
           (
             request.resource.data.type == 'summarySaved' &&

@@ -27,21 +27,43 @@ class OperationLogType {
 }
 
 class OperationLogStatus {
-  static const created = 'created';
-  static const departed = 'departed';
-  static const arrived = 'arrived';
+  static const open = 'open';
+  static const enRoute = 'enRoute';
+  static const onScene = 'onScene';
   static const inProgress = 'inProgress';
   static const completed = 'completed';
   static const returnedToBase = 'returnedToBase';
 
+  static const created = 'created';
+  static const departed = 'departed';
+  static const arrived = 'arrived';
+
   static const values = {
-    created,
-    departed,
-    arrived,
+    open,
+    enRoute,
+    onScene,
     inProgress,
     completed,
     returnedToBase,
   };
+
+  static const legacyValues = {
+    created,
+    departed,
+    arrived,
+  };
+
+  static String normalize(Object? value) {
+    switch (value) {
+      case created:
+        return open;
+      case departed:
+        return enRoute;
+      case arrived:
+        return onScene;
+    }
+    return value is String && values.contains(value) ? value : open;
+  }
 }
 
 class OperationLogEventType {
@@ -114,10 +136,7 @@ class OperationLogModel {
       ),
       title: _stringValue(data['title']),
       description: _stringValue(data['description']),
-      status: _stringValue(
-        data['status'],
-        fallback: OperationLogStatus.created,
-      ),
+      status: OperationLogStatus.normalize(data['status']),
       summary: _stringValue(data['summary']),
       outcome: _stringValue(data['outcome']),
       completedBy: _stringValue(data['completedBy']),
@@ -192,10 +211,7 @@ class OperationLogEventModel {
         data['type'],
         fallback: OperationLogEventType.statusChange,
       ),
-      status: _stringValue(
-        data['status'],
-        fallback: OperationLogStatus.created,
-      ),
+      status: OperationLogStatus.normalize(data['status']),
       title: _stringValue(data['title']),
       description: _stringValue(data['description']),
       createdBy: _stringValue(data['createdBy']),

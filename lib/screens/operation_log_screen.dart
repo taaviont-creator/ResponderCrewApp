@@ -325,21 +325,12 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
                       ? subtitleParts.join(' - ')
                       : '${subtitleParts.join(' - ')}\n${log.description}',
                 ),
-                trailing: DropdownButton<String>(
-                  value: log.status,
-                  underline: const SizedBox.shrink(),
-                  items: OperationLogStatus.values.map((status) {
-                    return DropdownMenuItem<String>(
-                      value: status,
-                      child: Text(_operationLogStatusLabel(status)),
-                    );
-                  }).toList(),
-                  onChanged: (status) {
-                    if (status == null || status == log.status) return;
-                    _updateStatus(log, status);
-                  },
+                trailing: Chip(
+                  label: Text(_operationLogStatusLabel(log.status)),
+                  visualDensity: VisualDensity.compact,
                 ),
                 children: [
+                  _buildStatusFlowControls(log),
                   if (widget.canViewCalloutResponseSummary &&
                       log.calloutId != null)
                     _buildCalloutResponseSummary(log.calloutId!),
@@ -469,6 +460,59 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
     }
   }
 
+  Widget _buildStatusFlowControls(OperationLogModel log) {
+    final nextStatus = _nextOperationLogStatus(log.status);
+    final canUpdateStatus = widget.canStartOperationLog && nextStatus != null;
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Chip(
+              avatar: const Icon(Icons.flag_outlined, size: 18),
+              label: Text('Staatus: ${_operationLogStatusLabel(log.status)}'),
+              visualDensity: VisualDensity.compact,
+            ),
+            if (canUpdateStatus)
+              OutlinedButton.icon(
+                onPressed: () => _updateStatus(log, nextStatus),
+                icon: const Icon(Icons.arrow_forward),
+                label: Text(
+                  'Märgi: ${_operationLogStatusLabel(nextStatus)}',
+                ),
+              )
+            else if (nextStatus == null)
+              const Text('Staatuse voog on lõpetatud')
+            else
+              const Text('Sul puudub õigus staatust muuta'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String? _nextOperationLogStatus(String status) {
+    switch (OperationLogStatus.normalize(status)) {
+      case OperationLogStatus.open:
+        return OperationLogStatus.enRoute;
+      case OperationLogStatus.enRoute:
+        return OperationLogStatus.onScene;
+      case OperationLogStatus.onScene:
+        return OperationLogStatus.inProgress;
+      case OperationLogStatus.inProgress:
+        return OperationLogStatus.completed;
+      case OperationLogStatus.completed:
+        return OperationLogStatus.returnedToBase;
+      default:
+        return null;
+    }
+  }
+
   Widget _buildCalloutResponseSummary(String calloutId) {
     return StreamBuilder<CalloutResponseDetails>(
       stream: _calloutService.streamCalloutResponseDetails(
@@ -543,7 +587,18 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
   }
 
   String _operationLogStatusLabel(String status) {
-    switch (status) {
+    const labels = {
+      OperationLogStatus.open: 'Avatud',
+      OperationLogStatus.enRoute: 'Teel',
+      OperationLogStatus.onScene: 'Kohal',
+      OperationLogStatus.inProgress: 'Tegevuses',
+      OperationLogStatus.completed: 'Lõpetatud',
+      OperationLogStatus.returnedToBase: 'Baasis tagasi',
+    };
+    final label = labels[OperationLogStatus.normalize(status)];
+    if (label != null) return label;
+
+    switch (OperationLogStatus.normalize(status)) {
       case OperationLogStatus.departed:
         return 'Väljasõit';
       case OperationLogStatus.arrived:
