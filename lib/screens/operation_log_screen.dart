@@ -30,13 +30,11 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
   final _operationLogService = OperationLogService();
 
   static const _quickActions = [
-    'Otsing alustatud',
+    'Teel',
+    'Kohal',
+    'Otsing algas',
     'Kannatanu leitud',
-    'Esmaabi antud',
-    'JRCC teavitatud',
-    'Otsinguala laiendatud',
-    'Pukseerimine alustatud',
-    'Operatsioon lõpetatud',
+    'Sündmus lõpetatud',
   ];
 
   Future<void> _updateStatus(
@@ -131,6 +129,49 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Kiirtegevuse lisamine ebaõnnestus: $e')),
       );
+    }
+  }
+
+  Future<void> _handleQuickAction(OperationLogModel log, String action) async {
+    switch (action) {
+      case 'Teel':
+        await _updateStatus(log, OperationLogStatus.enRoute);
+        break;
+      case 'Kohal':
+        await _updateStatus(log, OperationLogStatus.onScene);
+        break;
+      case 'Otsing algas':
+        await _addQuickAction(log, 'Otsing algas');
+        break;
+      case 'Kannatanu leitud':
+        await _addQuickAction(log, 'Kannatanu leitud');
+        break;
+      case 'Sündmus lõpetatud':
+        await _updateStatus(log, OperationLogStatus.completed);
+        break;
+    }
+  }
+
+  bool _isQuickActionEnabled(OperationLogModel log, String action) {
+    if (!widget.canStartOperationLog) return false;
+
+    final normalizedStatus = OperationLogStatus.normalize(log.status);
+    if (normalizedStatus == OperationLogStatus.completed ||
+        normalizedStatus == OperationLogStatus.returnedToBase) {
+      return false;
+    }
+
+    switch (action) {
+      case 'Teel':
+        return normalizedStatus == OperationLogStatus.open;
+      case 'Kohal':
+        return normalizedStatus == OperationLogStatus.open ||
+            normalizedStatus == OperationLogStatus.enRoute;
+      case 'Sündmus lõpetatud':
+        return normalizedStatus != OperationLogStatus.completed &&
+            normalizedStatus != OperationLogStatus.returnedToBase;
+      default:
+        return true;
     }
   }
 
@@ -384,10 +425,11 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
                       spacing: 8,
                       runSpacing: 4,
                       children: _quickActions.map((title) {
+                        final enabled = _isQuickActionEnabled(log, title);
                         return ActionChip(
                           label: Text(title),
-                          onPressed: widget.canStartOperationLog
-                              ? () => _addQuickAction(log, title)
+                          onPressed: enabled
+                              ? () => _handleQuickAction(log, title)
                               : null,
                         );
                       }).toList(),
