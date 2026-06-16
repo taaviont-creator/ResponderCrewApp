@@ -178,6 +178,7 @@ class CalloutService {
           displayName: displayNames[userId] ?? 'Liige',
           response: response?.response ?? CalloutResponseValue.noResponse,
           responseMinutes: response?.responseMinutes,
+          respondedAt: response?.updatedAt ?? response?.createdAt,
         );
 
         switch (member.response) {

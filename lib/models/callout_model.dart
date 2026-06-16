@@ -204,12 +204,14 @@ class CalloutResponseMember {
     required this.displayName,
     required this.response,
     this.responseMinutes,
+    this.respondedAt,
   });
 
   final String userId;
   final String displayName;
   final String response;
   final int? responseMinutes;
+  final DateTime? respondedAt;
 }
 
 class CalloutResponseDetails {
