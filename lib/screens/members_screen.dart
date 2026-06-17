@@ -69,7 +69,7 @@ class _MembersScreenState extends State<MembersScreen> {
           title: const Text('Liikmed'),
         ),
         body: const Center(
-          child: Text('See vaade on ainult administraatorile'),
+          child: Text('Liikmete ja rollide haldamine on ainult administraatorile.'),
         ),
       );
     }
@@ -94,7 +94,7 @@ class _MembersScreenState extends State<MembersScreen> {
           final membershipDocs = membershipsSnapshot.data ??
               <QueryDocumentSnapshot<Map<String, dynamic>>>[];
           if (membershipDocs.isEmpty) {
-            return const Center(child: Text('Uhtegi liiget ei leitud'));
+            return const Center(child: Text('Ühtegi liiget ei leitud'));
           }
 
           final memberships = membershipDocs
