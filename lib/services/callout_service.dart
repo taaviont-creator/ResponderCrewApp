@@ -73,6 +73,21 @@ class CalloutService {
     );
   }
 
+  Stream<CalloutModel?> streamCallout({
+    required String calloutId,
+    required String organizationId,
+  }) {
+    _requireOrganizationId(organizationId);
+    return _callouts.doc(calloutId).snapshots().map((snapshot) {
+      if (!snapshot.exists) return null;
+      final callout = CalloutModel.fromFirestore(snapshot);
+      final calloutOrganizationId = callout.organizationId.isNotEmpty
+          ? callout.organizationId
+          : callout.commandId;
+      return calloutOrganizationId == organizationId ? callout : null;
+    });
+  }
+
   Stream<List<CalloutResponseModel>> streamCalloutResponses({
     required String calloutId,
     required String organizationId,

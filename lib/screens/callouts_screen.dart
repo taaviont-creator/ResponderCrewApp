@@ -49,6 +49,7 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
     final descriptionController = TextEditingController();
     final locationController = TextEditingController();
     var selectedPriority = CalloutPriority.normal;
+    String? titleError;
 
     final shouldCreate = await showDialog<bool>(
       context: context,
@@ -61,7 +62,17 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
               children: [
                 TextField(
                   controller: titleController,
-                  decoration: const InputDecoration(labelText: 'Pealkiri'),
+                  onChanged: (value) {
+                    if (titleError != null && value.trim().isNotEmpty) {
+                      setDialogState(() {
+                        titleError = null;
+                      });
+                    }
+                  },
+                  decoration: InputDecoration(
+                    labelText: 'Pealkiri',
+                    errorText: titleError,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 TextField(
@@ -98,7 +109,15 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
               child: const Text('Katkesta'),
             ),
             ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
+              onPressed: () {
+                if (titleController.text.trim().isEmpty) {
+                  setDialogState(() {
+                    titleError = 'Pealkiri on kohustuslik';
+                  });
+                  return;
+                }
+                Navigator.pop(context, true);
+              },
               child: const Text('Lisa'),
             ),
           ],
@@ -378,11 +397,11 @@ class _CalloutCard extends StatelessWidget {
                 children: [
                   Expanded(child: _buildMyResponse(context)),
                   const SizedBox(width: 8),
-                  _buildResponseCount(context),
-                  const SizedBox(width: 4),
                   const Icon(Icons.chevron_right),
                 ],
               ),
+              const SizedBox(height: 10),
+              _buildResponseSummary(context),
             ],
           ),
         ),
@@ -417,30 +436,51 @@ class _CalloutCard extends StatelessWidget {
     );
   }
 
-  Widget _buildResponseCount(BuildContext context) {
+  Widget _buildResponseSummary(BuildContext context) {
     return StreamBuilder<List<CalloutResponseModel>>(
       stream: calloutService.streamCalloutResponses(
         calloutId: callout.id,
         organizationId: organizationId,
       ),
       builder: (context, snapshot) {
-        final count = snapshot.data?.where((response) {
-          return response.response == CalloutResponseValue.responding ||
-              response.response == CalloutResponseValue.delayed ||
-              response.response == CalloutResponseValue.unavailable;
-        }).length;
-        return Row(
-          mainAxisSize: MainAxisSize.min,
+        final responses = snapshot.data;
+        if (responses == null) {
+          return Text(
+            'Vastuseid: -',
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+          );
+        }
+
+        final responding = responses.where(
+          (response) => response.response == CalloutResponseValue.responding,
+        ).length;
+        final delayed = responses.where(
+          (response) => response.response == CalloutResponseValue.delayed,
+        ).length;
+        final unavailable = responses.where(
+          (response) => response.response == CalloutResponseValue.unavailable,
+        ).length;
+
+        return Wrap(
+          spacing: 8,
+          runSpacing: 8,
           children: [
-            const Icon(
-              Icons.groups_outlined,
-              size: 18,
-              color: AppColors.textSecondary,
+            StatusBadge(
+              label: 'Tuleb: $responding',
+              type: StatusBadgeType.ready,
+              icon: Icons.check_circle_outline,
             ),
-            const SizedBox(width: 4),
-            Text(
-              count == null ? '-' : '$count',
-              style: Theme.of(context).textTheme.labelLarge,
+            StatusBadge(
+              label: 'Hilineb: $delayed',
+              type: StatusBadgeType.delayed,
+              icon: Icons.schedule,
+            ),
+            StatusBadge(
+              label: 'Ei tule: $unavailable',
+              type: StatusBadgeType.offDuty,
+              icon: Icons.cancel_outlined,
             ),
           ],
         );

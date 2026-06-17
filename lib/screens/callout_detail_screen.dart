@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../models/callout_model.dart';
@@ -37,11 +39,35 @@ class CalloutDetailScreen extends StatefulWidget {
 class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
   final _calloutService = CalloutService();
   final _operationLogService = OperationLogService();
+  StreamSubscription<CalloutModel?>? _calloutSubscription;
+  CalloutModel? _liveCallout;
   bool _isSavingResponse = false;
   bool _isUpdatingStatus = false;
   bool _isOpeningOperationLog = false;
 
-  bool get _isActive => widget.callout.status == CalloutStatus.active;
+  CalloutModel get _callout => _liveCallout ?? widget.callout;
+
+  bool get _isActive => _callout.status == CalloutStatus.active;
+
+  @override
+  void initState() {
+    super.initState();
+    _calloutSubscription = _calloutService
+        .streamCallout(
+          calloutId: widget.callout.id,
+          organizationId: widget.organizationId,
+        )
+        .listen((callout) {
+      if (!mounted || callout == null) return;
+      setState(() => _liveCallout = callout);
+    });
+  }
+
+  @override
+  void dispose() {
+    _calloutSubscription?.cancel();
+    super.dispose();
+  }
 
   Future<void> _showDelayedResponseDialog() async {
     var selectedMinutes = 15;
@@ -114,7 +140,7 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
 
     try {
       await _calloutService.setMyResponse(
-        calloutId: widget.callout.id,
+        calloutId: _callout.id,
         userId: widget.currentUid,
         userName: widget.currentUserName,
         organizationId: widget.organizationId,
@@ -149,8 +175,8 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
         ),
         content: Text(
           isClosing
-              ? 'Kas soovid väljakutse "${widget.callout.title}" lõpetada?'
-              : 'Kas soovid väljakutse "${widget.callout.title}" tühistada?',
+              ? 'Kas soovid väljakutse "${_callout.title}" lõpetada?'
+              : 'Kas soovid väljakutse "${_callout.title}" tühistada?',
         ),
         actions: [
           TextButton(
@@ -169,7 +195,7 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
     setState(() => _isUpdatingStatus = true);
     try {
       await _calloutService.updateCalloutStatus(
-        calloutId: widget.callout.id,
+        calloutId: _callout.id,
         organizationId: widget.organizationId,
         status: status,
       );
@@ -209,7 +235,7 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
     try {
       final log = existingLog ??
           await _operationLogService.startFromCallout(
-            callout: widget.callout,
+            callout: _callout,
             organizationId: widget.organizationId,
             createdBy: widget.currentUid,
             createdByName: widget.currentUserName,
@@ -293,7 +319,7 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
   Widget _buildOperationLogAction() {
     return StreamBuilder<OperationLogModel?>(
       stream: _operationLogService.streamLogForCallout(
-        calloutId: widget.callout.id,
+        calloutId: _callout.id,
         organizationId: widget.organizationId,
       ),
       builder: (context, snapshot) {
@@ -320,7 +346,7 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
 
   Widget _buildOverviewCard() {
     return AppSectionCard(
-      accentColor: _priorityColor(widget.callout.priority),
+      accentColor: _priorityColor(_callout.priority),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -329,40 +355,40 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
             runSpacing: 8,
             children: [
               StatusBadge(
-                label: _priorityLabel(widget.callout.priority),
-                type: _priorityBadgeType(widget.callout.priority),
+                label: _priorityLabel(_callout.priority),
+                type: _priorityBadgeType(_callout.priority),
                 icon: Icons.warning_amber_rounded,
               ),
               StatusBadge(
-                label: _statusLabel(widget.callout.status),
-                type: _statusBadgeType(widget.callout.status),
+                label: _statusLabel(_callout.status),
+                type: _statusBadgeType(_callout.status),
               ),
             ],
           ),
           const SizedBox(height: 16),
           Text(
-            widget.callout.title,
+            _callout.title,
             style: Theme.of(context).textTheme.headlineSmall,
           ),
-          if (widget.callout.location.isNotEmpty) ...[
+          if (_callout.location.isNotEmpty) ...[
             const SizedBox(height: 12),
             _InfoLine(
               icon: Icons.location_on_outlined,
-              text: widget.callout.location,
+              text: _callout.location,
             ),
           ],
           const SizedBox(height: 12),
           _InfoLine(
             icon: Icons.schedule,
-            text: widget.callout.createdAt == null
+            text: _callout.createdAt == null
                 ? 'Loomise aeg puudub'
-                : 'Loodud ${_dateTime(widget.callout.createdAt!)}',
+                : 'Loodud ${_dateTime(_callout.createdAt!)}',
           ),
-          if (widget.callout.createdByName.isNotEmpty) ...[
+          if (_callout.createdByName.isNotEmpty) ...[
             const SizedBox(height: 8),
             _InfoLine(
               icon: Icons.person_outline,
-              text: 'Looja: ${widget.callout.createdByName}',
+              text: 'Looja: ${_callout.createdByName}',
             ),
           ],
         ],
@@ -375,9 +401,9 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
       title: 'Sündmuse kirjeldus',
       leading: const Icon(Icons.description_outlined),
       child: Text(
-        widget.callout.description.isEmpty
+        _callout.description.isEmpty
             ? 'Kirjeldust ei ole lisatud.'
-            : widget.callout.description,
+            : _callout.description,
       ),
     );
   }
@@ -385,7 +411,7 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
   Widget _buildResponseSummary() {
     return StreamBuilder<CalloutResponseDetails>(
       stream: _calloutService.streamCalloutResponseDetails(
-        calloutId: widget.callout.id,
+        calloutId: _callout.id,
         organizationId: widget.organizationId,
       ),
       builder: (context, snapshot) {
@@ -492,7 +518,7 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
   Widget _buildResponseActions() {
     return StreamBuilder<CalloutResponseModel?>(
       stream: _calloutService.streamMyResponse(
-        calloutId: widget.callout.id,
+        calloutId: _callout.id,
         userId: widget.currentUid,
         organizationId: widget.organizationId,
       ),
