@@ -64,6 +64,11 @@ service cloud.firestore {
         getAfter(/databases/$(database)/documents/commands/$(commandId)).data.createdBy is string;
     }
 
+    function commandExists(commandId) {
+      return exists(/databases/$(database)/documents/commands/$(commandId)) &&
+        get(/databases/$(database)/documents/commands/$(commandId)).data.createdBy is string;
+    }
+
     function isCommandCreator(commandId) {
       return commandExistsAfter(commandId) &&
         getAfter(/databases/$(database)/documents/commands/$(commandId)).data.createdBy ==
@@ -167,6 +172,17 @@ service cloud.firestore {
             'status'
           ]) ||
           getAfter(/databases/$(database)/documents/commands/$(commandId)).data.status ==
+            'approved'
+        );
+    }
+
+    function commandIsApproved(commandId) {
+      return commandExists(commandId) &&
+        (
+          !get(/databases/$(database)/documents/commands/$(commandId)).data.keys().hasAny([
+            'status'
+          ]) ||
+          get(/databases/$(database)/documents/commands/$(commandId)).data.status ==
             'approved'
         );
     }
@@ -319,6 +335,67 @@ service cloud.firestore {
             request.resource.data.status == 'rejected' &&
             request.resource.data.isActive == false
           )
+        );
+    }
+
+    function isValidOrganizationInviteData(data) {
+      return data.keys().hasOnly([
+          'organizationId',
+          'commandId',
+          'email',
+          'role',
+          'status',
+          'invitedBy',
+          'createdAt',
+          'expiresAt',
+          'acceptedBy',
+          'acceptedAt'
+        ]) &&
+        data.keys().hasAll([
+          'organizationId',
+          'commandId',
+          'email',
+          'role',
+          'status',
+          'invitedBy',
+          'createdAt',
+          'expiresAt',
+          'acceptedBy',
+          'acceptedAt'
+        ]) &&
+        data.email is string &&
+        data.email.size() > 0 &&
+        data.email.matches('^[^@ ]+@[^@ ]+[.][^@ ]+$') &&
+        data.role == 'member' &&
+        data.status == 'pending' &&
+        data.invitedBy is string &&
+        data.createdAt == request.time &&
+        data.expiresAt is timestamp &&
+        data.expiresAt > request.time &&
+        data.acceptedBy == null &&
+        data.acceptedAt == null &&
+        hasValidOrganizationReference(data);
+    }
+
+    function canCreateOrganizationInvite(data) {
+      let organizationId = organizationIdFromData(data);
+      return signedIn() &&
+        data.invitedBy == request.auth.uid &&
+        commandIsApproved(organizationId) &&
+        (
+          isPlatformAdmin() ||
+          isActiveOrgAdmin(organizationId)
+        ) &&
+        isValidOrganizationInviteData(data);
+    }
+
+    function canReadOrganizationInvite(data) {
+      let organizationId = organizationIdFromData(data);
+      return signedIn() &&
+        commandIsApproved(organizationId) &&
+        (
+          isPlatformAdmin() ||
+          isActiveOrgAdmin(organizationId)
         );
     }
 
@@ -1600,6 +1677,11 @@ service cloud.firestore {
           isOrgAdminMembershipUpdate() ||
           isOwnMembershipStatusUpdate()
         );
+    }
+
+    match /organizationInvites/{inviteId} {
+      allow read: if canReadOrganizationInvite(resource.data);
+      allow create: if canCreateOrganizationInvite(request.resource.data);
     }
 
     match /availability/{availabilityId} {

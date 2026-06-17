@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../models/membership_model.dart';
+import '../services/invite_service.dart';
 import '../services/membership_service.dart';
 
 class MembersScreen extends StatefulWidget {
@@ -21,7 +22,63 @@ class MembersScreen extends StatefulWidget {
 }
 
 class _MembersScreenState extends State<MembersScreen> {
+  final _inviteService = InviteService();
   final _membershipService = MembershipService();
+
+  Future<void> _showInviteDialog() async {
+    final controller = TextEditingController();
+    final email = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Kutsu liige'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            keyboardType: TextInputType.emailAddress,
+            decoration: const InputDecoration(
+              labelText: 'E-post',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Katkesta'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(controller.text),
+              child: const Text('Saada kutse'),
+            ),
+          ],
+        );
+      },
+    );
+
+    controller.dispose();
+    if (email == null || email.trim().isEmpty) return;
+
+    try {
+      await _inviteService.createMemberInvite(
+        organizationId: widget.organizationId,
+        email: email,
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Kutse loodud.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_inviteErrorMessage(error))),
+      );
+    }
+  }
+
+  String _inviteErrorMessage(Object error) {
+    final message = error.toString().replaceFirst('Exception: ', '').trim();
+    return message.isNotEmpty ? message : 'Kutse loomine ebaõnnestus.';
+  }
 
   Future<void> _updateMembershipRole({
     required String membershipId,
@@ -77,6 +134,13 @@ class _MembersScreenState extends State<MembersScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Liikmed'),
+        actions: [
+          IconButton(
+            tooltip: 'Kutsu liige',
+            icon: const Icon(Icons.person_add_alt_1),
+            onPressed: _showInviteDialog,
+          ),
+        ],
       ),
       body: StreamBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
         stream: _membershipService.streamActiveMembershipsForOrganization(
