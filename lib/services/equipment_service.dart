@@ -49,41 +49,48 @@ class EquipmentService {
     required String createdBy,
     required bool canManageOrganizationEquipment,
   }) async {
-    _requireOrganizationId(organizationId);
+    final trimmedOrganizationId = organizationId.trim();
+    final trimmedOwnerUserId = ownerUserId.trim();
+    final trimmedName = name.trim();
+    final trimmedCategory = category.trim();
+    final trimmedStatus = status.trim();
+    final trimmedCreatedBy = createdBy.trim();
+
+    _requireOrganizationId(trimmedOrganizationId);
     _validateEquipmentOwnership(
       scope: scope,
-      ownerUserId: ownerUserId,
-      currentUserId: createdBy,
+      ownerUserId: trimmedOwnerUserId,
+      currentUserId: trimmedCreatedBy,
       canManageOrganizationEquipment: canManageOrganizationEquipment,
     );
-    if (name.trim().isEmpty) {
-      throw Exception('Equipment name is required');
+    if (trimmedName.isEmpty) {
+      throw Exception('Varustuse nimi on kohustuslik.');
     }
 
-    if (!EquipmentCategory.values.contains(category)) {
-      throw Exception('Unsupported equipment category: $category');
+    if (!EquipmentCategory.values.contains(trimmedCategory)) {
+      throw Exception('Varustuse kategooria ei ole toetatud.');
     }
 
-    if (!EquipmentStatus.values.contains(status)) {
-      throw Exception('Unsupported equipment status: $status');
+    if (!EquipmentStatus.values.contains(trimmedStatus)) {
+      throw Exception('Varustuse staatus ei ole toetatud.');
     }
 
     final doc = _equipment.doc();
     final batch = _firestore.batch();
     final equipmentData = {
       'id': doc.id,
-      'organizationId': organizationId,
+      'organizationId': trimmedOrganizationId,
       // TODO: Remove commandId after all equipment reads use organizationId.
-      'commandId': organizationId,
+      'commandId': trimmedOrganizationId,
       'scope': scope,
-      if (scope == EquipmentScope.personal) 'ownerUserId': ownerUserId,
-      'name': name.trim(),
-      'category': category,
-      'status': status,
+      if (scope == EquipmentScope.personal) 'ownerUserId': trimmedOwnerUserId,
+      'name': trimmedName,
+      'category': trimmedCategory,
+      'status': trimmedStatus,
       'location': location.trim(),
       'nextMaintenanceDate': nextMaintenanceDate.trim(),
       'note': note.trim(),
-      'createdBy': createdBy,
+      'createdBy': trimmedCreatedBy,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     };
@@ -92,11 +99,11 @@ class EquipmentService {
     if (scope == EquipmentScope.organization) {
       _addProblemStatusNotificationToBatch(
         batch: batch,
-        organizationId: organizationId,
+        organizationId: trimmedOrganizationId,
         equipmentId: doc.id,
-        equipmentName: name.trim(),
-        status: status,
-        createdBy: createdBy,
+        equipmentName: trimmedName,
+        status: trimmedStatus,
+        createdBy: trimmedCreatedBy,
       );
     }
 
@@ -115,37 +122,46 @@ class EquipmentService {
     required String updatedBy,
     required bool canManageOrganizationEquipment,
   }) async {
-    _requireOrganizationId(organizationId);
-    if (name.trim().isEmpty) {
-      throw Exception('Equipment name is required');
+    final trimmedOrganizationId = organizationId.trim();
+    final trimmedEquipmentId = equipmentId.trim();
+    final trimmedName = name.trim();
+    final trimmedCategory = category.trim();
+    final trimmedStatus = status.trim();
+    final trimmedUpdatedBy = updatedBy.trim();
+
+    _requireOrganizationId(trimmedOrganizationId);
+    if (trimmedName.isEmpty) {
+      throw Exception('Varustuse nimi on kohustuslik.');
     }
 
-    if (!EquipmentCategory.values.contains(category)) {
-      throw Exception('Unsupported equipment category: $category');
+    if (!EquipmentCategory.values.contains(trimmedCategory)) {
+      throw Exception('Varustuse kategooria ei ole toetatud.');
     }
 
-    if (!EquipmentStatus.values.contains(status)) {
-      throw Exception('Unsupported equipment status: $status');
+    if (!EquipmentStatus.values.contains(trimmedStatus)) {
+      throw Exception('Varustuse staatus ei ole toetatud.');
     }
 
-    final doc = _equipment.doc(equipmentId);
+    final doc = _equipment.doc(trimmedEquipmentId);
     final snapshot = await doc.get();
     final existing = snapshot.data();
     if (existing == null) {
-      throw Exception('Equipment item not found');
+      throw Exception('Varustust ei leitud.');
     }
 
     final existingOrganizationId =
-        (existing['organizationId'] ?? existing['commandId'] ?? '').toString();
-    if (existingOrganizationId != organizationId) {
-      throw Exception('Equipment item belongs to another organization');
+        (existing['organizationId'] ?? existing['commandId'] ?? '')
+            .toString()
+            .trim();
+    if (existingOrganizationId != trimmedOrganizationId) {
+      throw Exception('Varustus kuulub teise ühingusse.');
     }
     final scope = _equipmentScope(existing);
     final ownerUserId = (existing['ownerUserId'] ?? '').toString();
     _validateEquipmentOwnership(
       scope: scope,
       ownerUserId: ownerUserId,
-      currentUserId: updatedBy,
+      currentUserId: trimmedUpdatedBy,
       canManageOrganizationEquipment: canManageOrganizationEquipment,
     );
     final createdBy = (existing['createdBy'] ?? '').toString();
@@ -154,15 +170,15 @@ class EquipmentService {
     final batch = _firestore.batch();
 
     batch.set(doc, {
-      'id': equipmentId,
-      'organizationId': organizationId,
+      'id': trimmedEquipmentId,
+      'organizationId': trimmedOrganizationId,
       // TODO: Remove commandId after all equipment reads use organizationId.
-      'commandId': organizationId,
+      'commandId': trimmedOrganizationId,
       'scope': scope,
       if (scope == EquipmentScope.personal) 'ownerUserId': ownerUserId,
-      'name': name.trim(),
-      'category': category,
-      'status': status,
+      'name': trimmedName,
+      'category': trimmedCategory,
+      'status': trimmedStatus,
       'location': location.trim(),
       'nextMaintenanceDate': nextMaintenanceDate.trim(),
       'note': note.trim(),
@@ -170,14 +186,15 @@ class EquipmentService {
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
 
-    if (scope == EquipmentScope.organization && previousStatus != status) {
+    if (scope == EquipmentScope.organization &&
+        previousStatus != trimmedStatus) {
       _addProblemStatusNotificationToBatch(
         batch: batch,
-        organizationId: organizationId,
-        equipmentId: equipmentId,
-        equipmentName: name.trim(),
-        status: status,
-        createdBy: updatedBy,
+        organizationId: trimmedOrganizationId,
+        equipmentId: trimmedEquipmentId,
+        equipmentName: trimmedName,
+        status: trimmedStatus,
+        createdBy: trimmedUpdatedBy,
       );
     }
 
@@ -186,7 +203,7 @@ class EquipmentService {
 
   void _requireOrganizationId(String organizationId) {
     if (organizationId.trim().isEmpty) {
-      throw Exception('Selle toimingu jaoks puudub aktiivne organisatsioon');
+      throw Exception('Varustust ei saa salvestada ilma aktiivse ühinguta.');
     }
   }
 
@@ -204,7 +221,7 @@ class EquipmentService {
     required bool canManageOrganizationEquipment,
   }) {
     if (!EquipmentScope.values.contains(scope)) {
-      throw Exception('Unsupported equipment scope: $scope');
+      throw Exception('Varustuse tüüp ei ole toetatud.');
     }
 
     if (scope == EquipmentScope.personal) {
@@ -216,7 +233,7 @@ class EquipmentService {
     }
 
     if (!canManageOrganizationEquipment) {
-      throw Exception('Sul puudub õigus seda varustust muuta');
+      throw Exception('Sul puudub õigus ühingu varustust muuta.');
     }
   }
 

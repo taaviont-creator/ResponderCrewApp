@@ -59,12 +59,31 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
   Future<void> _showAddEquipmentDialog({
     required String scope,
   }) async {
+    if (widget.organizationId.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Varustust ei saa salvestada ilma aktiivse ühinguta.'),
+        ),
+      );
+      return;
+    }
+
+    if (scope == EquipmentScope.organization && !widget.canManageEquipment) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Sul puudub õigus ühingu varustust muuta.'),
+        ),
+      );
+      return;
+    }
+
     final nameController = TextEditingController();
     final locationController = TextEditingController();
     final nextMaintenanceDateController = TextEditingController();
     final noteController = TextEditingController();
     var selectedCategory = EquipmentCategory.other;
     var selectedStatus = EquipmentStatus.ok;
+    String? nameError;
 
     final shouldCreate = await showDialog<bool>(
       context: context,
@@ -82,7 +101,15 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
                 children: [
                   TextField(
                     controller: nameController,
-                    decoration: const InputDecoration(labelText: 'Nimi'),
+                    onChanged: (value) {
+                      if (nameError != null && value.trim().isNotEmpty) {
+                        setDialogState(() => nameError = null);
+                      }
+                    },
+                    decoration: InputDecoration(
+                      labelText: 'Varustuse nimi',
+                      errorText: nameError,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
@@ -142,7 +169,15 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
                 child: const Text('Katkesta'),
               ),
               ElevatedButton(
-                onPressed: () => Navigator.pop(context, true),
+                onPressed: () {
+                  if (nameController.text.trim().isEmpty) {
+                    setDialogState(() {
+                      nameError = 'Varustuse nimi on kohustuslik.';
+                    });
+                    return;
+                  }
+                  Navigator.pop(context, true);
+                },
                 child: const Text('Lisa'),
               ),
             ],
@@ -153,20 +188,27 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
 
     if (shouldCreate != true) return;
 
+    final organizationId = widget.organizationId.trim();
+    final currentUid = widget.currentUid.trim();
+    final name = nameController.text.trim();
+    final location = locationController.text.trim();
+    final nextMaintenanceDate = nextMaintenanceDateController.text.trim();
+    final note = noteController.text.trim();
+
     try {
       await _equipmentService.addEquipment(
-        organizationId: widget.organizationId,
+        organizationId: organizationId,
         scope: scope,
         ownerUserId: scope == EquipmentScope.personal
-            ? widget.currentUid
+            ? currentUid
             : '',
-        name: nameController.text,
+        name: name,
         category: selectedCategory,
         status: selectedStatus,
-        location: locationController.text,
-        nextMaintenanceDate: nextMaintenanceDateController.text,
-        note: noteController.text,
-        createdBy: widget.currentUid,
+        location: location,
+        nextMaintenanceDate: nextMaintenanceDate,
+        note: note,
+        createdBy: currentUid,
         canManageOrganizationEquipment: widget.canManageEquipment,
       );
       if (scope == EquipmentScope.organization) {
@@ -175,7 +217,7 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Varustus lisatud')),
+        const SnackBar(content: Text('Varustus salvestatud')),
       );
     } catch (e) {
       if (!mounted) return;
@@ -186,6 +228,15 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
   }
 
   Future<void> _showEditEquipmentDialog(EquipmentModel item) async {
+    if (widget.organizationId.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Varustust ei saa salvestada ilma aktiivse ühinguta.'),
+        ),
+      );
+      return;
+    }
+
     if (!_canEditEquipment(item)) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(_equipmentPermissionMessage(item))),
@@ -200,7 +251,10 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
     );
     final noteController = TextEditingController(text: item.note);
     var selectedCategory = item.category;
-    var selectedStatus = item.status;
+    var selectedStatus = EquipmentStatus.values.contains(item.status)
+        ? item.status
+        : EquipmentStatus.ok;
+    String? nameError;
 
     final shouldUpdate = await showDialog<bool>(
       context: context,
@@ -214,7 +268,15 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
                 children: [
                   TextField(
                     controller: nameController,
-                    decoration: const InputDecoration(labelText: 'Nimi'),
+                    onChanged: (value) {
+                      if (nameError != null && value.trim().isNotEmpty) {
+                        setDialogState(() => nameError = null);
+                      }
+                    },
+                    decoration: InputDecoration(
+                      labelText: 'Varustuse nimi',
+                      errorText: nameError,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
@@ -274,7 +336,15 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
                 child: const Text('Katkesta'),
               ),
               ElevatedButton(
-                onPressed: () => Navigator.pop(context, true),
+                onPressed: () {
+                  if (nameController.text.trim().isEmpty) {
+                    setDialogState(() {
+                      nameError = 'Varustuse nimi on kohustuslik.';
+                    });
+                    return;
+                  }
+                  Navigator.pop(context, true);
+                },
                 child: const Text('Salvesta'),
               ),
             ],
@@ -285,17 +355,24 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
 
     if (shouldUpdate != true) return;
 
+    final organizationId = widget.organizationId.trim();
+    final currentUid = widget.currentUid.trim();
+    final name = nameController.text.trim();
+    final location = locationController.text.trim();
+    final nextMaintenanceDate = nextMaintenanceDateController.text.trim();
+    final note = noteController.text.trim();
+
     try {
       await _equipmentService.updateEquipment(
         equipmentId: item.id,
-        organizationId: widget.organizationId,
-        name: nameController.text,
+        organizationId: organizationId,
+        name: name,
         category: selectedCategory,
         status: selectedStatus,
-        location: locationController.text,
-        nextMaintenanceDate: nextMaintenanceDateController.text,
-        note: noteController.text,
-        updatedBy: widget.currentUid,
+        location: location,
+        nextMaintenanceDate: nextMaintenanceDate,
+        note: note,
+        updatedBy: currentUid,
         canManageOrganizationEquipment: widget.canManageEquipment,
       );
       if (item.scope == EquipmentScope.organization) {
@@ -304,7 +381,7 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Varustus uuendatud')),
+        const SnackBar(content: Text('Varustus salvestatud')),
       );
     } catch (e) {
       if (!mounted) return;
