@@ -670,6 +670,25 @@ class _HomeScreenState extends State<HomeScreen> {
             Card(
               child: Column(
                 children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Liikmete õigused',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Määra, mida tavaliikmed saavad selles ühingus teha.',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                   SwitchListTile(
                     title: const Text(
                       'Liikmed võivad lisada tegevusi/koolitusi',
