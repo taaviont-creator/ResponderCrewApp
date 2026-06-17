@@ -53,6 +53,15 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
   }
 
   Future<void> _showAddCertificateDialog() async {
+    if (widget.organizationId.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tunnistust ei saa lisada ilma aktiivse ühinguta.'),
+        ),
+      );
+      return;
+    }
+
     final members = await _loadMemberOptions();
     if (!mounted) return;
 
@@ -189,17 +198,34 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
     );
 
     if (shouldCreate != true) return;
+    if (!mounted) return;
+
+    final title = titleController.text.trim();
+    final expiresAt = expiresAtController.text.trim();
+    if (title.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nimetus on kohustuslik.')),
+      );
+      return;
+    }
+
+    if (expiresAt.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Aegumiskuupäev on kohustuslik.')),
+      );
+      return;
+    }
 
     try {
       await _certificateService.addCertificate(
         organizationId: widget.organizationId,
         userId: selectedMember.uid,
         userName: selectedMember.name,
-        title: titleController.text,
+        title: title,
         type: selectedType,
         issuer: issuerController.text,
         issuedAt: issuedAtController.text,
-        expiresAt: expiresAtController.text,
+        expiresAt: expiresAt,
         status: selectedStatus,
         note: noteController.text,
         createdBy: widget.currentUid,
@@ -208,7 +234,7 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Kvalifikatsioon lisatud')),
+        const SnackBar(content: Text('Tunnistus lisatud.')),
       );
     } catch (e) {
       if (!mounted) return;

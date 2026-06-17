@@ -75,9 +75,16 @@ class CertificateService {
     required String note,
     required String createdBy,
   }) async {
-    _requireOrganizationId(organizationId);
+    _requireOrganizationId(
+      organizationId,
+      message: 'Tunnistust ei saa lisada ilma aktiivse ühinguta.',
+    );
     if (title.trim().isEmpty) {
-      throw Exception('Certificate title is required');
+      throw Exception('Nimetus on kohustuslik.');
+    }
+
+    if (expiresAt.trim().isEmpty) {
+      throw Exception('Aegumiskuupäev on kohustuslik.');
     }
 
     if (!CertificateType.values.contains(type)) {
@@ -169,9 +176,12 @@ class CertificateService {
     }
   }
 
-  void _requireOrganizationId(String organizationId) {
+  void _requireOrganizationId(
+    String organizationId, {
+    String message = 'Selle toimingu jaoks puudub aktiivne organisatsioon',
+  }) {
     if (organizationId.trim().isEmpty) {
-      throw Exception('Selle toimingu jaoks puudub aktiivne organisatsioon');
+      throw Exception(message);
     }
   }
 }
