@@ -195,7 +195,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Komando loodud ja liidetud!')),
+        const SnackBar(content: Text('Ühing loodud ja saadetud kinnitamisele.')),
       );
     } catch (e) {
       if (!mounted) return;

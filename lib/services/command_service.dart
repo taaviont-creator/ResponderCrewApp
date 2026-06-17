@@ -5,6 +5,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/membership_model.dart';
 
 class CommandService {
+  static const _statusPending = 'pending';
+  static const _statusRejected = 'rejected';
+
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
@@ -49,14 +52,13 @@ class CommandService {
     final membershipRef = _db
         .collection('memberships')
         .doc(_membershipId(user.uid, commandRef.id));
-    final userRef = _db.collection('users').doc(user.uid);
-
     final batch = _db.batch();
 
     batch.set(commandRef, {
       'name': trimmedName,
       'joinCode': joinCode,
       'createdBy': user.uid,
+      'status': _statusPending,
       'allowMembersToCreateActivities': false,
       'allowMembersToViewStatistics': false,
       'allowMembersToStartOperationLog': false,
@@ -70,16 +72,10 @@ class CommandService {
       'commandId': commandRef.id,
       'role': MembershipRole.orgAdmin,
       'seaRescueLevel': SeaRescueLevel.none,
-      'status': 'active',
-      'isActive': true,
+      'status': 'pending',
+      'isActive': false,
       'joinedAt': FieldValue.serverTimestamp(),
     });
-
-    batch.set(userRef, {
-      'activeOrganizationId': commandRef.id,
-      'activeCommandId': commandRef.id,
-      'commandId': commandRef.id,
-    }, SetOptions(merge: true));
 
     await batch.commit();
 
@@ -103,7 +99,15 @@ class CommandService {
       throw Exception('Komandot selle koodiga ei leitud');
     }
 
-    final commandId = query.docs.first.id;
+    final commandDoc = query.docs.first;
+    final commandId = commandDoc.id;
+    final status = commandDoc.data()['status'];
+    if (status == _statusPending) {
+      throw Exception('Ühing ootab kinnitamist.');
+    }
+    if (status == _statusRejected) {
+      throw Exception('Ühingu taotlus on tagasi lükatud.');
+    }
 
     final membershipRef = _db
         .collection('memberships')

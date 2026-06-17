@@ -148,6 +148,29 @@ service cloud.firestore {
         );
     }
 
+    function isCommandCreateData(data) {
+      return data.keys().hasAny(['status']) &&
+        data.status == 'pending' &&
+        hasValidCommandMemberPermissions(data);
+    }
+
+    function commandIsPendingAfter(commandId) {
+      return commandExistsAfter(commandId) &&
+        getAfter(/databases/$(database)/documents/commands/$(commandId)).data.status ==
+          'pending';
+    }
+
+    function commandIsApprovedAfter(commandId) {
+      return commandExistsAfter(commandId) &&
+        (
+          !getAfter(/databases/$(database)/documents/commands/$(commandId)).data.keys().hasAny([
+            'status'
+          ]) ||
+          getAfter(/databases/$(database)/documents/commands/$(commandId)).data.status ==
+            'approved'
+        );
+    }
+
     function isCommandMemberPermissionUpdate(commandId) {
       return signedIn() &&
         (isPlatformAdmin() || isActiveOrgAdmin(commandId)) &&
@@ -176,13 +199,26 @@ service cloud.firestore {
     function isOwnOrgAdminMembershipForCreatedCommand() {
       return isOwnMembershipCreate() &&
         request.resource.data.role == 'orgAdmin' &&
-        isCommandCreator(organizationIdFromData(request.resource.data));
+        isCommandCreator(organizationIdFromData(request.resource.data)) &&
+        commandIsApprovedAfter(organizationIdFromData(request.resource.data));
+    }
+
+    function isOwnPendingOrgAdminMembershipForCreatedCommand() {
+      return signedIn() &&
+        request.resource.data.userId == request.auth.uid &&
+        hasValidOrganizationReference(request.resource.data) &&
+        isValidSeaRescueLevel(request.resource.data) &&
+        request.resource.data.role == 'orgAdmin' &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.isActive == false &&
+        isCommandCreator(organizationIdFromData(request.resource.data)) &&
+        commandIsPendingAfter(organizationIdFromData(request.resource.data));
     }
 
     function isOwnMemberMembership() {
       return isOwnMembershipCreate() &&
         request.resource.data.role == 'member' &&
-        commandExistsAfter(organizationIdFromData(request.resource.data));
+        commandIsApprovedAfter(organizationIdFromData(request.resource.data));
     }
 
     function keepsMembershipIdentityAndRole() {
@@ -1469,7 +1505,7 @@ service cloud.firestore {
       allow read: if signedIn();
       allow create: if signedIn() &&
         request.resource.data.createdBy == request.auth.uid &&
-        hasValidCommandMemberPermissions(request.resource.data);
+        isCommandCreateData(request.resource.data);
 
       allow update: if isCommandMemberPermissionUpdate(commandId);
     }
@@ -1482,6 +1518,7 @@ service cloud.firestore {
         );
 
       allow create: if isOwnOrgAdminMembershipForCreatedCommand() ||
+        isOwnPendingOrgAdminMembershipForCreatedCommand() ||
         isOwnMemberMembership();
 
       allow update: if signedIn() &&
