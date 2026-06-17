@@ -60,7 +60,12 @@ class StatisticsService {
 
     final equipmentSnapshot = await _firestore
         .collection('equipment')
-        .where(_organizationFilter(organizationId))
+        .where(
+          Filter.and(
+            _organizationFilter(organizationId),
+            Filter('scope', isEqualTo: EquipmentScope.organization),
+          ),
+        )
         .get();
     var equipmentNeedsMaintenanceCount = 0;
     var equipmentUnavailableCount = 0;

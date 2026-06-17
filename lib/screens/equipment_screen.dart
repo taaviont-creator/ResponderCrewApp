@@ -398,8 +398,10 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
         title: const Text('Varustus'),
       ),
       body: StreamBuilder<List<EquipmentModel>>(
-        stream: _equipmentService.streamOrganizationEquipment(
+        stream: _equipmentService.streamVisibleEquipment(
           organizationId: widget.organizationId,
+          currentUserId: widget.currentUid,
+          canViewMemberPersonalEquipment: widget.canManageEquipment,
         ),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -423,6 +425,13 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
           final organizationEquipment = equipment
               .where((item) => !item.isPersonal)
               .toList(growable: false);
+          final memberPersonalEquipment = equipment
+              .where(
+                (item) =>
+                    item.isPersonal &&
+                    item.ownerUserId != widget.currentUid,
+              )
+              .toList(growable: false);
 
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -436,6 +445,18 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
                   scope: EquipmentScope.personal,
                 ),
               ),
+              if (widget.canManageEquipment) ...[
+                const SizedBox(height: 24),
+                _buildEquipmentSection(
+                  title: 'Liikmete varustus',
+                  equipment: memberPersonalEquipment,
+                  emptyText: 'Liikmete varustust ei ole lisatud',
+                  addLabel: '',
+                  helperText:
+                      'Admin saab vaadata ja muuta liikmete isiklikku varustust.',
+                  onAdd: null,
+                ),
+              ],
               const SizedBox(height: 24),
               _buildEquipmentSection(
                 title: 'Ühingu varustus',
@@ -604,7 +625,8 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
 
   bool _canEditEquipment(EquipmentModel item) {
     if (item.isPersonal) {
-      return item.ownerUserId == widget.currentUid;
+      return item.ownerUserId == widget.currentUid ||
+          widget.canManageEquipment;
     }
     return widget.canManageEquipment;
   }

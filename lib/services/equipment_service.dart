@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/equipment_model.dart';
@@ -17,23 +19,174 @@ class EquipmentService {
   Stream<List<EquipmentModel>> streamOrganizationEquipment({
     required String organizationId,
   }) {
-    _requireOrganizationId(organizationId);
+    return _streamOrganizationEquipment(organizationId: organizationId)
+        .map(_sortEquipment);
+  }
+
+  Stream<List<EquipmentModel>> streamVisibleEquipment({
+    required String organizationId,
+    required String currentUserId,
+    required bool canViewMemberPersonalEquipment,
+  }) {
+    final trimmedOrganizationId = organizationId.trim();
+    final trimmedUserId = currentUserId.trim();
+
+    _requireOrganizationId(trimmedOrganizationId);
+    if (trimmedUserId.isEmpty) {
+      throw Exception('Kasutaja puudub.');
+    }
+
+    late StreamController<List<EquipmentModel>> controller;
+    StreamSubscription<List<EquipmentModel>>? organizationSubscription;
+    StreamSubscription<List<EquipmentModel>>? personalSubscription;
+    List<EquipmentModel>? organizationEquipment;
+    List<EquipmentModel>? personalEquipment;
+
+    void emitEquipment() {
+      if (controller.isClosed ||
+          organizationEquipment == null ||
+          personalEquipment == null) {
+        return;
+      }
+
+      controller.add(
+        _sortEquipment([
+          ...organizationEquipment!,
+          ...personalEquipment!,
+        ]),
+      );
+    }
+
+    controller = StreamController<List<EquipmentModel>>(
+      onListen: () {
+        organizationSubscription = _streamOrganizationEquipment(
+          organizationId: trimmedOrganizationId,
+        ).listen(
+          (value) {
+            organizationEquipment = value;
+            emitEquipment();
+          },
+          onError: controller.addError,
+        );
+
+        final personalStream = canViewMemberPersonalEquipment
+            ? _streamPersonalEquipmentForOrganization(
+                organizationId: trimmedOrganizationId,
+              )
+            : _streamPersonalEquipment(
+                organizationId: trimmedOrganizationId,
+                ownerUserId: trimmedUserId,
+              );
+
+        personalSubscription = personalStream.listen(
+          (value) {
+            personalEquipment = value;
+            emitEquipment();
+          },
+          onError: controller.addError,
+        );
+      },
+      onCancel: () async {
+        await organizationSubscription?.cancel();
+        await personalSubscription?.cancel();
+      },
+    );
+
+    return controller.stream;
+  }
+
+  Stream<List<EquipmentModel>> _streamOrganizationEquipment({
+    required String organizationId,
+  }) {
+    final trimmedOrganizationId = organizationId.trim();
+    _requireOrganizationId(trimmedOrganizationId);
     return _equipment
         .where(
-          Filter.or(
-            Filter('organizationId', isEqualTo: organizationId),
-            // TODO: Remove commandId fallback after equipment migration.
-            Filter('commandId', isEqualTo: organizationId),
+          Filter.and(
+            Filter.or(
+              Filter('organizationId', isEqualTo: trimmedOrganizationId),
+              // TODO: Remove commandId fallback after equipment migration.
+              Filter('commandId', isEqualTo: trimmedOrganizationId),
+            ),
+            Filter('scope', isEqualTo: EquipmentScope.organization),
           ),
         )
         .snapshots()
         .map((snapshot) {
-      final equipment =
-          snapshot.docs.map(EquipmentModel.fromFirestore).toList();
-
-      equipment.sort((a, b) => a.name.compareTo(b.name));
-      return equipment;
+      return snapshot.docs.map(EquipmentModel.fromFirestore).where((item) {
+        final itemOrganizationId = item.organizationId.isNotEmpty
+            ? item.organizationId
+            : item.commandId;
+        return itemOrganizationId == trimmedOrganizationId &&
+            item.scope == EquipmentScope.organization;
+      }).toList(growable: false);
     });
+  }
+
+  Stream<List<EquipmentModel>> _streamPersonalEquipment({
+    required String organizationId,
+    required String ownerUserId,
+  }) {
+    final trimmedOrganizationId = organizationId.trim();
+    final trimmedOwnerUserId = ownerUserId.trim();
+    _requireOrganizationId(trimmedOrganizationId);
+    return _equipment
+        .where(
+          Filter.and(
+            Filter.or(
+              Filter('organizationId', isEqualTo: trimmedOrganizationId),
+              // TODO: Remove commandId fallback after equipment migration.
+              Filter('commandId', isEqualTo: trimmedOrganizationId),
+            ),
+            Filter('scope', isEqualTo: EquipmentScope.personal),
+            Filter('ownerUserId', isEqualTo: trimmedOwnerUserId),
+          ),
+        )
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map(EquipmentModel.fromFirestore).where((item) {
+        final itemOrganizationId = item.organizationId.isNotEmpty
+            ? item.organizationId
+            : item.commandId;
+        return itemOrganizationId == trimmedOrganizationId &&
+            item.scope == EquipmentScope.personal &&
+            item.ownerUserId == trimmedOwnerUserId;
+      }).toList(growable: false);
+    });
+  }
+
+  Stream<List<EquipmentModel>> _streamPersonalEquipmentForOrganization({
+    required String organizationId,
+  }) {
+    final trimmedOrganizationId = organizationId.trim();
+    _requireOrganizationId(trimmedOrganizationId);
+    return _equipment
+        .where(
+          Filter.and(
+            Filter.or(
+              Filter('organizationId', isEqualTo: trimmedOrganizationId),
+              // TODO: Remove commandId fallback after equipment migration.
+              Filter('commandId', isEqualTo: trimmedOrganizationId),
+            ),
+            Filter('scope', isEqualTo: EquipmentScope.personal),
+          ),
+        )
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.map(EquipmentModel.fromFirestore).where((item) {
+        final itemOrganizationId = item.organizationId.isNotEmpty
+            ? item.organizationId
+            : item.commandId;
+        return itemOrganizationId == trimmedOrganizationId &&
+            item.scope == EquipmentScope.personal;
+      }).toList(growable: false);
+    });
+  }
+
+  List<EquipmentModel> _sortEquipment(List<EquipmentModel> equipment) {
+    final sorted = [...equipment];
+    sorted.sort((a, b) => a.name.compareTo(b.name));
+    return sorted;
   }
 
   Future<void> addEquipment({
@@ -62,6 +215,7 @@ class EquipmentService {
       ownerUserId: trimmedOwnerUserId,
       currentUserId: trimmedCreatedBy,
       canManageOrganizationEquipment: canManageOrganizationEquipment,
+      allowAdminPersonalEquipment: false,
     );
     if (trimmedName.isEmpty) {
       throw Exception('Varustuse nimi on kohustuslik.');
@@ -163,6 +317,7 @@ class EquipmentService {
       ownerUserId: ownerUserId,
       currentUserId: trimmedUpdatedBy,
       canManageOrganizationEquipment: canManageOrganizationEquipment,
+      allowAdminPersonalEquipment: true,
     );
     final createdBy = (existing['createdBy'] ?? '').toString();
     final previousStatus = (existing['status'] ?? EquipmentStatus.ok).toString();
@@ -219,17 +374,21 @@ class EquipmentService {
     required String ownerUserId,
     required String currentUserId,
     required bool canManageOrganizationEquipment,
+    required bool allowAdminPersonalEquipment,
   }) {
     if (!EquipmentScope.values.contains(scope)) {
       throw Exception('Varustuse tüüp ei ole toetatud.');
     }
 
     if (scope == EquipmentScope.personal) {
-      if (ownerUserId.isEmpty ||
-          (ownerUserId != currentUserId && !canManageOrganizationEquipment)) {
+      if (ownerUserId.isEmpty) {
         throw Exception('Sul puudub õigus seda varustust muuta');
       }
-      return;
+      if (ownerUserId == currentUserId ||
+          (allowAdminPersonalEquipment && canManageOrganizationEquipment)) {
+        return;
+      }
+      throw Exception('Sul puudub õigus seda varustust muuta');
     }
 
     if (!canManageOrganizationEquipment) {
@@ -250,10 +409,13 @@ class EquipmentService {
     }
     final snapshot = await _equipment
         .where(
-          Filter.or(
-            Filter('organizationId', isEqualTo: organizationId),
-            // TODO: Remove commandId fallback after equipment migration.
-            Filter('commandId', isEqualTo: organizationId),
+          Filter.and(
+            Filter.or(
+              Filter('organizationId', isEqualTo: organizationId),
+              // TODO: Remove commandId fallback after equipment migration.
+              Filter('commandId', isEqualTo: organizationId),
+            ),
+            Filter('scope', isEqualTo: EquipmentScope.organization),
           ),
         )
         .get();

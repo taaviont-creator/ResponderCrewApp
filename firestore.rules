@@ -378,6 +378,27 @@ service cloud.firestore {
         isValidEquipmentStatus(data.status);
     }
 
+    function canReadEquipment(data) {
+      let organizationId =
+        organizationIdFromData(data);
+      return signedIn() &&
+        (
+          isPlatformAdmin() ||
+          (
+            equipmentScope(data) == 'organization' &&
+            isActiveMember(organizationId)
+          ) ||
+          (
+            equipmentScope(data) == 'personal' &&
+            isActiveMember(organizationId) &&
+            (
+              data.ownerUserId == request.auth.uid ||
+              isActiveOrgAdmin(organizationId)
+            )
+          )
+        );
+    }
+
     function isEquipmentCreate(equipmentId) {
       let organizationId =
         organizationIdFromData(request.resource.data);
@@ -1484,11 +1505,7 @@ service cloud.firestore {
     }
 
     match /equipment/{equipmentId} {
-      allow read: if signedIn() &&
-        (
-          isPlatformAdmin() ||
-          isActiveMember(organizationIdFromData(resource.data))
-        );
+      allow read: if canReadEquipment(resource.data);
       allow create: if isEquipmentCreate(equipmentId);
       allow update: if isEquipmentUpdate(equipmentId);
     }
