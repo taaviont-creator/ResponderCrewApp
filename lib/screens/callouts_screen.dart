@@ -45,6 +45,15 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
   }
 
   Future<void> _showAddCalloutDialog() async {
+    if (widget.organizationId.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Väljakutse loomiseks vali aktiivne organisatsioon'),
+        ),
+      );
+      return;
+    }
+
     final titleController = TextEditingController();
     final descriptionController = TextEditingController();
     final locationController = TextEditingController();
@@ -70,7 +79,7 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
                     }
                   },
                   decoration: InputDecoration(
-                    labelText: 'Pealkiri',
+                    labelText: 'Pealkiri *',
                     errorText: titleError,
                   ),
                 ),
@@ -127,15 +136,22 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
 
     if (shouldCreate != true) return;
 
+    final organizationId = widget.organizationId.trim();
+    final title = titleController.text.trim();
+    final description = descriptionController.text.trim();
+    final location = locationController.text.trim();
+    final currentUid = widget.currentUid.trim();
+    final currentUserName = widget.currentUserName.trim();
+
     try {
       await _calloutService.addCallout(
-        organizationId: widget.organizationId,
-        title: titleController.text,
-        description: descriptionController.text,
-        location: locationController.text,
+        organizationId: organizationId,
+        title: title,
+        description: description,
+        location: location,
         priority: selectedPriority,
-        createdBy: widget.currentUid,
-        createdByName: widget.currentUserName,
+        createdBy: currentUid,
+        createdByName: currentUserName,
       );
 
       if (!mounted) return;

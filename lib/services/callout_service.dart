@@ -301,13 +301,25 @@ class CalloutService {
     required String createdBy,
     required String createdByName,
   }) async {
-    _requireOrganizationId(organizationId);
-    if (title.trim().isEmpty) {
-      throw Exception('Callout title is required');
+    final trimmedOrganizationId = organizationId.trim();
+    final trimmedTitle = title.trim();
+    final trimmedDescription = description.trim();
+    final trimmedLocation = location.trim();
+    final trimmedPriority = priority.trim();
+    final trimmedCreatedBy = createdBy.trim();
+    final trimmedCreatedByName = createdByName.trim();
+
+    _requireOrganizationId(trimmedOrganizationId);
+    if (trimmedTitle.isEmpty) {
+      throw Exception('Väljakutse pealkiri on kohustuslik');
     }
 
-    if (!CalloutPriority.values.contains(priority)) {
-      throw Exception('Unsupported callout priority: $priority');
+    if (trimmedCreatedBy.isEmpty) {
+      throw Exception('Väljakutse looja puudub');
+    }
+
+    if (!CalloutPriority.values.contains(trimmedPriority)) {
+      throw Exception('Väljakutse prioriteet ei ole toetatud');
     }
 
     final calloutDoc = _callouts.doc();
@@ -317,10 +329,7 @@ class CalloutService {
     final operationLogCreatedEvent =
         operationLogDoc.collection('events').doc('created');
     final batch = _firestore.batch();
-    final trimmedTitle = title.trim();
-    final trimmedDescription = description.trim();
-    final trimmedLocation = location.trim();
-    final trimmedCreatedByName = createdByName.trim();
+    final timestamp = FieldValue.serverTimestamp();
     final notificationMessage = trimmedLocation.isEmpty
         ? (trimmedDescription.isEmpty ? trimmedTitle : trimmedDescription)
         : (trimmedDescription.isEmpty
@@ -329,65 +338,65 @@ class CalloutService {
 
     batch.set(calloutDoc, {
       'id': calloutDoc.id,
-      'organizationId': organizationId,
+      'organizationId': trimmedOrganizationId,
       // TODO: Remove commandId after all callout reads use organizationId.
-      'commandId': organizationId,
+      'commandId': trimmedOrganizationId,
       'title': trimmedTitle,
       'description': trimmedDescription,
       'location': trimmedLocation,
       'status': CalloutStatus.active,
-      'priority': priority,
-      'createdBy': createdBy,
+      'priority': trimmedPriority,
+      'createdBy': trimmedCreatedBy,
       'createdByName': trimmedCreatedByName,
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
+      'createdAt': timestamp,
+      'updatedAt': timestamp,
       'closedAt': null,
     });
 
     batch.set(notificationDoc, {
       'id': notificationDoc.id,
-      'organizationId': organizationId,
+      'organizationId': trimmedOrganizationId,
       // TODO: Remove commandId after all notification reads use organizationId.
-      'commandId': organizationId,
-      'title': 'Valjakutse: $trimmedTitle',
+      'commandId': trimmedOrganizationId,
+      'title': 'Väljakutse: $trimmedTitle',
       'message': notificationMessage,
       'type': NotificationType.callout,
       'priority': NotificationPriority.high,
       'relatedType': 'callout',
       'relatedId': calloutDoc.id,
-      'createdBy': createdBy,
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
+      'createdBy': trimmedCreatedBy,
+      'createdAt': timestamp,
+      'updatedAt': timestamp,
     });
 
     batch.set(operationLogDoc, {
       'id': operationLogDoc.id,
-      'organizationId': organizationId,
+      'organizationId': trimmedOrganizationId,
       // TODO: Remove commandId after all operation log reads use organizationId.
-      'commandId': organizationId,
-      'createdBy': createdBy,
+      'commandId': trimmedOrganizationId,
+      'createdBy': trimmedCreatedBy,
       'createdByName': trimmedCreatedByName,
       'type': OperationLogType.note,
       'title': 'Väljakutse loodud: $trimmedTitle',
       'description': notificationMessage,
       'status': OperationLogStatus.open,
       'calloutId': calloutDoc.id,
-      'timestamp': FieldValue.serverTimestamp(),
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
+      'timestamp': timestamp,
+      'createdAt': timestamp,
+      'updatedAt': timestamp,
     });
 
     batch.set(operationLogCreatedEvent, {
       'id': operationLogCreatedEvent.id,
-      'organizationId': organizationId,
-      'commandId': organizationId,
+      'organizationId': trimmedOrganizationId,
+      'commandId': trimmedOrganizationId,
       'operationLogId': operationLogDoc.id,
       'type': OperationLogEventType.statusChange,
       'status': OperationLogStatus.open,
       'title': 'Avatud',
       'description': '',
-      'createdBy': createdBy,
-      'createdAt': FieldValue.serverTimestamp(),
+      'createdBy': trimmedCreatedBy,
+      'createdAt': timestamp,
     });
 
     await batch.commit();
