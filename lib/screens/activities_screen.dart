@@ -271,46 +271,124 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
           }
 
           final activities = snapshot.data ?? const <ActivityModel>[];
-          if (activities.isEmpty) {
-            return const Center(child: Text('Tegevusi ei ole veel lisatud'));
-          }
+          final upcomingActivities = activities
+              .where((activity) {
+                final startDate = _activityStartDate(activity);
+                return startDate == null ||
+                    !startDate.isBefore(DateTime.now());
+              })
+              .toList(growable: false)
+            ..sort(_compareUpcomingActivities);
+          final pastActivities = activities
+              .where((activity) {
+                final startDate = _activityStartDate(activity);
+                return startDate != null && startDate.isBefore(DateTime.now());
+              })
+              .toList(growable: false)
+            ..sort(_comparePastActivities);
 
-          return ListView.separated(
+          return ListView(
             padding: const EdgeInsets.all(16),
-            itemCount: activities.length,
-            separatorBuilder: (_, _) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              final activity = activities[index];
-              final subtitleParts = [
-                _activityTypeLabel(activity.type),
-                if (activity.startTime.isNotEmpty) activity.startTime,
-                if (activity.location.isNotEmpty) activity.location,
-              ];
-
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(activity.title),
-                      subtitle: Text(
-                        activity.description.isEmpty
-                            ? subtitleParts.join(' - ')
-                            : '${subtitleParts.join(' - ')}\n'
-                                '${activity.description}',
-                      ),
-                    ),
-                    _buildActivityParticipationControls(activity: activity),
-                  ],
-                ),
-              );
-            },
+            children: [
+              _buildActivitySection(
+                title: 'Tulemas',
+                activities: upcomingActivities,
+                emptyText: 'Tulevasi tegevusi või koolitusi ei ole.',
+              ),
+              const SizedBox(height: 24),
+              _buildActivitySection(
+                title: 'Toimunud',
+                activities: pastActivities,
+                emptyText: 'Toimunud tegevusi või koolitusi ei ole.',
+              ),
+            ],
           );
         },
       ),
     );
+  }
+
+  Widget _buildActivitySection({
+    required String title,
+    required List<ActivityModel> activities,
+    required String emptyText,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: 8),
+        if (activities.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Text(emptyText),
+          )
+        else
+          ...activities.map(_buildActivityListItem),
+      ],
+    );
+  }
+
+  Widget _buildActivityListItem(ActivityModel activity) {
+    final kindLabel = _activityKindLabel(activity.type);
+    final typeLabel = _activityTypeLabel(activity.type);
+    final subtitleParts = [
+      kindLabel,
+      if (typeLabel != kindLabel) typeLabel,
+      if (activity.startTime.isNotEmpty) activity.startTime,
+      if (activity.location.isNotEmpty) activity.location,
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Divider(height: 1),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          title: Text(activity.title),
+          subtitle: Text(
+            activity.description.isEmpty
+                ? subtitleParts.join(' - ')
+                : '${subtitleParts.join(' - ')}\n'
+                    '${activity.description}',
+          ),
+        ),
+        _buildActivityParticipationControls(activity: activity),
+        const SizedBox(height: 8),
+      ],
+    );
+  }
+
+  int _compareUpcomingActivities(ActivityModel a, ActivityModel b) {
+    final aTime = _activityStartDate(a);
+    final bTime = _activityStartDate(b);
+    if (aTime == null && bTime == null) return a.title.compareTo(b.title);
+    if (aTime == null) return 1;
+    if (bTime == null) return -1;
+    return aTime.compareTo(bTime);
+  }
+
+  int _comparePastActivities(ActivityModel a, ActivityModel b) {
+    final aTime = _activityStartDate(a);
+    final bTime = _activityStartDate(b);
+    if (aTime == null && bTime == null) return a.title.compareTo(b.title);
+    if (aTime == null) return 1;
+    if (bTime == null) return -1;
+    return bTime.compareTo(aTime);
+  }
+
+  DateTime? _activityStartDate(ActivityModel activity) {
+    final value = activity.startTime.trim();
+    if (value.isEmpty) return null;
+    return DateTime.tryParse(value) ??
+        DateTime.tryParse(value.replaceFirst(' ', 'T'));
+  }
+
+  String _activityKindLabel(String type) {
+    return type == ActivityType.training ? 'Koolitus' : 'Tegevus';
   }
 
   String _activityTypeLabel(String type) {
