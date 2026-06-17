@@ -392,7 +392,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Selle teavituse jaoks puudub eraldi vaade.'),
+        content: Text('Seotud vaadet ei saa avada.'),
       ),
     );
   }
@@ -426,7 +426,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
           final notifications = snapshot.data ?? const <NotificationModel>[];
           if (notifications.isEmpty) {
-            return _buildEmptyState('Teavitusi ei ole lisatud');
+            return _buildEmptyState('Teavitusi ei ole.');
           }
 
           return StreamBuilder<Set<String>>(
@@ -509,7 +509,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   ],
                   const SizedBox(height: AppTheme.itemSpacing),
                   if (filteredNotifications.isEmpty)
-                    _buildEmptyCard('Selle filtriga teavitusi ei ole')
+                    _buildEmptyCard(_emptyFilterMessage())
                   else
                     ...filteredNotifications.map((notification) {
                       final isRead =
@@ -549,12 +549,26 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         type: StatusBadgeType.neutral,
       ),
       child: Text(
-        'Olulised väljakutsed, valmisoleku muutused ja varustuse teated ühes vaates.',
+        'Olulised väljakutsed, valmisoleku muutused ja varustuse teated '
+        'ühes vaates. Uusimad teavitused on eespool.',
         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: AppColors.textSecondary,
             ),
       ),
     );
+  }
+
+  String _emptyFilterMessage() {
+    switch (_selectedFilter) {
+      case _NotificationFilter.unread:
+        return 'Lugemata teavitusi ei ole.';
+      case _NotificationFilter.all:
+        return 'Teavitusi ei ole.';
+      case _NotificationFilter.callouts:
+      case _NotificationFilter.equipment:
+      case _NotificationFilter.readiness:
+        return 'Selle filtriga teavitusi ei ole.';
+    }
   }
 
   Widget _buildAlarmReadinessCard() {
@@ -1071,7 +1085,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       case NotificationType.callout:
         return 'Väljakutse';
       case NotificationType.certificate:
-        return 'Sertifikaat';
+        return 'Tunnistus';
       case NotificationType.other:
         return 'Muu';
       default:
