@@ -90,7 +90,11 @@ class ActivityService {
       createdBy: trimmedCreatedBy,
     );
     if (title.trim().isEmpty) {
-      throw Exception('Tegevuse pealkiri on kohustuslik.');
+      throw Exception('Pealkiri on kohustuslik.');
+    }
+
+    if (startTime.trim().isEmpty) {
+      throw Exception('Kuupäev on kohustuslik.');
     }
 
     if (!ActivityType.values.contains(type)) {

@@ -58,6 +58,7 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
     final descriptionController = TextEditingController();
     var selectedType = ActivityType.training;
     String? titleError;
+    String? startTimeError;
 
     final shouldCreate = await showDialog<bool>(
       context: context,
@@ -99,9 +100,15 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
                   const SizedBox(height: 8),
                   TextField(
                     controller: startTimeController,
-                    decoration: const InputDecoration(
+                    onChanged: (value) {
+                      if (startTimeError != null && value.trim().isNotEmpty) {
+                        setDialogState(() => startTimeError = null);
+                      }
+                    },
+                    decoration: InputDecoration(
                       labelText: 'Algusaeg',
                       hintText: 'nt 2026-05-20 18:00',
+                      errorText: startTimeError,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -127,7 +134,13 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
                 onPressed: () {
                   if (titleController.text.trim().isEmpty) {
                     setDialogState(() {
-                      titleError = 'Tegevuse pealkiri on kohustuslik.';
+                      titleError = 'Pealkiri on kohustuslik.';
+                    });
+                    return;
+                  }
+                  if (startTimeController.text.trim().isEmpty) {
+                    setDialogState(() {
+                      startTimeError = 'Kuupäev on kohustuslik.';
                     });
                     return;
                   }
@@ -146,18 +159,18 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
     try {
       await _activityService.addActivity(
         organizationId: organizationId,
-        title: titleController.text,
-        description: descriptionController.text,
+        title: titleController.text.trim(),
+        description: descriptionController.text.trim(),
         type: selectedType,
-        startTime: startTimeController.text,
-        location: locationController.text,
+        startTime: startTimeController.text.trim(),
+        location: locationController.text.trim(),
         createdBy: widget.currentUid.trim(),
       );
 
       if (!mounted) return;
       final successMessage = selectedType == ActivityType.training
-          ? 'Koolitus lisatud.'
-          : 'Tegevus lisatud.';
+          ? 'Koolitus salvestatud.'
+          : 'Tegevus salvestatud.';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(successMessage)),
       );
