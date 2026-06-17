@@ -93,9 +93,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             padding: const EdgeInsets.all(16),
             children: [
               _buildStatisticTile('Liikmeid', statistics.memberCount),
-              _buildStatisticTile('On duty', statistics.onDutyCount),
-              _buildStatisticTile('Delayed', statistics.delayedCount),
-              _buildStatisticTile('Off duty', statistics.offDutyCount),
+              _buildStatisticTile('Valves', statistics.onDutyCount),
+              _buildStatisticTile('Hilinenud', statistics.delayedCount),
+              _buildStatisticTile('Valvest väljas', statistics.offDutyCount),
               const Divider(),
               _buildStatisticTile('Varustust kokku', statistics.equipmentCount),
               _buildStatisticTile(
@@ -112,7 +112,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 statistics.operationLogCount,
               ),
               _buildStatisticTile(
-                'Tegevusi/koolitusi',
+                'Tegevusi/koolitusi kokku',
                 statistics.upcomingActivityCount,
               ),
               const Divider(),
