@@ -528,13 +528,11 @@ class _HomeScreenState extends State<HomeScreen> {
     String? title,
     String? message,
   }) {
-    final effectiveTitle =
-        title ?? (hasMemberships ? 'Vali organisatsioon' : 'Organisatsioon puudub');
+    final effectiveTitle = title ?? 'Aktiivne ühing puudub.';
     final effectiveMessage = message ??
         (hasMemberships
-            ? 'Enne jĆ¤tkamist vali aktiivne organisatsioon.'
-            : 'Sul puudub aktiivne organisatsiooni liikmelisus. '
-                'Loo uus organisatsioon vĆµi liitu olemasolevaga.');
+            ? 'Vali aktiivne ühing, et mooduleid kasutada.'
+            : 'Vali või liitu ühinguga, et mooduleid kasutada.');
 
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -546,14 +544,7 @@ class _HomeScreenState extends State<HomeScreen> {
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 8),
-          if (message != null) Text(effectiveMessage),
-          if (message == null)
-            Text(
-            hasMemberships
-                ? 'Enne jätkamist vali aktiivne organisatsioon.'
-                : 'Sul puudub aktiivne organisatsiooni liikmelisus. '
-                    'Loo uus organisatsioon või liitu olemasolevaga.',
-          ),
+          Text(effectiveMessage),
           const SizedBox(height: 16),
           Wrap(
             spacing: 8,
@@ -1290,14 +1281,14 @@ class _HomeScreenState extends State<HomeScreen> {
               final missingOrganizationTitle = hasPendingMembership
                   ? 'Liikmelisus ootab kinnitamist'
                   : hasDisabledMembership
-                      ? 'Liikmelisus pole aktiivne'
+                      ? 'Sinu liikmelisus ei ole aktiivne.'
                       : null;
               final missingOrganizationMessage = hasPendingMembership
                   ? 'Sinu liikmelisus ootab administraatori kinnitust. '
                       'Tavapärased moodulid avanevad pärast kinnitamist.'
                   : hasDisabledMembership
-                      ? 'Selle kasutaja liikmelisus ei ole aktiivne. '
-                          'Organisatsiooni andmetele ligipääs on blokeeritud.'
+                      ? 'Mooduleid saab kasutada ainult aktiivse ühingu '
+                          'liikmena.'
                       : null;
 
               return Scaffold(
