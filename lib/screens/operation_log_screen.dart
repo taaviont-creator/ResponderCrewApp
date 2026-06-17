@@ -14,6 +14,7 @@ class OperationLogScreen extends StatefulWidget {
     required this.currentUserName,
     required this.canViewCalloutResponseSummary,
     required this.canStartOperationLog,
+    this.initialLogId,
   });
 
   final String organizationId;
@@ -21,6 +22,9 @@ class OperationLogScreen extends StatefulWidget {
   final String currentUserName;
   final bool canViewCalloutResponseSummary;
   final bool canStartOperationLog;
+  /// When provided, the matching log card is initially expanded so that
+  /// navigating from a callout detail opens the linked log directly.
+  final String? initialLogId;
 
   @override
   State<OperationLogScreen> createState() => _OperationLogScreenState();
@@ -335,6 +339,7 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
                 canStartOperationLog: widget.canStartOperationLog,
                 canViewCalloutResponseSummary:
                     widget.canViewCalloutResponseSummary,
+                initiallyExpanded: log.id == widget.initialLogId,
                 onUpdateStatus: _updateStatus,
                 onShowAddManualEventDialog: _showAddManualEventDialog,
                 onHandleQuickAction: _handleQuickAction,
@@ -363,12 +368,14 @@ class _OperationLogCard extends StatefulWidget {
     required this.onShowAddManualEventDialog,
     required this.onHandleQuickAction,
     required this.onShowFinalSummaryDialog,
+    this.initiallyExpanded = false,
   });
 
   final OperationLogModel log;
   final String organizationId;
   final bool canStartOperationLog;
   final bool canViewCalloutResponseSummary;
+  final bool initiallyExpanded;
   final Future<void> Function(OperationLogModel, String) onUpdateStatus;
   final Future<void> Function(OperationLogModel) onShowAddManualEventDialog;
   final Future<void> Function(OperationLogModel, String) onHandleQuickAction;
@@ -388,7 +395,13 @@ class _OperationLogCardState extends State<_OperationLogCard> {
   ];
 
   final _calloutService = CalloutService();
-  bool _expanded = false;
+  late bool _expanded;
+
+  @override
+  void initState() {
+    super.initState();
+    _expanded = widget.initiallyExpanded;
+  }
 
   bool _isQuickActionEnabled(OperationLogModel log, String action) {
     if (!widget.canStartOperationLog) return false;
@@ -424,6 +437,7 @@ class _OperationLogCardState extends State<_OperationLogCard> {
     ];
 
     return ExpansionTile(
+      initiallyExpanded: widget.initiallyExpanded,
       tilePadding: EdgeInsets.zero,
       childrenPadding: const EdgeInsets.only(
         left: 16,

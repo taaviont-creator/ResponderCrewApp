@@ -227,6 +227,7 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
             currentUserName: widget.currentUserName,
             canViewCalloutResponseSummary: widget.canManageCallouts,
             canStartOperationLog: widget.canStartOperationLog,
+            initialLogId: log.id,
           ),
         ),
       );
