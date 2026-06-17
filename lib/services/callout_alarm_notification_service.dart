@@ -125,6 +125,45 @@ class CalloutAlarmNotificationService {
     );
   }
 
+  Future<bool> showLocalTestAlarmNotification() async {
+    if (!_supportsClientNotifications) return false;
+
+    if (!_initialized) {
+      await initialize();
+    }
+
+    final settings = await _messaging.getNotificationSettings();
+    final readiness = _readinessFromSettings(settings);
+    if (!readiness.notificationsAllowed) return false;
+
+    const details = NotificationDetails(
+      android: AndroidNotificationDetails(
+        'callout_alarm',
+        'V\u00e4ljakutse alarm',
+        channelDescription: 'Heliline alarm v\u00e4ljakutsete jaoks',
+        importance: Importance.max,
+        priority: Priority.high,
+        playSound: true,
+        enableVibration: true,
+        category: AndroidNotificationCategory.alarm,
+      ),
+      iOS: DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      ),
+    );
+
+    await _localNotifications.show(
+      id: DateTime.now().millisecondsSinceEpoch.remainder(100000),
+      title: 'Testteavitus',
+      body: 'See on v\u00e4ljakutse alarmi test selles seadmes.',
+      notificationDetails: details,
+      payload: 'local_callout_alarm_test',
+    );
+    return true;
+  }
+
   void _startDeviceTokenStorage() {
     _authSubscription ??= _auth.authStateChanges().listen((user) {
       if (user == null) return;

@@ -49,6 +49,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   var _selectedFilter = _NotificationFilter.all;
   late Future<CalloutAlarmNotificationReadiness> _alarmReadinessFuture;
   var _isRefreshingAlarmReadiness = false;
+  var _isSendingTestNotification = false;
 
   @override
   void initState() {
@@ -84,6 +85,55 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           content: Text('Teavituste valmisoleku v\u00e4rskendamine '
               'eba\u00f5nnestus: $e'),
         ),
+      );
+    }
+  }
+
+  Future<void> _sendLocalTestAlarmNotification() async {
+    setState(() => _isSendingTestNotification = true);
+
+    try {
+      var readiness =
+          await _calloutAlarmNotificationService.getNotificationReadiness();
+      if (!readiness.notificationsAllowed) {
+        readiness = await _calloutAlarmNotificationService
+            .requestPermissionAndRefreshRegistration();
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _alarmReadinessFuture = Future.value(readiness);
+      });
+
+      if (!readiness.notificationsAllowed) {
+        setState(() => _isSendingTestNotification = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Testteavituse saatmiseks luba teavitused.'),
+          ),
+        );
+        return;
+      }
+
+      final shown = await _calloutAlarmNotificationService
+          .showLocalTestAlarmNotification();
+
+      if (!mounted) return;
+      setState(() => _isSendingTestNotification = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            shown
+                ? 'Testteavitus saadetud sellesse seadmesse'
+                : 'Testteavitust ei saanud selles seadmes kuvada',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isSendingTestNotification = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Testteavituse saatmine eba\u00f5nnestus: $e')),
       );
     }
   }
@@ -572,24 +622,43 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     ),
               ),
               const SizedBox(height: AppTheme.itemSpacing),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: FilledButton.icon(
-                  onPressed:
-                      _isRefreshingAlarmReadiness ? null : _refreshAlarmReadiness,
-                  icon: _isRefreshingAlarmReadiness
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.notifications_active_outlined),
-                  label: Text(
-                    readiness?.canRequestPermission == true
-                        ? 'Luba teavitused'
-                        : 'V\u00e4rskenda teavituste registreeringut',
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  FilledButton.icon(
+                    onPressed: _isRefreshingAlarmReadiness
+                        ? null
+                        : _refreshAlarmReadiness,
+                    icon: _isRefreshingAlarmReadiness
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.notifications_active_outlined),
+                    label: Text(
+                      readiness?.canRequestPermission == true
+                          ? 'Luba teavitused'
+                          : 'V\u00e4rskenda teavituste registreeringut',
+                    ),
                   ),
-                ),
+                  OutlinedButton.icon(
+                    onPressed: _isSendingTestNotification
+                        ? null
+                        : _sendLocalTestAlarmNotification,
+                    icon: _isSendingTestNotification
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.notification_add_outlined),
+                    label: const Text(
+                      'Saada testteavitus sellesse seadmesse',
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
