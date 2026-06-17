@@ -184,6 +184,9 @@ class OperationLogEventModel {
     required this.text,
     required this.description,
     required this.createdBy,
+    this.latitude,
+    this.longitude,
+    this.accuracyMeters,
     this.createdAt,
   });
 
@@ -197,6 +200,9 @@ class OperationLogEventModel {
   final String text;
   final String description;
   final String createdBy;
+  final double? latitude;
+  final double? longitude;
+  final double? accuracyMeters;
   final DateTime? createdAt;
 
   factory OperationLogEventModel.fromFirestore(
@@ -218,6 +224,9 @@ class OperationLogEventModel {
       text: _stringValue(data['text'], fallback: _stringValue(data['title'])),
       description: _stringValue(data['description']),
       createdBy: _stringValue(data['createdBy']),
+      latitude: _numberValue(data['latitude']),
+      longitude: _numberValue(data['longitude']),
+      accuracyMeters: _numberValue(data['accuracyMeters']),
       createdAt: _dateTimeValue(data['createdAt']),
     );
   }
@@ -235,4 +244,8 @@ DateTime? _dateTimeValue(Object? value) {
   if (value is Timestamp) return value.toDate();
   if (value is DateTime) return value;
   return null;
+}
+
+double? _numberValue(Object? value) {
+  return value is num ? value.toDouble() : null;
 }

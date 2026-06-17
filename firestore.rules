@@ -471,6 +471,34 @@ service cloud.firestore {
       return data.keys().hasAny(['status']) ? data.status : 'open';
     }
 
+    function isValidCoordinateNumber(value, minValue, maxValue) {
+      return (value is int || value is float) &&
+        value >= minValue &&
+        value <= maxValue;
+    }
+
+    function hasValidOperationLogEventLocation(data) {
+      return !data.keys().hasAny([
+          'latitude',
+          'longitude',
+          'accuracyMeters'
+        ]) ||
+        (
+          data.keys().hasAll(['latitude', 'longitude']) &&
+          isValidCoordinateNumber(data.latitude, -90, 90) &&
+          isValidCoordinateNumber(data.longitude, -180, 180) &&
+          (
+            !data.keys().hasAny(['accuracyMeters']) ||
+            data.accuracyMeters == null ||
+            (
+              (data.accuracyMeters is int ||
+                data.accuracyMeters is float) &&
+              data.accuracyMeters >= 0
+            )
+          )
+        );
+    }
+
     function isValidOperationLogData(data) {
       return data.keys().hasAll([
           'id',
@@ -622,6 +650,7 @@ service cloud.firestore {
         ) &&
         request.resource.data.createdAt == request.time &&
         hasValidOrganizationReference(request.resource.data) &&
+        hasValidOperationLogEventLocation(request.resource.data) &&
         isValidOperationLogStatus(request.resource.data.status) &&
         existsAfter(logPath) &&
         organizationIdFromData(getAfter(logPath).data) ==

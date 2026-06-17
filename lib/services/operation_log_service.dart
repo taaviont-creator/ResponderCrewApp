@@ -260,6 +260,9 @@ class OperationLogService {
     required String organizationId,
     required String status,
     required String updatedBy,
+    double? latitude,
+    double? longitude,
+    double? accuracyMeters,
   }) async {
     _requireOrganizationId(organizationId);
     await _ensureCanStartOperationLog(
@@ -269,6 +272,12 @@ class OperationLogService {
     if (!OperationLogStatus.values.contains(status)) {
       throw Exception('Unsupported operation log status: $status');
     }
+    final hasValidLocation =
+        _isValidLatitude(latitude) && _isValidLongitude(longitude);
+    final shouldSaveAccuracy =
+        hasValidLocation &&
+        accuracyMeters != null &&
+        accuracyMeters >= 0;
 
     final doc = _operationLogs.doc(operationLogId);
     final eventDoc = doc.collection('events').doc();
@@ -303,6 +312,9 @@ class OperationLogService {
         'title': _operationLogStatusLabel(status),
         'description': '',
         'createdBy': updatedBy,
+        if (hasValidLocation) 'latitude': latitude,
+        if (hasValidLocation) 'longitude': longitude,
+        if (shouldSaveAccuracy) 'accuracyMeters': accuracyMeters,
         'createdAt': FieldValue.serverTimestamp(),
       });
     });
@@ -314,6 +326,9 @@ class OperationLogService {
     required String title,
     required String createdBy,
     String type = OperationLogEventType.manualNote,
+    double? latitude,
+    double? longitude,
+    double? accuracyMeters,
   }) async {
     _requireOrganizationId(organizationId);
     await _ensureCanStartOperationLog(
@@ -328,6 +343,12 @@ class OperationLogService {
         type != OperationLogEventType.quickAction) {
       throw Exception('Unsupported manual operation log event type: $type');
     }
+    final hasValidLocation =
+        _isValidLatitude(latitude) && _isValidLongitude(longitude);
+    final shouldSaveAccuracy =
+        hasValidLocation &&
+        accuracyMeters != null &&
+        accuracyMeters >= 0;
 
     final doc = _operationLogs.doc(operationLogId);
     final eventDoc = doc.collection('events').doc();
@@ -358,6 +379,9 @@ class OperationLogService {
         if (type == OperationLogEventType.manualNote) 'text': trimmedTitle,
         'description': '',
         'createdBy': createdBy,
+        if (hasValidLocation) 'latitude': latitude,
+        if (hasValidLocation) 'longitude': longitude,
+        if (shouldSaveAccuracy) 'accuracyMeters': accuracyMeters,
         'createdAt': FieldValue.serverTimestamp(),
       });
     });
@@ -427,6 +451,14 @@ class OperationLogService {
     if (organizationId.trim().isEmpty) {
       throw Exception('Selle toimingu jaoks puudub aktiivne organisatsioon');
     }
+  }
+
+  bool _isValidLatitude(double? value) {
+    return value != null && value >= -90 && value <= 90;
+  }
+
+  bool _isValidLongitude(double? value) {
+    return value != null && value >= -180 && value <= 180;
   }
 
   OperationLogModel? _firstLogForOrganization(

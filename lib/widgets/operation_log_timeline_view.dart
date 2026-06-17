@@ -125,13 +125,15 @@ class _OperationLogTimelineViewState extends State<OperationLogTimelineView> {
   }
 
   Widget _buildEventTile(OperationLogEventModel event) {
-    final title =
-        event.type == OperationLogEventType.manualNote && event.text.isNotEmpty
-            ? event.text
-            : event.title;
+    final otherDescription = _otherQuickActionDescription(event);
+    final title = _eventTitle(event, otherDescription);
     final subtitleLines = [
       if (event.type == OperationLogEventType.manualNote) 'Käsitsi märge',
-      if (event.description.isNotEmpty) event.description,
+      ?otherDescription,
+      if (otherDescription == null && event.description.isNotEmpty)
+        event.description,
+      if (event.latitude != null && event.longitude != null)
+        _formatCoordinates(event),
       if (event.createdAt != null) _shortDateTime(event.createdAt!),
     ];
 
@@ -143,6 +145,15 @@ class _OperationLogTimelineViewState extends State<OperationLogTimelineView> {
       subtitle:
           subtitleLines.isEmpty ? null : Text(subtitleLines.join('\n')),
     );
+  }
+
+  String _eventTitle(OperationLogEventModel event, String? otherDescription) {
+    if (otherDescription != null) return 'Muu';
+    if (event.type == OperationLogEventType.manualNote &&
+        event.text.isNotEmpty) {
+      return event.text;
+    }
+    return event.title;
   }
 
   IconData _eventIcon(String type) {
@@ -163,5 +174,26 @@ class _OperationLogTimelineViewState extends State<OperationLogTimelineView> {
     final date = '${twoDigits(value.day)}.${twoDigits(value.month)}';
     final time = '${twoDigits(value.hour)}:${twoDigits(value.minute)}';
     return '$date $time';
+  }
+
+  String? _otherQuickActionDescription(OperationLogEventModel event) {
+    const prefix = 'Muu: ';
+    if (event.type != OperationLogEventType.quickAction ||
+        !event.title.startsWith(prefix)) {
+      return null;
+    }
+
+    final description = event.title.substring(prefix.length).trim();
+    return description.isEmpty ? null : description;
+  }
+
+  String _formatCoordinates(OperationLogEventModel event) {
+    final latitude = event.latitude!.toStringAsFixed(5);
+    final longitude = event.longitude!.toStringAsFixed(5);
+    final accuracy = event.accuracyMeters;
+    if (accuracy == null) {
+      return 'GPS: $latitude, $longitude';
+    }
+    return 'GPS: $latitude, $longitude (~${accuracy.round()} m)';
   }
 }

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../models/callout_model.dart';
@@ -8,6 +9,18 @@ import '../models/operation_log_model.dart';
 import '../services/callout_service.dart';
 import '../services/operation_log_service.dart';
 import '../widgets/operation_log_timeline_view.dart';
+
+class _EventLocation {
+  const _EventLocation({
+    required this.latitude,
+    required this.longitude,
+    required this.accuracyMeters,
+  });
+
+  final double latitude;
+  final double longitude;
+  final double accuracyMeters;
+}
 
 class OperationLogScreen extends StatefulWidget {
   const OperationLogScreen({
@@ -65,11 +78,15 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
     String status,
   ) async {
     try {
+      final location = await _tryGetCurrentEventLocation();
       await _operationLogService.updateLogStatus(
         operationLogId: log.id,
         organizationId: widget.organizationId,
         status: status,
         updatedBy: widget.currentUid,
+        latitude: location?.latitude,
+        longitude: location?.longitude,
+        accuracyMeters: location?.accuracyMeters,
       );
     } catch (e) {
       if (!mounted) return;
@@ -140,18 +157,91 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
     }
 
     try {
+      final location = await _tryGetCurrentEventLocation();
       await _operationLogService.addManualEvent(
         operationLogId: log.id,
         organizationId: widget.organizationId,
         title: title,
         createdBy: widget.currentUid,
         type: OperationLogEventType.quickAction,
+        latitude: location?.latitude,
+        longitude: location?.longitude,
+        accuracyMeters: location?.accuracyMeters,
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Kiirtegevuse lisamine ebaõnnestus: $e')),
       );
+    }
+  }
+
+  Future<void> _showOtherQuickActionDialog(OperationLogModel log) async {
+    if (!widget.canStartOperationLog) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sul puudub õigus seda toimingut teha')),
+      );
+      return;
+    }
+
+    final descriptionController = TextEditingController();
+    final shouldSave = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Lisa muu sündmus'),
+        content: TextField(
+          controller: descriptionController,
+          decoration: const InputDecoration(labelText: 'Kirjeldus'),
+          maxLines: 3,
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Tühista'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Salvesta'),
+          ),
+        ],
+      ),
+    );
+
+    final description = descriptionController.text.trim();
+    if (shouldSave != true || description.isEmpty) return;
+
+    await _addQuickAction(log, 'Muu: $description');
+  }
+
+  Future<_EventLocation?> _tryGetCurrentEventLocation() async {
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return null;
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return null;
+      }
+
+      const locationSettings = LocationSettings(
+        accuracy: LocationAccuracy.high,
+        timeLimit: Duration(seconds: 3),
+      );
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: locationSettings,
+      );
+      return _EventLocation(
+        latitude: position.latitude,
+        longitude: position.longitude,
+        accuracyMeters: position.accuracy,
+      );
+    } catch (_) {
+      return null;
     }
   }
 
@@ -177,6 +267,9 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
         break;
       case 'Baasis':
         await _updateStatus(log, OperationLogStatus.returnedToBase);
+        break;
+      case 'Muu':
+        await _showOtherQuickActionDialog(log);
         break;
     }
   }
@@ -431,6 +524,7 @@ class _OperationLogCardState extends State<_OperationLogCard> {
     'Sündmus lõpetatud',
     'Tagasi',
     'Baasis',
+    'Muu',
   ];
 
   final _calloutService = CalloutService();
@@ -752,6 +846,8 @@ class _OperationLogCardState extends State<_OperationLogCard> {
         return Icons.keyboard_return;
       case 'Baasis':
         return Icons.home_outlined;
+      case 'Muu':
+        return Icons.more_horiz;
       default:
         return Icons.bolt;
     }
