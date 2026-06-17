@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/equipment_model.dart';
 import '../services/equipment_service.dart';
+import '../widgets/status_badge.dart';
 
 class EquipmentScreen extends StatefulWidget {
   const EquipmentScreen({
@@ -416,6 +417,8 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
                 ),
           ),
         ],
+        const SizedBox(height: 12),
+        _buildEquipmentAttentionNotice(equipment),
         if (equipment.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
@@ -431,7 +434,6 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
     final maintenanceStatus = _maintenanceStatusLabel(item);
     final subtitleParts = [
       _equipmentCategoryLabel(item.category),
-      _equipmentStatusLabel(item.status),
       if (item.location.isNotEmpty) item.location,
       if (item.nextMaintenanceDate.isNotEmpty)
         'Hooldus ${item.nextMaintenanceDate}',
@@ -446,6 +448,11 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
           contentPadding: EdgeInsets.zero,
           title: Text(item.name),
           subtitle: Text(subtitleParts.join(' - ')),
+          leading: StatusBadge(
+            label: _equipmentStatusLabel(item.status),
+            type: _equipmentStatusBadgeType(item.status),
+            icon: _equipmentStatusIcon(item.status),
+          ),
           trailing: _canEditEquipment(item)
               ? IconButton(
                   icon: const Icon(Icons.edit),
@@ -455,6 +462,47 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
               : null,
         ),
       ],
+    );
+  }
+
+  Widget _buildEquipmentAttentionNotice(List<EquipmentModel> equipment) {
+    final problemItems = equipment
+        .where((item) => item.status != EquipmentStatus.ok)
+        .toList(growable: false);
+    final hasProblems = problemItems.isNotEmpty;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: hasProblems ? const Color(0xFFFFF7E6) : const Color(0xFFE7F5E8),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: hasProblems ? const Color(0xFFE0A100) : const Color(0xFF2E7D32),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            hasProblems
+                ? Icons.warning_amber_outlined
+                : Icons.check_circle_outline,
+            color: hasProblems
+                ? const Color(0xFF9A6A00)
+                : const Color(0xFF2E7D32),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              hasProblems
+                  ? 'Tähelepanu vajav varustus: '
+                      '${problemItems.map((item) => item.name).join(', ')}'
+                  : 'Kõik varustus on korras.',
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -501,6 +549,30 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
         return 'Kasutusest väljas';
       default:
         return 'Korras';
+    }
+  }
+
+  StatusBadgeType _equipmentStatusBadgeType(String status) {
+    switch (status) {
+      case EquipmentStatus.needsMaintenance:
+        return StatusBadgeType.equipmentWarning;
+      case EquipmentStatus.broken:
+      case EquipmentStatus.outOfService:
+        return StatusBadgeType.critical;
+      default:
+        return StatusBadgeType.ready;
+    }
+  }
+
+  IconData _equipmentStatusIcon(String status) {
+    switch (status) {
+      case EquipmentStatus.needsMaintenance:
+        return Icons.build_circle_outlined;
+      case EquipmentStatus.broken:
+      case EquipmentStatus.outOfService:
+        return Icons.warning_amber_rounded;
+      default:
+        return Icons.check_circle_outline;
     }
   }
 
