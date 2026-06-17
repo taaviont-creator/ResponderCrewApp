@@ -348,19 +348,21 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
   String _certificateTypeLabel(String type) {
     switch (type) {
       case CertificateType.firstAid:
-        return 'First aid';
+        return 'Esmaabi';
       case CertificateType.seaRescue:
-        return 'Sea rescue';
+        return 'Merepääste';
       case CertificateType.radio:
-        return 'Radio';
+        return 'Raadioside';
       case CertificateType.navigation:
-        return 'Navigation';
+        return 'Navigatsioon';
       case CertificateType.boatOperator:
-        return 'Boat operator';
+        return 'Väikelaevajuht';
       case CertificateType.safety:
-        return 'Safety';
+        return 'Ohutus';
+      case 'medical':
+        return 'Meditsiin';
       default:
-        return 'Other';
+        return 'Muu';
     }
   }
 
