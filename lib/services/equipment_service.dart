@@ -333,13 +333,13 @@ class EquipmentService {
   String _equipmentStatusLabel(String status) {
     switch (status) {
       case EquipmentStatus.needsMaintenance:
-        return 'needs maintenance';
+        return 'vajab hooldust';
       case EquipmentStatus.broken:
-        return 'broken';
+        return 'katki';
       case EquipmentStatus.outOfService:
-        return 'out of service';
+        return 'kasutusest väljas';
       default:
-        return 'ok';
+        return 'korras';
     }
   }
 }

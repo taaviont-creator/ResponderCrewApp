@@ -185,6 +185,13 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
   }
 
   Future<void> _showEditEquipmentDialog(EquipmentModel item) async {
+    if (!_canEditEquipment(item)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_equipmentPermissionMessage(item))),
+      );
+      return;
+    }
+
     final nameController = TextEditingController(text: item.name);
     final locationController = TextEditingController(text: item.location);
     final nextMaintenanceDateController = TextEditingController(
@@ -353,10 +360,13 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
               ),
               const SizedBox(height: 24),
               _buildEquipmentSection(
-                  title: 'Ühingu varustus',
+                title: 'Ühingu varustus',
                 equipment: organizationEquipment,
-                  emptyText: 'Ühingu varustust ei ole lisatud',
-                  addLabel: 'Lisa ühingu varustus',
+                emptyText: 'Ühingu varustust ei ole lisatud',
+                addLabel: 'Lisa ühingu varustus',
+                helperText: widget.canManageEquipment
+                    ? null
+                    : 'Sul puudub õigus ühingu varustust muuta.',
                 onAdd: widget.canManageEquipment
                     ? () => _showAddEquipmentDialog(
                           scope: EquipmentScope.organization,
@@ -376,6 +386,7 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
     required String emptyText,
     required String addLabel,
     required VoidCallback? onAdd,
+    String? helperText,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -396,6 +407,15 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
               ),
           ],
         ),
+        if (helperText != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            helperText,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Colors.grey[700],
+                ),
+          ),
+        ],
         if (equipment.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
@@ -441,19 +461,19 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
   String _equipmentCategoryLabel(String category) {
     switch (category) {
       case EquipmentCategory.vessel:
-        return 'Vessel';
+        return 'Alus';
       case EquipmentCategory.engine:
-        return 'Engine';
+        return 'Mootor';
       case EquipmentCategory.rescue:
-        return 'Rescue';
+        return 'Päästevarustus';
       case EquipmentCategory.medical:
-        return 'Medical';
+        return 'Meditsiin';
       case EquipmentCategory.radio:
-        return 'Radio';
+        return 'Raadio';
       case EquipmentCategory.safety:
-        return 'Safety';
+        return 'Ohutus';
       default:
-        return 'Other';
+        return 'Muu';
     }
   }
 
@@ -464,16 +484,23 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
     return widget.canManageEquipment;
   }
 
+  String _equipmentPermissionMessage(EquipmentModel item) {
+    if (!item.isPersonal) {
+      return 'Sul puudub õigus ühingu varustust muuta.';
+    }
+    return 'Sul puudub õigus seda varustust muuta.';
+  }
+
   String _equipmentStatusLabel(String status) {
     switch (status) {
       case EquipmentStatus.needsMaintenance:
-        return 'Needs maintenance';
+        return 'Vajab hooldust';
       case EquipmentStatus.broken:
-        return 'Broken';
+        return 'Katki';
       case EquipmentStatus.outOfService:
-        return 'Out of service';
+        return 'Kasutusest väljas';
       default:
-        return 'OK';
+        return 'Korras';
     }
   }
 
