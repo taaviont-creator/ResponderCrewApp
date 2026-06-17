@@ -5,6 +5,8 @@ import '../models/certificate_model.dart';
 import '../services/certificate_service.dart';
 import '../services/membership_service.dart';
 
+const _unknownCertificateExpiryStatus = 'unknownExpiry';
+
 class CertificatesScreen extends StatefulWidget {
   const CertificatesScreen({
     super.key,
@@ -314,33 +316,69 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
             return const Center(child: Text('Kvalifikatsioone ei ole lisatud'));
           }
 
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: certificates.length,
-            separatorBuilder: (_, _) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              final certificate = certificates[index];
-              final displayStatus = _certificateDisplayStatus(certificate);
-              final subtitleParts = [
-                _certificateTypeLabel(certificate.type),
-                _certificateStatusLabel(displayStatus),
-                if (certificate.issuer.isNotEmpty) certificate.issuer,
-                if (certificate.expiresAt.isNotEmpty)
-                  'Kehtib kuni ${certificate.expiresAt}',
-              ];
+          final attentionCertificates = certificates
+              .where(_certificateNeedsAttention)
+              .toList(growable: false);
 
-              return ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(certificate.title),
-                subtitle: Text(
-                  widget.canManageCertificates
-                      ? '${certificate.userName}\n${subtitleParts.join(' - ')}'
-                      : subtitleParts.join(' - '),
-                ),
-              );
-            },
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Text(
+                'Tähelepanu vajavad tunnistused',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              if (attentionCertificates.isEmpty)
+                const Text('Kõik tunnistused on kehtivad.')
+              else
+                ...attentionCertificates.map(_buildAttentionCertificateTile),
+              const SizedBox(height: 16),
+              const Divider(height: 1),
+              for (var index = 0; index < certificates.length; index++) ...[
+                _buildCertificateTile(certificates[index]),
+                if (index < certificates.length - 1) const Divider(height: 1),
+              ],
+            ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildAttentionCertificateTile(CertificateModel certificate) {
+    final displayStatus = _certificateDisplayStatus(certificate);
+    final ownerPrefix =
+        widget.canManageCertificates ? '${certificate.userName}: ' : '';
+    final expiryText = displayStatus == _unknownCertificateExpiryStatus
+        ? ''
+        : ' - ${_certificateExpiryText(certificate)}';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Text(
+        '$ownerPrefix${certificate.title} - '
+        '${_certificateStatusLabel(displayStatus)}$expiryText',
+      ),
+    );
+  }
+
+  Widget _buildCertificateTile(CertificateModel certificate) {
+    final displayStatus = _certificateDisplayStatus(certificate);
+    final subtitleParts = [
+      _certificateTypeLabel(certificate.type),
+      _certificateStatusLabel(displayStatus),
+      if (certificate.issuer.isNotEmpty) certificate.issuer,
+      if (displayStatus != _unknownCertificateExpiryStatus)
+        _certificateExpiryText(certificate),
+    ];
+
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      title: Text(certificate.title),
+      subtitle: Text(
+        widget.canManageCertificates
+            ? '${certificate.userName}\n${subtitleParts.join(' - ')}'
+            : subtitleParts.join(' - '),
       ),
     );
   }
@@ -369,9 +407,11 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
   String _certificateStatusLabel(String status) {
     switch (status) {
       case CertificateStatus.expiringSoon:
-        return 'Aegub varsti';
+        return 'Aegumas';
       case CertificateStatus.expired:
         return 'Aegunud';
+      case _unknownCertificateExpiryStatus:
+        return 'Aegumiskuupäev teadmata';
       case CertificateStatus.missing:
         return 'Puudub';
       default:
@@ -379,9 +419,29 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
     }
   }
 
+  bool _certificateNeedsAttention(CertificateModel certificate) {
+    final displayStatus = _certificateDisplayStatus(certificate);
+    return displayStatus == CertificateStatus.expired ||
+        displayStatus == CertificateStatus.expiringSoon ||
+        displayStatus == _unknownCertificateExpiryStatus;
+  }
+
+  String _certificateExpiryText(CertificateModel certificate) {
+    final expiresAt = certificate.expiresAt.trim();
+    final parsedExpiry = DateTime.tryParse(expiresAt);
+    if (expiresAt.isEmpty || parsedExpiry == null) {
+      return 'Aegumiskuupäev teadmata';
+    }
+
+    return 'Kehtib kuni $expiresAt';
+  }
+
   String _certificateDisplayStatus(CertificateModel certificate) {
-    final parsedExpiry = DateTime.tryParse(certificate.expiresAt.trim());
-    if (parsedExpiry == null) return certificate.status;
+    final expiresAt = certificate.expiresAt.trim();
+    final parsedExpiry = DateTime.tryParse(expiresAt);
+    if (expiresAt.isEmpty || parsedExpiry == null) {
+      return _unknownCertificateExpiryStatus;
+    }
 
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
