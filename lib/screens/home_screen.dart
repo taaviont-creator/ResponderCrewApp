@@ -579,6 +579,65 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildBlockedOrganizationState({
+    required String status,
+    required String? organizationName,
+    required bool isPlatformAdmin,
+  }) {
+    final isRejected = status == 'rejected';
+    final title = isRejected
+        ? 'Ühingu taotlus on tagasi lükatud.'
+        : 'Ühing ootab kinnitamist.';
+    final message = isRejected
+        ? 'Vali teine ühing või loo uus taotlus.'
+        : 'Platvormi haldur peab ühingu enne kasutamist kinnitama.';
+
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (organizationName != null && organizationName.trim().isNotEmpty) ...[
+            Text(
+              organizationName,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 12),
+          ],
+          Text(
+            title,
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 8),
+          Text(message),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.group_add),
+            label: const Text('Loo uus organisatsioon'),
+            onPressed: _showCreateCommandDialog,
+          ),
+          if (isPlatformAdmin) ...[
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.apartment_outlined),
+              label: const Text('Ootel ühingud'),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const PlatformPendingOrganizationsScreen(
+                      isPlatformAdmin: true,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildHeaderSection({
     required User user,
     required String displayName,
@@ -1355,9 +1414,32 @@ class _HomeScreenState extends State<HomeScreen> {
                   .doc(selectedOrganizationId)
                   .snapshots(),
               builder: (context, commandSnapshot) {
+                if (commandSnapshot.connectionState ==
+                        ConnectionState.waiting &&
+                    !commandSnapshot.hasData) {
+                  return Scaffold(
+                    appBar: AppBar(
+                      title: const Text('RespondCrew'),
+                      actions: _buildAppBarActions(
+                        membershipDocs: membershipDocs,
+                        currentActiveCommandId: selectedOrganizationId,
+                        currentCommandName: null,
+                      ),
+                    ),
+                    body: const Center(child: CircularProgressIndicator()),
+                  );
+                }
+
                 final commandData = commandSnapshot.data?.data();
                 final commandName = commandData?['name'] as String?;
                 final joinCode = commandData?['joinCode'] as String?;
+                final commandStatus =
+                    (commandData?['status'] ?? '')
+                        .toString()
+                        .trim()
+                        .toLowerCase();
+                final organizationIsBlocked =
+                    commandStatus == 'pending' || commandStatus == 'rejected';
                 final allowMembersToCreateActivities =
                     commandData?['allowMembersToCreateActivities'] == true;
                 final allowMembersToViewStatistics =
@@ -1375,6 +1457,28 @@ class _HomeScreenState extends State<HomeScreen> {
                   allowMembersToStartOperationLog:
                       allowMembersToStartOperationLog,
                 );
+
+                if (organizationIsBlocked) {
+                  return Scaffold(
+                    appBar: AppBar(
+                      title: const Text('RespondCrew'),
+                      actions: _buildAppBarActions(
+                        membershipDocs: membershipDocs,
+                        currentActiveCommandId: selectedOrganizationId,
+                        currentCommandName: commandName,
+                      ),
+                    ),
+                    body: ListView(
+                      children: [
+                        _buildBlockedOrganizationState(
+                          status: commandStatus,
+                          organizationName: commandName,
+                          isPlatformAdmin: isPlatformAdmin,
+                        ),
+                      ],
+                    ),
+                  );
+                }
 
                 final homeContent = Scaffold(
                   appBar: AppBar(
