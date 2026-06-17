@@ -82,17 +82,19 @@ class ActivityService {
     required String location,
     required String createdBy,
   }) async {
-    _requireOrganizationId(organizationId);
+    final trimmedOrganizationId = organizationId.trim();
+    final trimmedCreatedBy = createdBy.trim();
+    _requireOrganizationId(trimmedOrganizationId);
     await _ensureCanCreateActivity(
-      organizationId: organizationId,
-      createdBy: createdBy,
+      organizationId: trimmedOrganizationId,
+      createdBy: trimmedCreatedBy,
     );
     if (title.trim().isEmpty) {
-      throw Exception('Activity title is required');
+      throw Exception('Tegevuse pealkiri on kohustuslik.');
     }
 
     if (!ActivityType.values.contains(type)) {
-      throw Exception('Unsupported activity type: $type');
+      throw Exception('Tegevuse tüüp ei ole toetatud.');
     }
 
     final activityDoc = _activities.doc();
@@ -105,32 +107,32 @@ class ActivityService {
 
     batch.set(activityDoc, {
       'id': activityDoc.id,
-      'organizationId': organizationId,
+      'organizationId': trimmedOrganizationId,
       // TODO: Remove commandId after all activity reads use organizationId.
-      'commandId': organizationId,
+      'commandId': trimmedOrganizationId,
       'title': trimmedTitle,
       'description': trimmedDescription,
       'type': type,
       'startTime': trimmedStartTime,
       'endTime': '',
       'location': trimmedLocation,
-      'createdBy': createdBy,
+      'createdBy': trimmedCreatedBy,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
     batch.set(notificationDoc, {
       'id': notificationDoc.id,
-      'organizationId': organizationId,
+      'organizationId': trimmedOrganizationId,
       // TODO: Remove commandId after all notification reads use organizationId.
-      'commandId': organizationId,
+      'commandId': trimmedOrganizationId,
       'title': 'Uus tegevus',
       'message': 'Lisatud on uus tegevus või koolitus: $trimmedTitle',
       'type': NotificationType.activity,
       'priority': NotificationPriority.normal,
       'relatedType': 'activity',
       'relatedId': activityDoc.id,
-      'createdBy': createdBy,
+      'createdBy': trimmedCreatedBy,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
@@ -179,7 +181,7 @@ class ActivityService {
 
   void _requireOrganizationId(String organizationId) {
     if (organizationId.trim().isEmpty) {
-      throw Exception('Selle toimingu jaoks puudub aktiivne organisatsioon');
+      throw Exception('Tegevust ei saa lisada ilma aktiivse ühinguta.');
     }
   }
 
@@ -187,14 +189,16 @@ class ActivityService {
     required String organizationId,
     required String createdBy,
   }) async {
+    final trimmedOrganizationId = organizationId.trim();
+    final trimmedCreatedBy = createdBy.trim();
     final currentUser = _auth.currentUser;
-    if (currentUser == null || currentUser.uid != createdBy) {
-      throw Exception('Sul puudub õigus tegevust lisada');
+    if (currentUser == null || currentUser.uid != trimmedCreatedBy) {
+      throw Exception('Sul puudub õigus tegevust lisada.');
     }
 
     final membershipSnapshot = await _firestore
         .collection('memberships')
-        .doc('${currentUser.uid}_$organizationId')
+        .doc('${currentUser.uid}_$trimmedOrganizationId')
         .get();
     final membership = membershipSnapshot.data();
     final membershipIsActive = membership != null &&
@@ -206,22 +210,23 @@ class ActivityService {
             membership['isActive'] == true);
     if (membership == null ||
         !membershipIsActive) {
-      throw Exception('Sul puudub õigus tegevust lisada');
+      throw Exception('Sul puudub õigus tegevust lisada.');
     }
 
     final membershipOrganizationId =
         (membership['organizationId'] ?? membership['commandId'] ?? '')
-            .toString();
-    if (membershipOrganizationId != organizationId) {
-      throw Exception('Sul puudub õigus tegevust lisada');
+            .toString()
+            .trim();
+    if (membershipOrganizationId != trimmedOrganizationId) {
+      throw Exception('Sul puudub õigus tegevust lisada.');
     }
 
     if (MembershipRole.isOrgAdmin(membership['role'])) return;
 
     final commandSnapshot =
-        await _firestore.collection('commands').doc(organizationId).get();
+        await _firestore.collection('commands').doc(trimmedOrganizationId).get();
     if (commandSnapshot.data()?['allowMembersToCreateActivities'] != true) {
-      throw Exception('Sul puudub õigus tegevust lisada');
+      throw Exception('Sul puudub õigus tegevust lisada.');
     }
   }
 }

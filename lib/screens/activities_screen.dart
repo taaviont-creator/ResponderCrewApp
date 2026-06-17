@@ -35,11 +35,29 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
   }
 
   Future<void> _showAddActivityDialog() async {
+    final organizationId = widget.organizationId.trim();
+    if (organizationId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tegevust ei saa lisada ilma aktiivse ühinguta.'),
+        ),
+      );
+      return;
+    }
+
+    if (!widget.canManageActivities) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sul puudub õigus tegevust lisada.')),
+      );
+      return;
+    }
+
     final titleController = TextEditingController();
     final startTimeController = TextEditingController();
     final locationController = TextEditingController();
     final descriptionController = TextEditingController();
     var selectedType = ActivityType.training;
+    String? titleError;
 
     final shouldCreate = await showDialog<bool>(
       context: context,
@@ -53,12 +71,20 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
                 children: [
                   TextField(
                     controller: titleController,
-                    decoration: const InputDecoration(labelText: 'Pealkiri'),
+                    onChanged: (value) {
+                      if (titleError != null && value.trim().isNotEmpty) {
+                        setDialogState(() => titleError = null);
+                      }
+                    },
+                    decoration: InputDecoration(
+                      labelText: 'Pealkiri',
+                      errorText: titleError,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     initialValue: selectedType,
-                    decoration: const InputDecoration(labelText: 'Tuup'),
+                    decoration: const InputDecoration(labelText: 'Tüüp'),
                     items: ActivityType.values.map((type) {
                       return DropdownMenuItem<String>(
                         value: type,
@@ -98,7 +124,15 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
                 child: const Text('Katkesta'),
               ),
               ElevatedButton(
-                onPressed: () => Navigator.pop(context, true),
+                onPressed: () {
+                  if (titleController.text.trim().isEmpty) {
+                    setDialogState(() {
+                      titleError = 'Tegevuse pealkiri on kohustuslik.';
+                    });
+                    return;
+                  }
+                  Navigator.pop(context, true);
+                },
                 child: const Text('Lisa'),
               ),
             ],
@@ -111,18 +145,21 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
 
     try {
       await _activityService.addActivity(
-        organizationId: widget.organizationId,
+        organizationId: organizationId,
         title: titleController.text,
         description: descriptionController.text,
         type: selectedType,
         startTime: startTimeController.text,
         location: locationController.text,
-        createdBy: widget.currentUid,
+        createdBy: widget.currentUid.trim(),
       );
 
       if (!mounted) return;
+      final successMessage = selectedType == ActivityType.training
+          ? 'Koolitus lisatud.'
+          : 'Tegevus lisatud.';
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tegevus lisatud')),
+        SnackBar(content: Text(successMessage)),
       );
     } catch (e) {
       if (!mounted) return;
@@ -165,21 +202,21 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
           runSpacing: 8,
           children: [
             ChoiceChip(
-              label: const Text('Attending'),
+              label: const Text('Osalen'),
               selected: status == ActivityParticipationStatus.attending,
               onSelected: (_) => updateParticipation(
                 ActivityParticipationStatus.attending,
               ),
             ),
             ChoiceChip(
-              label: const Text('Maybe'),
+              label: const Text('Võib-olla'),
               selected: status == ActivityParticipationStatus.maybe,
               onSelected: (_) => updateParticipation(
                 ActivityParticipationStatus.maybe,
               ),
             ),
             ChoiceChip(
-              label: const Text('Not attending'),
+              label: const Text('Ei osale'),
               selected: status == ActivityParticipationStatus.notAttending,
               onSelected: (_) => updateParticipation(
                 ActivityParticipationStatus.notAttending,
@@ -266,17 +303,17 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
   String _activityTypeLabel(String type) {
     switch (type) {
       case ActivityType.training:
-        return 'Training';
+        return 'Koolitus';
       case ActivityType.meeting:
-        return 'Meeting';
+        return 'Koosolek';
       case ActivityType.maintenance:
-        return 'Maintenance';
+        return 'Hooldus';
       case ActivityType.exercise:
-        return 'Exercise';
+        return 'Harjutus';
       case ActivityType.event:
-        return 'Event';
+        return 'Sündmus';
       default:
-        return 'Other';
+        return 'Muu';
     }
   }
 }
