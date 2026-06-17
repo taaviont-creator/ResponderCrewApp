@@ -181,25 +181,22 @@ class MenuScreen extends StatelessWidget {
               subtitle: 'Õigused ja organisatsiooni valikud',
               onTap: onOpenOrganizationSettings,
             ),
-          _MenuEntry(
-            icon: Icons.health_and_safety_outlined,
-            title: 'Juhtimiskeskuse koondvaade',
-            subtitle: canOpenReadinessOverview
-                ? 'Organisatsioonide valmisoleku ülevaade'
-                : 'Saadaval administraatorile',
-            onTap: canOpenReadinessOverview
-                ? () => _open(
-                      context,
-                      PlatformReadinessScreen(
-                        currentUid: currentUid,
-                        activeOrganizationId: organizationId,
-                        activeOrganizationName: organizationName,
-                        canManageOwnSummary: isOrganizationAdmin,
-                        isPlatformAdmin: isPlatformAdmin,
-                      ),
-                    )
-                : null,
-          ),
+          if (canOpenReadinessOverview)
+            _MenuEntry(
+              icon: Icons.health_and_safety_outlined,
+              title: 'Juhtimiskeskuse koondvaade',
+              subtitle: 'Organisatsioonide valmisoleku ülevaade',
+              onTap: () => _open(
+                context,
+                PlatformReadinessScreen(
+                  currentUid: currentUid,
+                  activeOrganizationId: organizationId,
+                  activeOrganizationName: organizationName,
+                  canManageOwnSummary: isOrganizationAdmin,
+                  isPlatformAdmin: isPlatformAdmin,
+                ),
+              ),
+            ),
         ],
       ),
     );

@@ -37,7 +37,6 @@ dependencies:
   firebase_auth: ^5.0.0    
   cloud_firestore: ^5.6.12
   geolocator: ^14.0.3
-  wakelock_plus: ^1.6.1
   firebase_messaging: ^15.2.10
   flutter_local_notifications: ^22.0.1
 
@@ -52,6 +51,13 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+
+dependency_overrides:
+  # Android builds do not use the Linux geolocator implementation. The current
+  # geolocator_linux package pulls in package_info_plus, whose Android plugin
+  # still applies the Kotlin Gradle Plugin and triggers Flutter's KGP warning.
+  geolocator_linux:
+    path: tool/package_overrides/geolocator_linux
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

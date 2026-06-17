@@ -2,12 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../models/callout_model.dart';
 import '../models/operation_log_model.dart';
 import '../services/callout_service.dart';
 import '../services/operation_log_service.dart';
+import '../services/wakelock_service.dart';
 import '../widgets/operation_log_timeline_view.dart';
 
 class _EventLocation {
@@ -48,6 +48,7 @@ class OperationLogScreen extends StatefulWidget {
 
 class _OperationLogScreenState extends State<OperationLogScreen> {
   final _operationLogService = OperationLogService();
+  final _wakelockService = WakelockService();
   final Set<String> _visibleActiveLogIds = <String>{};
   bool _wakelockEnabled = false;
 
@@ -69,7 +70,9 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
 
     _wakelockEnabled = shouldEnable;
     unawaited(
-      WakelockPlus.toggle(enable: shouldEnable).catchError((Object _) {}),
+      _wakelockService
+          .toggle(enable: shouldEnable)
+          .catchError((Object _) {}),
     );
   }
 
@@ -406,7 +409,7 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
   void dispose() {
     _visibleActiveLogIds.clear();
     if (_wakelockEnabled) {
-      unawaited(WakelockPlus.disable().catchError((Object _) {}));
+      unawaited(_wakelockService.disable().catchError((Object _) {}));
     }
     super.dispose();
   }
