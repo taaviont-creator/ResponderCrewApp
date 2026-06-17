@@ -135,7 +135,18 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
     int? responseMinutes,
     String note = '',
   }) async {
-    if (_isSavingResponse || !_isActive) return;
+    if (_isSavingResponse) return;
+    if (!_isActive) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Väljakutse on lõpetatud. Vastust ei saa enam muuta.',
+          ),
+        ),
+      );
+      return;
+    }
+
     setState(() => _isSavingResponse = true);
 
     try {
@@ -151,7 +162,7 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vastus salvestatud')),
+        const SnackBar(content: Text('Vastus uuendatud')),
       );
     } catch (error) {
       if (!mounted) return;
@@ -296,10 +307,8 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
           _buildOperationLogAction(),
           const SizedBox(height: AppTheme.itemSpacing),
           _buildResponseSummary(),
-          if (_isActive) ...[
-            const SizedBox(height: AppTheme.sectionSpacing),
-            _buildResponseActions(),
-          ],
+          const SizedBox(height: AppTheme.sectionSpacing),
+          _buildResponseActions(),
           if (widget.canCloseCallouts && _isActive) ...[
             const SizedBox(height: AppTheme.sectionSpacing),
             PrimaryActionButton(
@@ -541,44 +550,49 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
                   ),
             ),
             const SizedBox(height: 12),
-            PrimaryActionButton(
-              label: 'Reageerin',
-              icon: Icons.directions_boat_outlined,
-              isLoading: _isSavingResponse,
-              onPressed: () => _setResponse(
-                response: CalloutResponseValue.responding,
+            if (!_isActive)
+              const _ClosedResponseNotice()
+            else ...[
+              PrimaryActionButton(
+                label: 'Vastan',
+                icon: Icons.directions_boat_outlined,
+                isLoading: _isSavingResponse,
+                onPressed: () => _setResponse(
+                  response: CalloutResponseValue.responding,
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _ResponseButton(
-                    label: 'Hilinen',
-                    icon: Icons.schedule,
-                    selected:
-                        currentResponse == CalloutResponseValue.delayed,
-                    onPressed:
-                        _isSavingResponse ? null : _showDelayedResponseDialog,
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _ResponseButton(
+                      label: 'Hilinen',
+                      icon: Icons.schedule,
+                      selected:
+                          currentResponse == CalloutResponseValue.delayed,
+                      onPressed: _isSavingResponse
+                          ? null
+                          : _showDelayedResponseDialog,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _ResponseButton(
-                    label: 'Ei saa tulla',
-                    icon: Icons.cancel_outlined,
-                    isDanger: true,
-                    selected:
-                        currentResponse == CalloutResponseValue.unavailable,
-                    onPressed: _isSavingResponse
-                        ? null
-                        : () => _setResponse(
-                              response: CalloutResponseValue.unavailable,
-                            ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _ResponseButton(
+                      label: 'Ei saa tulla',
+                      icon: Icons.cancel_outlined,
+                      isDanger: true,
+                      selected:
+                          currentResponse == CalloutResponseValue.unavailable,
+                      onPressed: _isSavingResponse
+                          ? null
+                          : () => _setResponse(
+                                response: CalloutResponseValue.unavailable,
+                              ),
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
+            ],
           ],
         );
       },
@@ -588,7 +602,7 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
   String _myResponseLabel(String? response, int? minutes) {
     switch (response) {
       case CalloutResponseValue.responding:
-        return 'Oled märkinud, et reageerid.';
+        return 'Oled märkinud, et vastad.';
       case CalloutResponseValue.delayed:
         return 'Oled märkinud viivituseks ${minutes ?? 0} minutit.';
       case CalloutResponseValue.unavailable:
@@ -710,6 +724,34 @@ class _InfoLine extends StatelessWidget {
         const SizedBox(width: 8),
         Expanded(child: Text(text)),
       ],
+    );
+  }
+}
+
+class _ClosedResponseNotice extends StatelessWidget {
+  const _ClosedResponseNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceBlueStrong,
+        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.lock_outline, size: 20, color: AppColors.textSecondary),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Väljakutse on lõpetatud. Vastust ei saa enam muuta.',
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

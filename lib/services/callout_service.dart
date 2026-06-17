@@ -275,10 +275,19 @@ class CalloutService {
     required String userId,
     required String organizationId,
   }) {
-    _requireOrganizationId(organizationId);
+    final trimmedOrganizationId = organizationId.trim();
+    final trimmedCalloutId = calloutId.trim();
+    final trimmedUserId = userId.trim();
+
+    _requireOrganizationId(trimmedOrganizationId);
+    _requireCalloutId(trimmedCalloutId);
+    _requireUserId(trimmedUserId);
+
     return _responses
-        .where('calloutId', isEqualTo: calloutId)
-        .where('userId', isEqualTo: userId)
+        .where(
+          FieldPath.documentId,
+          isEqualTo: _responseId(trimmedCalloutId, trimmedUserId),
+        )
         .limit(1)
         .snapshots()
         .map((snapshot) {
@@ -288,7 +297,7 @@ class CalloutService {
       final responseOrganizationId = response.organizationId.isNotEmpty
           ? response.organizationId
           : response.commandId;
-      return responseOrganizationId == organizationId ? response : null;
+      return responseOrganizationId == trimmedOrganizationId ? response : null;
     });
   }
 
@@ -445,47 +454,59 @@ class CalloutService {
     int? responseMinutes,
     String note = '',
   }) async {
-    _requireOrganizationId(organizationId);
-    if (!CalloutResponseValue.values.contains(response) ||
-        response == CalloutResponseValue.noResponse) {
-      throw Exception('Unsupported callout response: $response');
+    final trimmedOrganizationId = organizationId.trim();
+    final trimmedCalloutId = calloutId.trim();
+    final trimmedUserId = userId.trim();
+    final trimmedUserName = userName.trim();
+    final trimmedResponse = response.trim();
+    final trimmedNote = note.trim();
+
+    _requireOrganizationId(trimmedOrganizationId);
+    _requireCalloutId(trimmedCalloutId);
+    _requireUserId(trimmedUserId);
+
+    if (!CalloutResponseValue.values.contains(trimmedResponse) ||
+        trimmedResponse == CalloutResponseValue.noResponse) {
+      throw Exception('Väljakutse vastus ei ole toetatud');
     }
 
-    if (response == CalloutResponseValue.delayed &&
+    if (trimmedResponse == CalloutResponseValue.delayed &&
         (responseMinutes == null || responseMinutes <= 0)) {
-      throw Exception('Delayed response requires response minutes');
+      throw Exception('Hilinemise puhul vali eeldatav viivitus');
     }
 
-    final calloutSnapshot = await _callouts.doc(calloutId).get();
+    final calloutSnapshot = await _callouts.doc(trimmedCalloutId).get();
     final calloutData = calloutSnapshot.data();
     if (calloutData == null) {
-      throw Exception('Callout not found');
+      throw Exception('Väljakutset ei leitud');
     }
     final calloutOrganizationId =
         (calloutData['organizationId'] ?? calloutData['commandId'] ?? '')
-            .toString();
-    if (calloutOrganizationId != organizationId) {
-      throw Exception('Callout belongs to another organization');
+            .toString()
+            .trim();
+    if (calloutOrganizationId != trimmedOrganizationId) {
+      throw Exception('Väljakutse kuulub teise organisatsiooni');
     }
     final calloutStatus =
         (calloutData['status'] ?? CalloutStatus.active).toString();
     if (calloutStatus != CalloutStatus.active) {
-      throw Exception('Lõpetatud väljakutsele ei saa vastata');
+      throw Exception('Väljakutse on lõpetatud. Vastust ei saa enam muuta.');
     }
 
-    final responseId = '${calloutId}_$userId';
+    final responseId = _responseId(trimmedCalloutId, trimmedUserId);
     await _responses.doc(responseId).set({
       'id': responseId,
-      'calloutId': calloutId,
-      'userId': userId,
-      'userName': userName.trim(),
-      'organizationId': organizationId,
+      'calloutId': trimmedCalloutId,
+      'userId': trimmedUserId,
+      'userName': trimmedUserName,
+      'organizationId': trimmedOrganizationId,
       // TODO: Remove commandId after all callout reads use organizationId.
-      'commandId': organizationId,
-      'response': response,
-      'responseMinutes':
-          response == CalloutResponseValue.delayed ? responseMinutes : null,
-      'note': note.trim(),
+      'commandId': trimmedOrganizationId,
+      'response': trimmedResponse,
+      'responseMinutes': trimmedResponse == CalloutResponseValue.delayed
+          ? responseMinutes
+          : null,
+      'note': trimmedNote,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
@@ -496,4 +517,18 @@ class CalloutService {
       throw Exception('Selle toimingu jaoks puudub aktiivne organisatsioon');
     }
   }
+
+  void _requireCalloutId(String calloutId) {
+    if (calloutId.trim().isEmpty) {
+      throw Exception('Väljakutse puudub');
+    }
+  }
+
+  void _requireUserId(String userId) {
+    if (userId.trim().isEmpty) {
+      throw Exception('Kasutaja puudub');
+    }
+  }
+
+  String _responseId(String calloutId, String userId) => '${calloutId}_$userId';
 }
