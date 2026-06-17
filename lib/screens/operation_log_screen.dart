@@ -130,20 +130,26 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
 
   Future<void> _handleQuickAction(OperationLogModel log, String action) async {
     switch (action) {
-      case 'Teel':
+      case 'Sõitsin välja':
         await _updateStatus(log, OperationLogStatus.enRoute);
         break;
       case 'Kohal':
         await _updateStatus(log, OperationLogStatus.onScene);
         break;
       case 'Otsing algas':
-        await _addQuickAction(log, 'Otsing algas');
+        await _updateStatus(log, OperationLogStatus.inProgress);
         break;
       case 'Kannatanu leitud':
         await _addQuickAction(log, 'Kannatanu leitud');
         break;
       case 'Sündmus lõpetatud':
         await _updateStatus(log, OperationLogStatus.completed);
+        break;
+      case 'Tagasi':
+        await _addQuickAction(log, 'Tagasi');
+        break;
+      case 'Baasis':
+        await _updateStatus(log, OperationLogStatus.returnedToBase);
         break;
     }
   }
@@ -303,7 +309,10 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
             );
           }
 
-          final logs = snapshot.data ?? const <OperationLogModel>[];
+          final logs = _sortOperationLogsForUse(
+            snapshot.data ?? const <OperationLogModel>[],
+            focusedLogId: widget.initialLogId,
+          );
           if (logs.isEmpty) {
             return const Center(child: Text('Logikandeid ei ole veel lisatud'));
           }
@@ -315,12 +324,17 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
             itemBuilder: (context, index) {
               final log = logs[index];
               return _OperationLogCard(
+                key: ValueKey(log.id),
                 log: log,
                 organizationId: widget.organizationId,
                 canStartOperationLog: widget.canStartOperationLog,
                 canViewCalloutResponseSummary:
                     widget.canViewCalloutResponseSummary,
-                initiallyExpanded: log.id == widget.initialLogId,
+                isFocusedOperationLog: log.id == widget.initialLogId,
+                initiallyExpanded: log.id == widget.initialLogId ||
+                    (widget.initialLogId == null &&
+                        index == 0 &&
+                        _isActiveOperationLog(log.status)),
                 onUpdateStatus: _updateStatus,
                 onShowAddManualEventDialog: _showAddManualEventDialog,
                 onHandleQuickAction: _handleQuickAction,
@@ -341,6 +355,7 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
 
 class _OperationLogCard extends StatefulWidget {
   const _OperationLogCard({
+    super.key,
     required this.log,
     required this.organizationId,
     required this.canStartOperationLog,
@@ -349,6 +364,7 @@ class _OperationLogCard extends StatefulWidget {
     required this.onShowAddManualEventDialog,
     required this.onHandleQuickAction,
     required this.onShowFinalSummaryDialog,
+    this.isFocusedOperationLog = false,
     this.initiallyExpanded = false,
   });
 
@@ -356,6 +372,7 @@ class _OperationLogCard extends StatefulWidget {
   final String organizationId;
   final bool canStartOperationLog;
   final bool canViewCalloutResponseSummary;
+  final bool isFocusedOperationLog;
   final bool initiallyExpanded;
   final Future<void> Function(OperationLogModel, String) onUpdateStatus;
   final Future<void> Function(OperationLogModel) onShowAddManualEventDialog;
@@ -368,11 +385,13 @@ class _OperationLogCard extends StatefulWidget {
 
 class _OperationLogCardState extends State<_OperationLogCard> {
   static const _quickActions = [
-    'Teel',
+    'Sõitsin välja',
     'Kohal',
     'Otsing algas',
     'Kannatanu leitud',
     'Sündmus lõpetatud',
+    'Tagasi',
+    'Baasis',
   ];
 
   final _calloutService = CalloutService();
@@ -388,20 +407,27 @@ class _OperationLogCardState extends State<_OperationLogCard> {
     if (!widget.canStartOperationLog) return false;
 
     final normalizedStatus = OperationLogStatus.normalize(log.status);
-    if (normalizedStatus == OperationLogStatus.completed ||
-        normalizedStatus == OperationLogStatus.returnedToBase) {
+    if (normalizedStatus == OperationLogStatus.returnedToBase) {
       return false;
     }
 
     switch (action) {
-      case 'Teel':
+      case 'Sõitsin välja':
         return normalizedStatus == OperationLogStatus.open;
       case 'Kohal':
         return normalizedStatus == OperationLogStatus.open ||
             normalizedStatus == OperationLogStatus.enRoute;
+      case 'Otsing algas':
+        return normalizedStatus == OperationLogStatus.onScene;
+      case 'Kannatanu leitud':
+        return normalizedStatus == OperationLogStatus.onScene ||
+            normalizedStatus == OperationLogStatus.inProgress;
       case 'Sündmus lõpetatud':
         return normalizedStatus != OperationLogStatus.completed &&
             normalizedStatus != OperationLogStatus.returnedToBase;
+      case 'Tagasi':
+      case 'Baasis':
+        return normalizedStatus == OperationLogStatus.completed;
       default:
         return true;
     }
@@ -410,6 +436,9 @@ class _OperationLogCardState extends State<_OperationLogCard> {
   @override
   Widget build(BuildContext context) {
     final log = widget.log;
+    final isActive = _isActiveOperationLog(log.status);
+    final isEmphasized = isActive || widget.isFocusedOperationLog;
+    final colorScheme = Theme.of(context).colorScheme;
     final subtitleParts = [
       _operationLogStatusLabel(log.status),
       _operationLogTypeLabel(log.type),
@@ -417,33 +446,57 @@ class _OperationLogCardState extends State<_OperationLogCard> {
       if (log.timestamp != null) _shortDateTime(log.timestamp!),
     ];
 
-    return ExpansionTile(
-      initiallyExpanded: widget.initiallyExpanded,
-      tilePadding: EdgeInsets.zero,
-      childrenPadding: const EdgeInsets.only(
-        left: 16,
-        right: 16,
-        bottom: 12,
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: isEmphasized
+            ? colorScheme.primaryContainer.withValues(alpha: 0.18)
+            : Colors.transparent,
+        border: Border(
+          left: BorderSide(
+            color: isEmphasized
+                ? colorScheme.primary
+                : colorScheme.outlineVariant,
+            width: isEmphasized ? 4 : 1,
+          ),
+        ),
       ),
-      title: Text(log.title),
-      subtitle: Text(
-        log.description.isEmpty
-            ? subtitleParts.join(' - ')
-            : '${subtitleParts.join(' - ')}\n${log.description}',
+      child: Padding(
+        padding: EdgeInsets.only(left: isEmphasized ? 8 : 4),
+        child: ExpansionTile(
+          initiallyExpanded: widget.initiallyExpanded,
+          tilePadding: EdgeInsets.zero,
+          childrenPadding: const EdgeInsets.only(
+            left: 16,
+            right: 16,
+            bottom: 12,
+          ),
+          title: Text(
+            log.title,
+            style: isEmphasized
+                ? const TextStyle(fontWeight: FontWeight.w700)
+                : null,
+          ),
+          subtitle: Text(
+            log.description.isEmpty
+                ? subtitleParts.join(' - ')
+                : '${subtitleParts.join(' - ')}\n${log.description}',
+          ),
+          trailing: Chip(
+            label: Text(_operationLogStatusLabel(log.status)),
+            visualDensity: VisualDensity.compact,
+            backgroundColor: isEmphasized ? colorScheme.primaryContainer : null,
+          ),
+          onExpansionChanged: (expanded) =>
+              setState(() => _expanded = expanded),
+          children: _expanded ? _buildExpandedChildren(log) : [],
+        ),
       ),
-      trailing: Chip(
-        label: Text(_operationLogStatusLabel(log.status)),
-        visualDensity: VisualDensity.compact,
-      ),
-      onExpansionChanged: (expanded) =>
-          setState(() => _expanded = expanded),
-      children: _expanded ? _buildExpandedChildren(log) : [],
     );
   }
 
   List<Widget> _buildExpandedChildren(OperationLogModel log) {
     return [
-      _buildStatusFlowControls(log),
+      _buildStatusSummary(log),
       if (widget.canViewCalloutResponseSummary && log.calloutId != null)
         _buildCalloutResponseSummary(log.calloutId!),
       const Align(
@@ -489,38 +542,59 @@ class _OperationLogCardState extends State<_OperationLogCard> {
             ),
           ),
         ),
+      if (_isActiveOperationLog(log.status) && widget.canStartOperationLog) ...[
+        _buildOperationalModeHint(context),
+        const SizedBox(height: 12),
+      ],
       const Align(
         alignment: Alignment.centerLeft,
         child: Text(
           'Kiirtegevused',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
       ),
       const SizedBox(height: 4),
-      Align(
-        alignment: Alignment.centerLeft,
-        child: Wrap(
-          spacing: 8,
-          runSpacing: 4,
-          children: _quickActions.map((title) {
-            final enabled = _isQuickActionEnabled(log, title);
-            return ActionChip(
-              label: Text(title),
-              onPressed: enabled
-                  ? () => widget.onHandleQuickAction(log, title)
-                  : null,
-            );
-          }).toList(),
-        ),
+      LayoutBuilder(
+        builder: (context, constraints) {
+          final buttonWidth = constraints.maxWidth >= 360
+              ? (constraints.maxWidth - 8) / 2
+              : constraints.maxWidth;
+
+          return Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _quickActions.map((title) {
+              final enabled = _isQuickActionEnabled(log, title);
+              return SizedBox(
+                width: buttonWidth,
+                height: 52,
+                child: ElevatedButton.icon(
+                  onPressed: enabled
+                      ? () => widget.onHandleQuickAction(log, title)
+                      : null,
+                  icon: Icon(_quickActionIcon(title), size: 20),
+                  label: Text(
+                    title,
+                    maxLines: 2,
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              );
+            }).toList(),
+          );
+        },
       ),
       Align(
         alignment: Alignment.centerRight,
-        child: TextButton.icon(
-          onPressed: widget.canStartOperationLog
-              ? () => widget.onShowAddManualEventDialog(log)
-              : null,
-          icon: const Icon(Icons.note_add_outlined),
-          label: const Text('Lisa märge'),
+        child: Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: TextButton.icon(
+            onPressed: widget.canStartOperationLog
+                ? () => widget.onShowAddManualEventDialog(log)
+                : null,
+            icon: const Icon(Icons.note_add_outlined),
+            label: const Text('Lisa märge'),
+          ),
         ),
       ),
       OperationLogTimelineView(
@@ -530,10 +604,7 @@ class _OperationLogCardState extends State<_OperationLogCard> {
     ];
   }
 
-  Widget _buildStatusFlowControls(OperationLogModel log) {
-    final nextStatus = _nextOperationLogStatus(log.status);
-    final canUpdateStatus = widget.canStartOperationLog && nextStatus != null;
-
+  Widget _buildStatusSummary(OperationLogModel log) {
     return Align(
       alignment: Alignment.centerLeft,
       child: Padding(
@@ -548,22 +619,79 @@ class _OperationLogCardState extends State<_OperationLogCard> {
               label: Text('Staatus: ${_operationLogStatusLabel(log.status)}'),
               visualDensity: VisualDensity.compact,
             ),
-            if (canUpdateStatus)
-              OutlinedButton.icon(
-                onPressed: () => widget.onUpdateStatus(log, nextStatus),
-                icon: const Icon(Icons.arrow_forward),
-                label: Text(
-                  'Märgi: ${_operationLogStatusLabel(nextStatus)}',
-                ),
-              )
-            else if (nextStatus == null)
-              const Text('Staatuse voog on lõpetatud')
-            else
-              const Text('Sul puudub õigus staatust muuta'),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildOperationalModeHint(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colorScheme.primaryContainer.withValues(alpha: 0.35),
+        border: Border.all(
+          color: colorScheme.primary.withValues(alpha: 0.28),
+        ),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.bolt_outlined,
+            color: colorScheme.primary,
+            size: 22,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Aktiivne operatsioonilogi',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Kasuta allolevaid kiirtegevusi sündmuse käigu märkimiseks.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Tegevused salvestatakse ajajoonele.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _quickActionIcon(String action) {
+    switch (action) {
+      case 'Sõitsin välja':
+        return Icons.directions_boat_outlined;
+      case 'Kohal':
+        return Icons.place_outlined;
+      case 'Otsing algas':
+        return Icons.search;
+      case 'Kannatanu leitud':
+        return Icons.person_outline;
+      case 'Sündmus lõpetatud':
+        return Icons.check_circle_outline;
+      case 'Tagasi':
+        return Icons.keyboard_return;
+      case 'Baasis':
+        return Icons.home_outlined;
+      default:
+        return Icons.bolt;
+    }
   }
 
   Widget _buildCalloutResponseSummary(String calloutId) {
@@ -645,6 +773,58 @@ class _OperationLogCardState extends State<_OperationLogCard> {
 // Shared by _OperationLogScreenState (dialog labels) and _OperationLogCard.
 // ---------------------------------------------------------------------------
 
+List<OperationLogModel> _sortOperationLogsForUse(
+  List<OperationLogModel> logs, {
+  String? focusedLogId,
+}) {
+  final sorted = List<OperationLogModel>.of(logs);
+  sorted.sort((a, b) {
+    final focusOrder = _focusedLogSortOrder(a.id, focusedLogId)
+        .compareTo(_focusedLogSortOrder(b.id, focusedLogId));
+    if (focusOrder != 0) return focusOrder;
+
+    final statusOrder =
+        _operationLogStatusSortOrder(a.status)
+            .compareTo(_operationLogStatusSortOrder(b.status));
+    if (statusOrder != 0) return statusOrder;
+
+    final aTime = _operationLogSortTime(a);
+    final bTime = _operationLogSortTime(b);
+    return bTime.compareTo(aTime);
+  });
+  return sorted;
+}
+
+int _focusedLogSortOrder(String logId, String? focusedLogId) {
+  return focusedLogId != null && logId == focusedLogId ? 0 : 1;
+}
+
+bool _isActiveOperationLog(String status) {
+  return _operationLogStatusSortOrder(status) == 0;
+}
+
+int _operationLogStatusSortOrder(String status) {
+  switch (OperationLogStatus.normalize(status)) {
+    case OperationLogStatus.open:
+    case OperationLogStatus.enRoute:
+    case OperationLogStatus.onScene:
+    case OperationLogStatus.inProgress:
+      return 0;
+    case OperationLogStatus.completed:
+      return 1;
+    case OperationLogStatus.returnedToBase:
+      return 2;
+    default:
+      return 0;
+  }
+}
+
+DateTime _operationLogSortTime(OperationLogModel log) {
+  return log.timestamp ??
+      log.createdAt ??
+      DateTime.fromMillisecondsSinceEpoch(0);
+}
+
 String _operationLogStatusLabel(String status) {
   const labels = {
     OperationLogStatus.open: 'Avatud',
@@ -695,23 +875,6 @@ String _operationLogTypeLabel(String type) {
       return 'Muu';
     default:
       return 'Märge';
-  }
-}
-
-String? _nextOperationLogStatus(String status) {
-  switch (OperationLogStatus.normalize(status)) {
-    case OperationLogStatus.open:
-      return OperationLogStatus.enRoute;
-    case OperationLogStatus.enRoute:
-      return OperationLogStatus.onScene;
-    case OperationLogStatus.onScene:
-      return OperationLogStatus.inProgress;
-    case OperationLogStatus.inProgress:
-      return OperationLogStatus.completed;
-    case OperationLogStatus.completed:
-      return OperationLogStatus.returnedToBase;
-    default:
-      return null;
   }
 }
 
