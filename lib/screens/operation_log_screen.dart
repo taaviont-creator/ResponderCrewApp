@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../models/callout_model.dart';
 import '../models/operation_log_model.dart';
@@ -32,6 +35,30 @@ class OperationLogScreen extends StatefulWidget {
 
 class _OperationLogScreenState extends State<OperationLogScreen> {
   final _operationLogService = OperationLogService();
+  final Set<String> _visibleActiveLogIds = <String>{};
+  bool _wakelockEnabled = false;
+
+  void _handleVisibleActiveLogChanged(String logId, bool isVisibleActive) {
+    if (!mounted) return;
+
+    if (isVisibleActive) {
+      _visibleActiveLogIds.add(logId);
+    } else {
+      _visibleActiveLogIds.remove(logId);
+    }
+
+    _syncWakelock();
+  }
+
+  void _syncWakelock() {
+    final shouldEnable = _visibleActiveLogIds.isNotEmpty;
+    if (_wakelockEnabled == shouldEnable) return;
+
+    _wakelockEnabled = shouldEnable;
+    unawaited(
+      WakelockPlus.toggle(enable: shouldEnable).catchError((Object _) {}),
+    );
+  }
 
   Future<void> _updateStatus(
     OperationLogModel log,
@@ -283,6 +310,15 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
   }
 
   @override
+  void dispose() {
+    _visibleActiveLogIds.clear();
+    if (_wakelockEnabled) {
+      unawaited(WakelockPlus.disable().catchError((Object _) {}));
+    }
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -339,6 +375,7 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
                 onShowAddManualEventDialog: _showAddManualEventDialog,
                 onHandleQuickAction: _handleQuickAction,
                 onShowFinalSummaryDialog: _showFinalSummaryDialog,
+                onVisibleActiveChanged: _handleVisibleActiveLogChanged,
               );
             },
           );
@@ -364,6 +401,7 @@ class _OperationLogCard extends StatefulWidget {
     required this.onShowAddManualEventDialog,
     required this.onHandleQuickAction,
     required this.onShowFinalSummaryDialog,
+    required this.onVisibleActiveChanged,
     this.isFocusedOperationLog = false,
     this.initiallyExpanded = false,
   });
@@ -378,6 +416,7 @@ class _OperationLogCard extends StatefulWidget {
   final Future<void> Function(OperationLogModel) onShowAddManualEventDialog;
   final Future<void> Function(OperationLogModel, String) onHandleQuickAction;
   final Future<void> Function(OperationLogModel) onShowFinalSummaryDialog;
+  final void Function(String, bool) onVisibleActiveChanged;
 
   @override
   State<_OperationLogCard> createState() => _OperationLogCardState();
@@ -401,6 +440,28 @@ class _OperationLogCardState extends State<_OperationLogCard> {
   void initState() {
     super.initState();
     _expanded = widget.initiallyExpanded;
+    _notifyVisibleActiveChanged();
+  }
+
+  @override
+  void didUpdateWidget(covariant _OperationLogCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.log.status != widget.log.status) {
+      _notifyVisibleActiveChanged();
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.onVisibleActiveChanged(widget.log.id, false);
+    super.dispose();
+  }
+
+  void _notifyVisibleActiveChanged() {
+    widget.onVisibleActiveChanged(
+      widget.log.id,
+      _expanded && _isActiveOperationLog(widget.log.status),
+    );
   }
 
   bool _isQuickActionEnabled(OperationLogModel log, String action) {
@@ -486,8 +547,10 @@ class _OperationLogCardState extends State<_OperationLogCard> {
             visualDensity: VisualDensity.compact,
             backgroundColor: isEmphasized ? colorScheme.primaryContainer : null,
           ),
-          onExpansionChanged: (expanded) =>
-              setState(() => _expanded = expanded),
+          onExpansionChanged: (expanded) {
+            setState(() => _expanded = expanded);
+            _notifyVisibleActiveChanged();
+          },
           children: _expanded ? _buildExpandedChildren(log) : [],
         ),
       ),
