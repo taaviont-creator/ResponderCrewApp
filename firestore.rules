@@ -389,13 +389,139 @@ service cloud.firestore {
         isValidOrganizationInviteData(data);
     }
 
-    function canReadOrganizationInvite(data) {
+    function isOwnOrganizationInvite(data) {
+      return signedIn() &&
+        request.auth.token.email is string &&
+        data.email is string &&
+        data.email == request.auth.token.email.lower();
+    }
+
+    function isAcceptableOrganizationInvite(data) {
+      return isOwnOrganizationInvite(data) &&
+        data.status == 'pending' &&
+        data.expiresAt is timestamp &&
+        data.expiresAt > request.time &&
+        data.role == 'member' &&
+        hasValidOrganizationReference(data) &&
+        commandIsApproved(organizationIdFromData(data));
+    }
+
+    function isAcceptedInviteMembershipData(inviteId, data) {
+      let invitePath =
+        /databases/$(database)/documents/organizationInvites/$(inviteId);
       let organizationId = organizationIdFromData(data);
       return signedIn() &&
-        commandIsApproved(organizationId) &&
+        data.acceptedInviteId == inviteId &&
+        existsAfter(invitePath) &&
+        getAfter(invitePath).data.status == 'accepted' &&
+        getAfter(invitePath).data.acceptedBy == request.auth.uid &&
+        getAfter(invitePath).data.acceptedAt == request.time &&
+        organizationIdFromData(getAfter(invitePath).data) == organizationId &&
+        isOwnOrganizationInvite(getAfter(invitePath).data) &&
+        commandIsApproved(organizationId);
+    }
+
+    function isInviteMembershipCreate(membershipId) {
+      let organizationId = organizationIdFromData(request.resource.data);
+      return signedIn() &&
+        request.resource.data.keys().hasOnly([
+          'userId',
+          'organizationId',
+          'commandId',
+          'role',
+          'seaRescueLevel',
+          'status',
+          'isActive',
+          'joinedAt',
+          'updatedAt',
+          'acceptedInviteId'
+        ]) &&
+        request.resource.data.keys().hasAll([
+          'userId',
+          'organizationId',
+          'commandId',
+          'role',
+          'seaRescueLevel',
+          'status',
+          'isActive',
+          'joinedAt',
+          'updatedAt',
+          'acceptedInviteId'
+        ]) &&
+        membershipId == membershipIdForUser(request.auth.uid, organizationId) &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.role == 'member' &&
+        request.resource.data.seaRescueLevel == 'none' &&
+        request.resource.data.status == 'active' &&
+        request.resource.data.isActive == true &&
+        request.resource.data.joinedAt == request.time &&
+        request.resource.data.updatedAt == request.time &&
+        request.resource.data.acceptedInviteId is string &&
+        isAcceptedInviteMembershipData(
+          request.resource.data.acceptedInviteId,
+          request.resource.data
+        );
+    }
+
+    function isInviteMembershipUpdate(membershipId) {
+      let organizationId = organizationIdFromData(request.resource.data);
+      return signedIn() &&
+        !isActiveMembershipData(resource.data) &&
+        request.resource.data.userId == request.auth.uid &&
+        organizationIdFromData(request.resource.data) == organizationIdFromData(resource.data) &&
+        membershipId == membershipIdForUser(request.auth.uid, organizationId) &&
+        request.resource.data.role == 'member' &&
+        request.resource.data.seaRescueLevel == 'none' &&
+        request.resource.data.status == 'active' &&
+        request.resource.data.isActive == true &&
+        request.resource.data.joinedAt == request.time &&
+        request.resource.data.updatedAt == request.time &&
+        request.resource.data.acceptedInviteId is string &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'role',
+          'seaRescueLevel',
+          'status',
+          'isActive',
+          'joinedAt',
+          'updatedAt',
+          'acceptedInviteId'
+        ]) &&
+        isAcceptedInviteMembershipData(
+          request.resource.data.acceptedInviteId,
+          request.resource.data
+        );
+    }
+
+    function isOrganizationInviteAccept(inviteId) {
+      let organizationId = organizationIdFromData(resource.data);
+      let membershipPath =
+        /databases/$(database)/documents/memberships/$(membershipIdForUser(request.auth.uid, organizationId));
+      return isAcceptableOrganizationInvite(resource.data) &&
+        request.resource.data.status == 'accepted' &&
+        request.resource.data.acceptedBy == request.auth.uid &&
+        request.resource.data.acceptedAt == request.time &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status',
+          'acceptedBy',
+          'acceptedAt'
+        ]) &&
+        existsAfter(membershipPath) &&
+        isAcceptedInviteMembershipData(
+          inviteId,
+          getAfter(membershipPath).data
+        );
+    }
+
+    function canReadOrganizationInvite(data) {
+      let organizationId = organizationIdFromData(data);
+      return isOwnOrganizationInvite(data) ||
         (
-          isPlatformAdmin() ||
-          isActiveOrgAdmin(organizationId)
+          signedIn() &&
+          commandIsApproved(organizationId) &&
+          (
+            isPlatformAdmin() ||
+            isActiveOrgAdmin(organizationId)
+          )
         );
     }
 
@@ -1669,19 +1795,22 @@ service cloud.firestore {
 
       allow create: if isOwnOrgAdminMembershipForCreatedCommand() ||
         isOwnPendingOrgAdminMembershipForCreatedCommand() ||
-        isOwnMemberMembership();
+        isOwnMemberMembership() ||
+        isInviteMembershipCreate(membershipId);
 
       allow update: if signedIn() &&
         (
           isPlatformApprovalMembershipUpdate() ||
           isOrgAdminMembershipUpdate() ||
-          isOwnMembershipStatusUpdate()
+          isOwnMembershipStatusUpdate() ||
+          isInviteMembershipUpdate(membershipId)
         );
     }
 
     match /organizationInvites/{inviteId} {
       allow read: if canReadOrganizationInvite(resource.data);
       allow create: if canCreateOrganizationInvite(request.resource.data);
+      allow update: if isOrganizationInviteAccept(inviteId);
     }
 
     match /availability/{availabilityId} {

@@ -10,8 +10,10 @@ class UserService {
     required String email,
     required String name,
   }) async {
+    final normalizedEmail = email.trim().toLowerCase();
     await _firestore.collection('users').doc(uid).set({
       'email': email,
+      'normalizedEmail': normalizedEmail,
       'name': name,
       'status': 'available', // vaba
       'activeOrganizationId': null,

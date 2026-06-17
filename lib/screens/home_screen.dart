@@ -8,6 +8,7 @@ import '../services/availability_service.dart';
 import '../services/command_service.dart';
 import '../services/membership_service.dart';
 import '../services/notification_service.dart';
+import '../widgets/pending_invites_section.dart';
 import 'activities_screen.dart';
 import 'admin_home_dashboard.dart';
 import 'availability_screen.dart';
@@ -1393,6 +1394,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       allowMembersToStartOperationLog: false,
                       membershipDocs: membershipDocs,
                     ),
+                    const PendingInvitesSection(),
                     _buildMissingOrganizationState(
                       hasMemberships: membershipDocs.isNotEmpty,
                       membershipDocs: membershipDocs,
@@ -1470,6 +1472,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     body: ListView(
                       children: [
+                        const PendingInvitesSection(),
                         _buildBlockedOrganizationState(
                           status: commandStatus,
                           organizationName: commandName,

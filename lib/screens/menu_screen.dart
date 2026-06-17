@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 import '../widgets/app_section_card.dart';
+import '../widgets/pending_invites_section.dart';
 import 'activities_screen.dart';
 import 'certificates_screen.dart';
 import 'equipment_screen.dart';
@@ -70,6 +71,7 @@ class MenuScreen extends StatelessWidget {
                   color: AppColors.textSecondary,
                 ),
           ),
+          const PendingInvitesSection(),
           const SizedBox(height: AppTheme.sectionSpacing),
           if (isOrganizationAdmin)
             _MenuEntry(
