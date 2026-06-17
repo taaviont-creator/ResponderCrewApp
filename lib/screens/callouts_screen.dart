@@ -161,7 +161,7 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Väljakutse lisamine ebaõnnestus: $error')),
+        const SnackBar(content: Text('Väljakutse lisamine ebaõnnestus.')),
       );
     }
   }
@@ -207,7 +207,7 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
               child: Padding(
                 padding: const EdgeInsets.all(AppTheme.screenPadding),
                 child: Text(
-                  'Väljakutsete laadimine ebaõnnestus: ${snapshot.error}',
+                  'Väljakutsete laadimine ebaõnnestus.',
                   textAlign: TextAlign.center,
                 ),
               ),

@@ -239,7 +239,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Teavituse lisamine ebaõnnestus: $e')),
+        const SnackBar(content: Text('Teavituse lisamine ebaõnnestus.')),
       );
     }
   }
@@ -259,7 +259,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Loetuks märkimine ebaõnnestus: $e')),
+        const SnackBar(content: Text('Loetuks märkimine ebaõnnestus.')),
       );
     }
   }
@@ -283,7 +283,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Kõigi loetuks märkimine ebaõnnestus: $e')),
+        const SnackBar(
+          content: Text('Kõigi loetuks märkimine ebaõnnestus.'),
+        ),
       );
     }
   }
@@ -310,7 +312,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Loetuks märkimine ebaõnnestus: $e')),
+          const SnackBar(content: Text('Loetuks märkimine ebaõnnestus.')),
         );
         return;
       }
@@ -419,8 +421,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           }
 
           if (snapshot.hasError) {
-            return Center(
-              child: Text('Teavituste laadimine ebaõnnestus: ${snapshot.error}'),
+            return const Center(
+              child: Text('Teavituste laadimine ebaõnnestus.'),
             );
           }
 
@@ -440,11 +442,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               }
 
               if (readsSnapshot.hasError) {
-                return Center(
-                  child: Text(
-                    'Lugemisoleku laadimine ebaõnnestus: '
-                    '${readsSnapshot.error}',
-                  ),
+                return const Center(
+                  child: Text('Lugemisoleku laadimine ebaõnnestus.'),
                 );
               }
 

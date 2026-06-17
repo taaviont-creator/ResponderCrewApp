@@ -88,13 +88,15 @@ class _MembersScreenState extends State<MembersScreen> {
           }
 
           if (membershipsSnapshot.hasError) {
-            return Center(child: Text('Viga: ${membershipsSnapshot.error}'));
+            return const Center(
+              child: Text('Liikmete laadimine ebaõnnestus.'),
+            );
           }
 
           final membershipDocs = membershipsSnapshot.data ??
               <QueryDocumentSnapshot<Map<String, dynamic>>>[];
           if (membershipDocs.isEmpty) {
-            return const Center(child: Text('Ühtegi liiget ei leitud'));
+            return const Center(child: Text('Liikmeid ei leitud.'));
           }
 
           final memberships = membershipDocs
@@ -133,10 +135,8 @@ class _MembersScreenState extends State<MembersScreen> {
                   }
 
                   if (userSnapshot.hasError) {
-                    return ListTile(
-                      title: Text(
-                        'Viga kasutaja laadimisel: ${userSnapshot.error}',
-                      ),
+                    return const ListTile(
+                      title: Text('Liikme andmete laadimine ebaõnnestus.'),
                     );
                   }
 
@@ -197,7 +197,11 @@ class _MembersScreenState extends State<MembersScreen> {
                               } catch (e) {
                                 if (!context.mounted) return;
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Viga: $e')),
+                                  const SnackBar(
+                                    content: Text(
+                                      'Sul puudub õigus seda toimingut teha.',
+                                    ),
+                                  ),
                                 );
                               }
                             },

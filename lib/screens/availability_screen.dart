@@ -71,7 +71,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Valmiduse muutmine ebaõnnestus: $e')),
+        const SnackBar(content: Text('Valmiduse muutmine ebaõnnestus.')),
       );
     } finally {
       if (mounted) setState(() => _isUpdating = false);
@@ -546,8 +546,8 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
           } catch (e) {
             if (!context.mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Meeldetuletuse muutmine ebaõnnestus: $e'),
+              const SnackBar(
+                content: Text('Meeldetuletuse muutmine ebaõnnestus.'),
               ),
             );
           }

@@ -49,8 +49,8 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Varustuse hooldustähtaegade kontroll ebaõnnestus: $e'),
+        const SnackBar(
+          content: Text('Varustuse hooldustähtaegade kontroll ebaõnnestus.'),
         ),
       );
     }
@@ -409,8 +409,8 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
           }
 
           if (snapshot.hasError) {
-            return Center(
-              child: Text('Varustuse laadimine ebaonnestus: ${snapshot.error}'),
+            return const Center(
+              child: Text('Varustuse laadimine ebaõnnestus.'),
             );
           }
 
@@ -439,7 +439,7 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
               _buildEquipmentSection(
                 title: 'Minu varustus',
                 equipment: personalEquipment,
-                emptyText: 'Isiklikku varustust ei ole lisatud',
+                emptyText: 'Isiklikku varustust ei ole lisatud.',
                 addLabel: 'Lisa minu varustus',
                 onAdd: () => _showAddEquipmentDialog(
                   scope: EquipmentScope.personal,
@@ -450,7 +450,7 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
                 _buildEquipmentSection(
                   title: 'Liikmete varustus',
                   equipment: memberPersonalEquipment,
-                  emptyText: 'Liikmete varustust ei ole lisatud',
+                  emptyText: 'Liikmete varustust ei ole lisatud.',
                   addLabel: '',
                   helperText:
                       'Admin saab vaadata ja muuta liikmete isiklikku varustust.',
@@ -461,7 +461,7 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
               _buildEquipmentSection(
                 title: 'Ühingu varustus',
                 equipment: organizationEquipment,
-                emptyText: 'Ühingu varustust ei ole lisatud',
+                emptyText: 'Varustust ei ole lisatud.',
                 addLabel: 'Lisa ühingu varustus',
                 helperText: widget.canManageEquipment
                     ? null

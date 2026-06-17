@@ -156,7 +156,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Viga: $e')),
+        const SnackBar(content: Text('Ühinguga liitumine ebaõnnestus.')),
       );
     }
   }
@@ -201,7 +201,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Viga: $e')),
+        const SnackBar(content: Text('Ühingu loomine ebaõnnestus.')),
       );
     }
   }
@@ -290,7 +290,9 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Viga: $e')),
+        const SnackBar(
+          content: Text('Aktiivse ühingu vahetamine ebaõnnestus.'),
+        ),
       );
     }
   }
@@ -332,7 +334,7 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Viga: $e')),
+        const SnackBar(content: Text('Ühingust lahkumine ebaõnnestus.')),
       );
     }
   }
@@ -1179,7 +1181,9 @@ class _HomeScreenState extends State<HomeScreen> {
         if (userSnapshot.hasError) {
           return Scaffold(
             appBar: AppBar(title: const Text('RespondCrew')),
-            body: Center(child: Text('Viga: ${userSnapshot.error}')),
+            body: const Center(
+              child: Text('Kasutaja profiili laadimine ebaõnnestus.'),
+            ),
           );
         }
 
@@ -1188,7 +1192,7 @@ class _HomeScreenState extends State<HomeScreen> {
           return Scaffold(
             appBar: AppBar(title: const Text('RespondCrew')),
             body: const Center(
-              child: Text('Kasutaja profiili ei leitud Firestore’ist'),
+              child: Text('Kasutaja profiili ei leitud.'),
             ),
           );
         }
@@ -1229,10 +1233,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     currentCommandName: null,
                   ),
                 ),
-                body: Center(
-                  child: Text(
-                    'Viga membershipite laadimisel: ${membershipsSnapshot.error}',
-                  ),
+                body: const Center(
+                  child: Text('Liikmelisuste laadimine ebaõnnestus.'),
                 ),
               );
             }
@@ -1279,16 +1281,14 @@ class _HomeScreenState extends State<HomeScreen> {
               final hasDisabledMembership =
                   _hasDisabledMembership(allMembershipDocs);
               final missingOrganizationTitle = hasPendingMembership
-                  ? 'Liikmelisus ootab kinnitamist'
+                  ? 'Sinu liikmelisus ei ole aktiivne.'
                   : hasDisabledMembership
                       ? 'Sinu liikmelisus ei ole aktiivne.'
                       : null;
               final missingOrganizationMessage = hasPendingMembership
-                  ? 'Sinu liikmelisus ootab administraatori kinnitust. '
-                      'Tavapärased moodulid avanevad pärast kinnitamist.'
+                  ? 'Oota ühingu kinnitust või vali teine ühing.'
                   : hasDisabledMembership
-                      ? 'Mooduleid saab kasutada ainult aktiivse ühingu '
-                          'liikmena.'
+                      ? 'Oota ühingu kinnitust või vali teine ühing.'
                       : null;
 
               return Scaffold(

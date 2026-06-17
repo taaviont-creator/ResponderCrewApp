@@ -263,10 +263,8 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
           }
 
           if (snapshot.hasError) {
-            return Center(
-              child: Text(
-                'Tegevuste laadimine ebaonnestus: ${snapshot.error}',
-              ),
+            return const Center(
+              child: Text('Tegevuste laadimine ebaõnnestus.'),
             );
           }
 

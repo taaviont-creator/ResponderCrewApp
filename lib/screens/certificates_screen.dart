@@ -47,8 +47,8 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Sertifikaatide aegumise kontroll ebaõnnestus: $e'),
+        const SnackBar(
+          content: Text('Tunnistuste aegumise kontroll ebaõnnestus.'),
         ),
       );
     }
@@ -69,7 +69,7 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
 
     if (members.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Liikmeid ei leitud')),
+        const SnackBar(content: Text('Liikmeid ei leitud.')),
       );
       return;
     }
@@ -241,7 +241,9 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Kvalifikatsiooni lisamine ebaõnnestus: $e')),
+        const SnackBar(
+          content: Text('Tunnistuse lisamine ebaõnnestus.'),
+        ),
       );
     }
   }
@@ -303,17 +305,14 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
           }
 
           if (snapshot.hasError) {
-            return Center(
-              child: Text(
-                'Kvalifikatsioonide laadimine ebaõnnestus: '
-                '${snapshot.error}',
-              ),
+            return const Center(
+              child: Text('Tunnistuste laadimine ebaõnnestus.'),
             );
           }
 
           final certificates = snapshot.data ?? const <CertificateModel>[];
           if (certificates.isEmpty) {
-            return const Center(child: Text('Kvalifikatsioone ei ole lisatud'));
+            return const Center(child: Text('Tunnistusi ei ole lisatud.'));
           }
 
           final attentionCertificates = certificates

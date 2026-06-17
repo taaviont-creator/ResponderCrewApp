@@ -53,7 +53,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     if (!widget.canViewStatistics) {
       return const Scaffold(
         body: Center(
-          child: Text('Sul puudub õigus seda toimingut teha'),
+          child: Text('Sul puudub õigus seda toimingut teha.'),
         ),
       );
     }
@@ -77,16 +77,14 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           }
 
           if (snapshot.hasError) {
-            return Center(
-              child: Text(
-                'Statistika laadimine ebaõnnestus: ${snapshot.error}',
-              ),
+            return const Center(
+              child: Text('Statistika laadimine ebaõnnestus.'),
             );
           }
 
           final statistics = snapshot.data;
           if (statistics == null) {
-            return const Center(child: Text('Statistikat ei leitud'));
+            return const Center(child: Text('Statistikat ei leitud.'));
           }
 
           return ListView(
