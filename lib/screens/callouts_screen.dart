@@ -215,10 +215,6 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
           }
 
           final callouts = snapshot.data ?? const <CalloutModel>[];
-          if (callouts.isEmpty) {
-            return _buildEmptyState();
-          }
-
           final activeCallouts = callouts
               .where((callout) => callout.status == CalloutStatus.active)
               .toList(growable: false);
@@ -292,38 +288,6 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
     );
   }
 
-  Widget _buildEmptyState() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.campaign_outlined,
-              size: 48,
-              color: AppColors.textSecondary,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Väljakutseid ei ole',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              widget.canManageCallouts
-                  ? 'Uue väljakutse saad lisada all oleva nupu kaudu.'
-                  : 'Uued väljakutsed ilmuvad siia.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class _CalloutCard extends StatelessWidget {
@@ -352,7 +316,7 @@ class _CalloutCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppTheme.cardRadius),
         child: AppSectionCard(
-          accentColor: _priorityColor(callout.priority),
+          accentColor: _calloutAccentColor(callout),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -363,8 +327,8 @@ class _CalloutCard extends StatelessWidget {
                 children: [
                   StatusBadge(
                     label: _priorityLabel(callout.priority),
-                    type: _priorityBadgeType(callout.priority),
-                    icon: Icons.warning_amber_rounded,
+                    type: _calloutPriorityBadgeType(callout),
+                    icon: _calloutPriorityIcon(callout),
                   ),
                   StatusBadge(
                     label: _statusLabel(callout.status),
@@ -643,6 +607,20 @@ StatusBadgeType _priorityBadgeType(String priority) {
   }
 }
 
+StatusBadgeType _calloutPriorityBadgeType(CalloutModel callout) {
+  if (callout.status != CalloutStatus.active) {
+    return StatusBadgeType.neutral;
+  }
+  return _priorityBadgeType(callout.priority);
+}
+
+IconData _calloutPriorityIcon(CalloutModel callout) {
+  if (callout.status != CalloutStatus.active) {
+    return Icons.flag_outlined;
+  }
+  return Icons.warning_amber_rounded;
+}
+
 StatusBadgeType _statusBadgeType(String status) {
   switch (status) {
     case CalloutStatus.closed:
@@ -652,6 +630,13 @@ StatusBadgeType _statusBadgeType(String status) {
     default:
       return StatusBadgeType.activeCallout;
   }
+}
+
+Color? _calloutAccentColor(CalloutModel callout) {
+  if (callout.status != CalloutStatus.active) {
+    return null;
+  }
+  return _priorityColor(callout.priority);
 }
 
 Color _priorityColor(String priority) {
