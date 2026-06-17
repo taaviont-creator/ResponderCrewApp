@@ -214,60 +214,41 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
 
     final titleController = TextEditingController();
     final descriptionController = TextEditingController();
-    var selectedType = OperationLogType.note;
 
     final shouldCreate = await showDialog<bool>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            title: const Text('Lisa logikanne'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedType,
-                    decoration: const InputDecoration(labelText: 'Tuup'),
-                    items: OperationLogType.values.map((type) {
-                      return DropdownMenuItem<String>(
-                        value: type,
-                        child: Text(_operationLogTypeLabel(type)),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value == null) return;
-                      setDialogState(() => selectedType = value);
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: titleController,
-                    decoration: const InputDecoration(labelText: 'Pealkiri'),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: descriptionController,
-                    decoration: const InputDecoration(
-                      labelText: 'Kirjeldus / markus',
-                    ),
-                    maxLines: 3,
-                  ),
-                ],
+      builder: (context) => AlertDialog(
+        title: const Text('Uus operatsioonilogi'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleController,
+                decoration: const InputDecoration(labelText: 'Pealkiri'),
+                autofocus: true,
               ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Katkesta'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Lisa'),
+              const SizedBox(height: 8),
+              TextField(
+                controller: descriptionController,
+                decoration: const InputDecoration(
+                  labelText: 'Kirjeldus (valikuline)',
+                ),
+                maxLines: 3,
               ),
             ],
-          );
-        },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Katkesta'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Lisa'),
+          ),
+        ],
       ),
     );
 
@@ -278,7 +259,7 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
         organizationId: widget.organizationId,
         createdBy: widget.currentUid,
         createdByName: widget.currentUserName,
-        type: selectedType,
+        type: OperationLogType.other,
         title: titleController.text,
         description: descriptionController.text,
       );
@@ -290,7 +271,7 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Logikande lisamine ebaonnestus: $e')),
+        SnackBar(content: Text('Logikande lisamine ebaõnnestus: $e')),
       );
     }
   }
@@ -695,25 +676,25 @@ String _operationLogStatusLabel(String status) {
 String _operationLogTypeLabel(String type) {
   switch (type) {
     case OperationLogType.departure:
-      return 'Departure';
+      return 'Väljasõit';
     case OperationLogType.arrivalOnScene:
-      return 'Arrival on scene';
+      return 'Jõudmine kohale';
     case OperationLogType.searchStarted:
-      return 'Search started';
+      return 'Otsing algas';
     case OperationLogType.searchEnded:
-      return 'Search ended';
+      return 'Otsing lõpetatud';
     case OperationLogType.patientRecovered:
-      return 'Patient recovered';
+      return 'Kannatanu leitud';
     case OperationLogType.towingStarted:
-      return 'Towing started';
+      return 'Pukseerimine algas';
     case OperationLogType.towingEnded:
-      return 'Towing ended';
+      return 'Pukseerimine lõpetatud';
     case OperationLogType.returnedToBase:
-      return 'Returned to base';
+      return 'Baasi tagasi';
     case OperationLogType.other:
-      return 'Other';
+      return 'Muu';
     default:
-      return 'Note';
+      return 'Märge';
   }
 }
 

@@ -6,10 +6,15 @@ import '../services/operation_log_service.dart';
 /// Displays the notes and full event timeline for a single operation log.
 ///
 /// Subscribes to [OperationLogService.streamLogEvents] and renders:
-/// - a loading indicator while waiting
+/// - a loading indicator while waiting for the first batch of data
 /// - an error message on failure
 /// - separate "Märkmed" and "Ajajoon" sections once data arrives
-class OperationLogTimelineView extends StatelessWidget {
+///
+/// The stream is created once in [initState] and only recreated when
+/// [operationLogId] or [organizationId] changes.  Keeping the stream stable
+/// prevents [StreamBuilder] from resetting to [ConnectionState.waiting] (and
+/// hiding the timeline) every time the parent card rebuilds.
+class OperationLogTimelineView extends StatefulWidget {
   const OperationLogTimelineView({
     super.key,
     required this.operationLogId,
@@ -20,16 +25,44 @@ class OperationLogTimelineView extends StatelessWidget {
   final String organizationId;
 
   @override
-  Widget build(BuildContext context) {
-    final service = OperationLogService();
+  State<OperationLogTimelineView> createState() =>
+      _OperationLogTimelineViewState();
+}
 
+class _OperationLogTimelineViewState extends State<OperationLogTimelineView> {
+  late Stream<List<OperationLogEventModel>> _eventStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _eventStream = _buildStream();
+  }
+
+  @override
+  void didUpdateWidget(OperationLogTimelineView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.operationLogId != widget.operationLogId ||
+        oldWidget.organizationId != widget.organizationId) {
+      setState(() => _eventStream = _buildStream());
+    }
+  }
+
+  Stream<List<OperationLogEventModel>> _buildStream() =>
+      OperationLogService().streamLogEvents(
+        operationLogId: widget.operationLogId,
+        organizationId: widget.organizationId,
+      );
+
+  @override
+  Widget build(BuildContext context) {
     return StreamBuilder<List<OperationLogEventModel>>(
-      stream: service.streamLogEvents(
-        operationLogId: operationLogId,
-        organizationId: organizationId,
-      ),
+      stream: _eventStream,
       builder: (context, eventSnapshot) {
-        if (eventSnapshot.connectionState == ConnectionState.waiting) {
+        // Show spinner only while waiting for the very first data.
+        // Guard against hasData so that a stream recreation does not blank
+        // the timeline when data was already loaded.
+        if (eventSnapshot.connectionState == ConnectionState.waiting &&
+            !eventSnapshot.hasData) {
           return const LinearProgressIndicator();
         }
         if (eventSnapshot.hasError) {
