@@ -69,6 +69,11 @@ class AvailabilityService {
       throw Exception('Unsupported availability status: $status');
     }
 
+    if (status == AvailabilityStatus.delayed &&
+        (responseMinutes == null || responseMinutes <= 0)) {
+      throw Exception('Hilinemise aeg on kohustuslik.');
+    }
+
     final id = availabilityId(
       userId: userId,
       organizationId: organizationId,
