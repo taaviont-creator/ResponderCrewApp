@@ -12,17 +12,19 @@ class DeviceTokenService {
   CollectionReference<Map<String, dynamic>> get _deviceTokens =>
       _firestore.collection('userDeviceTokens');
 
-  Future<void> saveCurrentToken(FirebaseMessaging messaging) async {
+  Future<bool> saveCurrentToken(FirebaseMessaging messaging) async {
     final token = await messaging.getToken();
-    if (token == null || token.trim().isEmpty) return;
-    await saveTokenForCurrentUser(token);
+    if (token == null || token.trim().isEmpty) return false;
+    return saveTokenForCurrentUser(token);
   }
 
-  Future<void> saveTokenForCurrentUser(String token) async {
+  Future<bool> saveTokenForCurrentUser(String token) async {
     final user = _auth.currentUser;
     final normalizedToken = token.trim();
     final platform = _platformName;
-    if (user == null || normalizedToken.isEmpty || platform == null) return;
+    if (user == null || normalizedToken.isEmpty || platform == null) {
+      return false;
+    }
 
     final doc = _deviceTokens.doc(_deviceTokenId(user.uid, normalizedToken));
     final updateData = {
@@ -36,7 +38,7 @@ class DeviceTokenService {
     final snapshot = await doc.get();
     if (snapshot.exists) {
       await doc.update(updateData);
-      return;
+      return true;
     }
 
     await doc.set({
@@ -44,6 +46,7 @@ class DeviceTokenService {
       ...updateData,
       'createdAt': FieldValue.serverTimestamp(),
     });
+    return true;
   }
 
   String _deviceTokenId(String uid, String token) {

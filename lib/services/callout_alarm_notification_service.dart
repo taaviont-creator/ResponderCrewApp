@@ -18,6 +18,24 @@ const _calloutAlarmChannel = AndroidNotificationChannel(
   enableVibration: true,
 );
 
+class CalloutAlarmNotificationReadiness {
+  const CalloutAlarmNotificationReadiness({
+    required this.supportsClientNotifications,
+    required this.notificationsAllowed,
+    required this.canRequestPermission,
+    required this.permissionStatus,
+    required this.tokenRegistrationAttempted,
+    required this.tokenRegistrationSucceeded,
+  });
+
+  final bool supportsClientNotifications;
+  final bool notificationsAllowed;
+  final bool canRequestPermission;
+  final String permissionStatus;
+  final bool tokenRegistrationAttempted;
+  final bool tokenRegistrationSucceeded;
+}
+
 @pragma('vm:entry-point')
 Future<void> calloutAlarmMessagingBackgroundHandler(
   RemoteMessage message,
@@ -70,6 +88,43 @@ class CalloutAlarmNotificationService {
     FirebaseMessaging.onMessage.listen(_showForegroundCalloutNotification);
   }
 
+  Future<CalloutAlarmNotificationReadiness> getNotificationReadiness() async {
+    if (!_supportsClientNotifications) {
+      return const CalloutAlarmNotificationReadiness(
+        supportsClientNotifications: false,
+        notificationsAllowed: false,
+        canRequestPermission: false,
+        permissionStatus: 'unsupported',
+        tokenRegistrationAttempted: false,
+        tokenRegistrationSucceeded: false,
+      );
+    }
+
+    final settings = await _messaging.getNotificationSettings();
+    return _readinessFromSettings(settings);
+  }
+
+  Future<CalloutAlarmNotificationReadiness>
+      requestPermissionAndRefreshRegistration() async {
+    if (!_supportsClientNotifications) {
+      return getNotificationReadiness();
+    }
+
+    if (!_initialized) {
+      await initialize();
+    } else {
+      await _requestNotificationPermissions();
+    }
+
+    final tokenRegistered = await _saveCurrentDeviceToken();
+    final settings = await _messaging.getNotificationSettings();
+    return _readinessFromSettings(
+      settings,
+      tokenRegistrationAttempted: true,
+      tokenRegistrationSucceeded: tokenRegistered,
+    );
+  }
+
   void _startDeviceTokenStorage() {
     _authSubscription ??= _auth.authStateChanges().listen((user) {
       if (user == null) return;
@@ -85,16 +140,18 @@ class CalloutAlarmNotificationService {
     }
   }
 
-  Future<void> _saveCurrentDeviceToken() async {
+  Future<bool> _saveCurrentDeviceToken() async {
     try {
-      await _deviceTokenService.saveCurrentToken(_messaging);
+      return _deviceTokenService.saveCurrentToken(_messaging);
     } catch (_) {}
+    return false;
   }
 
-  Future<void> _saveDeviceToken(String token) async {
+  Future<bool> _saveDeviceToken(String token) async {
     try {
-      await _deviceTokenService.saveTokenForCurrentUser(token);
+      return _deviceTokenService.saveTokenForCurrentUser(token);
     } catch (_) {}
+    return false;
   }
 
   Future<void> _initializeLocalNotifications() async {
@@ -179,5 +236,37 @@ class CalloutAlarmNotificationService {
     return data['type'] == 'callout' ||
         data['relatedType'] == 'callout' ||
         data['channelId'] == _calloutAlarmChannel.id;
+  }
+
+  CalloutAlarmNotificationReadiness _readinessFromSettings(
+    NotificationSettings settings, {
+    bool tokenRegistrationAttempted = false,
+    bool tokenRegistrationSucceeded = false,
+  }) {
+    final status = settings.authorizationStatus;
+    final notificationsAllowed = status == AuthorizationStatus.authorized ||
+        status == AuthorizationStatus.provisional;
+
+    return CalloutAlarmNotificationReadiness(
+      supportsClientNotifications: true,
+      notificationsAllowed: notificationsAllowed,
+      canRequestPermission: status == AuthorizationStatus.notDetermined,
+      permissionStatus: _permissionStatusCode(status),
+      tokenRegistrationAttempted: tokenRegistrationAttempted,
+      tokenRegistrationSucceeded: tokenRegistrationSucceeded,
+    );
+  }
+
+  String _permissionStatusCode(AuthorizationStatus status) {
+    switch (status) {
+      case AuthorizationStatus.authorized:
+        return 'authorized';
+      case AuthorizationStatus.denied:
+        return 'denied';
+      case AuthorizationStatus.notDetermined:
+        return 'notDetermined';
+      case AuthorizationStatus.provisional:
+        return 'provisional';
+    }
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/notification_model.dart';
+import '../services/callout_alarm_notification_service.dart';
 import '../services/notification_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_section_card.dart';
@@ -43,7 +44,49 @@ class NotificationsScreen extends StatefulWidget {
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
   final _notificationService = NotificationService();
+  final _calloutAlarmNotificationService =
+      CalloutAlarmNotificationService.instance;
   var _selectedFilter = _NotificationFilter.all;
+  late Future<CalloutAlarmNotificationReadiness> _alarmReadinessFuture;
+  var _isRefreshingAlarmReadiness = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _alarmReadinessFuture =
+        _calloutAlarmNotificationService.getNotificationReadiness();
+  }
+
+  Future<void> _refreshAlarmReadiness() async {
+    setState(() => _isRefreshingAlarmReadiness = true);
+
+    try {
+      final readiness = await _calloutAlarmNotificationService
+          .requestPermissionAndRefreshRegistration();
+
+      if (!mounted) return;
+      setState(() {
+        _alarmReadinessFuture = Future.value(readiness);
+        _isRefreshingAlarmReadiness = false;
+      });
+
+      final message = readiness.notificationsAllowed
+          ? 'Teavituste registreering v\u00e4rskendatud'
+          : 'Teavituste luba ei ole veel aktiivne';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isRefreshingAlarmReadiness = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Teavituste valmisoleku v\u00e4rskendamine '
+              'eba\u00f5nnestus: $e'),
+        ),
+      );
+    }
+  }
 
   Future<void> _showAddNotificationDialog() async {
     final titleController = TextEditingController();
@@ -397,6 +440,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     unreadCount: unreadCount,
                   ),
                   const SizedBox(height: AppTheme.itemSpacing),
+                  _buildAlarmReadinessCard(),
+                  const SizedBox(height: AppTheme.itemSpacing),
                   _buildFilterChips(unreadCount: unreadCount),
                   if (unreadCount > 0) ...[
                     const SizedBox(height: 8),
@@ -460,6 +505,156 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             ),
       ),
     );
+  }
+
+  Widget _buildAlarmReadinessCard() {
+    return FutureBuilder<CalloutAlarmNotificationReadiness>(
+      future: _alarmReadinessFuture,
+      builder: (context, snapshot) {
+        final readiness = snapshot.data;
+        final isLoading = snapshot.connectionState == ConnectionState.waiting;
+        final allowed = readiness?.notificationsAllowed == true;
+        final supported = readiness?.supportsClientNotifications ?? true;
+
+        return AppSectionCard(
+          accentColor: allowed ? AppColors.ready : AppColors.equipmentWarning,
+          leading: const Icon(Icons.campaign_outlined),
+          title: 'Teavituste valmisolek',
+          subtitle: 'V\u00e4ljakutse alarm ja seadme teavitused',
+          trailing: StatusBadge(
+            label: _alarmPermissionBadgeLabel(readiness, isLoading),
+            type: allowed
+                ? StatusBadgeType.ready
+                : (supported
+                    ? StatusBadgeType.equipmentWarning
+                    : StatusBadgeType.neutral),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (isLoading)
+                const LinearProgressIndicator()
+              else if (snapshot.hasError)
+                Text(
+                  'Teavituste valmisolekut ei saanud laadida.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.critical,
+                      ),
+                )
+              else ...[
+                _buildReadinessRow(
+                  label: 'Teavituste luba',
+                  value: _alarmPermissionLabel(readiness),
+                ),
+                const SizedBox(height: 6),
+                _buildReadinessRow(
+                  label: 'Rakendus saab luba k\u00fcsida',
+                  value: readiness?.canRequestPermission == true
+                      ? 'Jah'
+                      : 'Ei',
+                ),
+                if (readiness?.tokenRegistrationAttempted == true) ...[
+                  const SizedBox(height: 6),
+                  _buildReadinessRow(
+                    label: 'Seadme registreering',
+                    value: readiness?.tokenRegistrationSucceeded == true
+                        ? 'V\u00e4rskendatud'
+                        : 'Ei \u00f5nnestunud',
+                  ),
+                ],
+              ],
+              const SizedBox(height: AppTheme.itemSpacing),
+              Text(
+                'V\u00e4ljakutse alarmi p\u00e4ris push-teavitused '
+                'aktiveeritakse hiljem serveripoolse saatjaga.',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+              ),
+              const SizedBox(height: AppTheme.itemSpacing),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: FilledButton.icon(
+                  onPressed:
+                      _isRefreshingAlarmReadiness ? null : _refreshAlarmReadiness,
+                  icon: _isRefreshingAlarmReadiness
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.notifications_active_outlined),
+                  label: Text(
+                    readiness?.canRequestPermission == true
+                        ? 'Luba teavitused'
+                        : 'V\u00e4rskenda teavituste registreeringut',
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildReadinessRow({
+    required String label,
+    required String value,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _alarmPermissionBadgeLabel(
+    CalloutAlarmNotificationReadiness? readiness,
+    bool isLoading,
+  ) {
+    if (isLoading) return 'Kontrollin';
+    if (readiness == null) return 'Teadmata';
+    if (!readiness.supportsClientNotifications) return 'Pole toetatud';
+    return readiness.notificationsAllowed ? 'Lubatud' : 'Vajab luba';
+  }
+
+  String _alarmPermissionLabel(
+    CalloutAlarmNotificationReadiness? readiness,
+  ) {
+    if (readiness == null) return 'Teadmata';
+    if (!readiness.supportsClientNotifications) return 'Pole selles seadmes toetatud';
+
+    switch (readiness.permissionStatus) {
+      case 'authorized':
+        return 'Lubatud';
+      case 'provisional':
+        return 'Ajutiselt lubatud';
+      case 'denied':
+        return 'Keelatud';
+      case 'notDetermined':
+        return 'K\u00fcsimata';
+      default:
+        return 'Teadmata';
+    }
   }
 
   Widget _buildFilterChips({required int unreadCount}) {
@@ -677,11 +872,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Widget _buildEmptyState(String message) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppTheme.screenPadding),
-        child: _buildEmptyCard(message),
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(
+        AppTheme.screenPadding,
+        AppTheme.screenPadding,
+        AppTheme.screenPadding,
+        96,
       ),
+      children: [
+        _buildAlarmReadinessCard(),
+        const SizedBox(height: AppTheme.itemSpacing),
+        _buildEmptyCard(message),
+      ],
     );
   }
 
