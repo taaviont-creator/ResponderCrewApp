@@ -6,6 +6,7 @@ import '../models/membership_model.dart';
 
 class CommandService {
   static const _statusPending = 'pending';
+  static const _statusApproved = 'approved';
   static const _statusRejected = 'rejected';
 
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -18,6 +19,13 @@ class CommandService {
   }
 
   String _membershipId(String userId, String commandId) => '${userId}_$commandId';
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> streamPendingCommands() {
+    return _db
+        .collection('commands')
+        .where('status', isEqualTo: _statusPending)
+        .snapshots();
+  }
 
   Future<String> _generateUniqueJoinCode({int length = 6}) async {
     for (int i = 0; i < 20; i++) {
@@ -80,6 +88,76 @@ class CommandService {
     await batch.commit();
 
     return commandRef.id;
+  }
+
+  Future<void> approveCommand({
+    required String commandId,
+    required String creatorUserId,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('Not authenticated');
+
+    final trimmedCommandId = commandId.trim();
+    final trimmedCreatorUserId = creatorUserId.trim();
+    if (trimmedCommandId.isEmpty || trimmedCreatorUserId.isEmpty) {
+      throw Exception('Ühingu kinnitamiseks puuduvad vajalikud andmed.');
+    }
+
+    final batch = _db.batch();
+    final commandRef = _db.collection('commands').doc(trimmedCommandId);
+    final membershipRef = _db
+        .collection('memberships')
+        .doc(_membershipId(trimmedCreatorUserId, trimmedCommandId));
+
+    batch.update(commandRef, {
+      'status': _statusApproved,
+      'reviewedBy': user.uid,
+      'reviewedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    batch.set(membershipRef, {
+      'status': 'active',
+      'isActive': true,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    await batch.commit();
+  }
+
+  Future<void> rejectCommand({
+    required String commandId,
+    required String creatorUserId,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('Not authenticated');
+
+    final trimmedCommandId = commandId.trim();
+    final trimmedCreatorUserId = creatorUserId.trim();
+    if (trimmedCommandId.isEmpty || trimmedCreatorUserId.isEmpty) {
+      throw Exception('Ühingu tagasilükkamiseks puuduvad vajalikud andmed.');
+    }
+
+    final batch = _db.batch();
+    final commandRef = _db.collection('commands').doc(trimmedCommandId);
+    final membershipRef = _db
+        .collection('memberships')
+        .doc(_membershipId(trimmedCreatorUserId, trimmedCommandId));
+
+    batch.update(commandRef, {
+      'status': _statusRejected,
+      'reviewedBy': user.uid,
+      'reviewedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    batch.set(membershipRef, {
+      'status': 'rejected',
+      'isActive': false,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    await batch.commit();
   }
 
   Future<String> joinCommand({required String joinCode}) async {

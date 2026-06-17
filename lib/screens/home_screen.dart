@@ -20,6 +20,7 @@ import 'member_home_dashboard.dart';
 import 'menu_screen.dart';
 import 'notifications_screen.dart';
 import 'operation_log_screen.dart';
+import 'platform_pending_organizations_screen.dart';
 import 'platform_readiness_screen.dart';
 import 'statistics_screen.dart';
 
@@ -746,6 +747,23 @@ class _HomeScreenState extends State<HomeScreen> {
                       activeOrganizationName: commandName,
                       canManageOwnSummary: permissions.canManageOrganization,
                       isPlatformAdmin: isPlatformAdmin,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+          if (isPlatformAdmin) ...[
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              icon: const Icon(Icons.apartment_outlined),
+              label: const Text('Ootel ühingud'),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const PlatformPendingOrganizationsScreen(
+                      isPlatformAdmin: true,
                     ),
                   ),
                 );

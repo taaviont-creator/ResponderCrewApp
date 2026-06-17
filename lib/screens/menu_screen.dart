@@ -7,6 +7,7 @@ import 'certificates_screen.dart';
 import 'equipment_screen.dart';
 import 'members_screen.dart';
 import 'operation_log_screen.dart';
+import 'platform_pending_organizations_screen.dart';
 import 'platform_readiness_screen.dart';
 import 'statistics_screen.dart';
 
@@ -180,6 +181,18 @@ class MenuScreen extends StatelessWidget {
               title: 'Organisatsiooni seaded',
               subtitle: 'Õigused ja organisatsiooni valikud',
               onTap: onOpenOrganizationSettings,
+            ),
+          if (isPlatformAdmin)
+            _MenuEntry(
+              icon: Icons.apartment_outlined,
+              title: 'Ootel ühingud',
+              subtitle: 'Uute ühingute kinnitamine',
+              onTap: () => _open(
+                context,
+                const PlatformPendingOrganizationsScreen(
+                  isPlatformAdmin: true,
+                ),
+              ),
             ),
           if (canOpenReadinessOverview)
             _MenuEntry(
