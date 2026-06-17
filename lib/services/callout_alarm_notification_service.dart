@@ -1,9 +1,13 @@
+import 'dart:async';
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../firebase_options.dart';
+import 'device_token_service.dart';
 
 const _calloutAlarmChannel = AndroidNotificationChannel(
   'callout_alarm',
@@ -28,8 +32,13 @@ class CalloutAlarmNotificationService {
       CalloutAlarmNotificationService._();
 
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final DeviceTokenService _deviceTokenService = DeviceTokenService();
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
+
+  StreamSubscription<User?>? _authSubscription;
+  StreamSubscription<String>? _tokenRefreshSubscription;
 
   bool _initialized = false;
 
@@ -57,7 +66,35 @@ class CalloutAlarmNotificationService {
       sound: false,
     );
 
+    _startDeviceTokenStorage();
     FirebaseMessaging.onMessage.listen(_showForegroundCalloutNotification);
+  }
+
+  void _startDeviceTokenStorage() {
+    _authSubscription ??= _auth.authStateChanges().listen((user) {
+      if (user == null) return;
+      unawaited(_saveCurrentDeviceToken());
+    });
+
+    _tokenRefreshSubscription ??= _messaging.onTokenRefresh.listen((token) {
+      unawaited(_saveDeviceToken(token));
+    });
+
+    if (_auth.currentUser != null) {
+      unawaited(_saveCurrentDeviceToken());
+    }
+  }
+
+  Future<void> _saveCurrentDeviceToken() async {
+    try {
+      await _deviceTokenService.saveCurrentToken(_messaging);
+    } catch (_) {}
+  }
+
+  Future<void> _saveDeviceToken(String token) async {
+    try {
+      await _deviceTokenService.saveTokenForCurrentUser(token);
+    } catch (_) {}
   }
 
   Future<void> _initializeLocalNotifications() async {

@@ -1230,6 +1230,84 @@ service cloud.firestore {
         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['systemRole']);
     }
 
+    function isOwnDeviceTokenId(tokenId) {
+      return signedIn() &&
+        request.auth.uid.matches('^[A-Za-z0-9_-]+$') &&
+        tokenId.matches('^' + request.auth.uid + '_[A-Za-z0-9_-]+$');
+    }
+
+    function isOwnDeviceTokenGet(tokenId) {
+      return isOwnDeviceTokenId(tokenId) &&
+        (
+          !exists(/databases/$(database)/documents/userDeviceTokens/$(tokenId)) ||
+          resource.data.userId == request.auth.uid
+        );
+    }
+
+    function isValidDeviceTokenPlatform(platform) {
+      return platform == 'android' ||
+        platform == 'ios';
+    }
+
+    function isValidDeviceTokenData(data) {
+      return data.keys().hasOnly([
+          'userId',
+          'token',
+          'platform',
+          'createdAt',
+          'updatedAt',
+          'enabled',
+          'app'
+        ]) &&
+        data.keys().hasAll([
+          'userId',
+          'token',
+          'platform',
+          'createdAt',
+          'updatedAt',
+          'enabled',
+          'app'
+        ]) &&
+        data.userId is string &&
+        data.userId.size() > 0 &&
+        data.token is string &&
+        data.token.size() > 0 &&
+        isValidDeviceTokenPlatform(data.platform) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp &&
+        data.enabled is bool &&
+        data.app == 'respondcrew';
+    }
+
+    function isOwnDeviceTokenCreate(tokenId) {
+      return isOwnDeviceTokenId(tokenId) &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.createdAt == request.time &&
+        request.resource.data.updatedAt == request.time &&
+        isValidDeviceTokenData(request.resource.data);
+    }
+
+    function isOwnDeviceTokenUpdate(tokenId) {
+      return isOwnDeviceTokenId(tokenId) &&
+        resource.data.userId == request.auth.uid &&
+        request.resource.data.userId == resource.data.userId &&
+        request.resource.data.createdAt == resource.data.createdAt &&
+        request.resource.data.updatedAt == request.time &&
+        isValidDeviceTokenData(request.resource.data) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'token',
+          'platform',
+          'updatedAt',
+          'enabled',
+          'app'
+        ]);
+    }
+
+    function isOwnDeviceTokenDelete(tokenId) {
+      return isOwnDeviceTokenId(tokenId) &&
+        resource.data.userId == request.auth.uid;
+    }
+
     function isValidReadinessStatus(status) {
       return status == 'ready' ||
         status == 'limited' ||
@@ -1357,6 +1435,13 @@ service cloud.firestore {
       allow read: if signedIn();
       allow create: if isSafeUserCreate(userId);
       allow update: if isSafeUserUpdate(userId);
+    }
+
+    match /userDeviceTokens/{tokenId} {
+      allow get: if isOwnDeviceTokenGet(tokenId);
+      allow create: if isOwnDeviceTokenCreate(tokenId);
+      allow update: if isOwnDeviceTokenUpdate(tokenId);
+      allow delete: if isOwnDeviceTokenDelete(tokenId);
     }
 
     match /commands/{commandId} {
