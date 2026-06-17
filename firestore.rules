@@ -450,6 +450,7 @@ service cloud.firestore {
         ]) &&
         membershipId == membershipIdForUser(request.auth.uid, organizationId) &&
         request.resource.data.userId == request.auth.uid &&
+        hasValidOrganizationReference(request.resource.data) &&
         request.resource.data.role == 'member' &&
         request.resource.data.seaRescueLevel == 'none' &&
         request.resource.data.status == 'active' &&
@@ -470,6 +471,7 @@ service cloud.firestore {
         request.resource.data.userId == request.auth.uid &&
         organizationIdFromData(request.resource.data) == organizationIdFromData(resource.data) &&
         membershipId == membershipIdForUser(request.auth.uid, organizationId) &&
+        hasValidOrganizationReference(request.resource.data) &&
         request.resource.data.role == 'member' &&
         request.resource.data.seaRescueLevel == 'none' &&
         request.resource.data.status == 'active' &&
@@ -514,7 +516,12 @@ service cloud.firestore {
 
     function canReadOrganizationInvite(data) {
       let organizationId = organizationIdFromData(data);
-      return isOwnOrganizationInvite(data) ||
+      return (
+          isOwnOrganizationInvite(data) &&
+          data.status == 'pending' &&
+          hasValidOrganizationReference(data) &&
+          commandIsApproved(organizationId)
+        ) ||
         (
           signedIn() &&
           commandIsApproved(organizationId) &&

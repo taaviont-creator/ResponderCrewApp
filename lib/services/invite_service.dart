@@ -39,15 +39,14 @@ class InviteService {
 
     return _invites
         .where('email', isEqualTo: email)
+        .where('status', isEqualTo: 'pending')
         .snapshots()
         .map((snapshot) {
       final now = Timestamp.now();
       return snapshot.docs.where((doc) {
         final invite = doc.data();
         final expiresAt = _timestampValue(invite['expiresAt']);
-        return invite['status'] == 'pending' &&
-            expiresAt != null &&
-            expiresAt.compareTo(now) > 0;
+        return expiresAt != null && expiresAt.compareTo(now) > 0;
       }).toList(growable: false);
     });
   }
