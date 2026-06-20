@@ -10,6 +10,7 @@ import 'members_screen.dart';
 import 'operation_log_screen.dart';
 import 'platform_pending_organizations_screen.dart';
 import 'platform_readiness_screen.dart';
+import 'self_profile_screen.dart';
 import 'statistics_screen.dart';
 
 class MenuScreen extends StatelessWidget {
@@ -73,6 +74,15 @@ class MenuScreen extends StatelessWidget {
           ),
           const PendingInvitesSection(),
           const SizedBox(height: AppTheme.sectionSpacing),
+          _MenuEntry(
+            icon: Icons.person_outline,
+            title: 'Minu profiil',
+            subtitle: 'Nimi ja telefon',
+            onTap: () => _open(
+              context,
+              SelfProfileScreen(currentUid: currentUid),
+            ),
+          ),
           if (isOrganizationAdmin)
             _MenuEntry(
               icon: Icons.group_outlined,
