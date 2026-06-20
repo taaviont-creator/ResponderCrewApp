@@ -1564,9 +1564,127 @@ service cloud.firestore {
         );
     }
 
+    function isActiveMemberAfter(commandId) {
+      return signedIn() &&
+        existsAfter(/databases/$(database)/documents/memberships/$(activeMembershipId(commandId))) &&
+        isActiveMembershipData(
+          getAfter(/databases/$(database)/documents/memberships/$(activeMembershipId(commandId))).data
+        ) &&
+        hasValidOrganizationReference(
+          getAfter(/databases/$(database)/documents/memberships/$(activeMembershipId(commandId))).data
+        ) &&
+        organizationIdFromData(
+          getAfter(/databases/$(database)/documents/memberships/$(activeMembershipId(commandId))).data
+        ) == commandId;
+    }
+
+    function hasActiveOrganizationMarker(data) {
+      return data.keys().hasAny([
+        'activeOrganizationId',
+        'activeCommandId',
+        'commandId'
+      ]);
+    }
+
+    function activeOrganizationIdFromUserData(data) {
+      return data.keys().hasAny(['activeOrganizationId'])
+        ? data.activeOrganizationId
+        : (
+          data.keys().hasAny(['activeCommandId'])
+            ? data.activeCommandId
+            : (
+              data.keys().hasAny(['commandId'])
+                ? data.commandId
+                : ''
+            )
+        );
+    }
+
+    function normalizedEmailMatchesAuth() {
+      return request.auth.token.email is string &&
+        request.resource.data.normalizedEmail ==
+          request.auth.token.email.lower();
+    }
+
+    function isOwnBasicProfileUpdate() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return changed.hasOnly(['name', 'phone', 'updatedAt']) &&
+        (
+          !changed.hasAny(['name']) ||
+          (
+            request.resource.data.name is string &&
+            request.resource.data.name.size() > 0
+          )
+        ) &&
+        (
+          !changed.hasAny(['phone']) ||
+          !request.resource.data.keys().hasAny(['phone']) ||
+          request.resource.data.phone is string
+        ) &&
+        (
+          !changed.hasAny(['updatedAt']) ||
+          request.resource.data.updatedAt == request.time
+        );
+    }
+
+    function isOwnNormalizedEmailUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'normalizedEmail'
+        ]) &&
+        normalizedEmailMatchesAuth();
+    }
+
+    function isOwnActiveOrganizationSet() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let organizationId = activeOrganizationIdFromUserData(request.resource.data);
+      return changed.hasOnly([
+          'activeOrganizationId',
+          'activeCommandId',
+          'commandId',
+          'normalizedEmail'
+        ]) &&
+        request.resource.data.keys().hasAll([
+          'activeOrganizationId',
+          'activeCommandId',
+          'commandId'
+        ]) &&
+        organizationId is string &&
+        organizationId.size() > 0 &&
+        request.resource.data.activeCommandId == organizationId &&
+        request.resource.data.commandId == organizationId &&
+        isActiveMemberAfter(organizationId) &&
+        (
+          !changed.hasAny(['normalizedEmail']) ||
+          normalizedEmailMatchesAuth()
+        );
+    }
+
+    function isOwnActiveOrganizationClear() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let organizationId = activeOrganizationIdFromUserData(resource.data);
+      return changed.hasOnly([
+          'activeOrganizationId',
+          'activeCommandId',
+          'commandId'
+        ]) &&
+        hasActiveOrganizationMarker(resource.data) &&
+        organizationId is string &&
+        organizationId.size() > 0 &&
+        !hasActiveOrganizationMarker(request.resource.data) &&
+        existsAfter(/databases/$(database)/documents/memberships/$(activeMembershipId(organizationId))) &&
+        !isActiveMembershipData(
+          getAfter(/databases/$(database)/documents/memberships/$(activeMembershipId(organizationId))).data
+        );
+    }
+
     function isSafeUserUpdate(userId) {
       return isSelf(userId) &&
-        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['systemRole']);
+        (
+          isOwnBasicProfileUpdate() ||
+          isOwnNormalizedEmailUpdate() ||
+          isOwnActiveOrganizationSet() ||
+          isOwnActiveOrganizationClear()
+        );
     }
 
     function isOwnDeviceTokenId(tokenId) {
