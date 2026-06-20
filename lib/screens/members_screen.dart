@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../models/membership_model.dart';
 import '../services/invite_service.dart';
 import '../services/membership_service.dart';
+import 'member_profile_screen.dart';
 
 class MembersScreen extends StatefulWidget {
   const MembersScreen({
@@ -216,6 +217,17 @@ class _MembersScreenState extends State<MembersScreen> {
                       : 'Mitte valves';
 
                   return ListTile(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => MemberProfileScreen(
+                            userData: userData,
+                            membershipData: membership,
+                          ),
+                        ),
+                      );
+                    },
                     title: Text(title),
                     subtitle: Text(
                       '$subtitle\n'
