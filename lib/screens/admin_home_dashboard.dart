@@ -455,7 +455,6 @@ class _MinimumCrewCard extends StatelessWidget {
       );
     }
 
-    final missingCount = minimumCrewRequired - onDutyCount;
     final color = minimumCrewMet ? AppColors.ready : AppColors.critical;
 
     return AppSectionCard(
@@ -482,16 +481,17 @@ class _MinimumCrewCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           StatusBadge(
-            label: minimumCrewMet ? 'TÄIDETUD' : 'EI OLE TÄIDETUD',
+            label: minimumCrewMet
+                ? 'Miinimumkoosseis täidetud'
+                : 'Valmisolek alla miinimumi',
             type: minimumCrewMet
                 ? StatusBadgeType.ready
                 : StatusBadgeType.critical,
           ),
           const SizedBox(height: 10),
           Text(
-            minimumCrewMet
-                ? 'Valves $onDutyCount / vajalik $minimumCrewRequired'
-                : 'Puudu ${missingCount > 0 ? missingCount : 0} liiget',
+            'Miinimum: $minimumCrewRequired\n'
+            'Hetkel valves: $onDutyCount',
             style: Theme.of(context).textTheme.bodyLarge,
           ),
         ],

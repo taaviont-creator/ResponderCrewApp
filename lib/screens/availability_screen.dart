@@ -1251,7 +1251,6 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
 
         final requiredCount = summaries.first.minimumCrewRequired;
         final isMet = onDutyCount >= requiredCount;
-        final missing = requiredCount - onDutyCount;
 
         return AppSectionCard(
           accentColor: isMet ? AppColors.ready : AppColors.critical,
@@ -1276,14 +1275,21 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                     const SizedBox(height: 4),
                     Text(
                       isMet
-                          ? 'Täidetud: $onDutyCount / $requiredCount'
-                          : 'Ei ole täidetud. Puudu ${missing > 0 ? missing : 0} liiget.',
+                          ? 'Miinimumkoosseis täidetud'
+                          : 'Valmisolek alla miinimumi',
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Miinimum: $requiredCount\n'
+                      'Hetkel valves: $onDutyCount',
                     ),
                   ],
                 ),
               ),
               StatusBadge(
-                label: isMet ? 'TÄIDETUD' : 'HOIATUS',
+                label: isMet
+                    ? 'Miinimumkoosseis täidetud'
+                    : 'Valmisolek alla miinimumi',
                 type: isMet
                     ? StatusBadgeType.ready
                     : StatusBadgeType.critical,
