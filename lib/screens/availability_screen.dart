@@ -6,6 +6,7 @@ import '../models/membership_model.dart';
 import '../models/availability_reminder_settings_model.dart';
 import '../models/platform_readiness_model.dart';
 import '../models/planned_unavailability_model.dart';
+import '../models/planned_unavailability_rule_model.dart';
 import '../services/availability_reminder_settings_service.dart';
 import '../services/availability_service.dart';
 import '../services/membership_service.dart';
@@ -48,6 +49,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
   var _noteInitialized = false;
   var _isUpdating = false;
   String? _cancellingPlannedUnavailabilityId;
+  String? _cancellingPlannedUnavailabilityRuleId;
 
   @override
   void dispose() {
@@ -147,6 +149,8 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
           _buildAvailabilityControl(),
           const SizedBox(height: AppTheme.sectionSpacing),
           _buildPlannedUnavailabilitySection(),
+          const SizedBox(height: AppTheme.sectionSpacing),
+          _buildRecurringPlannedUnavailabilitySection(),
           const SizedBox(height: AppTheme.sectionSpacing),
           if (_canViewOrganizationPlannedUnavailability) ...[
             _buildOrganizationPlannedUnavailabilitySection(),
@@ -374,6 +378,52 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     );
   }
 
+  Widget _buildRecurringPlannedUnavailabilitySection() {
+    return StreamBuilder<List<PlannedUnavailabilityRuleModel>>(
+      stream: _plannedUnavailabilityService.streamMyRules(
+        organizationId: widget.organizationId,
+        includeCancelled: true,
+      ),
+      builder: (context, snapshot) {
+        final rules =
+            snapshot.data ?? const <PlannedUnavailabilityRuleModel>[];
+
+        Widget child;
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
+          child = const Center(child: CircularProgressIndicator());
+        } else if (rules.isEmpty) {
+          child = Text(
+            'Korduvaid mittevalves aegu ei ole.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+          );
+        } else {
+          child = Column(
+            children: [
+              for (var index = 0; index < rules.length; index++) ...[
+                _buildRecurringPlannedUnavailabilityTile(rules[index]),
+                if (index < rules.length - 1) const Divider(height: 1),
+              ],
+            ],
+          );
+        }
+
+        return AppSectionCard(
+          title: 'Minu korduvad mittevalves ajad',
+          leading: const Icon(Icons.event_repeat_outlined),
+          trailing: TextButton.icon(
+            onPressed: _showAddRecurringPlannedUnavailabilityDialog,
+            icon: const Icon(Icons.add),
+            label: const Text('Lisa'),
+          ),
+          child: child,
+        );
+      },
+    );
+  }
+
   bool get _canViewOrganizationPlannedUnavailability {
     return MembershipRole.isOrgAdmin(widget.membershipRole);
   }
@@ -482,6 +532,86 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                 onPressed: isCancelling
                     ? null
                     : () => _cancelPlannedUnavailability(period),
+                icon: isCancelling
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.cancel_outlined),
+                label: const Text('Tühista'),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRecurringPlannedUnavailabilityTile(
+    PlannedUnavailabilityRuleModel rule,
+  ) {
+    final isCancelling = _cancellingPlannedUnavailabilityRuleId == rule.id;
+    final note = rule.note.trim();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.event_repeat_outlined,
+                color: AppColors.textSecondary,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _formatWeekdays(rule.daysOfWeek),
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${rule.startTime} - ${rule.endTime}',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    if (note.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        note,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              StatusBadge(
+                label: rule.isCancelled ? 'Tühistatud' : 'Aktiivne',
+                type: rule.isCancelled
+                    ? StatusBadgeType.neutral
+                    : StatusBadgeType.offDuty,
+                icon: rule.isCancelled
+                    ? Icons.cancel_outlined
+                    : Icons.event_repeat_outlined,
+              ),
+            ],
+          ),
+          if (rule.isActive) ...[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: isCancelling
+                    ? null
+                    : () => _cancelRecurringPlannedUnavailability(rule),
                 icon: isCancelling
                     ? const SizedBox(
                         width: 16,
@@ -625,6 +755,158 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     noteController.dispose();
   }
 
+  Future<void> _showAddRecurringPlannedUnavailabilityDialog() async {
+    final organizationId = widget.organizationId.trim();
+    if (organizationId.isEmpty) {
+      _showSnackBar('Korduvat mittevalves aega ei saanud salvestada.');
+      return;
+    }
+
+    final selectedDays = <int>{};
+    var startTime = const TimeOfDay(hour: 8, minute: 0);
+    var endTime = const TimeOfDay(hour: 17, minute: 0);
+    var isSaving = false;
+    final noteController = TextEditingController();
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            Future<void> save() async {
+              if (selectedDays.isEmpty) {
+                _showSnackBar('Vali vähemalt üks nädalapäev.');
+                return;
+              }
+
+              final startMinute = _minuteOfDay(startTime);
+              final endMinute = _minuteOfDay(endTime);
+              if (startMinute >= endMinute) {
+                _showSnackBar('Algusaeg peab olema enne lõpuaega.');
+                return;
+              }
+
+              setDialogState(() => isSaving = true);
+              try {
+                await _plannedUnavailabilityService.createMyRule(
+                  organizationId: organizationId,
+                  daysOfWeek: selectedDays.toList(),
+                  startMinute: startMinute,
+                  endMinute: endMinute,
+                  note: noteController.text,
+                );
+                if (!mounted || !dialogContext.mounted) return;
+                Navigator.of(dialogContext).pop();
+                _showSnackBar('Korduv mittevalves aeg lisatud.');
+              } catch (e) {
+                if (!mounted || !dialogContext.mounted) return;
+                setDialogState(() => isSaving = false);
+                _showSnackBar(
+                  'Korduvat mittevalves aega ei saanud salvestada.',
+                );
+              }
+            }
+
+            return AlertDialog(
+              title: const Text('Lisa korduv mittevalves aeg'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Vali nädalapäevad',
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                    const SizedBox(height: 8),
+                    for (final day in const [1, 2, 3, 4, 5, 6, 7])
+                      CheckboxListTile(
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(_weekdayLabel(day)),
+                        value: selectedDays.contains(day),
+                        onChanged: isSaving
+                            ? null
+                            : (value) {
+                                setDialogState(() {
+                                  if (value == true) {
+                                    selectedDays.add(day);
+                                  } else {
+                                    selectedDays.remove(day);
+                                  }
+                                });
+                              },
+                      ),
+                    const SizedBox(height: 12),
+                    _DateTimePickerTile(
+                      label: 'Algusaeg',
+                      value: _formatTimeOfDay(startTime),
+                      onTap: isSaving
+                          ? null
+                          : () async {
+                              final selected = await showTimePicker(
+                                context: dialogContext,
+                                initialTime: startTime,
+                              );
+                              if (selected == null) return;
+                              setDialogState(() => startTime = selected);
+                            },
+                    ),
+                    const SizedBox(height: 12),
+                    _DateTimePickerTile(
+                      label: 'Lõpuaeg',
+                      value: _formatTimeOfDay(endTime),
+                      onTap: isSaving
+                          ? null
+                          : () async {
+                              final selected = await showTimePicker(
+                                context: dialogContext,
+                                initialTime: endTime,
+                              );
+                              if (selected == null) return;
+                              setDialogState(() => endTime = selected);
+                            },
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: noteController,
+                      enabled: !isSaving,
+                      maxLines: 2,
+                      decoration: const InputDecoration(
+                        labelText: 'Märkus',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSaving
+                      ? null
+                      : () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Katkesta'),
+                ),
+                FilledButton.icon(
+                  onPressed: isSaving ? null : save,
+                  icon: isSaving
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.save_outlined),
+                  label: const Text('Salvesta'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    noteController.dispose();
+  }
+
   Future<DateTime?> _pickDateTime({
     required BuildContext dialogContext,
     required DateTime initial,
@@ -668,6 +950,26 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     } finally {
       if (mounted) {
         setState(() => _cancellingPlannedUnavailabilityId = null);
+      }
+    }
+  }
+
+  Future<void> _cancelRecurringPlannedUnavailability(
+    PlannedUnavailabilityRuleModel rule,
+  ) async {
+    if (_cancellingPlannedUnavailabilityRuleId != null) return;
+
+    setState(() => _cancellingPlannedUnavailabilityRuleId = rule.id);
+    try {
+      await _plannedUnavailabilityService.cancelMyRule(ruleId: rule.id);
+      if (!mounted) return;
+      _showSnackBar('Korduv mittevalves aeg tühistatud.');
+    } catch (e) {
+      if (!mounted) return;
+      _showSnackBar('Sul puudub õigus seda kirjet muuta.');
+    } finally {
+      if (mounted) {
+        setState(() => _cancellingPlannedUnavailabilityRuleId = null);
       }
     }
   }
@@ -963,11 +1265,48 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     return '$hour:$minute';
   }
 
+  String _formatTimeOfDay(TimeOfDay value) {
+    final hour = value.hour.toString().padLeft(2, '0');
+    final minute = value.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
+  }
+
   String _formatDateTime(DateTime? value) {
     if (value == null) return '-';
     final day = value.day.toString().padLeft(2, '0');
     final month = value.month.toString().padLeft(2, '0');
     return '$day.$month.${value.year} ${_formatClock(value)}';
+  }
+
+  int _minuteOfDay(TimeOfDay value) {
+    return value.hour * 60 + value.minute;
+  }
+
+  String _formatWeekdays(List<int> daysOfWeek) {
+    if (daysOfWeek.isEmpty) return '-';
+    final sorted = daysOfWeek.toSet().toList()..sort();
+    return sorted.map(_weekdayLabel).join(', ');
+  }
+
+  String _weekdayLabel(int day) {
+    switch (day) {
+      case 1:
+        return 'E';
+      case 2:
+        return 'T';
+      case 3:
+        return 'K';
+      case 4:
+        return 'N';
+      case 5:
+        return 'R';
+      case 6:
+        return 'L';
+      case 7:
+        return 'P';
+      default:
+        return '-';
+    }
   }
 
   DateTime _defaultPlannedStart() {
