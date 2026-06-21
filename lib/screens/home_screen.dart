@@ -5,11 +5,14 @@ import 'package:flutter/material.dart';
 import '../models/availability_model.dart';
 import '../models/membership_model.dart';
 import '../models/platform_readiness_model.dart';
+import '../models/planned_unavailability_model.dart';
+import '../models/planned_unavailability_rule_model.dart';
 import '../services/availability_service.dart';
 import '../services/command_service.dart';
 import '../services/membership_service.dart';
 import '../services/notification_service.dart';
 import '../services/platform_readiness_service.dart';
+import '../services/planned_unavailability_service.dart';
 import '../widgets/pending_invites_section.dart';
 import 'activities_screen.dart';
 import 'admin_home_dashboard.dart';
@@ -75,6 +78,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final _membershipService = MembershipService();
   final _notificationService = NotificationService();
   final _platformReadinessService = PlatformReadinessService();
+  final _plannedUnavailabilityService = PlannedUnavailabilityService();
   var _selectedNavigationIndex = 0;
 
   Future<void> _signOut() async {
@@ -1186,44 +1190,81 @@ class _HomeScreenState extends State<HomeScreen> {
               }
             }
 
-            var onDutyCount = 0;
-            var delayedCount = 0;
-            var offDutyCount = 0;
-
-            for (final membershipDoc in activeMemberships) {
-              final userId = (membershipDoc.data()['userId'] ?? '').toString();
-              final availability = availabilityByUserId[userId];
-              final status = availability?.status ?? AvailabilityStatus.offDuty;
-
-              if (status == AvailabilityStatus.onDuty) {
-                onDutyCount++;
-              } else if (status == AvailabilityStatus.delayed) {
-                delayedCount++;
-              } else {
-                offDutyCount++;
-              }
-            }
-
-            return Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Valmisoleku kokkuvote'),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 12,
-                      runSpacing: 8,
-                      children: [
-                        Text('On duty: $onDutyCount'),
-                        Text('Delayed: $delayedCount'),
-                        Text('Off duty: $offDutyCount'),
-                      ],
-                    ),
-                  ],
-                ),
+            return StreamBuilder<List<PlannedUnavailabilityModel>>(
+              stream: _plannedUnavailabilityService.streamOrganizationPeriods(
+                organizationId: organizationId,
               ),
+              builder: (context, periodsSnapshot) {
+                return StreamBuilder<List<PlannedUnavailabilityRuleModel>>(
+                  stream: _plannedUnavailabilityService.streamOrganizationRules(
+                    organizationId: organizationId,
+                  ),
+                  builder: (context, rulesSnapshot) {
+                    final now = DateTime.now();
+                    final periods = periodsSnapshot.data ??
+                        const <PlannedUnavailabilityModel>[];
+                    final rules = rulesSnapshot.data ??
+                        const <PlannedUnavailabilityRuleModel>[];
+                    var onDutyCount = 0;
+                    var delayedCount = 0;
+                    var offDutyCount = 0;
+
+                    for (final membershipDoc in activeMemberships) {
+                      final userId =
+                          (membershipDoc.data()['userId'] ?? '').toString();
+                      final availability = availabilityByUserId[userId];
+                      final manualStatus =
+                          availability?.status ?? AvailabilityStatus.offDuty;
+                      final status = _effectiveAvailabilityStatus(
+                        userId: userId,
+                        manualStatus: manualStatus,
+                        periods: periods,
+                        rules: rules,
+                        now: now,
+                      );
+
+                      if (status == AvailabilityStatus.onDuty) {
+                        onDutyCount++;
+                      } else if (status == AvailabilityStatus.delayed) {
+                        delayedCount++;
+                      } else {
+                        offDutyCount++;
+                      }
+                    }
+
+                    return Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Valmisoleku kokkuvõte'),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 12,
+                              runSpacing: 8,
+                              children: [
+                                Text('Valves: $onDutyCount'),
+                                Text('Hilinen: $delayedCount'),
+                                Text('Ei ole valves: $offDutyCount'),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Valves liikmete arv arvestab aktiivseid '
+                              'planeeritud mittevalves aegu.',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(color: Colors.grey[700]),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
             );
           },
         );
@@ -1241,6 +1282,62 @@ class _HomeScreenState extends State<HomeScreen> {
       label: Text(label),
       onPressed: onPressed,
     );
+  }
+
+  String _effectiveAvailabilityStatus({
+    required String userId,
+    required String manualStatus,
+    required Iterable<PlannedUnavailabilityModel> periods,
+    required Iterable<PlannedUnavailabilityRuleModel> rules,
+    required DateTime now,
+  }) {
+    if (_hasActivePlannedUnavailability(
+          userId: userId,
+          periods: periods,
+          now: now,
+        ) ||
+        _hasActivePlannedUnavailabilityRule(
+          userId: userId,
+          rules: rules,
+          now: now,
+        )) {
+      return AvailabilityStatus.offDuty;
+    }
+
+    return manualStatus;
+  }
+
+  bool _hasActivePlannedUnavailability({
+    required String userId,
+    required Iterable<PlannedUnavailabilityModel> periods,
+    required DateTime now,
+  }) {
+    return periods.any((period) {
+      final startAt = period.startAt;
+      final endAt = period.endAt;
+      if (period.userId != userId ||
+          !period.isActive ||
+          startAt == null ||
+          endAt == null) {
+        return false;
+      }
+      return !now.isBefore(startAt) && now.isBefore(endAt);
+    });
+  }
+
+  bool _hasActivePlannedUnavailabilityRule({
+    required String userId,
+    required Iterable<PlannedUnavailabilityRuleModel> rules,
+    required DateTime now,
+  }) {
+    final minuteOfDay = now.hour * 60 + now.minute;
+    return rules.any((rule) {
+      return rule.userId == userId &&
+          rule.isActive &&
+          rule.daysOfWeek.contains(now.weekday) &&
+          minuteOfDay >= rule.startMinute &&
+          minuteOfDay < rule.endMinute;
+    });
   }
 
   Widget _buildAvailabilityControl({
@@ -1278,65 +1375,129 @@ class _HomeScreenState extends State<HomeScreen> {
           }
         }
 
-        return Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Minu valmisolek'),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    ChoiceChip(
-                      label: const Text('Off duty'),
-                      selected: status == AvailabilityStatus.offDuty,
-                      onSelected: (_) => updateAvailability(
-                        AvailabilityStatus.offDuty,
-                      ),
-                    ),
-                    ChoiceChip(
-                      label: const Text('On duty'),
-                      selected: status == AvailabilityStatus.onDuty,
-                      onSelected: (_) => updateAvailability(
-                        AvailabilityStatus.onDuty,
-                      ),
-                    ),
-                    ChoiceChip(
-                      label: const Text('Delayed'),
-                      selected: status == AvailabilityStatus.delayed,
-                      onSelected: (_) => updateAvailability(
-                        AvailabilityStatus.delayed,
-                        minutes: responseMinutes,
-                      ),
-                    ),
-                  ],
-                ),
-                if (status == AvailabilityStatus.delayed) ...[
-                  const SizedBox(height: 8),
-                  DropdownButton<int>(
-                    value: responseMinutes,
-                    items: const [
-                      DropdownMenuItem(value: 15, child: Text('15 min')),
-                      DropdownMenuItem(value: 30, child: Text('30 min')),
-                      DropdownMenuItem(value: 60, child: Text('60 min')),
-                    ],
-                    onChanged: (value) {
-                      if (value == null) return;
-                      updateAvailability(
-                        AvailabilityStatus.delayed,
-                        minutes: value,
-                      );
-                    },
-                  ),
-                ],
-              ],
-            ),
+        return StreamBuilder<List<PlannedUnavailabilityModel>>(
+          stream: _plannedUnavailabilityService.streamMyPeriods(
+            organizationId: organizationId,
           ),
+          builder: (context, periodsSnapshot) {
+            return StreamBuilder<List<PlannedUnavailabilityRuleModel>>(
+              stream: _plannedUnavailabilityService.streamMyRules(
+                organizationId: organizationId,
+              ),
+              builder: (context, rulesSnapshot) {
+                final now = DateTime.now();
+                final periods = periodsSnapshot.data ??
+                    const <PlannedUnavailabilityModel>[];
+                final rules = rulesSnapshot.data ??
+                    const <PlannedUnavailabilityRuleModel>[];
+                final hasActiveSchedule = _hasActivePlannedUnavailability(
+                      userId: user.uid,
+                      periods: periods,
+                      now: now,
+                    ) ||
+                    _hasActivePlannedUnavailabilityRule(
+                      userId: user.uid,
+                      rules: rules,
+                      now: now,
+                    );
+                return Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Minu valmisolek'),
+                        if (hasActiveSchedule) ...[
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Planeeritud mittevalves aeg on aktiivne',
+                          ),
+                          const Text('Nähtav staatus: Valvest väljas'),
+                          Text(
+                            'Käsitsi valitud staatus: '
+                            '${_availabilityStatusLabel(status)}',
+                          ),
+                          const Text(
+                            'Planeeringu tõttu ei arvestata sind hetkel '
+                            'valves liikmete hulka.',
+                          ),
+                        ],
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          children: [
+                            ChoiceChip(
+                              label: const Text('Ei ole valves'),
+                              selected: status == AvailabilityStatus.offDuty,
+                              onSelected: (_) => updateAvailability(
+                                AvailabilityStatus.offDuty,
+                              ),
+                            ),
+                            ChoiceChip(
+                              label: const Text('Valves'),
+                              selected: status == AvailabilityStatus.onDuty,
+                              onSelected: (_) => updateAvailability(
+                                AvailabilityStatus.onDuty,
+                              ),
+                            ),
+                            ChoiceChip(
+                              label: const Text('Hilinen'),
+                              selected: status == AvailabilityStatus.delayed,
+                              onSelected: (_) => updateAvailability(
+                                AvailabilityStatus.delayed,
+                                minutes: responseMinutes,
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (status == AvailabilityStatus.delayed) ...[
+                          const SizedBox(height: 8),
+                          DropdownButton<int>(
+                            value: responseMinutes,
+                            items: const [
+                              DropdownMenuItem(
+                                value: 15,
+                                child: Text('15 min'),
+                              ),
+                              DropdownMenuItem(
+                                value: 30,
+                                child: Text('30 min'),
+                              ),
+                              DropdownMenuItem(
+                                value: 60,
+                                child: Text('60 min'),
+                              ),
+                            ],
+                            onChanged: (value) {
+                              if (value == null) return;
+                              updateAvailability(
+                                AvailabilityStatus.delayed,
+                                minutes: value,
+                              );
+                            },
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                );
+              },
+            );
+          },
         );
       },
     );
+  }
+
+  String _availabilityStatusLabel(String status) {
+    switch (status) {
+      case AvailabilityStatus.onDuty:
+        return 'Valves';
+      case AvailabilityStatus.delayed:
+        return 'Hilinen';
+      default:
+        return 'Ei ole valves';
+    }
   }
 
   String _membershipRoleFromData(Map<String, dynamic> membership) {
