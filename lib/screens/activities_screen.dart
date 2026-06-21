@@ -193,6 +193,8 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
       ),
       builder: (context, snapshot) {
         final status = snapshot.data?.status;
+        final selectedStatus = _normalizedOwnParticipationStatus(status);
+        final statusText = _ownParticipationStatusLabel(selectedStatus);
 
         Future<void> updateParticipation(String newStatus) async {
           try {
@@ -202,40 +204,56 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
               organizationId: widget.organizationId,
               status: newStatus,
             );
-          } catch (e) {
             if (!context.mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Osalemise muutmine ebaonnestus: $e')),
+              const SnackBar(content: Text('Osalemine salvestatud.')),
+            );
+          } catch (_) {
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Osalemist ei saanud salvestada.'),
+              ),
             );
           }
         }
 
-        return Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            ChoiceChip(
-              label: const Text('Osalen'),
-              selected: status == ActivityParticipationStatus.attending,
-              onSelected: (_) => updateParticipation(
-                ActivityParticipationStatus.attending,
+        return Padding(
+          padding: const EdgeInsets.only(left: 16, right: 16, bottom: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Minu osalemine',
+                style: Theme.of(context).textTheme.labelLarge,
               ),
-            ),
-            ChoiceChip(
-              label: const Text('Võib-olla'),
-              selected: status == ActivityParticipationStatus.maybe,
-              onSelected: (_) => updateParticipation(
-                ActivityParticipationStatus.maybe,
+              const SizedBox(height: 4),
+              Text(statusText),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  ChoiceChip(
+                    label: const Text('Osalen'),
+                    selected: selectedStatus ==
+                        ActivityParticipationStatus.registered,
+                    onSelected: (_) => updateParticipation(
+                      ActivityParticipationStatus.registered,
+                    ),
+                  ),
+                  ChoiceChip(
+                    label: const Text('Ei saa osaleda'),
+                    selected: selectedStatus ==
+                        ActivityParticipationStatus.cannotAttend,
+                    onSelected: (_) => updateParticipation(
+                      ActivityParticipationStatus.cannotAttend,
+                    ),
+                  ),
+                ],
               ),
-            ),
-            ChoiceChip(
-              label: const Text('Ei osale'),
-              selected: status == ActivityParticipationStatus.notAttending,
-              onSelected: (_) => updateParticipation(
-                ActivityParticipationStatus.notAttending,
-              ),
-            ),
-          ],
+            ],
+          ),
         );
       },
     );
@@ -387,6 +405,30 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
 
   String _activityKindLabel(String type) {
     return type == ActivityType.training ? 'Koolitus' : 'Tegevus';
+  }
+
+  String? _normalizedOwnParticipationStatus(String? status) {
+    switch (status) {
+      case ActivityParticipationStatus.registered:
+      case ActivityParticipationStatus.attending:
+        return ActivityParticipationStatus.registered;
+      case ActivityParticipationStatus.cannotAttend:
+      case ActivityParticipationStatus.notAttending:
+        return ActivityParticipationStatus.cannotAttend;
+      default:
+        return null;
+    }
+  }
+
+  String _ownParticipationStatusLabel(String? status) {
+    switch (status) {
+      case ActivityParticipationStatus.registered:
+        return 'Sinu valik: Osalen';
+      case ActivityParticipationStatus.cannotAttend:
+        return 'Sinu valik: Ei saa osaleda';
+      default:
+        return 'Osalemine m\u00e4rkimata';
+    }
   }
 
   String _activityTypeLabel(String type) {
