@@ -73,6 +73,76 @@ class ActivityService {
     });
   }
 
+  Stream<bool> streamCanConfirmParticipation({
+    required String organizationId,
+    required String userId,
+  }) {
+    final trimmedOrganizationId = organizationId.trim();
+    final trimmedUserId = userId.trim();
+    _requireOrganizationId(trimmedOrganizationId);
+    if (trimmedUserId.isEmpty) return Stream.value(false);
+
+    return _firestore
+        .collection('memberships')
+        .doc('${trimmedUserId}_$trimmedOrganizationId')
+        .snapshots()
+        .map((snapshot) {
+      final membership = snapshot.data();
+      return membership != null &&
+          _isActiveMembership(membership) &&
+          _membershipIsForOrganization(
+            membership: membership,
+            organizationId: trimmedOrganizationId,
+          ) &&
+          MembershipRole.isOrgAdmin(membership['role']);
+    });
+  }
+
+  Stream<List<ActivityParticipantModel>> streamActivityParticipants({
+    required String activityId,
+    required String organizationId,
+  }) {
+    final trimmedActivityId = activityId.trim();
+    final trimmedOrganizationId = organizationId.trim();
+    _requireOrganizationId(trimmedOrganizationId);
+    if (trimmedActivityId.isEmpty) {
+      return Stream.value(const <ActivityParticipantModel>[]);
+    }
+
+    return _participants
+        .where('activityId', isEqualTo: trimmedActivityId)
+        .where('organizationId', isEqualTo: trimmedOrganizationId)
+        .snapshots()
+        .map((snapshot) {
+      final participants = snapshot.docs
+          .map(ActivityParticipantModel.fromFirestore)
+          .where((participant) {
+        final participantOrganizationId = participant.organizationId.isNotEmpty
+            ? participant.organizationId
+            : participant.commandId;
+        return participant.activityId == trimmedActivityId &&
+            participantOrganizationId == trimmedOrganizationId;
+      }).toList();
+
+      participants.sort((a, b) => a.userId.compareTo(b.userId));
+      return participants;
+    });
+  }
+
+  Future<String> loadParticipantDisplayName(String userId) async {
+    final trimmedUserId = userId.trim();
+    if (trimmedUserId.isEmpty) return 'Liige';
+
+    final userSnapshot =
+        await _firestore.collection('users').doc(trimmedUserId).get();
+    final userData = userSnapshot.data() ?? <String, dynamic>{};
+    final name = (userData['name'] ?? '').toString().trim();
+    final email = (userData['email'] ?? '').toString().trim();
+    if (name.isNotEmpty) return name;
+    if (email.isNotEmpty) return email;
+    return trimmedUserId;
+  }
+
   Future<void> addActivity({
     required String organizationId,
     required String title,
