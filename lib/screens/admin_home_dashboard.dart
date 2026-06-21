@@ -5,10 +5,13 @@ import '../models/availability_model.dart';
 import '../models/callout_model.dart';
 import '../models/equipment_model.dart';
 import '../models/platform_readiness_model.dart';
+import '../models/planned_unavailability_model.dart';
+import '../models/planned_unavailability_rule_model.dart';
 import '../services/availability_service.dart';
 import '../services/callout_service.dart';
 import '../services/equipment_service.dart';
 import '../services/membership_service.dart';
+import '../services/planned_unavailability_service.dart';
 import '../widgets/latest_notifications_card.dart';
 import '../services/platform_readiness_service.dart';
 import '../theme/app_theme.dart';
@@ -44,6 +47,8 @@ class AdminHomeDashboard extends StatelessWidget {
   final CalloutService _calloutService = CalloutService();
   final EquipmentService _equipmentService = EquipmentService();
   final MembershipService _membershipService = MembershipService();
+  final PlannedUnavailabilityService _plannedUnavailabilityService =
+      PlannedUnavailabilityService();
   final PlatformReadinessService _readinessService =
       PlatformReadinessService();
 
@@ -179,73 +184,112 @@ class AdminHomeDashboard extends StatelessWidget {
                   availability.userId: availability,
             };
 
-            var onDutyCount = 0;
-            var delayedCount = 0;
-            var offDutyCount = 0;
-
-            for (final membership in memberships) {
-              final userId = (membership.data()['userId'] ?? '').toString();
-              final status = availabilityByUserId[userId]?.status ??
-                  AvailabilityStatus.offDuty;
-              if (status == AvailabilityStatus.onDuty) {
-                onDutyCount++;
-              } else if (status == AvailabilityStatus.delayed) {
-                delayedCount++;
-              } else {
-                offDutyCount++;
-              }
-            }
-
-            return StreamBuilder<List<PlatformReadinessSummary>>(
-              stream: _readinessService.streamOrganizationSummary(
+            return StreamBuilder<List<PlannedUnavailabilityModel>>(
+              stream: _plannedUnavailabilityService.streamOrganizationPeriods(
                 organizationId: organizationId,
               ),
-              builder: (context, readinessSnapshot) {
-                final summaries = readinessSnapshot.data ??
-                    const <PlatformReadinessSummary>[];
-                final summary = summaries.isEmpty ? null : summaries.first;
-                final minimumCrewRequired =
-                    summary?.minimumCrewRequired ?? 0;
-                final minimumCrewMet = minimumCrewRequired > 0 &&
-                    onDutyCount >= minimumCrewRequired;
+              builder: (context, periodsSnapshot) {
+                return StreamBuilder<List<PlannedUnavailabilityRuleModel>>(
+                  stream: _plannedUnavailabilityService.streamOrganizationRules(
+                    organizationId: organizationId,
+                  ),
+                  builder: (context, rulesSnapshot) {
+                    final now = DateTime.now();
+                    final periods = periodsSnapshot.data ??
+                        const <PlannedUnavailabilityModel>[];
+                    final rules = rulesSnapshot.data ??
+                        const <PlannedUnavailabilityRuleModel>[];
+                    var onDutyCount = 0;
+                    var delayedCount = 0;
+                    var offDutyCount = 0;
 
-                return Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _ReadinessCountCard(
-                            label: 'Valves',
-                            count: onDutyCount,
-                            icon: Icons.check_circle_outline,
-                            color: AppColors.ready,
-                          ),
-                        ),
-                        const SizedBox(width: AppTheme.itemSpacing),
-                        Expanded(
-                          child: _ReadinessCountCard(
-                            label: 'Hilinen',
-                            count: delayedCount,
-                            icon: Icons.schedule,
-                            color: AppColors.delayed,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppTheme.itemSpacing),
-                    _ReadinessCountCard(
-                      label: 'Ei ole valves',
-                      count: offDutyCount,
-                      icon: Icons.cancel_outlined,
-                      color: AppColors.offDuty,
-                    ),
-                    const SizedBox(height: AppTheme.itemSpacing),
-                    _MinimumCrewCard(
-                      minimumCrewRequired: minimumCrewRequired,
-                      onDutyCount: onDutyCount,
-                      minimumCrewMet: minimumCrewMet,
-                    ),
-                  ],
+                    for (final membership in memberships) {
+                      final userId =
+                          (membership.data()['userId'] ?? '').toString();
+                      final manualStatus = availabilityByUserId[userId]?.status ??
+                          AvailabilityStatus.offDuty;
+                      final status = _effectiveAvailabilityStatus(
+                        userId: userId,
+                        manualStatus: manualStatus,
+                        periods: periods,
+                        rules: rules,
+                        now: now,
+                      );
+                      if (status == AvailabilityStatus.onDuty) {
+                        onDutyCount++;
+                      } else if (status == AvailabilityStatus.delayed) {
+                        delayedCount++;
+                      } else {
+                        offDutyCount++;
+                      }
+                    }
+
+                    return StreamBuilder<List<PlatformReadinessSummary>>(
+                      stream: _readinessService.streamOrganizationSummary(
+                        organizationId: organizationId,
+                      ),
+                      builder: (context, readinessSnapshot) {
+                        final summaries = readinessSnapshot.data ??
+                            const <PlatformReadinessSummary>[];
+                        final summary =
+                            summaries.isEmpty ? null : summaries.first;
+                        final minimumCrewRequired =
+                            summary?.minimumCrewRequired ?? 0;
+                        final minimumCrewMet = minimumCrewRequired > 0 &&
+                            onDutyCount >= minimumCrewRequired;
+
+                        return Column(
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _ReadinessCountCard(
+                                    label: 'Valves',
+                                    count: onDutyCount,
+                                    icon: Icons.check_circle_outline,
+                                    color: AppColors.ready,
+                                  ),
+                                ),
+                                const SizedBox(width: AppTheme.itemSpacing),
+                                Expanded(
+                                  child: _ReadinessCountCard(
+                                    label: 'Hilinen',
+                                    count: delayedCount,
+                                    icon: Icons.schedule,
+                                    color: AppColors.delayed,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: AppTheme.itemSpacing),
+                            _ReadinessCountCard(
+                              label: 'Ei ole valves',
+                              count: offDutyCount,
+                              icon: Icons.cancel_outlined,
+                              color: AppColors.offDuty,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Valves liikmete arv arvestab aktiivseid '
+                              'planeeritud mittevalves aegu.',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: AppColors.textSecondary,
+                                  ),
+                            ),
+                            const SizedBox(height: AppTheme.itemSpacing),
+                            _MinimumCrewCard(
+                              minimumCrewRequired: minimumCrewRequired,
+                              onDutyCount: onDutyCount,
+                              minimumCrewMet: minimumCrewMet,
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
                 );
               },
             );
@@ -253,6 +297,62 @@ class AdminHomeDashboard extends StatelessWidget {
         );
       },
     );
+  }
+
+  String _effectiveAvailabilityStatus({
+    required String userId,
+    required String manualStatus,
+    required Iterable<PlannedUnavailabilityModel> periods,
+    required Iterable<PlannedUnavailabilityRuleModel> rules,
+    required DateTime now,
+  }) {
+    if (_hasActivePlannedUnavailability(
+          userId: userId,
+          periods: periods,
+          now: now,
+        ) ||
+        _hasActivePlannedUnavailabilityRule(
+          userId: userId,
+          rules: rules,
+          now: now,
+        )) {
+      return AvailabilityStatus.offDuty;
+    }
+
+    return manualStatus;
+  }
+
+  bool _hasActivePlannedUnavailability({
+    required String userId,
+    required Iterable<PlannedUnavailabilityModel> periods,
+    required DateTime now,
+  }) {
+    return periods.any((period) {
+      final startAt = period.startAt;
+      final endAt = period.endAt;
+      if (period.userId != userId ||
+          !period.isActive ||
+          startAt == null ||
+          endAt == null) {
+        return false;
+      }
+      return !now.isBefore(startAt) && now.isBefore(endAt);
+    });
+  }
+
+  bool _hasActivePlannedUnavailabilityRule({
+    required String userId,
+    required Iterable<PlannedUnavailabilityRuleModel> rules,
+    required DateTime now,
+  }) {
+    final minuteOfDay = now.hour * 60 + now.minute;
+    return rules.any((rule) {
+      return rule.userId == userId &&
+          rule.isActive &&
+          rule.daysOfWeek.contains(now.weekday) &&
+          minuteOfDay >= rule.startMinute &&
+          minuteOfDay < rule.endMinute;
+    });
   }
 
   Widget _buildEquipmentAlerts() {

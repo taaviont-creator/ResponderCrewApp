@@ -3,9 +3,12 @@ import 'package:flutter/material.dart';
 import '../models/activity_model.dart';
 import '../models/availability_model.dart';
 import '../models/callout_model.dart';
+import '../models/planned_unavailability_model.dart';
+import '../models/planned_unavailability_rule_model.dart';
 import '../services/activity_service.dart';
 import '../services/availability_service.dart';
 import '../services/callout_service.dart';
+import '../services/planned_unavailability_service.dart';
 import '../widgets/latest_notifications_card.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_section_card.dart';
@@ -39,6 +42,7 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
   final _activityService = ActivityService();
   final _availabilityService = AvailabilityService();
   final _calloutService = CalloutService();
+  final _plannedUnavailabilityService = PlannedUnavailabilityService();
   var _isUpdatingAvailability = false;
 
   Future<void> _updateAvailability(
@@ -167,13 +171,74 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
             : 15;
         final updatedAt = availability?.updatedAt;
 
-        return AppSectionCard(
+        return _buildAvailabilityCardWithSchedule(
+          status: status,
+          responseMinutes: responseMinutes,
+          updatedAt: updatedAt,
+        );
+      },
+    );
+  }
+
+  Widget _buildAvailabilityCardWithSchedule({
+    required String status,
+    required int responseMinutes,
+    required DateTime? updatedAt,
+  }) {
+    return StreamBuilder<List<PlannedUnavailabilityModel>>(
+      stream: _plannedUnavailabilityService.streamMyPeriods(
+        organizationId: widget.organizationId,
+      ),
+      builder: (context, periodsSnapshot) {
+        return StreamBuilder<List<PlannedUnavailabilityRuleModel>>(
+          stream: _plannedUnavailabilityService.streamMyRules(
+            organizationId: widget.organizationId,
+          ),
+          builder: (context, rulesSnapshot) {
+            final now = DateTime.now();
+            final periods =
+                periodsSnapshot.data ?? const <PlannedUnavailabilityModel>[];
+            final rules = rulesSnapshot.data ??
+                const <PlannedUnavailabilityRuleModel>[];
+            final hasActiveSchedule =
+                _hasActivePlannedUnavailability(periods, now) ||
+                    _hasActivePlannedUnavailabilityRule(rules, now);
+            final effectiveStatus = hasActiveSchedule
+                ? AvailabilityStatus.offDuty
+                : status;
+
+            return _buildAvailabilityCardContent(
+              status: status,
+              effectiveStatus: effectiveStatus,
+              hasActiveSchedule: hasActiveSchedule,
+              responseMinutes: responseMinutes,
+              updatedAt: updatedAt,
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildAvailabilityCardContent({
+    required String status,
+    required String effectiveStatus,
+    required bool hasActiveSchedule,
+    required int responseMinutes,
+    required DateTime? updatedAt,
+  }) {
+    return AppSectionCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  Expanded(child: _availabilityBadge(status)),
+                  Expanded(
+                    child: _availabilityBadge(
+                      effectiveStatus,
+                      plannedOffDuty: hasActiveSchedule,
+                    ),
+                  ),
                   if (updatedAt != null)
                     Text(
                       'Uuendatud ${_formatClock(updatedAt)}',
@@ -183,6 +248,41 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
                     ),
                 ],
               ),
+              if (hasActiveSchedule) ...[
+                const SizedBox(height: 10),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.offDutySurface,
+                    borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+                    border: Border.all(color: AppColors.offDuty),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Planeeritud mittevalves aeg on aktiivne.',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: AppColors.offDuty,
+                              fontWeight: FontWeight.w600,
+                            ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Nähtav staatus: Valvest väljas',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      Text(
+                        'Käsitsi staatus: ${_availabilityStatusText(status)}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 20),
               _AvailabilityButton(
                 label: 'VALVES',
@@ -267,11 +367,36 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
             ],
           ),
         );
-      },
-    );
   }
 
-  Widget _availabilityBadge(String status) {
+  bool _hasActivePlannedUnavailability(
+    Iterable<PlannedUnavailabilityModel> periods,
+    DateTime now,
+  ) {
+    return periods.any((period) {
+      final startAt = period.startAt;
+      final endAt = period.endAt;
+      if (!period.isActive || startAt == null || endAt == null) {
+        return false;
+      }
+      return !now.isBefore(startAt) && now.isBefore(endAt);
+    });
+  }
+
+  bool _hasActivePlannedUnavailabilityRule(
+    Iterable<PlannedUnavailabilityRuleModel> rules,
+    DateTime now,
+  ) {
+    final minuteOfDay = now.hour * 60 + now.minute;
+    return rules.any((rule) {
+      return rule.isActive &&
+          rule.daysOfWeek.contains(now.weekday) &&
+          minuteOfDay >= rule.startMinute &&
+          minuteOfDay < rule.endMinute;
+    });
+  }
+
+  Widget _availabilityBadge(String status, {bool plannedOffDuty = false}) {
     switch (status) {
       case AvailabilityStatus.onDuty:
         return const StatusBadge(
@@ -284,10 +409,21 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
           type: StatusBadgeType.delayed,
         );
       default:
-        return const StatusBadge(
-          label: 'EI OLE VALVES',
+        return StatusBadge(
+          label: plannedOffDuty ? 'VALVEST VÄLJAS' : 'EI OLE VALVES',
           type: StatusBadgeType.offDuty,
         );
+    }
+  }
+
+  String _availabilityStatusText(String status) {
+    switch (status) {
+      case AvailabilityStatus.onDuty:
+        return 'Valves';
+      case AvailabilityStatus.delayed:
+        return 'Hilinen';
+      default:
+        return 'Ei ole valves';
     }
   }
 
