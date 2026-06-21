@@ -586,6 +586,111 @@ service cloud.firestore {
         hasValidDelayedResponse(request.resource.data);
     }
 
+    function isValidPlannedUnavailabilityStatus(status) {
+      return status == 'active' ||
+        status == 'cancelled';
+    }
+
+    function isValidPlannedUnavailabilityBaseData(data) {
+      return data.keys().hasAll([
+          'id',
+          'organizationId',
+          'commandId',
+          'userId',
+          'startAt',
+          'endAt',
+          'note',
+          'status',
+          'createdAt',
+          'createdBy',
+          'updatedAt'
+        ]) &&
+        data.id is string &&
+        data.userId is string &&
+        data.startAt is timestamp &&
+        data.endAt is timestamp &&
+        data.startAt < data.endAt &&
+        data.note is string &&
+        data.createdBy is string &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp &&
+        hasValidOrganizationReference(data) &&
+        isValidPlannedUnavailabilityStatus(data.status);
+    }
+
+    function canReadPlannedUnavailability(data) {
+      let organizationId = organizationIdFromData(data);
+      return signedIn() &&
+        hasValidOrganizationReference(data) &&
+        (
+          (
+            data.userId == request.auth.uid &&
+            isActiveMember(organizationId)
+          ) ||
+          isActiveOrgAdmin(organizationId)
+        );
+    }
+
+    function isOwnPlannedUnavailabilityCreate(periodId) {
+      let organizationId = organizationIdFromData(request.resource.data);
+      return signedIn() &&
+        request.resource.data.keys().hasOnly([
+          'id',
+          'organizationId',
+          'commandId',
+          'userId',
+          'startAt',
+          'endAt',
+          'note',
+          'status',
+          'createdAt',
+          'createdBy',
+          'updatedAt'
+        ]) &&
+        request.resource.data.id == periodId &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.createdBy == request.auth.uid &&
+        request.resource.data.status == 'active' &&
+        request.resource.data.createdAt == request.time &&
+        request.resource.data.updatedAt == request.time &&
+        isValidPlannedUnavailabilityBaseData(request.resource.data) &&
+        isActiveMember(organizationId);
+    }
+
+    function keepsPlannedUnavailabilityIdentity() {
+      return request.resource.data.id == resource.data.id &&
+        request.resource.data.userId == resource.data.userId &&
+        hasValidOrganizationReference(request.resource.data) &&
+        organizationIdFromData(request.resource.data) ==
+          organizationIdFromData(resource.data) &&
+        request.resource.data.startAt == resource.data.startAt &&
+        request.resource.data.endAt == resource.data.endAt &&
+        request.resource.data.note == resource.data.note &&
+        request.resource.data.createdAt == resource.data.createdAt &&
+        request.resource.data.createdBy == resource.data.createdBy;
+    }
+
+    function isOwnPlannedUnavailabilityCancel(periodId) {
+      let organizationId = organizationIdFromData(resource.data);
+      return signedIn() &&
+        resource.data.userId == request.auth.uid &&
+        request.resource.data.id == periodId &&
+        keepsPlannedUnavailabilityIdentity() &&
+        resource.data.status == 'active' &&
+        request.resource.data.status == 'cancelled' &&
+        request.resource.data.cancelledAt == request.time &&
+        request.resource.data.cancelledBy == request.auth.uid &&
+        request.resource.data.updatedAt == request.time &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status',
+          'cancelledAt',
+          'cancelledBy',
+          'updatedAt'
+        ]) &&
+        isValidPlannedUnavailabilityBaseData(request.resource.data) &&
+        isActiveMember(organizationId);
+    }
+
     function isValidReminderInterval(intervalHours) {
       return intervalHours == 12 ||
         intervalHours == 24 ||
@@ -1942,6 +2047,12 @@ service cloud.firestore {
       allow read: if signedIn() &&
         isActiveMember(organizationIdFromData(resource.data));
       allow create, update: if isOwnAvailabilityWrite(availabilityId);
+    }
+
+    match /plannedUnavailability/{periodId} {
+      allow read: if canReadPlannedUnavailability(resource.data);
+      allow create: if isOwnPlannedUnavailabilityCreate(periodId);
+      allow update: if isOwnPlannedUnavailabilityCancel(periodId);
     }
 
     match /availabilityReminderSettings/{settingId} {
