@@ -968,8 +968,8 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                       onTap: isSaving
                           ? null
                           : () async {
-                              final selected = await showTimePicker(
-                                context: dialogContext,
+                              final selected = await _pickTimeOfDay(
+                                dialogContext: dialogContext,
                                 initialTime: startTime,
                               );
                               if (selected == null) return;
@@ -983,8 +983,8 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                       onTap: isSaving
                           ? null
                           : () async {
-                              final selected = await showTimePicker(
-                                context: dialogContext,
+                              final selected = await _pickTimeOfDay(
+                                dialogContext: dialogContext,
                                 initialTime: endTime,
                               );
                               if (selected == null) return;
@@ -1043,8 +1043,8 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     );
     if (date == null || !dialogContext.mounted) return null;
 
-    final time = await showTimePicker(
-      context: dialogContext,
+    final time = await _pickTimeOfDay(
+      dialogContext: dialogContext,
       initialTime: TimeOfDay.fromDateTime(initial),
     );
     if (time == null) return null;
@@ -1055,6 +1055,23 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
       date.day,
       time.hour,
       time.minute,
+    );
+  }
+
+  Future<TimeOfDay?> _pickTimeOfDay({
+    required BuildContext dialogContext,
+    required TimeOfDay initialTime,
+  }) {
+    return showTimePicker(
+      context: dialogContext,
+      initialTime: initialTime,
+      builder: (context, child) {
+        final mediaQuery = MediaQuery.of(context);
+        return MediaQuery(
+          data: mediaQuery.copyWith(alwaysUse24HourFormat: true),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
     );
   }
 
