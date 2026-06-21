@@ -2367,7 +2367,10 @@ service cloud.firestore {
 
     match /activityParticipants/{participantId} {
       allow read: if signedIn() &&
-        isActiveMember(organizationIdFromData(resource.data));
+        (
+          resource.data.userId == request.auth.uid ||
+          isActiveOrgAdmin(organizationIdFromData(resource.data))
+        );
       allow create: if isOwnActivityParticipationCreate(participantId) ||
         isActivityParticipationConfirmationCreate(participantId);
       allow update: if isOwnActivityParticipationUpdate(participantId) ||
