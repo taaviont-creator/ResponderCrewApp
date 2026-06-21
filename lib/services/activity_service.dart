@@ -155,21 +155,16 @@ class ActivityService {
       throw Exception('Unsupported participation status: $status');
     }
 
-    final activitySnapshot = await _activities.doc(activityId).get();
-    final activityData = activitySnapshot.data();
-    if (activityData == null) {
-      throw Exception('Activity not found');
-    }
-    final activityOrganizationId =
-        (activityData['organizationId'] ?? activityData['commandId'] ?? '')
-            .toString();
-    if (activityOrganizationId != organizationId) {
-      throw Exception('Activity belongs to another organization');
-    }
+    await _ensureActivityBelongsToOrganization(
+      activityId: activityId,
+      organizationId: organizationId,
+    );
 
     final id = participantId(activityId: activityId, userId: userId);
+    final participantRef = _participants.doc(id);
+    final participantSnapshot = await participantRef.get();
 
-    await _participants.doc(id).set({
+    final data = {
       'id': id,
       'activityId': activityId,
       'userId': userId,
@@ -178,9 +173,72 @@ class ActivityService {
       // organizationId.
       'commandId': organizationId,
       'status': status,
-      'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    };
+    if (!participantSnapshot.exists) {
+      data['createdAt'] = FieldValue.serverTimestamp();
+    }
+
+    await participantRef.set(data, SetOptions(merge: true));
+  }
+
+  Future<void> confirmParticipation({
+    required String activityId,
+    required String userId,
+    required String organizationId,
+    required String attendanceStatus,
+    required String confirmedBy,
+    double? hours,
+  }) async {
+    final trimmedOrganizationId = organizationId.trim();
+    final trimmedUserId = userId.trim();
+    final trimmedConfirmedBy = confirmedBy.trim();
+    _requireOrganizationId(trimmedOrganizationId);
+
+    if (activityId.trim().isEmpty || trimmedUserId.isEmpty) {
+      throw Exception('Osalemise kirjet ei leitud.');
+    }
+    if (!ActivityAttendanceStatus.values.contains(attendanceStatus)) {
+      throw Exception('Osalemise kinnituse staatus ei ole toetatud.');
+    }
+    if (hours != null && hours < 0) {
+      throw Exception('Tundide arv ei saa olla negatiivne.');
+    }
+
+    await _ensureCanConfirmParticipation(
+      organizationId: trimmedOrganizationId,
+      confirmedBy: trimmedConfirmedBy,
+    );
+    await _ensureActivityBelongsToOrganization(
+      activityId: activityId,
+      organizationId: trimmedOrganizationId,
+    );
+
+    final id = participantId(activityId: activityId, userId: trimmedUserId);
+    final participantRef = _participants.doc(id);
+    final participantSnapshot = await participantRef.get();
+    final participantData = participantSnapshot.data();
+    if (participantData == null) {
+      throw Exception('Osalemise kirjet ei leitud.');
+    }
+
+    final participantOrganizationId =
+        (participantData['organizationId'] ?? participantData['commandId'] ?? '')
+            .toString()
+            .trim();
+    if (participantOrganizationId != trimmedOrganizationId ||
+        participantData['activityId'] != activityId ||
+        participantData['userId'] != trimmedUserId) {
+      throw Exception('Osalemise kirje kuulub teise organisatsiooni.');
+    }
+
+    await participantRef.update({
+      'attendanceStatus': attendanceStatus,
+      'hours': hours,
+      'confirmedBy': trimmedConfirmedBy,
+      'confirmedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   }
 
   void _requireOrganizationId(String organizationId) {
@@ -232,5 +290,68 @@ class ActivityService {
     if (commandSnapshot.data()?['allowMembersToCreateActivities'] != true) {
       throw Exception('Sul puudub õigus tegevust lisada.');
     }
+  }
+
+  Future<void> _ensureCanConfirmParticipation({
+    required String organizationId,
+    required String confirmedBy,
+  }) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null || currentUser.uid != confirmedBy) {
+      throw Exception('Sul puudub oigus osalemist kinnitada.');
+    }
+
+    final membershipSnapshot = await _firestore
+        .collection('memberships')
+        .doc('${currentUser.uid}_$organizationId')
+        .get();
+    final membership = membershipSnapshot.data();
+    if (membership == null ||
+        !_isActiveMembership(membership) ||
+        !_membershipIsForOrganization(
+          membership: membership,
+          organizationId: organizationId,
+        ) ||
+        !MembershipRole.isOrgAdmin(membership['role'])) {
+      throw Exception('Sul puudub oigus osalemist kinnitada.');
+    }
+  }
+
+  Future<void> _ensureActivityBelongsToOrganization({
+    required String activityId,
+    required String organizationId,
+  }) async {
+    final activitySnapshot = await _activities.doc(activityId).get();
+    final activityData = activitySnapshot.data();
+    if (activityData == null) {
+      throw Exception('Activity not found');
+    }
+    final activityOrganizationId =
+        (activityData['organizationId'] ?? activityData['commandId'] ?? '')
+            .toString()
+            .trim();
+    if (activityOrganizationId != organizationId) {
+      throw Exception('Activity belongs to another organization');
+    }
+  }
+
+  bool _membershipIsForOrganization({
+    required Map<String, dynamic> membership,
+    required String organizationId,
+  }) {
+    return (membership['organizationId'] ?? membership['commandId'] ?? '')
+            .toString()
+            .trim() ==
+        organizationId;
+  }
+
+  bool _isActiveMembership(Map<String, dynamic> membership) {
+    final hasActiveMarker =
+        membership['status'] == 'active' || membership['isActive'] == true;
+    final statusIsActive = !membership.containsKey('status') ||
+        membership['status'] == 'active';
+    final flagIsActive = !membership.containsKey('isActive') ||
+        membership['isActive'] == true;
+    return hasActiveMarker && statusIsActive && flagIsActive;
   }
 }

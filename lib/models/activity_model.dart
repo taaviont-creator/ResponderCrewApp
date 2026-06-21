@@ -22,11 +22,29 @@ class ActivityParticipationStatus {
   static const attending = 'attending';
   static const notAttending = 'notAttending';
   static const maybe = 'maybe';
+  static const registered = 'registered';
+  static const cannotAttend = 'cannotAttend';
+  static const attendedSelfReported = 'attendedSelfReported';
 
   static const values = {
     attending,
     notAttending,
     maybe,
+    registered,
+    cannotAttend,
+    attendedSelfReported,
+  };
+}
+
+class ActivityAttendanceStatus {
+  static const notConfirmed = 'notConfirmed';
+  static const confirmed = 'confirmed';
+  static const absent = 'absent';
+
+  static const values = {
+    notConfirmed,
+    confirmed,
+    absent,
   };
 }
 
@@ -106,6 +124,10 @@ class ActivityParticipantModel {
     required this.organizationId,
     required this.commandId,
     required this.status,
+    this.attendanceStatus = ActivityAttendanceStatus.notConfirmed,
+    this.hours,
+    this.confirmedBy = '',
+    this.confirmedAt,
     this.createdAt,
     this.updatedAt,
   });
@@ -116,6 +138,10 @@ class ActivityParticipantModel {
   final String organizationId;
   final String commandId;
   final String status;
+  final String attendanceStatus;
+  final double? hours;
+  final String confirmedBy;
+  final DateTime? confirmedAt;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -131,6 +157,13 @@ class ActivityParticipantModel {
       organizationId: _stringValue(data['organizationId']),
       commandId: _stringValue(data['commandId']),
       status: _stringValue(data['status']),
+      attendanceStatus: _stringValue(
+        data['attendanceStatus'],
+        fallback: ActivityAttendanceStatus.notConfirmed,
+      ),
+      hours: _doubleValue(data['hours']),
+      confirmedBy: _stringValue(data['confirmedBy']),
+      confirmedAt: _dateTimeValue(data['confirmedAt']),
       createdAt: _dateTimeValue(data['createdAt']),
       updatedAt: _dateTimeValue(data['updatedAt']),
     );
@@ -144,6 +177,11 @@ class ActivityParticipantModel {
       'organizationId': organizationId,
       'commandId': commandId,
       'status': status,
+      if (attendanceStatus != ActivityAttendanceStatus.notConfirmed)
+        'attendanceStatus': attendanceStatus,
+      if (hours != null) 'hours': hours,
+      if (confirmedBy.isNotEmpty) 'confirmedBy': confirmedBy,
+      if (confirmedAt != null) 'confirmedAt': Timestamp.fromDate(confirmedAt!),
       'createdAt': createdAt == null ? null : Timestamp.fromDate(createdAt!),
       'updatedAt': updatedAt == null ? null : Timestamp.fromDate(updatedAt!),
     };
@@ -157,5 +195,11 @@ String _stringValue(Object? value, {String fallback = ''}) {
 DateTime? _dateTimeValue(Object? value) {
   if (value is Timestamp) return value.toDate();
   if (value is DateTime) return value;
+  return null;
+}
+
+double? _doubleValue(Object? value) {
+  if (value is int) return value.toDouble();
+  if (value is double) return value;
   return null;
 }

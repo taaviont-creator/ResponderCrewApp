@@ -1323,7 +1323,40 @@ service cloud.firestore {
     function isValidParticipationStatus(status) {
       return status == 'attending' ||
         status == 'notAttending' ||
-        status == 'maybe';
+        status == 'maybe' ||
+        status == 'registered' ||
+        status == 'cannotAttend' ||
+        status == 'attendedSelfReported';
+    }
+
+    function isValidAttendanceStatus(status) {
+      return status == 'notConfirmed' ||
+        status == 'confirmed' ||
+        status == 'absent';
+    }
+
+    function hasValidActivityConfirmationData(data) {
+      return (
+          !data.keys().hasAny(['attendanceStatus']) ||
+          isValidAttendanceStatus(data.attendanceStatus)
+        ) &&
+        (
+          !data.keys().hasAny(['hours']) ||
+          data.hours == null ||
+          (
+            (data.hours is int || data.hours is float) &&
+            data.hours >= 0
+          )
+        ) &&
+        (
+          !data.keys().hasAny(['confirmedBy']) ||
+          data.confirmedBy is string
+        ) &&
+        (
+          !data.keys().hasAny(['confirmedAt']) ||
+          data.confirmedAt == null ||
+          data.confirmedAt is timestamp
+        );
     }
 
     function activityExists(activityId) {
@@ -1338,7 +1371,21 @@ service cloud.firestore {
     }
 
     function isValidActivityParticipantData(data) {
-      return data.keys().hasAll([
+      return data.keys().hasOnly([
+          'id',
+          'activityId',
+          'userId',
+          'organizationId',
+          'commandId',
+          'status',
+          'createdAt',
+          'updatedAt',
+          'attendanceStatus',
+          'hours',
+          'confirmedBy',
+          'confirmedAt'
+        ]) &&
+        data.keys().hasAll([
           'id',
           'activityId',
           'userId',
@@ -1351,16 +1398,87 @@ service cloud.firestore {
         data.userId is string &&
         hasValidOrganizationReference(data) &&
         isValidParticipationStatus(data.status) &&
-        activityOrganizationMatches(data.activityId, data);
+        activityOrganizationMatches(data.activityId, data) &&
+        (
+          !data.keys().hasAny(['createdAt']) ||
+          data.createdAt is timestamp
+        ) &&
+        (
+          !data.keys().hasAny(['updatedAt']) ||
+          data.updatedAt is timestamp
+        ) &&
+        hasValidActivityConfirmationData(data);
     }
 
-    function isOwnActivityParticipationWrite(participantId) {
+    function hasNoActivityConfirmationData(data) {
+      return !data.keys().hasAny([
+        'attendanceStatus',
+        'hours',
+        'confirmedBy',
+        'confirmedAt'
+      ]);
+    }
+
+    function keepsActivityParticipantIdentity() {
+      return request.resource.data.id == resource.data.id &&
+        request.resource.data.activityId == resource.data.activityId &&
+        request.resource.data.userId == resource.data.userId &&
+        hasValidOrganizationReference(request.resource.data) &&
+        organizationIdFromData(request.resource.data) ==
+          organizationIdFromData(resource.data) &&
+        (
+          !resource.data.keys().hasAny(['createdAt']) ||
+          request.resource.data.createdAt == resource.data.createdAt
+        );
+    }
+
+    function isOwnActivityParticipationCreate(participantId) {
       return signedIn() &&
         request.resource.data.userId == request.auth.uid &&
         request.resource.data.id == participantId &&
         participantId == request.resource.data.activityId + '_' + request.auth.uid &&
+        request.resource.data.createdAt == request.time &&
+        request.resource.data.updatedAt == request.time &&
+        hasNoActivityConfirmationData(request.resource.data) &&
         isValidActivityParticipantData(request.resource.data) &&
         isActiveMember(organizationIdFromData(request.resource.data));
+    }
+
+    function isOwnActivityParticipationUpdate(participantId) {
+      return signedIn() &&
+        resource.data.userId == request.auth.uid &&
+        request.resource.data.id == participantId &&
+        participantId == resource.data.activityId + '_' + request.auth.uid &&
+        keepsActivityParticipantIdentity() &&
+        request.resource.data.updatedAt == request.time &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status',
+          'updatedAt'
+        ]) &&
+        isValidActivityParticipantData(request.resource.data) &&
+        isActiveMember(organizationIdFromData(resource.data));
+    }
+
+    function isActivityParticipationConfirmationUpdate(participantId) {
+      let organizationId = organizationIdFromData(resource.data);
+      return signedIn() &&
+        request.resource.data.id == participantId &&
+        keepsActivityParticipantIdentity() &&
+        request.resource.data.status == resource.data.status &&
+        request.resource.data.keys().hasAny(['attendanceStatus']) &&
+        request.resource.data.confirmedBy == request.auth.uid &&
+        request.resource.data.confirmedAt == request.time &&
+        request.resource.data.updatedAt == request.time &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'attendanceStatus',
+          'hours',
+          'confirmedBy',
+          'confirmedAt',
+          'updatedAt'
+        ]) &&
+        isValidActivityParticipantData(request.resource.data) &&
+        isActiveOrgAdmin(organizationId) &&
+        isActiveMemberOf(resource.data.userId, organizationId);
     }
 
     function isValidCertificateType(type) {
@@ -2233,7 +2351,9 @@ service cloud.firestore {
     match /activityParticipants/{participantId} {
       allow read: if signedIn() &&
         isActiveMember(organizationIdFromData(resource.data));
-      allow create, update: if isOwnActivityParticipationWrite(participantId);
+      allow create: if isOwnActivityParticipationCreate(participantId);
+      allow update: if isOwnActivityParticipationUpdate(participantId) ||
+        isActivityParticipationConfirmationUpdate(participantId);
     }
 
     match /certificates/{certificateId} {
