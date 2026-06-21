@@ -51,7 +51,6 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
         TextEditingController(text: summary?.criticalIssues ?? '');
 
     var readinessStatus = summary?.readinessStatus ?? ReadinessStatus.unknown;
-    var minimumCrewMet = summary?.minimumCrewMet ?? false;
     var primaryVesselStatus =
         summary?.primaryVesselStatus ?? ReadinessEquipmentStatus.unknown;
     var equipmentStatus =
@@ -121,13 +120,9 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
                     ),
                     keyboardType: TextInputType.number,
                   ),
-                  CheckboxListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Miinimummeeskond koos'),
-                    value: minimumCrewMet,
-                    onChanged: (value) {
-                      setDialogState(() => minimumCrewMet = value ?? false);
-                    },
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Miinimumkoosseisu täituvus arvutatakse valves liikmete arvu põhjal.',
                   ),
                   DropdownButtonFormField<String>(
                     initialValue: primaryVesselStatus,
@@ -189,6 +184,13 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
     if (shouldSave != true) return;
 
     try {
+      final onDutyCount = int.tryParse(onDutyController.text) ?? 0;
+      final delayedCount = int.tryParse(delayedController.text) ?? 0;
+      final minimumCrewRequired =
+          int.tryParse(minimumCrewController.text) ?? 0;
+      final minimumCrewMet =
+          minimumCrewRequired > 0 && onDutyCount >= minimumCrewRequired;
+
       await _platformReadinessService.saveOrganizationSummary(
         organizationId: organizationId,
         organizationName: widget.activeOrganizationName ?? organizationId,
@@ -196,9 +198,9 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
         contactName: contactNameController.text,
         contactPhone: contactPhoneController.text,
         readinessStatus: readinessStatus,
-        onDutyCount: int.tryParse(onDutyController.text) ?? 0,
-        delayedCount: int.tryParse(delayedController.text) ?? 0,
-        minimumCrewRequired: int.tryParse(minimumCrewController.text) ?? 0,
+        onDutyCount: onDutyCount,
+        delayedCount: delayedCount,
+        minimumCrewRequired: minimumCrewRequired,
         minimumCrewMet: minimumCrewMet,
         primaryVesselStatus: primaryVesselStatus,
         equipmentStatus: equipmentStatus,
