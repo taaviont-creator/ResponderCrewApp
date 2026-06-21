@@ -155,6 +155,8 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
           if (_canViewOrganizationPlannedUnavailability) ...[
             _buildOrganizationPlannedUnavailabilitySection(),
             const SizedBox(height: AppTheme.sectionSpacing),
+            _buildOrganizationRecurringPlannedUnavailabilitySection(),
+            const SizedBox(height: AppTheme.sectionSpacing),
           ],
           Text(
             'Meeskonna ülevaade',
@@ -466,6 +468,50 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
         return AppSectionCard(
           title: 'Ühingu planeeritud mittevalves ajad',
           leading: const Icon(Icons.groups_2_outlined),
+          child: child,
+        );
+      },
+    );
+  }
+
+  Widget _buildOrganizationRecurringPlannedUnavailabilitySection() {
+    return StreamBuilder<List<PlannedUnavailabilityRuleModel>>(
+      stream: _plannedUnavailabilityService.streamOrganizationRules(
+        organizationId: widget.organizationId,
+        includeCancelled: true,
+      ),
+      builder: (context, snapshot) {
+        final rules =
+            snapshot.data ?? const <PlannedUnavailabilityRuleModel>[];
+
+        Widget child;
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
+          child = const Center(child: CircularProgressIndicator());
+        } else if (rules.isEmpty) {
+          child = Text(
+            'Ühingus ei ole korduvaid mittevalves aegu.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+          );
+        } else {
+          child = Column(
+            children: [
+              for (var index = 0; index < rules.length; index++) ...[
+                _OrganizationRecurringPlannedUnavailabilityTile(
+                  rule: rules[index],
+                  formattedWeekdays: _formatWeekdays(rules[index].daysOfWeek),
+                ),
+                if (index < rules.length - 1) const Divider(height: 1),
+              ],
+            ],
+          );
+        }
+
+        return AppSectionCard(
+          title: 'Ühingu korduvad mittevalves ajad',
+          leading: const Icon(Icons.event_repeat_outlined),
           child: child,
         );
       },
@@ -1496,6 +1542,75 @@ class _OrganizationPlannedUnavailabilityTile extends StatelessWidget {
                 icon: period.isCancelled
                     ? Icons.cancel_outlined
                     : Icons.event_busy_outlined,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _OrganizationRecurringPlannedUnavailabilityTile extends StatelessWidget {
+  const _OrganizationRecurringPlannedUnavailabilityTile({
+    required this.rule,
+    required this.formattedWeekdays,
+  });
+
+  final PlannedUnavailabilityRuleModel rule;
+  final String formattedWeekdays;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      future: FirebaseFirestore.instance.collection('users').doc(rule.userId).get(),
+      builder: (context, snapshot) {
+        final data = snapshot.data?.data() ?? const <String, dynamic>{};
+        final name = (data['name'] ?? '').toString().trim();
+        final note = rule.note.trim();
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.event_repeat_outlined,
+                color: AppColors.textSecondary,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name.isEmpty ? 'Nimi puudub' : name,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '$formattedWeekdays, ${rule.startTime} - ${rule.endTime}',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      note.isEmpty ? 'Märkus puudub' : note,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              StatusBadge(
+                label: rule.isCancelled ? 'Tühistatud' : 'Aktiivne',
+                type: rule.isCancelled
+                    ? StatusBadgeType.neutral
+                    : StatusBadgeType.offDuty,
+                icon: rule.isCancelled
+                    ? Icons.cancel_outlined
+                    : Icons.event_repeat_outlined,
               ),
             ],
           ),
