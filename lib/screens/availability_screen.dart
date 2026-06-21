@@ -5,10 +5,12 @@ import '../models/availability_model.dart';
 import '../models/membership_model.dart';
 import '../models/availability_reminder_settings_model.dart';
 import '../models/platform_readiness_model.dart';
+import '../models/planned_unavailability_model.dart';
 import '../services/availability_reminder_settings_service.dart';
 import '../services/availability_service.dart';
 import '../services/membership_service.dart';
 import '../services/platform_readiness_service.dart';
+import '../services/planned_unavailability_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_section_card.dart';
 import '../widgets/status_badge.dart';
@@ -41,9 +43,11 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
       AvailabilityReminderSettingsService();
   final _membershipService = MembershipService();
   final _platformReadinessService = PlatformReadinessService();
+  final _plannedUnavailabilityService = PlannedUnavailabilityService();
   final _noteController = TextEditingController();
   var _noteInitialized = false;
   var _isUpdating = false;
+  String? _cancellingPlannedUnavailabilityId;
 
   @override
   void dispose() {
@@ -141,6 +145,8 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
           ),
           const SizedBox(height: AppTheme.itemSpacing),
           _buildAvailabilityControl(),
+          const SizedBox(height: AppTheme.sectionSpacing),
+          _buildPlannedUnavailabilitySection(),
           const SizedBox(height: AppTheme.sectionSpacing),
           Text(
             'Meeskonna ülevaade',
@@ -317,6 +323,301 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
         );
       },
     );
+  }
+
+  Widget _buildPlannedUnavailabilitySection() {
+    return StreamBuilder<List<PlannedUnavailabilityModel>>(
+      stream: _plannedUnavailabilityService.streamMyPeriods(
+        organizationId: widget.organizationId,
+        includeCancelled: true,
+      ),
+      builder: (context, snapshot) {
+        final periods = snapshot.data ?? const <PlannedUnavailabilityModel>[];
+
+        Widget child;
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
+          child = const Center(child: CircularProgressIndicator());
+        } else if (periods.isEmpty) {
+          child = Text(
+            'Planeeritud mittevalves aegu ei ole.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+          );
+        } else {
+          child = Column(
+            children: [
+              for (var index = 0; index < periods.length; index++) ...[
+                _buildPlannedUnavailabilityTile(periods[index]),
+                if (index < periods.length - 1) const Divider(height: 1),
+              ],
+            ],
+          );
+        }
+
+        return AppSectionCard(
+          title: 'Minu planeeritud mittevalves ajad',
+          leading: const Icon(Icons.event_busy_outlined),
+          trailing: TextButton.icon(
+            onPressed: _showAddPlannedUnavailabilityDialog,
+            icon: const Icon(Icons.add),
+            label: const Text('Lisa'),
+          ),
+          child: child,
+        );
+      },
+    );
+  }
+
+  Widget _buildPlannedUnavailabilityTile(
+    PlannedUnavailabilityModel period,
+  ) {
+    final isCancelling = _cancellingPlannedUnavailabilityId == period.id;
+    final note = period.note.trim();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.schedule_outlined,
+                color: AppColors.textSecondary,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${_formatDateTime(period.startAt)} - '
+                      '${_formatDateTime(period.endAt)}',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    if (note.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        note,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              StatusBadge(
+                label: period.isCancelled ? 'TÜHISTATUD' : 'AKTIIVNE',
+                type: period.isCancelled
+                    ? StatusBadgeType.neutral
+                    : StatusBadgeType.offDuty,
+                icon: period.isCancelled
+                    ? Icons.cancel_outlined
+                    : Icons.event_busy_outlined,
+              ),
+            ],
+          ),
+          if (period.isActive) ...[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: isCancelling
+                    ? null
+                    : () => _cancelPlannedUnavailability(period),
+                icon: isCancelling
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.cancel_outlined),
+                label: const Text('Tühista'),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showAddPlannedUnavailabilityDialog() async {
+    final organizationId = widget.organizationId.trim();
+    if (organizationId.isEmpty) {
+      _showSnackBar(
+        'Planeeritud mittevalves aega ei saa lisada ilma aktiivse ühinguta.',
+      );
+      return;
+    }
+
+    var startAt = _defaultPlannedStart();
+    var endAt = startAt.add(const Duration(hours: 2));
+    var isSaving = false;
+    final noteController = TextEditingController();
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            Future<void> save() async {
+              if (!startAt.isBefore(endAt)) {
+                _showSnackBar('Algusaeg peab olema enne lõpuaega.');
+                return;
+              }
+
+              setDialogState(() => isSaving = true);
+              try {
+                await _plannedUnavailabilityService.createMyPeriod(
+                  organizationId: organizationId,
+                  startAt: startAt,
+                  endAt: endAt,
+                  note: noteController.text,
+                );
+                if (!mounted || !dialogContext.mounted) return;
+                Navigator.of(dialogContext).pop();
+                _showSnackBar('Planeeritud mittevalves aeg lisatud.');
+              } catch (e) {
+                if (!mounted || !dialogContext.mounted) return;
+                setDialogState(() => isSaving = false);
+                _showSnackBar(
+                  'Planeeritud mittevalves aega ei saanud salvestada.',
+                );
+              }
+            }
+
+            return AlertDialog(
+              title: const Text('Lisa planeeritud mittevalves aeg'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _DateTimePickerTile(
+                      label: 'Algus',
+                      value: _formatDateTime(startAt),
+                      onTap: isSaving
+                          ? null
+                          : () async {
+                              final selected = await _pickDateTime(
+                                dialogContext: dialogContext,
+                                initial: startAt,
+                              );
+                              if (selected == null) return;
+                              setDialogState(() {
+                                startAt = selected;
+                                if (!startAt.isBefore(endAt)) {
+                                  endAt = startAt.add(
+                                    const Duration(hours: 2),
+                                  );
+                                }
+                              });
+                            },
+                    ),
+                    const SizedBox(height: 12),
+                    _DateTimePickerTile(
+                      label: 'Lõpp',
+                      value: _formatDateTime(endAt),
+                      onTap: isSaving
+                          ? null
+                          : () async {
+                              final selected = await _pickDateTime(
+                                dialogContext: dialogContext,
+                                initial: endAt,
+                              );
+                              if (selected == null) return;
+                              setDialogState(() => endAt = selected);
+                            },
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: noteController,
+                      enabled: !isSaving,
+                      maxLines: 2,
+                      decoration: const InputDecoration(
+                        labelText: 'Märkus (valikuline)',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSaving
+                      ? null
+                      : () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Katkesta'),
+                ),
+                FilledButton.icon(
+                  onPressed: isSaving ? null : save,
+                  icon: isSaving
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.save_outlined),
+                  label: const Text('Salvesta'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    noteController.dispose();
+  }
+
+  Future<DateTime?> _pickDateTime({
+    required BuildContext dialogContext,
+    required DateTime initial,
+  }) async {
+    final date = await showDatePicker(
+      context: dialogContext,
+      initialDate: initial,
+      firstDate: DateTime.now().subtract(const Duration(days: 1)),
+      lastDate: DateTime.now().add(const Duration(days: 730)),
+    );
+    if (date == null || !dialogContext.mounted) return null;
+
+    final time = await showTimePicker(
+      context: dialogContext,
+      initialTime: TimeOfDay.fromDateTime(initial),
+    );
+    if (time == null) return null;
+
+    return DateTime(
+      date.year,
+      date.month,
+      date.day,
+      time.hour,
+      time.minute,
+    );
+  }
+
+  Future<void> _cancelPlannedUnavailability(
+    PlannedUnavailabilityModel period,
+  ) async {
+    if (_cancellingPlannedUnavailabilityId != null) return;
+
+    setState(() => _cancellingPlannedUnavailabilityId = period.id);
+    try {
+      await _plannedUnavailabilityService.cancelMyPeriod(periodId: period.id);
+      if (!mounted) return;
+      _showSnackBar('Planeeritud mittevalves aeg tühistatud.');
+    } catch (e) {
+      if (!mounted) return;
+      _showSnackBar('Sul puudub õigus seda kirjet muuta.');
+    } finally {
+      if (mounted) {
+        setState(() => _cancellingPlannedUnavailabilityId = null);
+      }
+    }
   }
 
   Widget _statusBadge(String status) {
@@ -610,6 +911,25 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     return '$hour:$minute';
   }
 
+  String _formatDateTime(DateTime? value) {
+    if (value == null) return '-';
+    final day = value.day.toString().padLeft(2, '0');
+    final month = value.month.toString().padLeft(2, '0');
+    return '$day.$month.${value.year} ${_formatClock(value)}';
+  }
+
+  DateTime _defaultPlannedStart() {
+    final now = DateTime.now().add(const Duration(hours: 1));
+    return DateTime(now.year, now.month, now.day, now.hour);
+  }
+
+  void _showSnackBar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
   String _roleLabel(String role) {
     return MembershipRole.isOrgAdmin(role)
         ? 'Organisatsiooni administraator'
@@ -687,6 +1007,34 @@ class _StatusActionButton extends StatelessWidget {
         ),
         icon: Icon(icon),
         label: Text(label),
+      ),
+    );
+  }
+}
+
+class _DateTimePickerTile extends StatelessWidget {
+  const _DateTimePickerTile({
+    required this.label,
+    required this.value,
+    required this.onTap,
+  });
+
+  final String label;
+  final String value;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(AppTheme.controlRadius),
+      onTap: onTap,
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: const Icon(Icons.event_outlined),
+          suffixIcon: const Icon(Icons.edit_calendar_outlined),
+        ),
+        child: Text(value),
       ),
     );
   }
