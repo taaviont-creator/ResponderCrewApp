@@ -691,6 +691,135 @@ service cloud.firestore {
         isActiveMember(organizationId);
     }
 
+    function isValidPlannedUnavailabilityRuleTime(data) {
+      return data.startTime is string &&
+        data.startTime.matches('^([01][0-9]|2[0-3]):[0-5][0-9]$') &&
+        data.endTime is string &&
+        data.endTime.matches('^([01][0-9]|2[0-3]):[0-5][0-9]$') &&
+        data.startMinute is int &&
+        data.endMinute is int &&
+        data.startMinute >= 0 &&
+        data.startMinute <= 1439 &&
+        data.endMinute >= 0 &&
+        data.endMinute <= 1439 &&
+        data.startMinute < data.endMinute;
+    }
+
+    function isValidPlannedUnavailabilityRuleDays(days) {
+      return days is list &&
+        days.size() > 0 &&
+        days.size() <= 7 &&
+        days.hasOnly([1, 2, 3, 4, 5, 6, 7]);
+    }
+
+    function isValidPlannedUnavailabilityRuleBaseData(data) {
+      return data.keys().hasAll([
+          'id',
+          'organizationId',
+          'commandId',
+          'userId',
+          'daysOfWeek',
+          'startTime',
+          'endTime',
+          'startMinute',
+          'endMinute',
+          'note',
+          'status',
+          'createdAt',
+          'createdBy',
+          'updatedAt'
+        ]) &&
+        data.id is string &&
+        data.userId is string &&
+        data.note is string &&
+        data.createdBy is string &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp &&
+        hasValidOrganizationReference(data) &&
+        isValidPlannedUnavailabilityRuleDays(data.daysOfWeek) &&
+        isValidPlannedUnavailabilityRuleTime(data) &&
+        isValidPlannedUnavailabilityStatus(data.status);
+    }
+
+    function canReadPlannedUnavailabilityRule(data) {
+      let organizationId = organizationIdFromData(data);
+      return signedIn() &&
+        hasValidOrganizationReference(data) &&
+        (
+          (
+            data.userId == request.auth.uid &&
+            isActiveMember(organizationId)
+          ) ||
+          isActiveOrgAdmin(organizationId)
+        );
+    }
+
+    function isOwnPlannedUnavailabilityRuleCreate(ruleId) {
+      let organizationId = organizationIdFromData(request.resource.data);
+      return signedIn() &&
+        request.resource.data.keys().hasOnly([
+          'id',
+          'organizationId',
+          'commandId',
+          'userId',
+          'daysOfWeek',
+          'startTime',
+          'endTime',
+          'startMinute',
+          'endMinute',
+          'note',
+          'status',
+          'createdAt',
+          'createdBy',
+          'updatedAt'
+        ]) &&
+        request.resource.data.id == ruleId &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.createdBy == request.auth.uid &&
+        request.resource.data.status == 'active' &&
+        request.resource.data.createdAt == request.time &&
+        request.resource.data.updatedAt == request.time &&
+        isValidPlannedUnavailabilityRuleBaseData(request.resource.data) &&
+        isActiveMember(organizationId);
+    }
+
+    function keepsPlannedUnavailabilityRuleIdentity() {
+      return request.resource.data.id == resource.data.id &&
+        request.resource.data.userId == resource.data.userId &&
+        hasValidOrganizationReference(request.resource.data) &&
+        organizationIdFromData(request.resource.data) ==
+          organizationIdFromData(resource.data) &&
+        request.resource.data.daysOfWeek == resource.data.daysOfWeek &&
+        request.resource.data.startTime == resource.data.startTime &&
+        request.resource.data.endTime == resource.data.endTime &&
+        request.resource.data.startMinute == resource.data.startMinute &&
+        request.resource.data.endMinute == resource.data.endMinute &&
+        request.resource.data.note == resource.data.note &&
+        request.resource.data.createdAt == resource.data.createdAt &&
+        request.resource.data.createdBy == resource.data.createdBy;
+    }
+
+    function isOwnPlannedUnavailabilityRuleCancel(ruleId) {
+      let organizationId = organizationIdFromData(resource.data);
+      return signedIn() &&
+        resource.data.userId == request.auth.uid &&
+        request.resource.data.id == ruleId &&
+        keepsPlannedUnavailabilityRuleIdentity() &&
+        resource.data.status == 'active' &&
+        request.resource.data.status == 'cancelled' &&
+        request.resource.data.cancelledAt == request.time &&
+        request.resource.data.cancelledBy == request.auth.uid &&
+        request.resource.data.updatedAt == request.time &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status',
+          'cancelledAt',
+          'cancelledBy',
+          'updatedAt'
+        ]) &&
+        isValidPlannedUnavailabilityRuleBaseData(request.resource.data) &&
+        isActiveMember(organizationId);
+    }
+
     function isValidReminderInterval(intervalHours) {
       return intervalHours == 12 ||
         intervalHours == 24 ||
@@ -2053,6 +2182,12 @@ service cloud.firestore {
       allow read: if canReadPlannedUnavailability(resource.data);
       allow create: if isOwnPlannedUnavailabilityCreate(periodId);
       allow update: if isOwnPlannedUnavailabilityCancel(periodId);
+    }
+
+    match /plannedUnavailabilityRules/{ruleId} {
+      allow read: if canReadPlannedUnavailabilityRule(resource.data);
+      allow create: if isOwnPlannedUnavailabilityRuleCreate(ruleId);
+      allow update: if isOwnPlannedUnavailabilityRuleCancel(ruleId);
     }
 
     match /availabilityReminderSettings/{settingId} {
