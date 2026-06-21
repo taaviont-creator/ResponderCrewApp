@@ -219,17 +219,33 @@ class ActivityService {
     final participantSnapshot = await participantRef.get();
     final participantData = participantSnapshot.data();
     if (participantData == null) {
-      throw Exception('Osalemise kirjet ei leitud.');
-    }
-
-    final participantOrganizationId =
-        (participantData['organizationId'] ?? participantData['commandId'] ?? '')
-            .toString()
-            .trim();
-    if (participantOrganizationId != trimmedOrganizationId ||
-        participantData['activityId'] != activityId ||
-        participantData['userId'] != trimmedUserId) {
-      throw Exception('Osalemise kirje kuulub teise organisatsiooni.');
+      await participantRef.set({
+        'id': id,
+        'activityId': activityId,
+        'userId': trimmedUserId,
+        'organizationId': trimmedOrganizationId,
+        // TODO: Remove commandId after all activity participation reads use
+        // organizationId.
+        'commandId': trimmedOrganizationId,
+        'status': ActivityParticipationStatus.notResponded,
+        'attendanceStatus': attendanceStatus,
+        'hours': hours,
+        'confirmedBy': trimmedConfirmedBy,
+        'confirmedAt': FieldValue.serverTimestamp(),
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      return;
+    } else {
+      final participantOrganizationId =
+          (participantData['organizationId'] ?? participantData['commandId'] ?? '')
+              .toString()
+              .trim();
+      if (participantOrganizationId != trimmedOrganizationId ||
+          participantData['activityId'] != activityId ||
+          participantData['userId'] != trimmedUserId) {
+        throw Exception('Osalemise kirje kuulub teise organisatsiooni.');
+      }
     }
 
     await participantRef.update({

@@ -1326,7 +1326,8 @@ service cloud.firestore {
         status == 'maybe' ||
         status == 'registered' ||
         status == 'cannotAttend' ||
-        status == 'attendedSelfReported';
+        status == 'attendedSelfReported' ||
+        status == 'notResponded';
     }
 
     function isValidAttendanceStatus(status) {
@@ -1442,6 +1443,22 @@ service cloud.firestore {
         hasNoActivityConfirmationData(request.resource.data) &&
         isValidActivityParticipantData(request.resource.data) &&
         isActiveMember(organizationIdFromData(request.resource.data));
+    }
+
+    function isActivityParticipationConfirmationCreate(participantId) {
+      let organizationId = organizationIdFromData(request.resource.data);
+      return signedIn() &&
+        request.resource.data.id == participantId &&
+        participantId == request.resource.data.activityId + '_' + request.resource.data.userId &&
+        request.resource.data.status == 'notResponded' &&
+        request.resource.data.keys().hasAny(['attendanceStatus']) &&
+        request.resource.data.confirmedBy == request.auth.uid &&
+        request.resource.data.confirmedAt == request.time &&
+        request.resource.data.createdAt == request.time &&
+        request.resource.data.updatedAt == request.time &&
+        isValidActivityParticipantData(request.resource.data) &&
+        isActiveOrgAdmin(organizationId) &&
+        isActiveMemberOf(request.resource.data.userId, organizationId);
     }
 
     function isOwnActivityParticipationUpdate(participantId) {
@@ -2351,7 +2368,8 @@ service cloud.firestore {
     match /activityParticipants/{participantId} {
       allow read: if signedIn() &&
         isActiveMember(organizationIdFromData(resource.data));
-      allow create: if isOwnActivityParticipationCreate(participantId);
+      allow create: if isOwnActivityParticipationCreate(participantId) ||
+        isActivityParticipationConfirmationCreate(participantId);
       allow update: if isOwnActivityParticipationUpdate(participantId) ||
         isActivityParticipationConfirmationUpdate(participantId);
     }

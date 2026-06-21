@@ -25,6 +25,7 @@ class ActivityParticipationStatus {
   static const registered = 'registered';
   static const cannotAttend = 'cannotAttend';
   static const attendedSelfReported = 'attendedSelfReported';
+  static const notResponded = 'notResponded';
 
   static const values = {
     attending,
@@ -33,6 +34,7 @@ class ActivityParticipationStatus {
     registered,
     cannotAttend,
     attendedSelfReported,
+    notResponded,
   };
 }
 
