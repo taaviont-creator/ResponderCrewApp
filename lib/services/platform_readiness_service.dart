@@ -90,6 +90,86 @@ class PlatformReadinessService {
     await doc.set(data, SetOptions(merge: true));
   }
 
+  Future<void> saveMinimumCrewRequired({
+    required String organizationId,
+    required String organizationName,
+    required int minimumCrewRequired,
+    required String lastUpdatedBy,
+  }) async {
+    _requireOrganizationId(organizationId);
+    if (minimumCrewRequired < 0) {
+      throw Exception('Sisesta korrektne arv.');
+    }
+
+    final doc = _summaries.doc(organizationId);
+
+    await _firestore.runTransaction((transaction) async {
+      final snapshot = await transaction.get(doc);
+      final existing = snapshot.data() ?? <String, dynamic>{};
+      final onDutyCount = _nonNegativeInt(existing['onDutyCount']);
+      final sanitizedMinimumCrewRequired = minimumCrewRequired;
+
+      transaction.set(doc, {
+        'id': organizationId,
+        'organizationId': organizationId,
+        // TODO: Remove commandId after all readiness reads use organizationId.
+        'commandId': organizationId,
+        'organizationName': _stringValue(
+          existing['organizationName'],
+          fallback: organizationName.trim().isEmpty
+              ? organizationId
+              : organizationName.trim(),
+        ),
+        'region': _stringValue(existing['region']),
+        'contactName': _stringValue(existing['contactName']),
+        'contactPhone': _stringValue(existing['contactPhone']),
+        'readinessStatus': _readinessStatusValue(
+          existing['readinessStatus'],
+        ),
+        'onDutyCount': onDutyCount,
+        'delayedCount': _nonNegativeInt(existing['delayedCount']),
+        'minimumCrewRequired': sanitizedMinimumCrewRequired,
+        'minimumCrewMet': sanitizedMinimumCrewRequired > 0 &&
+            onDutyCount >= sanitizedMinimumCrewRequired,
+        'primaryVesselStatus': _equipmentStatusValue(
+          existing['primaryVesselStatus'],
+        ),
+        'equipmentStatus': _equipmentStatusValue(existing['equipmentStatus']),
+        'criticalIssues': _stringValue(existing['criticalIssues']),
+        'lastUpdatedBy': lastUpdatedBy,
+        'lastUpdatedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+        if (!snapshot.exists) 'createdAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    });
+  }
+
+  int _nonNegativeInt(Object? value) {
+    final number = value is num ? value.toInt() : 0;
+    return number < 0 ? 0 : number;
+  }
+
+  String _stringValue(Object? value, {String fallback = ''}) {
+    return value is String && value.isNotEmpty ? value : fallback;
+  }
+
+  String _readinessStatusValue(Object? value) {
+    final status = _stringValue(value, fallback: ReadinessStatus.unknown);
+    return ReadinessStatus.values.contains(status)
+        ? status
+        : ReadinessStatus.unknown;
+  }
+
+  String _equipmentStatusValue(Object? value) {
+    final status = _stringValue(
+      value,
+      fallback: ReadinessEquipmentStatus.unknown,
+    );
+    return ReadinessEquipmentStatus.values.contains(status)
+        ? status
+        : ReadinessEquipmentStatus.unknown;
+  }
+
   void _requireOrganizationId(String organizationId) {
     if (organizationId.trim().isEmpty) {
       throw Exception('Selle toimingu jaoks puudub aktiivne organisatsioon');

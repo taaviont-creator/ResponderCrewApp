@@ -4,10 +4,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../models/availability_model.dart';
 import '../models/membership_model.dart';
+import '../models/platform_readiness_model.dart';
 import '../services/availability_service.dart';
 import '../services/command_service.dart';
 import '../services/membership_service.dart';
 import '../services/notification_service.dart';
+import '../services/platform_readiness_service.dart';
 import '../widgets/pending_invites_section.dart';
 import 'activities_screen.dart';
 import 'admin_home_dashboard.dart';
@@ -72,6 +74,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final _commandService = CommandService();
   final _membershipService = MembershipService();
   final _notificationService = NotificationService();
+  final _platformReadinessService = PlatformReadinessService();
   var _selectedNavigationIndex = 0;
 
   Future<void> _signOut() async {
@@ -720,6 +723,14 @@ class _HomeScreenState extends State<HomeScreen> {
           if (permissions.canManageOrganizationSettings &&
               commandId != null &&
               commandId.isNotEmpty) ...[
+            if (permissions.canManageOrganization) ...[
+              const SizedBox(height: 12),
+              _buildMinimumCrewSettingsCard(
+                organizationId: commandId,
+                organizationName: commandName,
+                currentUid: user.uid,
+              ),
+            ],
             const SizedBox(height: 12),
             Card(
               child: Column(
@@ -1038,6 +1049,110 @@ class _HomeScreenState extends State<HomeScreen> {
         allowMembersToCreateActivities: allowMembersToCreateActivities,
         allowMembersToViewStatistics: allowMembersToViewStatistics,
         allowMembersToStartOperationLog: allowMembersToStartOperationLog,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Seadete muutmine ebaõnnestus: $e')),
+      );
+    }
+  }
+
+  Widget _buildMinimumCrewSettingsCard({
+    required String organizationId,
+    required String? organizationName,
+    required String currentUid,
+  }) {
+    return StreamBuilder<List<PlatformReadinessSummary>>(
+      stream: _platformReadinessService.streamOrganizationSummary(
+        organizationId: organizationId,
+      ),
+      builder: (context, snapshot) {
+        final summaries =
+            snapshot.data ?? const <PlatformReadinessSummary>[];
+        final summary = summaries.isEmpty ? null : summaries.first;
+        final minimumCrewRequired = summary?.minimumCrewRequired ?? 0;
+
+        return Card(
+          child: ListTile(
+            title: const Text('Miinimumkoosseis'),
+            subtitle: Text(
+              'Miinimum valves liikmete arv: $minimumCrewRequired',
+            ),
+            trailing: const Icon(Icons.edit_outlined),
+            onTap: () => _showMinimumCrewDialog(
+              organizationId: organizationId,
+              organizationName: organizationName,
+              currentUid: currentUid,
+              minimumCrewRequired: minimumCrewRequired,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showMinimumCrewDialog({
+    required String organizationId,
+    required String? organizationName,
+    required String currentUid,
+    required int minimumCrewRequired,
+  }) async {
+    final controller = TextEditingController(
+      text: minimumCrewRequired.toString(),
+    );
+    String? errorText;
+
+    final value = await showDialog<int>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Text('Miinimumkoosseis'),
+            content: TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: 'Miinimum valves liikmete arv',
+                errorText: errorText,
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Katkesta'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  final parsed = int.tryParse(controller.text.trim());
+                  if (parsed == null || parsed < 0) {
+                    setDialogState(() => errorText = 'Sisesta korrektne arv.');
+                    return;
+                  }
+                  Navigator.pop(context, parsed);
+                },
+                child: const Text('Salvesta'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    controller.dispose();
+    if (value == null) return;
+
+    try {
+      await _platformReadinessService.saveMinimumCrewRequired(
+        organizationId: organizationId,
+        organizationName: organizationName ?? organizationId,
+        minimumCrewRequired: value,
+        lastUpdatedBy: currentUid,
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Miinimumkoosseis salvestatud.')),
       );
     } catch (e) {
       if (!mounted) return;
