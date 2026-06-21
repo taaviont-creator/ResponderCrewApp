@@ -280,7 +280,7 @@ class AdminHomeDashboard extends StatelessWidget {
                                   ),
                             ),
                             const SizedBox(height: AppTheme.itemSpacing),
-                            _MinimumCrewCard(
+                            _MinimumCrewCompact(
                               minimumCrewRequired: minimumCrewRequired,
                               onDutyCount: onDutyCount,
                               minimumCrewMet: minimumCrewMet,
@@ -528,8 +528,8 @@ class _ReadinessCountCard extends StatelessWidget {
   }
 }
 
-class _MinimumCrewCard extends StatelessWidget {
-  const _MinimumCrewCard({
+class _MinimumCrewCompact extends StatelessWidget {
+  const _MinimumCrewCompact({
     required this.minimumCrewRequired,
     required this.onDutyCount,
     required this.minimumCrewMet,
@@ -541,61 +541,73 @@ class _MinimumCrewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (minimumCrewRequired <= 0) {
-      return const AppSectionCard(
-        child: Row(
-          children: [
-            Icon(Icons.info_outline, color: AppColors.textSecondary),
-            SizedBox(width: 12),
-            Expanded(
-              child: Text('Miinimumkoosseisu ei ole seadistatud.'),
-            ),
-          ],
-        ),
-      );
-    }
+    final color = minimumCrewRequired <= 0
+        ? AppColors.textSecondary
+        : minimumCrewMet
+            ? AppColors.ready
+            : AppColors.critical;
 
-    final color = minimumCrewMet ? AppColors.ready : AppColors.critical;
-
-    return AppSectionCard(
-      accentColor: color,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppTheme.controlRadius),
+        border: Border.all(color: color.withOpacity(0.35)),
+      ),
+      child: Row(
         children: [
-          Row(
-            children: [
-              Icon(
-                minimumCrewMet
-                    ? Icons.verified_outlined
-                    : Icons.warning_amber_rounded,
-                color: color,
-              ),
-              const SizedBox(width: 10),
-              Text(
-                'Miinimumkoosseis',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: color,
-                    ),
-              ),
-            ],
+          Icon(Icons.groups_2_outlined, color: color, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Miinimumkoosseis',
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: color,
+                  ),
+            ),
           ),
-          const SizedBox(height: 10),
-          StatusBadge(
-            label: minimumCrewMet
-                ? 'Miinimumkoosseis täidetud'
-                : 'Valmisolek alla miinimumi',
-            type: minimumCrewMet
-                ? StatusBadgeType.ready
-                : StatusBadgeType.critical,
+          _MinimumCrewValue(
+            label: 'Miinimum',
+            value: minimumCrewRequired,
           ),
-          const SizedBox(height: 10),
-          Text(
-            'Miinimum: $minimumCrewRequired\n'
-            'Hetkel valves: $onDutyCount',
-            style: Theme.of(context).textTheme.bodyLarge,
+          const SizedBox(width: 12),
+          _MinimumCrewValue(
+            label: 'Valves',
+            value: onDutyCount,
           ),
         ],
       ),
+    );
+  }
+}
+
+class _MinimumCrewValue extends StatelessWidget {
+  const _MinimumCrewValue({
+    required this.label,
+    required this.value,
+  });
+
+  final String label;
+  final int value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: AppColors.textSecondary,
+              ),
+        ),
+        Text(
+          '$value',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+      ],
     );
   }
 }

@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import '../models/activity_model.dart';
 import '../models/availability_model.dart';
 import '../models/callout_model.dart';
+import '../models/platform_readiness_model.dart';
 import '../models/planned_unavailability_model.dart';
 import '../models/planned_unavailability_rule_model.dart';
 import '../services/activity_service.dart';
 import '../services/availability_service.dart';
 import '../services/callout_service.dart';
+import '../services/platform_readiness_service.dart';
 import '../services/planned_unavailability_service.dart';
 import '../widgets/latest_notifications_card.dart';
 import '../theme/app_theme.dart';
@@ -43,6 +45,7 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
   final _availabilityService = AvailabilityService();
   final _calloutService = CalloutService();
   final _plannedUnavailabilityService = PlannedUnavailabilityService();
+  final _readinessService = PlatformReadinessService();
   var _isUpdatingAvailability = false;
 
   Future<void> _updateAvailability(
@@ -85,6 +88,8 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
         ),
         const SizedBox(height: AppTheme.itemSpacing),
         _buildAvailabilityCard(),
+        const SizedBox(height: AppTheme.itemSpacing),
+        _buildMinimumCrewCompact(),
         const SizedBox(height: AppTheme.sectionSpacing),
         _SectionTitle(
           title: 'Viimane väljakutse',
@@ -367,6 +372,25 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
             ],
           ),
         );
+  }
+
+  Widget _buildMinimumCrewCompact() {
+    return StreamBuilder<List<PlatformReadinessSummary>>(
+      stream: _readinessService.streamOrganizationSummary(
+        organizationId: widget.organizationId,
+      ),
+      builder: (context, readinessSnapshot) {
+        final summaries =
+            readinessSnapshot.data ?? const <PlatformReadinessSummary>[];
+        final summary = summaries.isEmpty ? null : summaries.first;
+
+        return _MinimumCrewCompact(
+          minimumCrewRequired: summary?.minimumCrewRequired ?? 0,
+          onDutyCount: summary?.onDutyCount ?? 0,
+          minimumCrewMet: summary?.minimumCrewMet ?? false,
+        );
+      },
+    );
   }
 
   bool _hasActivePlannedUnavailability(
@@ -664,6 +688,90 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
       default:
         return 'AKTIIVNE';
     }
+  }
+}
+
+class _MinimumCrewCompact extends StatelessWidget {
+  const _MinimumCrewCompact({
+    required this.minimumCrewRequired,
+    required this.onDutyCount,
+    required this.minimumCrewMet,
+  });
+
+  final int minimumCrewRequired;
+  final int onDutyCount;
+  final bool minimumCrewMet;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = minimumCrewRequired <= 0
+        ? AppColors.textSecondary
+        : minimumCrewMet
+            ? AppColors.ready
+            : AppColors.critical;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppTheme.controlRadius),
+        border: Border.all(color: color.withOpacity(0.35)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.groups_2_outlined, color: color, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Miinimumkoosseis',
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: color,
+                  ),
+            ),
+          ),
+          _MinimumCrewValue(
+            label: 'Miinimum',
+            value: minimumCrewRequired,
+          ),
+          const SizedBox(width: 12),
+          _MinimumCrewValue(
+            label: 'Valves',
+            value: onDutyCount,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MinimumCrewValue extends StatelessWidget {
+  const _MinimumCrewValue({
+    required this.label,
+    required this.value,
+  });
+
+  final String label;
+  final int value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: AppColors.textSecondary,
+              ),
+        ),
+        Text(
+          '$value',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+      ],
+    );
   }
 }
 
