@@ -19,6 +19,8 @@ class AvailabilityModel {
     required this.organizationId,
     required this.commandId,
     required this.status,
+    required this.manualStatus,
+    this.scheduledStatus,
     this.responseMinutes,
     this.note,
     this.createdAt,
@@ -30,24 +32,33 @@ class AvailabilityModel {
   final String organizationId;
   final String commandId;
   final String status;
+  final String manualStatus;
+  final String? scheduledStatus;
   final int? responseMinutes;
   final String? note;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
+  String get effectiveStatus => scheduledStatus ?? manualStatus;
+
   factory AvailabilityModel.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> document,
   ) {
     final data = document.data() ?? <String, dynamic>{};
+    final status = _availabilityStatusValue(data['status']);
 
     return AvailabilityModel(
       id: document.id,
       userId: _stringValue(data['userId']),
       organizationId: _stringValue(data['organizationId']),
       commandId: _stringValue(data['commandId']),
-      status: _stringValue(
-        data['status'],
-        fallback: AvailabilityStatus.offDuty,
+      status: status,
+      manualStatus: _availabilityStatusValue(
+        data['manualStatus'],
+        fallback: status,
+      ),
+      scheduledStatus: _nullableAvailabilityStatusValue(
+        data['scheduledStatus'],
       ),
       responseMinutes: _intValue(data['responseMinutes']),
       note: _nullableStringValue(data['note']),
@@ -69,6 +80,19 @@ class AvailabilityModel {
       'updatedAt': updatedAt == null ? null : Timestamp.fromDate(updatedAt!),
     };
   }
+}
+
+String _availabilityStatusValue(
+  Object? value, {
+  String fallback = AvailabilityStatus.offDuty,
+}) {
+  final status = _stringValue(value, fallback: fallback);
+  return AvailabilityStatus.values.contains(status) ? status : fallback;
+}
+
+String? _nullableAvailabilityStatusValue(Object? value) {
+  final status = _nullableStringValue(value);
+  return AvailabilityStatus.values.contains(status) ? status : null;
 }
 
 String _stringValue(Object? value, {String fallback = ''}) {
