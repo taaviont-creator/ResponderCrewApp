@@ -54,6 +54,7 @@ build/
 
 # Android / iOS build files
 android/.gradle/
+android/.kotlin/
 android/local.properties
 ios/Pods/
 ios/.symlinks/
