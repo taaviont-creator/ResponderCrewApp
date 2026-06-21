@@ -148,6 +148,10 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
           const SizedBox(height: AppTheme.sectionSpacing),
           _buildPlannedUnavailabilitySection(),
           const SizedBox(height: AppTheme.sectionSpacing),
+          if (_canViewOrganizationPlannedUnavailability) ...[
+            _buildOrganizationPlannedUnavailabilitySection(),
+            const SizedBox(height: AppTheme.sectionSpacing),
+          ],
           Text(
             'Meeskonna ülevaade',
             style: Theme.of(context).textTheme.headlineSmall,
@@ -364,6 +368,54 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
             icon: const Icon(Icons.add),
             label: const Text('Lisa'),
           ),
+          child: child,
+        );
+      },
+    );
+  }
+
+  bool get _canViewOrganizationPlannedUnavailability {
+    return MembershipRole.isOrgAdmin(widget.membershipRole);
+  }
+
+  Widget _buildOrganizationPlannedUnavailabilitySection() {
+    return StreamBuilder<List<PlannedUnavailabilityModel>>(
+      stream: _plannedUnavailabilityService.streamOrganizationPeriods(
+        organizationId: widget.organizationId,
+        includeCancelled: true,
+      ),
+      builder: (context, snapshot) {
+        final periods = snapshot.data ?? const <PlannedUnavailabilityModel>[];
+
+        Widget child;
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
+          child = const Center(child: CircularProgressIndicator());
+        } else if (periods.isEmpty) {
+          child = Text(
+            'Ühingus ei ole planeeritud mittevalves aegu.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+          );
+        } else {
+          child = Column(
+            children: [
+              for (var index = 0; index < periods.length; index++) ...[
+                _OrganizationPlannedUnavailabilityTile(
+                  period: periods[index],
+                  formattedStart: _formatDateTime(periods[index].startAt),
+                  formattedEnd: _formatDateTime(periods[index].endAt),
+                ),
+                if (index < periods.length - 1) const Divider(height: 1),
+              ],
+            ],
+          );
+        }
+
+        return AppSectionCard(
+          title: 'Ühingu planeeritud mittevalves ajad',
+          leading: const Icon(Icons.groups_2_outlined),
           child: child,
         );
       },
@@ -1036,6 +1088,80 @@ class _DateTimePickerTile extends StatelessWidget {
         ),
         child: Text(value),
       ),
+    );
+  }
+}
+
+class _OrganizationPlannedUnavailabilityTile extends StatelessWidget {
+  const _OrganizationPlannedUnavailabilityTile({
+    required this.period,
+    required this.formattedStart,
+    required this.formattedEnd,
+  });
+
+  final PlannedUnavailabilityModel period;
+  final String formattedStart;
+  final String formattedEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      future: FirebaseFirestore.instance
+          .collection('users')
+          .doc(period.userId)
+          .get(),
+      builder: (context, snapshot) {
+        final data = snapshot.data?.data() ?? const <String, dynamic>{};
+        final name = (data['name'] ?? '').toString().trim();
+        final note = period.note.trim();
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.event_busy_outlined,
+                color: AppColors.textSecondary,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name.isEmpty ? 'Nimi puudub' : name,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '$formattedStart - $formattedEnd',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      note.isEmpty ? 'Märkus puudub' : note,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              StatusBadge(
+                label: period.isCancelled ? 'Tühistatud' : 'Aktiivne',
+                type: period.isCancelled
+                    ? StatusBadgeType.neutral
+                    : StatusBadgeType.offDuty,
+                icon: period.isCancelled
+                    ? Icons.cancel_outlined
+                    : Icons.event_busy_outlined,
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
