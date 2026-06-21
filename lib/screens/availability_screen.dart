@@ -195,6 +195,11 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Text(
+                'Käsitsi valitud staatus',
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+              const SizedBox(height: 8),
               Row(
                 children: [
                   Expanded(child: _statusBadge(status)),
@@ -207,6 +212,8 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                     ),
                 ],
               ),
+              const SizedBox(height: AppTheme.itemSpacing),
+              _buildScheduledStatusPreview(status),
               const SizedBox(height: 20),
               _StatusActionButton(
                 label: 'VALVES',
@@ -333,6 +340,77 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
         );
       },
     );
+  }
+
+  Widget _buildScheduledStatusPreview(String manualStatus) {
+    return StreamBuilder<List<PlannedUnavailabilityModel>>(
+      stream: _plannedUnavailabilityService.streamMyPeriods(
+        organizationId: widget.organizationId,
+      ),
+      builder: (context, periodsSnapshot) {
+        return StreamBuilder<List<PlannedUnavailabilityRuleModel>>(
+          stream: _plannedUnavailabilityService.streamMyRules(
+            organizationId: widget.organizationId,
+          ),
+          builder: (context, rulesSnapshot) {
+            final now = DateTime.now();
+            final periods =
+                periodsSnapshot.data ?? const <PlannedUnavailabilityModel>[];
+            final rules =
+                rulesSnapshot.data ?? const <PlannedUnavailabilityRuleModel>[];
+            final hasActiveSchedule =
+                _hasActivePlannedUnavailability(periods, now) ||
+                    _hasActivePlannedUnavailabilityRule(rules, now);
+            final scheduledStatus =
+                hasActiveSchedule ? AvailabilityStatus.offDuty : null;
+            final effectiveStatus = scheduledStatus ?? manualStatus;
+
+            return _ScheduledStatusPreview(
+              hasActiveSchedule: hasActiveSchedule,
+              effectiveStatusLabel: _availabilityStatusLabel(effectiveStatus),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  bool _hasActivePlannedUnavailability(
+    Iterable<PlannedUnavailabilityModel> periods,
+    DateTime now,
+  ) {
+    return periods.any((period) {
+      final startAt = period.startAt;
+      final endAt = period.endAt;
+      if (!period.isActive || startAt == null || endAt == null) {
+        return false;
+      }
+      return !now.isBefore(startAt) && now.isBefore(endAt);
+    });
+  }
+
+  bool _hasActivePlannedUnavailabilityRule(
+    Iterable<PlannedUnavailabilityRuleModel> rules,
+    DateTime now,
+  ) {
+    final minuteOfDay = now.hour * 60 + now.minute;
+    return rules.any((rule) {
+      return rule.isActive &&
+          rule.daysOfWeek.contains(now.weekday) &&
+          minuteOfDay >= rule.startMinute &&
+          minuteOfDay < rule.endMinute;
+    });
+  }
+
+  String _availabilityStatusLabel(String status) {
+    switch (status) {
+      case AvailabilityStatus.onDuty:
+        return 'Valves';
+      case AvailabilityStatus.delayed:
+        return 'Hilinen';
+      default:
+        return 'Valvest väljas';
+    }
   }
 
   Widget _buildPlannedUnavailabilitySection() {
@@ -1805,6 +1883,70 @@ class _EmptyCard extends StatelessWidget {
           Icon(icon, color: AppColors.textSecondary),
           const SizedBox(width: 12),
           Expanded(child: Text(message)),
+        ],
+      ),
+    );
+  }
+}
+
+class _ScheduledStatusPreview extends StatelessWidget {
+  const _ScheduledStatusPreview({
+    required this.hasActiveSchedule,
+    required this.effectiveStatusLabel,
+  });
+
+  final bool hasActiveSchedule;
+  final String effectiveStatusLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final color =
+        hasActiveSchedule ? AppColors.offDuty : AppColors.textSecondary;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceBlue,
+        borderRadius: BorderRadius.circular(AppTheme.controlRadius),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Planeeritud staatuse mõju',
+            style: Theme.of(context).textTheme.labelLarge,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            hasActiveSchedule
+                ? 'Planeeritud mittevalves aeg on hetkel aktiivne.'
+                : 'Planeeritud mittevalves aeg ei ole hetkel aktiivne.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: color,
+                  fontWeight:
+                      hasActiveSchedule ? FontWeight.w600 : FontWeight.normal,
+                ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Nähtav staatus: $effectiveStatusLabel',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: hasActiveSchedule
+                      ? AppColors.offDuty
+                      : AppColors.textSecondary,
+                  fontWeight:
+                      hasActiveSchedule ? FontWeight.w600 : FontWeight.normal,
+                ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'See ei muuda veel automaatselt sinu käsitsi valitud staatust.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+          ),
         ],
       ),
     );
