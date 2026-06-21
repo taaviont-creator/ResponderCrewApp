@@ -852,7 +852,7 @@ class _HomeScreenState extends State<HomeScreen> {
               organizationId: commandId,
               memberName: displayName,
             ),
-            if (permissions.canViewOrganizationReadiness) ...[
+            if (permissions.canManageOrganization) ...[
               const SizedBox(height: 16),
               _buildReadinessSummary(organizationId: commandId),
             ],
