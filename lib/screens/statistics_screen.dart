@@ -123,6 +123,10 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                   'Kinnitatud tunnid',
                   _formatHours(statistics.confirmedParticipationHours!),
                 ),
+                if (statistics.hasMemberContributionStatistics)
+                  _buildMemberContributionSection(
+                    statistics.memberContributions!,
+                  ),
               ],
               const Divider(),
               _buildStatisticTile(
@@ -154,6 +158,28 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     return formatted.replaceAll('.', ',');
   }
 
+  Widget _buildMemberContributionSection(
+    List<MemberContributionSummary> contributions,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 8),
+        Text(
+          'Liikmete panus',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        if (contributions.isEmpty)
+          const ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text('Kinnitatud osalemisi ei ole veel.'),
+          )
+        else
+          ...contributions.map(_buildMemberContributionTile),
+      ],
+    );
+  }
+
   Widget _buildStatisticTile(String label, int value) {
     return ListTile(
       contentPadding: EdgeInsets.zero,
@@ -171,6 +197,21 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       title: Text(label),
       trailing: Text(
         value,
+        style: Theme.of(context).textTheme.titleMedium,
+      ),
+    );
+  }
+
+  Widget _buildMemberContributionTile(MemberContributionSummary contribution) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      title: Text(contribution.displayName),
+      subtitle: Text(
+        'Kinnitatud osalemisi: '
+        '${contribution.confirmedParticipationCount}',
+      ),
+      trailing: Text(
+        _formatHours(contribution.confirmedParticipationHours),
         style: Theme.of(context).textTheme.titleMedium,
       ),
     );

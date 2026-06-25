@@ -13,6 +13,7 @@ class StatisticsSummary {
     required this.expiredCertificateCount,
     this.confirmedParticipationCount,
     this.confirmedParticipationHours,
+    this.memberContributions,
   });
 
   final int memberCount;
@@ -28,8 +29,25 @@ class StatisticsSummary {
   final int expiredCertificateCount;
   final int? confirmedParticipationCount;
   final double? confirmedParticipationHours;
+  final List<MemberContributionSummary>? memberContributions;
 
   bool get hasConfirmedParticipationStatistics =>
       confirmedParticipationCount != null &&
       confirmedParticipationHours != null;
+
+  bool get hasMemberContributionStatistics => memberContributions != null;
+}
+
+class MemberContributionSummary {
+  const MemberContributionSummary({
+    required this.userId,
+    required this.displayName,
+    required this.confirmedParticipationCount,
+    required this.confirmedParticipationHours,
+  });
+
+  final String userId;
+  final String displayName;
+  final int confirmedParticipationCount;
+  final double confirmedParticipationHours;
 }

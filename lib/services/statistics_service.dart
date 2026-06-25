@@ -103,9 +103,11 @@ class StatisticsService {
 
     int? confirmedParticipationCount;
     double? confirmedParticipationHours;
+    List<MemberContributionSummary>? memberContributions;
     if (canViewConfirmedParticipationStatistics) {
       var confirmedCount = 0;
       var confirmedHours = 0.0;
+      final contributionsByUserId = <String, _MemberContributionAccumulator>{};
 
       final participantsSnapshot = await _firestore
           .collection('activityParticipants')
@@ -124,10 +126,23 @@ class StatisticsService {
 
         confirmedCount++;
         confirmedHours += hoursValue;
+
+        final userId = (data['userId'] ?? '').toString().trim();
+        if (userId.isEmpty) continue;
+
+        final contribution = contributionsByUserId.putIfAbsent(
+          userId,
+          _MemberContributionAccumulator.new,
+        );
+        contribution.confirmedParticipationCount++;
+        contribution.confirmedParticipationHours += hoursValue;
       }
 
       confirmedParticipationCount = confirmedCount;
       confirmedParticipationHours = confirmedHours;
+      memberContributions = await _loadMemberContributions(
+        contributionsByUserId,
+      );
     }
 
     final certificatesQuery = canViewOrganizationCertificates
@@ -164,6 +179,7 @@ class StatisticsService {
       expiredCertificateCount: expiredCertificateCount,
       confirmedParticipationCount: confirmedParticipationCount,
       confirmedParticipationHours: confirmedParticipationHours,
+      memberContributions: memberContributions,
     );
   }
 
@@ -193,6 +209,51 @@ class StatisticsService {
     final organizationId = (data['organizationId'] ?? '').toString();
     if (organizationId.isNotEmpty) return organizationId;
     return (data['commandId'] ?? '').toString();
+  }
+
+  Future<List<MemberContributionSummary>> _loadMemberContributions(
+    Map<String, _MemberContributionAccumulator> contributionsByUserId,
+  ) async {
+    final summaries = await Future.wait(
+      contributionsByUserId.entries.map((entry) async {
+        return MemberContributionSummary(
+          userId: entry.key,
+          displayName: await _loadUserDisplayName(entry.key),
+          confirmedParticipationCount:
+              entry.value.confirmedParticipationCount,
+          confirmedParticipationHours:
+              entry.value.confirmedParticipationHours,
+        );
+      }),
+    );
+
+    summaries.sort((a, b) {
+      final hoursCompare = b.confirmedParticipationHours.compareTo(
+        a.confirmedParticipationHours,
+      );
+      if (hoursCompare != 0) return hoursCompare;
+
+      final countCompare = b.confirmedParticipationCount.compareTo(
+        a.confirmedParticipationCount,
+      );
+      if (countCompare != 0) return countCompare;
+
+      return a.displayName.compareTo(b.displayName);
+    });
+    return summaries;
+  }
+
+  Future<String> _loadUserDisplayName(String userId) async {
+    final userSnapshot =
+        await _firestore.collection('users').doc(userId).get();
+    final userData = userSnapshot.data() ?? <String, dynamic>{};
+    final name = (userData['name'] ?? '').toString().trim();
+    if (name.isNotEmpty) return name;
+
+    final email = (userData['email'] ?? '').toString().trim();
+    if (email.isNotEmpty) return email;
+
+    return userId.isEmpty ? 'Liige' : userId;
   }
 
   Future<bool> _ensureCanViewStatistics({
@@ -237,4 +298,9 @@ class StatisticsService {
     }
     return false;
   }
+}
+
+class _MemberContributionAccumulator {
+  var confirmedParticipationCount = 0;
+  var confirmedParticipationHours = 0.0;
 }
