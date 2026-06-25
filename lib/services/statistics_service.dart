@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../models/activity_model.dart';
 import '../models/availability_model.dart';
 import '../models/certificate_model.dart';
 import '../models/equipment_model.dart';
@@ -19,7 +20,8 @@ class StatisticsService {
     required bool canViewOrganizationCertificates,
   }) async {
     _requireOrganizationId(organizationId);
-    await _ensureCanViewStatistics(
+    final canViewConfirmedParticipationStatistics =
+        await _ensureCanViewStatistics(
       organizationId: organizationId,
       currentUid: currentUid,
     );
@@ -99,6 +101,35 @@ class StatisticsService {
       }
     }
 
+    int? confirmedParticipationCount;
+    double? confirmedParticipationHours;
+    if (canViewConfirmedParticipationStatistics) {
+      var confirmedCount = 0;
+      var confirmedHours = 0.0;
+
+      final participantsSnapshot = await _firestore
+          .collection('activityParticipants')
+          .where(_organizationFilter(organizationId))
+          .get();
+      for (final doc in participantsSnapshot.docs) {
+        final data = doc.data();
+        final participantOrganizationId = _organizationIdFromData(data);
+        if (participantOrganizationId != organizationId ||
+            data['attendanceStatus'] != ActivityAttendanceStatus.confirmed) {
+          continue;
+        }
+
+        final hoursValue = _confirmedHoursValue(data['hours']);
+        if (hoursValue == null) continue;
+
+        confirmedCount++;
+        confirmedHours += hoursValue;
+      }
+
+      confirmedParticipationCount = confirmedCount;
+      confirmedParticipationHours = confirmedHours;
+    }
+
     final certificatesQuery = canViewOrganizationCertificates
         ? _firestore
             .collection('certificates')
@@ -131,6 +162,8 @@ class StatisticsService {
       upcomingActivityCount: upcomingActivityCount,
       validCertificateCount: validCertificateCount,
       expiredCertificateCount: expiredCertificateCount,
+      confirmedParticipationCount: confirmedParticipationCount,
+      confirmedParticipationHours: confirmedParticipationHours,
     );
   }
 
@@ -149,7 +182,20 @@ class StatisticsService {
     }
   }
 
-  Future<void> _ensureCanViewStatistics({
+  double? _confirmedHoursValue(Object? value) {
+    if (value == null) return 0;
+    if (value is int && value >= 0) return value.toDouble();
+    if (value is double && value >= 0) return value;
+    return null;
+  }
+
+  String _organizationIdFromData(Map<String, dynamic> data) {
+    final organizationId = (data['organizationId'] ?? '').toString();
+    if (organizationId.isNotEmpty) return organizationId;
+    return (data['commandId'] ?? '').toString();
+  }
+
+  Future<bool> _ensureCanViewStatistics({
     required String organizationId,
     required String currentUid,
   }) async {
@@ -182,12 +228,13 @@ class StatisticsService {
       throw Exception('Sul puudub õigus seda vaadet kasutada');
     }
 
-    if (MembershipRole.isOrgAdmin(membership['role'])) return;
+    if (MembershipRole.isOrgAdmin(membership['role'])) return true;
 
     final commandSnapshot =
         await _firestore.collection('commands').doc(organizationId).get();
     if (commandSnapshot.data()?['allowMembersToViewStatistics'] != true) {
       throw Exception('Sul puudub õigus seda vaadet kasutada');
     }
+    return false;
   }
 }

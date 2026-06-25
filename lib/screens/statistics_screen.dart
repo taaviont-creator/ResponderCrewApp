@@ -113,6 +113,17 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 'Tegevusi/koolitusi kokku',
                 statistics.upcomingActivityCount,
               ),
+              if (statistics.hasConfirmedParticipationStatistics) ...[
+                const Divider(),
+                _buildStatisticTile(
+                  'Kinnitatud osalemisi',
+                  statistics.confirmedParticipationCount!,
+                ),
+                _buildStatisticTextTile(
+                  'Kinnitatud tunnid',
+                  _formatHours(statistics.confirmedParticipationHours!),
+                ),
+              ],
               const Divider(),
               _buildStatisticTile(
                 widget.canViewOrganizationCertificates
@@ -133,12 +144,33 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     );
   }
 
+  String _formatHours(double hours) {
+    var formatted = hours.toStringAsFixed(2);
+    if (formatted.endsWith('00')) {
+      formatted = hours.toStringAsFixed(0);
+    } else if (formatted.endsWith('0')) {
+      formatted = hours.toStringAsFixed(1);
+    }
+    return formatted.replaceAll('.', ',');
+  }
+
   Widget _buildStatisticTile(String label, int value) {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       title: Text(label),
       trailing: Text(
         value.toString(),
+        style: Theme.of(context).textTheme.titleMedium,
+      ),
+    );
+  }
+
+  Widget _buildStatisticTextTile(String label, String value) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      title: Text(label),
+      trailing: Text(
+        value,
         style: Theme.of(context).textTheme.titleMedium,
       ),
     );

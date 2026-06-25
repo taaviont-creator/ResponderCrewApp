@@ -11,6 +11,8 @@ class StatisticsSummary {
     required this.upcomingActivityCount,
     required this.validCertificateCount,
     required this.expiredCertificateCount,
+    this.confirmedParticipationCount,
+    this.confirmedParticipationHours,
   });
 
   final int memberCount;
@@ -24,4 +26,10 @@ class StatisticsSummary {
   final int upcomingActivityCount;
   final int validCertificateCount;
   final int expiredCertificateCount;
+  final int? confirmedParticipationCount;
+  final double? confirmedParticipationHours;
+
+  bool get hasConfirmedParticipationStatistics =>
+      confirmedParticipationCount != null &&
+      confirmedParticipationHours != null;
 }
