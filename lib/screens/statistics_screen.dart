@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../models/statistics_model.dart';
 import '../services/statistics_service.dart';
@@ -90,6 +91,17 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              if (statistics.hasConfirmedParticipationStatistics) ...[
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.copy_outlined),
+                    label: const Text('Kopeeri CSV'),
+                    onPressed: () => _copyStatisticsCsv(statistics),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
               _buildStatisticTile('Liikmeid', statistics.memberCount),
               _buildStatisticTile('Valves', statistics.onDutyCount),
               _buildStatisticTile('Hilinenud', statistics.delayedCount),
@@ -146,6 +158,120 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         },
       ),
     );
+  }
+
+  Future<void> _copyStatisticsCsv(StatisticsSummary statistics) async {
+    await Clipboard.setData(
+      ClipboardData(text: _buildStatisticsCsv(statistics)),
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('CSV kopeeritud lõikelauale.')),
+    );
+  }
+
+  String _buildStatisticsCsv(StatisticsSummary statistics) {
+    final rows = <List<String>>[
+      const ['Jaotis', 'Näitaja', 'Väärtus'],
+      ['Koond', 'Liikmeid', statistics.memberCount.toString()],
+      ['Koond', 'Valves', statistics.onDutyCount.toString()],
+      ['Koond', 'Hilinenud', statistics.delayedCount.toString()],
+      ['Koond', 'Valvest väljas', statistics.offDutyCount.toString()],
+      ['Varustus', 'Varustust kokku', statistics.equipmentCount.toString()],
+      [
+        'Varustus',
+        'Vajab hooldust',
+        statistics.equipmentNeedsMaintenanceCount.toString(),
+      ],
+      [
+        'Varustus',
+        'Katki / kasutusest väljas',
+        statistics.equipmentUnavailableCount.toString(),
+      ],
+      [
+        'Tegevused',
+        'Operatsioonilogi kandeid',
+        statistics.operationLogCount.toString(),
+      ],
+      [
+        'Tegevused',
+        'Tegevusi/koolitusi kokku',
+        statistics.upcomingActivityCount.toString(),
+      ],
+    ];
+
+    if (statistics.hasConfirmedParticipationStatistics) {
+      rows.addAll([
+        [
+          'Osalemine',
+          'Kinnitatud osalemisi',
+          statistics.confirmedParticipationCount!.toString(),
+        ],
+        [
+          'Osalemine',
+          'Kinnitatud tunnid',
+          _formatHours(statistics.confirmedParticipationHours!),
+        ],
+      ]);
+    }
+
+    rows.addAll([
+      [
+        'Kvalifikatsioonid',
+        widget.canViewOrganizationCertificates
+            ? 'Kehtivaid kvalifikatsioone'
+            : 'Minu kehtivaid kvalifikatsioone',
+        statistics.validCertificateCount.toString(),
+      ],
+      [
+        'Kvalifikatsioonid',
+        widget.canViewOrganizationCertificates
+            ? 'Aegunud kvalifikatsioone'
+            : 'Minu aegunud kvalifikatsioone',
+        statistics.expiredCertificateCount.toString(),
+      ],
+    ]);
+
+    final buffer = StringBuffer();
+    for (final row in rows) {
+      buffer.writeln(_csvLine(row));
+    }
+
+    final contributions = statistics.memberContributions;
+    if (contributions != null) {
+      buffer
+        ..writeln()
+        ..writeln(_csvLine(const ['Liikmete panus']))
+        ..writeln(
+          _csvLine(
+            const ['Liige', 'Kinnitatud osalemisi', 'Kinnitatud tunnid'],
+          ),
+        );
+      for (final contribution in contributions) {
+        buffer.writeln(
+          _csvLine([
+            contribution.displayName,
+            contribution.confirmedParticipationCount.toString(),
+            _formatHours(contribution.confirmedParticipationHours),
+          ]),
+        );
+      }
+    }
+
+    return buffer.toString();
+  }
+
+  String _csvLine(List<String> cells) => cells.map(_csvCell).join(';');
+
+  String _csvCell(String value) {
+    final escaped = value.replaceAll('"', '""');
+    if (escaped.contains(';') ||
+        escaped.contains('"') ||
+        escaped.contains('\n') ||
+        escaped.contains('\r')) {
+      return '"$escaped"';
+    }
+    return escaped;
   }
 
   String _formatHours(double hours) {
