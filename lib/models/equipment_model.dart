@@ -58,6 +58,12 @@ class EquipmentModel {
     required this.nextMaintenanceDate,
     required this.note,
     required this.createdBy,
+    this.assignedToUserId = '',
+    this.assignedToName = '',
+    this.issuedAt,
+    this.issuedBy = '',
+    this.returnedAt,
+    this.returnedBy = '',
     this.createdAt,
     this.updatedAt,
   });
@@ -74,6 +80,12 @@ class EquipmentModel {
   final String nextMaintenanceDate;
   final String note;
   final String createdBy;
+  final String assignedToUserId;
+  final String assignedToName;
+  final DateTime? issuedAt;
+  final String issuedBy;
+  final DateTime? returnedAt;
+  final String returnedBy;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -104,6 +116,12 @@ class EquipmentModel {
       nextMaintenanceDate: _stringValue(data['nextMaintenanceDate']),
       note: _stringValue(data['note']),
       createdBy: _stringValue(data['createdBy']),
+      assignedToUserId: _stringValue(data['assignedToUserId']),
+      assignedToName: _stringValue(data['assignedToName']),
+      issuedAt: _dateTimeValue(data['issuedAt']),
+      issuedBy: _stringValue(data['issuedBy']),
+      returnedAt: _dateTimeValue(data['returnedAt']),
+      returnedBy: _stringValue(data['returnedBy']),
       createdAt: _dateTimeValue(data['createdAt']),
       updatedAt: _dateTimeValue(data['updatedAt']),
     );
@@ -123,12 +141,20 @@ class EquipmentModel {
       'nextMaintenanceDate': nextMaintenanceDate,
       'note': note,
       'createdBy': createdBy,
+      'assignedToUserId': assignedToUserId,
+      'assignedToName': assignedToName,
+      'issuedAt': issuedAt == null ? null : Timestamp.fromDate(issuedAt!),
+      'issuedBy': issuedBy,
+      'returnedAt': returnedAt == null ? null : Timestamp.fromDate(returnedAt!),
+      'returnedBy': returnedBy,
       'createdAt': createdAt == null ? null : Timestamp.fromDate(createdAt!),
       'updatedAt': updatedAt == null ? null : Timestamp.fromDate(updatedAt!),
     };
   }
 
   bool get isPersonal => scope == EquipmentScope.personal;
+
+  bool get isAssigned => assignedToUserId.isNotEmpty;
 }
 
 String _stringValue(Object? value, {String fallback = ''}) {

@@ -530,8 +530,10 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
 
   Widget _buildEquipmentTile(EquipmentModel item) {
     final maintenanceStatus = _maintenanceStatusLabel(item);
+    final assignmentStatus = _assignmentStatusLabel(item);
     final subtitleParts = [
       _equipmentCategoryLabel(item.category),
+      ?assignmentStatus,
       if (item.location.isNotEmpty) item.location,
       if (item.nextMaintenanceDate.isNotEmpty)
         'Hooldus ${item.nextMaintenanceDate}',
@@ -602,6 +604,16 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
         ],
       ),
     );
+  }
+
+  String? _assignmentStatusLabel(EquipmentModel item) {
+    if (item.isPersonal || !item.isAssigned) return null;
+    if (item.assignedToUserId == widget.currentUid) return 'Väljastatud mulle';
+
+    final assignedToName = item.assignedToName.trim();
+    return assignedToName.isEmpty
+        ? 'Väljastatud: ${item.assignedToUserId}'
+        : 'Väljastatud: $assignedToName';
   }
 
   String _equipmentCategoryLabel(String category) {
