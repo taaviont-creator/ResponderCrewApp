@@ -1,7 +1,9 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../models/equipment_model.dart';
 import '../services/equipment_service.dart';
+import '../services/membership_service.dart';
 import '../widgets/status_badge.dart';
 
 class EquipmentScreen extends StatefulWidget {
@@ -24,6 +26,7 @@ class EquipmentScreen extends StatefulWidget {
 
 class _EquipmentScreenState extends State<EquipmentScreen> {
   final _equipmentService = EquipmentService();
+  final _membershipService = MembershipService();
 
   @override
   void initState() {
@@ -391,6 +394,172 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
     }
   }
 
+  Future<void> _showIssueEquipmentDialog(EquipmentModel item) async {
+    if (!_canManageOrganizationAssignment(item)) return;
+
+    List<_EquipmentMemberOption> members;
+    try {
+      members = await _loadIssueMemberOptions();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Varustust ei saanud väljastada.')),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    if (members.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Liikmeid ei leitud.')),
+      );
+      return;
+    }
+
+    var selectedMember = members.first;
+    final member = await showDialog<_EquipmentMemberOption>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Text('Väljasta liikmele'),
+            content: DropdownButtonFormField<_EquipmentMemberOption>(
+              initialValue: selectedMember,
+              decoration: const InputDecoration(labelText: 'Liige'),
+              items: members.map((member) {
+                return DropdownMenuItem<_EquipmentMemberOption>(
+                  value: member,
+                  child: Text(member.label),
+                );
+              }).toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                setDialogState(() => selectedMember = value);
+              },
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Katkesta'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, selectedMember),
+                child: const Text('Väljasta'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    if (member == null) return;
+
+    try {
+      await _equipmentService.issueOrganizationEquipment(
+        equipmentId: item.id,
+        organizationId: widget.organizationId,
+        assignedToUserId: member.userId,
+        assignedToName: member.label,
+        issuedBy: widget.currentUid,
+        canManageOrganizationEquipment: widget.canManageEquipment,
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Varustus väljastatud.')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Varustust ei saanud väljastada.')),
+      );
+    }
+  }
+
+  Future<void> _markEquipmentReturned(EquipmentModel item) async {
+    if (!_canManageOrganizationAssignment(item)) return;
+
+    final shouldReturn = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Märgi tagastatuks'),
+        content: Text('Märkida "${item.name}" tagastatuks?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Katkesta'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Märgi tagastatuks'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldReturn != true) return;
+
+    try {
+      await _equipmentService.returnOrganizationEquipment(
+        equipmentId: item.id,
+        organizationId: widget.organizationId,
+        returnedBy: widget.currentUid,
+        canManageOrganizationEquipment: widget.canManageEquipment,
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Varustus märgitud tagastatuks.')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Varustust ei saanud tagastada.')),
+      );
+    }
+  }
+
+  Future<List<_EquipmentMemberOption>> _loadIssueMemberOptions() async {
+    final memberships = await _membershipService
+        .loadActiveMembershipsForOrganization(widget.organizationId.trim());
+    final members = await Future.wait(
+      memberships.map((membershipDoc) async {
+        final membership = membershipDoc.data();
+        final userId = _stringValue(membership['userId']);
+        if (userId.isEmpty) return null;
+
+        final userSnapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userId)
+            .get();
+        final userData = userSnapshot.data() ?? <String, dynamic>{};
+        final name = _firstString([
+          userData['name'],
+          membership['name'],
+          membership['displayName'],
+        ]);
+        final email = _firstString([
+          userData['email'],
+          membership['email'],
+          userData['normalizedEmail'],
+          membership['normalizedEmail'],
+        ]);
+        final label = name.isNotEmpty
+            ? name
+            : (email.isNotEmpty ? email : userId);
+
+        return _EquipmentMemberOption(
+          userId: userId,
+          label: label,
+        );
+      }),
+    );
+
+    final options = members.whereType<_EquipmentMemberOption>().toList();
+    options.sort((a, b) => a.label.compareTo(b.label));
+    return options;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -553,14 +722,49 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
             type: _equipmentStatusBadgeType(item.status),
             icon: _equipmentStatusIcon(item.status),
           ),
-          trailing: _canEditEquipment(item)
-              ? IconButton(
-                  icon: const Icon(Icons.edit),
-                  tooltip: 'Muuda varustust',
-                  onPressed: () => _showEditEquipmentDialog(item),
-                )
-              : null,
+          trailing: _buildEquipmentActions(item),
         ),
+      ],
+    );
+  }
+
+  Widget? _buildEquipmentActions(EquipmentModel item) {
+    if (!_canEditEquipment(item)) return null;
+
+    if (item.isPersonal) {
+      return IconButton(
+        icon: const Icon(Icons.edit),
+        tooltip: 'Muuda varustust',
+        onPressed: () => _showEditEquipmentDialog(item),
+      );
+    }
+
+    return PopupMenuButton<String>(
+      tooltip: 'Varustuse toimingud',
+      onSelected: (value) {
+        if (value == 'edit') {
+          _showEditEquipmentDialog(item);
+        } else if (value == 'issue') {
+          _showIssueEquipmentDialog(item);
+        } else if (value == 'return') {
+          _markEquipmentReturned(item);
+        }
+      },
+      itemBuilder: (context) => [
+        const PopupMenuItem<String>(
+          value: 'edit',
+          child: Text('Muuda varustust'),
+        ),
+        if (!item.isAssigned)
+          const PopupMenuItem<String>(
+            value: 'issue',
+            child: Text('Väljasta liikmele'),
+          ),
+        if (item.isAssigned)
+          const PopupMenuItem<String>(
+            value: 'return',
+            child: Text('Märgi tagastatuks'),
+          ),
       ],
     );
   }
@@ -616,6 +820,18 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
         : 'Väljastatud: $assignedToName';
   }
 
+  String _firstString(List<Object?> values) {
+    for (final value in values) {
+      final text = _stringValue(value);
+      if (text.isNotEmpty) return text;
+    }
+    return '';
+  }
+
+  String _stringValue(Object? value) {
+    return value is String ? value.trim() : '';
+  }
+
   String _equipmentCategoryLabel(String category) {
     switch (category) {
       case EquipmentCategory.vessel:
@@ -641,6 +857,10 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
           widget.canManageEquipment;
     }
     return widget.canManageEquipment;
+  }
+
+  bool _canManageOrganizationAssignment(EquipmentModel item) {
+    return widget.canManageEquipment && !item.isPersonal;
   }
 
   String _equipmentPermissionMessage(EquipmentModel item) {
@@ -705,4 +925,14 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
     }
     return null;
   }
+}
+
+class _EquipmentMemberOption {
+  const _EquipmentMemberOption({
+    required this.userId,
+    required this.label,
+  });
+
+  final String userId;
+  final String label;
 }
