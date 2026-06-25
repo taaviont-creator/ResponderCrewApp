@@ -902,6 +902,47 @@ service cloud.firestore {
         );
     }
 
+    function hasValidEquipmentAssignment(data) {
+      let organizationId =
+        organizationIdFromData(data);
+      return (
+          !data.keys().hasAny(['assignedToUserId']) ||
+          data.assignedToUserId == null ||
+          data.assignedToUserId == '' ||
+          (
+            equipmentScope(data) == 'organization' &&
+            data.assignedToUserId is string &&
+            data.assignedToUserId.size() > 0 &&
+            isActiveMemberOf(data.assignedToUserId, organizationId)
+          )
+        ) &&
+        (
+          !data.keys().hasAny(['assignedToName']) ||
+          data.assignedToName == null ||
+          data.assignedToName is string
+        ) &&
+        (
+          !data.keys().hasAny(['issuedAt']) ||
+          data.issuedAt == null ||
+          data.issuedAt is timestamp
+        ) &&
+        (
+          !data.keys().hasAny(['issuedBy']) ||
+          data.issuedBy == null ||
+          data.issuedBy is string
+        ) &&
+        (
+          !data.keys().hasAny(['returnedAt']) ||
+          data.returnedAt == null ||
+          data.returnedAt is timestamp
+        ) &&
+        (
+          !data.keys().hasAny(['returnedBy']) ||
+          data.returnedBy == null ||
+          data.returnedBy is string
+        );
+    }
+
     function isValidEquipmentData(data) {
       return data.keys().hasAll([
           'id',
@@ -926,6 +967,7 @@ service cloud.firestore {
         data.createdBy is string &&
         hasValidOrganizationReference(data) &&
         hasValidEquipmentOwnership(data) &&
+        hasValidEquipmentAssignment(data) &&
         isValidEquipmentCategory(data.category) &&
         isValidEquipmentStatus(data.status);
     }

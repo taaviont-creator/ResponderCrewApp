@@ -13,6 +13,9 @@ class EquipmentService {
   CollectionReference<Map<String, dynamic>> get _equipment =>
       _firestore.collection('equipment');
 
+  CollectionReference<Map<String, dynamic>> get _memberships =>
+      _firestore.collection('memberships');
+
   CollectionReference<Map<String, dynamic>> get _notifications =>
       _firestore.collection('notifications');
 
@@ -394,6 +397,163 @@ class EquipmentService {
     if (!canManageOrganizationEquipment) {
       throw Exception('Sul puudub õigus ühingu varustust muuta.');
     }
+  }
+
+  Future<void> issueOrganizationEquipment({
+    required String equipmentId,
+    required String organizationId,
+    required String assignedToUserId,
+    required String assignedToName,
+    required String issuedBy,
+    required bool canManageOrganizationEquipment,
+  }) async {
+    final trimmedEquipmentId = equipmentId.trim();
+    final trimmedOrganizationId = organizationId.trim();
+    final trimmedAssignedToUserId = assignedToUserId.trim();
+    final trimmedAssignedToName = assignedToName.trim();
+    final trimmedIssuedBy = issuedBy.trim();
+
+    _requireOrganizationId(trimmedOrganizationId);
+    if (!canManageOrganizationEquipment) {
+      throw Exception('Sul puudub õigus ühingu varustust väljastada.');
+    }
+    if (trimmedEquipmentId.isEmpty) {
+      throw Exception('Varustust ei leitud.');
+    }
+    if (trimmedAssignedToUserId.isEmpty) {
+      throw Exception('Liige on kohustuslik.');
+    }
+    if (trimmedAssignedToName.isEmpty) {
+      throw Exception('Liikme nimi on kohustuslik.');
+    }
+    if (trimmedIssuedBy.isEmpty) {
+      throw Exception('Väljastaja puudub.');
+    }
+
+    final equipmentDoc = _equipment.doc(trimmedEquipmentId);
+    final membershipDoc = _memberships.doc(
+      _membershipId(
+        userId: trimmedAssignedToUserId,
+        organizationId: trimmedOrganizationId,
+      ),
+    );
+
+    await _firestore.runTransaction((transaction) async {
+      final equipmentSnapshot = await transaction.get(equipmentDoc);
+      final equipment = equipmentSnapshot.data();
+      if (equipment == null) {
+        throw Exception('Varustust ei leitud.');
+      }
+
+      _validateOrganizationEquipmentForAssignment(
+        equipment: equipment,
+        organizationId: trimmedOrganizationId,
+      );
+
+      final membershipSnapshot = await transaction.get(membershipDoc);
+      final membership = membershipSnapshot.data();
+      if (membership == null ||
+          !_isActiveMembership(membership) ||
+          _organizationIdFromData(membership) != trimmedOrganizationId) {
+        throw Exception('Liige ei kuulu aktiivselt sellesse ühingusse.');
+      }
+
+      transaction.set(equipmentDoc, {
+        'assignedToUserId': trimmedAssignedToUserId,
+        'assignedToName': trimmedAssignedToName,
+        'issuedAt': FieldValue.serverTimestamp(),
+        'issuedBy': trimmedIssuedBy,
+        'returnedAt': null,
+        'returnedBy': '',
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    });
+  }
+
+  Future<void> returnOrganizationEquipment({
+    required String equipmentId,
+    required String organizationId,
+    required String returnedBy,
+    required bool canManageOrganizationEquipment,
+  }) async {
+    final trimmedEquipmentId = equipmentId.trim();
+    final trimmedOrganizationId = organizationId.trim();
+    final trimmedReturnedBy = returnedBy.trim();
+
+    _requireOrganizationId(trimmedOrganizationId);
+    if (!canManageOrganizationEquipment) {
+      throw Exception('Sul puudub õigus ühingu varustust tagastada.');
+    }
+    if (trimmedEquipmentId.isEmpty) {
+      throw Exception('Varustust ei leitud.');
+    }
+    if (trimmedReturnedBy.isEmpty) {
+      throw Exception('Tagastaja puudub.');
+    }
+
+    final equipmentDoc = _equipment.doc(trimmedEquipmentId);
+
+    await _firestore.runTransaction((transaction) async {
+      final equipmentSnapshot = await transaction.get(equipmentDoc);
+      final equipment = equipmentSnapshot.data();
+      if (equipment == null) {
+        throw Exception('Varustust ei leitud.');
+      }
+
+      _validateOrganizationEquipmentForAssignment(
+        equipment: equipment,
+        organizationId: trimmedOrganizationId,
+      );
+
+      final assignedToUserId =
+          (equipment['assignedToUserId'] ?? '').toString().trim();
+      if (assignedToUserId.isEmpty) {
+        throw Exception('Varustus ei ole väljastatud.');
+      }
+
+      transaction.set(equipmentDoc, {
+        'assignedToUserId': '',
+        'assignedToName': '',
+        'returnedAt': FieldValue.serverTimestamp(),
+        'returnedBy': trimmedReturnedBy,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    });
+  }
+
+  void _validateOrganizationEquipmentForAssignment({
+    required Map<String, dynamic> equipment,
+    required String organizationId,
+  }) {
+    if (_organizationIdFromData(equipment) != organizationId) {
+      throw Exception('Varustus kuulub teise ühingusse.');
+    }
+    if (_equipmentScope(equipment) != EquipmentScope.organization) {
+      throw Exception('Väljastada saab ainult ühingu varustust.');
+    }
+  }
+
+  String _membershipId({
+    required String userId,
+    required String organizationId,
+  }) {
+    return '${userId}_$organizationId';
+  }
+
+  String _organizationIdFromData(Map<String, dynamic> data) {
+    final organizationId = (data['organizationId'] ?? '').toString().trim();
+    if (organizationId.isNotEmpty) return organizationId;
+    return (data['commandId'] ?? '').toString().trim();
+  }
+
+  bool _isActiveMembership(Map<String, dynamic> membership) {
+    final hasActiveMarker =
+        membership['status'] == 'active' || membership['isActive'] == true;
+    final statusIsActive = !membership.containsKey('status') ||
+        membership['status'] == 'active';
+    final flagIsActive = !membership.containsKey('isActive') ||
+        membership['isActive'] == true;
+    return hasActiveMarker && statusIsActive && flagIsActive;
   }
 
   Future<void> checkMaintenanceDueNotifications({
