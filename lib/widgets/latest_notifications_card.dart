@@ -8,11 +8,13 @@ class LatestNotificationsCard extends StatelessWidget {
   const LatestNotificationsCard({
     super.key,
     required this.organizationId,
+    required this.currentUid,
     required this.onTap,
     this.usePriorityIcons = false,
   });
 
   final String organizationId;
+  final String currentUid;
   final VoidCallback onTap;
   final bool usePriorityIcons;
 
@@ -39,24 +41,52 @@ class LatestNotificationsCard extends StatelessWidget {
           );
         }
 
-        return AppSectionCard(
-          padding: EdgeInsets.zero,
-          child: Material(
-            color: Colors.transparent,
-            child: Column(
-              children: [
-                for (var index = 0; index < notifications.length; index++) ...[
-                  _NotificationTile(
-                    notification: notifications[index],
-                    onTap: onTap,
-                    usePriorityIcon: usePriorityIcons,
-                  ),
-                  if (index < notifications.length - 1)
-                    const Divider(height: 1),
-                ],
-              ],
-            ),
+        return StreamBuilder<Set<String>>(
+          stream: _notificationService.streamMyReadNotificationIds(
+            userId: currentUid,
+            organizationId: organizationId,
           ),
+          builder: (context, readSnapshot) {
+            final readNotificationIds =
+                readSnapshot.data ?? const <String>{};
+            final hasReadState = readSnapshot.hasData;
+
+            return AppSectionCard(
+              padding: EdgeInsets.zero,
+              child: Material(
+                color: Colors.transparent,
+                child: Column(
+                  children: [
+                    for (var index = 0;
+                        index < notifications.length;
+                        index++) ...[
+                      _NotificationTile(
+                        notification: notifications[index],
+                        onTap: onTap,
+                        usePriorityIcon: usePriorityIcons,
+                        isRead: hasReadState &&
+                            readNotificationIds.contains(
+                              notifications[index].id,
+                            ),
+                        showReadState: hasReadState,
+                      ),
+                      if (index < notifications.length - 1)
+                        const Divider(height: 1),
+                    ],
+                    const Divider(height: 1),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        onPressed: onTap,
+                        icon: const Icon(Icons.arrow_forward, size: 18),
+                        label: const Text('Kõik teavitused'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
         );
       },
     );
@@ -68,16 +98,24 @@ class _NotificationTile extends StatelessWidget {
     required this.notification,
     required this.onTap,
     required this.usePriorityIcon,
+    required this.isRead,
+    required this.showReadState,
   });
 
   final NotificationModel notification;
   final VoidCallback onTap;
   final bool usePriorityIcon;
+  final bool isRead;
+  final bool showReadState;
 
   @override
   Widget build(BuildContext context) {
     final Widget iconWidget;
     final double spacing;
+    final unread = showReadState && !isRead;
+    final titleColor = isRead ? AppColors.textSecondary : AppColors.textPrimary;
+    final bodyColor = isRead ? AppColors.textSecondary : null;
+    final titleWeight = unread ? FontWeight.w700 : FontWeight.w500;
 
     if (usePriorityIcon) {
       iconWidget = Icon(
@@ -86,15 +124,17 @@ class _NotificationTile extends StatelessWidget {
             ? Icons.warning_amber_rounded
             : Icons.circle,
         size: notification.priority == NotificationPriority.normal ? 10 : 22,
-        color: notification.priority == NotificationPriority.critical
-            ? AppColors.critical
-            : AppColors.navy,
+        color: isRead
+            ? AppColors.textSecondary
+            : (notification.priority == NotificationPriority.critical
+                ? AppColors.critical
+                : AppColors.navy),
       );
       spacing = 14;
     } else {
-      iconWidget = const Icon(
+      iconWidget = Icon(
         Icons.notifications_outlined,
-        color: AppColors.navy,
+        color: isRead ? AppColors.textSecondary : AppColors.navy,
       );
       spacing = 12;
     }
@@ -112,9 +152,26 @@ class _NotificationTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    notification.title,
-                    style: Theme.of(context).textTheme.titleMedium,
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          notification.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    color: titleColor,
+                                    fontWeight: titleWeight,
+                                  ),
+                        ),
+                      ),
+                      if (unread) ...[
+                        const SizedBox(width: 8),
+                        const _UnreadBadge(),
+                      ],
+                    ],
                   ),
                   if (notification.message.isNotEmpty) ...[
                     const SizedBox(height: 4),
@@ -122,6 +179,9 @@ class _NotificationTile extends StatelessWidget {
                       notification.message,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: bodyColor,
+                          ),
                     ),
                   ],
                 ],
@@ -134,6 +194,28 @@ class _NotificationTile extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _UnreadBadge extends StatelessWidget {
+  const _UnreadBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: AppColors.deepSeaBlue.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        'Uus',
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: AppColors.deepSeaBlue,
+              fontWeight: FontWeight.w700,
+            ),
       ),
     );
   }
