@@ -361,40 +361,63 @@ class _HomeScreenState extends State<HomeScreen> {
             currentActiveCommandId.isEmpty);
 
     return [
-      IconButton(
-        onPressed: _signOut,
-        icon: const Icon(Icons.logout),
-        tooltip: 'Logi välja',
-      ),
-      IconButton(
-        icon: const Icon(Icons.swap_horiz),
-        tooltip: 'Vaheta organisatsiooni',
-        onPressed: !canSelectOrganization
-            ? null
-            : () => _showSwitchOrganizationDialog(
-                  membershipDocs: membershipDocs,
-                  currentActiveCommandId: currentActiveCommandId,
-                ),
-      ),
-      IconButton(
-        icon: const Icon(Icons.exit_to_app),
-        tooltip: 'Lahku organisatsioonist',
-        onPressed: currentActiveCommandId == null || currentActiveCommandId.isEmpty
-            ? null
-            : () => _showLeaveOrganizationDialog(
-                  commandId: currentActiveCommandId,
-                  commandName: currentCommandName,
-                ),
-      ),
-      IconButton(
-        icon: const Icon(Icons.vpn_key),
-        tooltip: 'Liitu koodiga',
-        onPressed: _showJoinCommandDialog,
-      ),
-      IconButton(
-        icon: const Icon(Icons.group_add),
-        tooltip: 'Loo komando',
-        onPressed: _showCreateCommandDialog,
+      PopupMenuButton<String>(
+        tooltip: 'Toimingud',
+        icon: const Icon(Icons.more_vert),
+        onSelected: (value) {
+          switch (value) {
+            case 'switch':
+              _showSwitchOrganizationDialog(
+                membershipDocs: membershipDocs,
+                currentActiveCommandId: currentActiveCommandId,
+              );
+              break;
+            case 'join':
+              _showJoinCommandDialog();
+              break;
+            case 'create':
+              _showCreateCommandDialog();
+              break;
+            case 'leave':
+              if (currentActiveCommandId == null ||
+                  currentActiveCommandId.isEmpty) {
+                return;
+              }
+              _showLeaveOrganizationDialog(
+                commandId: currentActiveCommandId,
+                commandName: currentCommandName,
+              );
+              break;
+            case 'signOut':
+              _signOut();
+              break;
+          }
+        },
+        itemBuilder: (context) => [
+          if (canSelectOrganization)
+            const PopupMenuItem(
+              value: 'switch',
+              child: Text('Vaheta ühingut'),
+            ),
+          const PopupMenuItem(
+            value: 'join',
+            child: Text('Liitu koodiga'),
+          ),
+          const PopupMenuItem(
+            value: 'create',
+            child: Text('Loo ühing'),
+          ),
+          if (currentActiveCommandId != null &&
+              currentActiveCommandId.isNotEmpty)
+            const PopupMenuItem(
+              value: 'leave',
+              child: Text('Lahku ühingust'),
+            ),
+          const PopupMenuItem(
+            value: 'signOut',
+            child: Text('Logi välja'),
+          ),
+        ],
       ),
     ];
   }
