@@ -533,6 +533,118 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  String _homeRoleLabel({
+    required bool isPlatformAdmin,
+    required String? membershipRole,
+  }) {
+    final hasOrganizationRole =
+        membershipRole != null && membershipRole.trim().isNotEmpty;
+    final organizationRoleLabel = MembershipRole.isOrgAdmin(membershipRole)
+        ? 'Admin'
+        : hasOrganizationRole
+            ? 'Liige'
+            : 'Roll puudub';
+
+    if (isPlatformAdmin && MembershipRole.isOrgAdmin(membershipRole)) {
+      return 'Admin / platvorm';
+    }
+    if (isPlatformAdmin) {
+      return 'Platvormi admin';
+    }
+    return organizationRoleLabel;
+  }
+
+  Widget _buildCompactOperationalHeader({
+    required String displayName,
+    required String? commandId,
+    required String? commandName,
+    required bool isPlatformAdmin,
+    required String? membershipRole,
+    required List<QueryDocumentSnapshot<Map<String, dynamic>>> membershipDocs,
+  }) {
+    final theme = Theme.of(context);
+    final activeOrganizationName =
+        commandName != null && commandName.trim().isNotEmpty
+            ? commandName.trim()
+            : commandId;
+    final organizationCount =
+        _organizationIdsFromMembershipDocs(membershipDocs).length;
+    final roleLabel = _homeRoleLabel(
+      isPlatformAdmin: isPlatformAdmin,
+      membershipRole: membershipRole,
+    );
+
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'RespondCrew',
+                        style: theme.textTheme.titleLarge,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        displayName,
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    roleLabel,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: theme.colorScheme.onPrimaryContainer,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Aktiivne ühing',
+              style: theme.textTheme.labelMedium,
+            ),
+            const SizedBox(height: 4),
+            if (commandId != null &&
+                commandId.isNotEmpty &&
+                organizationCount > 1)
+              _buildOrganizationSelector(
+                activeOrganizationId: commandId,
+                membershipDocs: membershipDocs,
+              )
+            else
+              Text(
+                activeOrganizationName ?? 'Puudub',
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildMissingOrganizationState({
     required bool hasMemberships,
     required List<QueryDocumentSnapshot<Map<String, dynamic>>> membershipDocs,
@@ -674,26 +786,26 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Tere, $displayName',
-            style: Theme.of(context).textTheme.titleLarge,
+          _buildCompactOperationalHeader(
+            displayName: displayName,
+            commandId: commandId,
+            commandName: commandName,
+            isPlatformAdmin: isPlatformAdmin,
+            membershipRole: membershipRole,
+            membershipDocs: membershipDocs,
           ),
-          const SizedBox(height: 8),
-          Text('Komando ID: ${commandId ?? "PUUDUB"}'),
-          if (commandName != null && commandName.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text('Komando nimi: $commandName'),
-          ],
-          if (commandId != null && commandId.isNotEmpty)
-            _buildOrganizationSelector(
-              activeOrganizationId: commandId,
-              membershipDocs: membershipDocs,
+          if (commandId != null && commandId.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _buildAvailabilityControl(
+              user: user,
+              organizationId: commandId,
+              memberName: displayName,
             ),
-          const SizedBox(height: 4),
-          Text(
-            'Minu roll: ${membershipRole ?? "puudub"}'
-            '${isPlatformAdmin ? " • platformAdmin" : ""}',
-          ),
+            if (permissions.canManageOrganization) ...[
+              const SizedBox(height: 16),
+              _buildReadinessSummary(organizationId: commandId),
+            ],
+          ],
           if (canSeeJoinCode && joinCode != null && joinCode.isNotEmpty) ...[
             const SizedBox(height: 12),
             Card(
@@ -846,16 +958,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
           if (commandId != null && commandId.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            _buildAvailabilityControl(
-              user: user,
-              organizationId: commandId,
-              memberName: displayName,
-            ),
-            if (permissions.canManageOrganization) ...[
-              const SizedBox(height: 16),
-              _buildReadinessSummary(organizationId: commandId),
-            ],
             const SizedBox(height: 16),
             Text(
               'Moodulid',
