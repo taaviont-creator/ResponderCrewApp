@@ -96,7 +96,7 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
         _buildMinimumCrewCompact(),
         const SizedBox(height: AppTheme.sectionSpacing),
         _SectionTitle(
-          title: 'Viimane väljakutse',
+          title: 'Aktiivne väljakutse',
           onOpen: widget.onOpenCallouts,
         ),
         const SizedBox(height: AppTheme.itemSpacing),
@@ -654,7 +654,9 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
                   ],
                 ),
               ],
-              const SizedBox(height: 18),
+              const SizedBox(height: 14),
+              _buildMyCalloutResponseStatus(callout.id),
+              const SizedBox(height: 14),
               SizedBox(
                 width: double.infinity,
                 height: AppTheme.primaryActionHeight,
@@ -669,7 +671,7 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
                     ),
                   ),
                   icon: const Icon(Icons.campaign),
-                  label: const Text('AVA VÄLJAKUTSE'),
+                  label: const Text('Ava väljakutse'),
                 ),
               ),
             ],
@@ -677,6 +679,42 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
         );
       },
     );
+  }
+
+  Widget _buildMyCalloutResponseStatus(String calloutId) {
+    return StreamBuilder<CalloutResponseModel?>(
+      stream: _calloutService.streamMyResponse(
+        calloutId: calloutId,
+        userId: widget.currentUid,
+        organizationId: widget.organizationId,
+      ),
+      builder: (context, snapshot) {
+        final response = snapshot.data;
+        final color = switch (response?.response) {
+          CalloutResponseValue.responding => AppColors.ready,
+          CalloutResponseValue.delayed => AppColors.delayed,
+          CalloutResponseValue.unavailable => AppColors.critical,
+          _ => AppColors.textSecondary,
+        };
+
+        return Text(
+          _myCalloutResponseLabel(response),
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: color,
+                fontWeight: FontWeight.w600,
+              ),
+        );
+      },
+    );
+  }
+
+  String _myCalloutResponseLabel(CalloutResponseModel? response) {
+    return switch (response?.response) {
+      CalloutResponseValue.responding => 'Sinu vastus: Tulen',
+      CalloutResponseValue.delayed => 'Sinu vastus: Hilinen',
+      CalloutResponseValue.unavailable => 'Sinu vastus: Ei tule',
+      _ => 'Vastus puudub',
+    };
   }
 
   Widget _buildUpcomingActivity() {

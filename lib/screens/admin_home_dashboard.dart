@@ -25,6 +25,7 @@ class AdminHomeDashboard extends StatelessWidget {
     super.key,
     required this.organizationId,
     required this.organizationName,
+    required this.currentUid,
     required this.onCreateCallout,
     required this.onCreateActivity,
     required this.onCreateEquipment,
@@ -36,6 +37,7 @@ class AdminHomeDashboard extends StatelessWidget {
 
   final String organizationId;
   final String? organizationName;
+  final String currentUid;
   final VoidCallback onCreateCallout;
   final VoidCallback onCreateActivity;
   final VoidCallback onCreateEquipment;
@@ -101,7 +103,7 @@ class AdminHomeDashboard extends StatelessWidget {
         _buildEquipmentAlerts(),
         const SizedBox(height: AppTheme.sectionSpacing),
         _SectionTitle(
-          title: 'Aktiivsed väljakutsed',
+          title: 'Aktiivne väljakutse',
           onOpen: onOpenCallouts,
         ),
         const SizedBox(height: AppTheme.itemSpacing),
@@ -469,12 +471,31 @@ class AdminHomeDashboard extends StatelessWidget {
                                   ),
                         ),
                       ],
+                      const SizedBox(height: 8),
+                      _buildMyCalloutResponseStatus(
+                        context,
+                        callout.id,
+                      ),
                     ],
                   ),
                 ),
-                const Icon(
-                  Icons.chevron_right,
-                  color: AppColors.textSecondary,
+                const SizedBox(width: 8),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      'Ava väljakutse',
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                            color: AppColors.activeCallout,
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Icon(
+                      Icons.chevron_right,
+                      color: AppColors.textSecondary,
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -482,6 +503,45 @@ class AdminHomeDashboard extends StatelessWidget {
         );
       },
     );
+  }
+
+  Widget _buildMyCalloutResponseStatus(
+    BuildContext context,
+    String calloutId,
+  ) {
+    return StreamBuilder<CalloutResponseModel?>(
+      stream: _calloutService.streamMyResponse(
+        calloutId: calloutId,
+        userId: currentUid,
+        organizationId: organizationId,
+      ),
+      builder: (context, snapshot) {
+        final response = snapshot.data;
+        final color = switch (response?.response) {
+          CalloutResponseValue.responding => AppColors.ready,
+          CalloutResponseValue.delayed => AppColors.delayed,
+          CalloutResponseValue.unavailable => AppColors.critical,
+          _ => AppColors.textSecondary,
+        };
+
+        return Text(
+          _myCalloutResponseLabel(response),
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: color,
+                fontWeight: FontWeight.w600,
+              ),
+        );
+      },
+    );
+  }
+
+  String _myCalloutResponseLabel(CalloutResponseModel? response) {
+    return switch (response?.response) {
+      CalloutResponseValue.responding => 'Sinu vastus: Tulen',
+      CalloutResponseValue.delayed => 'Sinu vastus: Hilinen',
+      CalloutResponseValue.unavailable => 'Sinu vastus: Ei tule',
+      _ => 'Vastus puudub',
+    };
   }
 
   Widget _buildLatestNotifications() {

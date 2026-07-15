@@ -1829,6 +1829,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ? AdminHomeDashboard(
                           organizationId: selectedOrganizationId,
                           organizationName: commandName,
+                          currentUid: user.uid,
                           onCreateCallout: () {
                             Navigator.push(
                               context,
