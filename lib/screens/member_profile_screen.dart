@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../models/activity_model.dart';
 import '../models/availability_model.dart';
 import '../models/certificate_model.dart';
 import '../models/equipment_model.dart';
 import '../models/membership_model.dart';
+import '../services/activity_service.dart';
 import '../services/availability_service.dart';
 import '../services/certificate_service.dart';
 import '../services/equipment_service.dart';
@@ -34,6 +36,7 @@ class MemberProfileScreen extends StatefulWidget {
 }
 
 class _MemberProfileScreenState extends State<MemberProfileScreen> {
+  final _activityService = ActivityService();
   final _availabilityService = AvailabilityService();
   final _certificateService = CertificateService();
   final _equipmentService = EquipmentService();
@@ -423,6 +426,140 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
     );
   }
 
+  bool get _canViewTargetParticipation =>
+      _isOwnProfile || _canManageProfileMembership;
+
+  DateTime? _activityDate(ActivityModel activity) {
+    final parsedStart = DateTime.tryParse(activity.startTime.trim());
+    return parsedStart ?? activity.createdAt;
+  }
+
+  String _activityDateLabel(ActivityModel activity) {
+    final startTime = activity.startTime.trim();
+    if (startTime.isNotEmpty) return startTime;
+
+    final createdAt = activity.createdAt;
+    if (createdAt == null) return '';
+    return [
+      createdAt.year.toString().padLeft(4, '0'),
+      createdAt.month.toString().padLeft(2, '0'),
+      createdAt.day.toString().padLeft(2, '0'),
+    ].join('-');
+  }
+
+  String _hoursLabel(double hours) {
+    if (hours == hours.roundToDouble()) {
+      return hours.toStringAsFixed(0);
+    }
+    return hours.toStringAsFixed(1);
+  }
+
+  Widget _buildActivityContributionSection() {
+    if (!_canViewTargetParticipation) {
+      return const SizedBox.shrink();
+    }
+    if (_targetUid.isEmpty || widget.organizationId.trim().isEmpty) {
+      return const _ProfileRow(
+        label: 'Tegevused ja koolitused',
+        value: 'Kinnitatud osalemisi ei ole.',
+      );
+    }
+
+    return StreamBuilder<List<ActivityModel>>(
+      stream: _activityService.streamOrganizationActivities(
+        organizationId: widget.organizationId,
+      ),
+      builder: (context, activitiesSnapshot) {
+        final activities = activitiesSnapshot.data ?? const <ActivityModel>[];
+        final activityById = {
+          for (final activity in activities) activity.id: activity,
+        };
+
+        return StreamBuilder<List<ActivityParticipantModel>>(
+          stream: _activityService.streamUserParticipations(
+            organizationId: widget.organizationId,
+            userId: _targetUid,
+          ),
+          builder: (context, participantsSnapshot) {
+            final confirmedParticipations = (participantsSnapshot.data ??
+                    const <ActivityParticipantModel>[])
+                .where(
+                  (participant) =>
+                      participant.attendanceStatus ==
+                          ActivityAttendanceStatus.confirmed &&
+                      activityById.containsKey(participant.activityId),
+                )
+                .toList();
+
+            if (confirmedParticipations.isEmpty) {
+              return const _ProfileRow(
+                label: 'Tegevused ja koolitused',
+                value: 'Kinnitatud osalemisi ei ole.',
+              );
+            }
+
+            confirmedParticipations.sort((a, b) {
+              final aDate = _activityDate(activityById[a.activityId]!);
+              final bDate = _activityDate(activityById[b.activityId]!);
+              if (aDate == null && bDate == null) {
+                return a.activityId.compareTo(b.activityId);
+              }
+              if (aDate == null) return 1;
+              if (bDate == null) return -1;
+              return bDate.compareTo(aDate);
+            });
+
+            final confirmedHours = confirmedParticipations.fold<double>(
+              0,
+              (sum, participant) => sum + (participant.hours ?? 0),
+            );
+            final latestParticipations =
+                confirmedParticipations.take(3).toList(growable: false);
+
+            return Card(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                      child: Text(
+                        'Tegevused ja koolitused',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                      child: Text(
+                        [
+                          'Kinnitatud osalemisi: ${confirmedParticipations.length}',
+                          'Kinnitatud tunnid: ${_hoursLabel(confirmedHours)}',
+                        ].join('\n'),
+                      ),
+                    ),
+                    ...latestParticipations.map(
+                      (participant) => _ActivityContributionTile(
+                        activity: activityById[participant.activityId]!,
+                        participant: participant,
+                        dateLabel: _activityDateLabel(
+                          activityById[participant.activityId]!,
+                        ),
+                        hoursLabel: participant.hours == null
+                            ? null
+                            : _hoursLabel(participant.hours!),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   Future<void> _editOwnProfile() async {
     if (!_isOwnProfile) return;
 
@@ -665,6 +802,7 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
           _buildAvailabilitySection(),
           _buildEquipmentSection(),
           _buildCertificatesSection(),
+          _buildActivityContributionSection(),
           if (_isOwnProfile) ...[
             const SizedBox(height: 8),
             Card(
@@ -824,6 +962,37 @@ class _CertificateTile extends StatelessWidget {
           if (certificate.title.trim().isNotEmpty) typeLabel,
           if (expiresAt.isNotEmpty) 'Kehtib kuni: $expiresAt',
           'Staatus: $statusLabel',
+        ].join('\n'),
+      ),
+    );
+  }
+}
+
+class _ActivityContributionTile extends StatelessWidget {
+  const _ActivityContributionTile({
+    required this.activity,
+    required this.participant,
+    required this.dateLabel,
+    required this.hoursLabel,
+  });
+
+  final ActivityModel activity;
+  final ActivityParticipantModel participant;
+  final String dateLabel;
+  final String? hoursLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      dense: true,
+      title: Text(activity.title.trim().isEmpty
+          ? 'Tegevused ja koolitused'
+          : activity.title.trim()),
+      subtitle: Text(
+        [
+          if (dateLabel.isNotEmpty) 'Kuupäev: $dateLabel',
+          if (participant.hours != null && hoursLabel != null)
+            'Tunnid: $hoursLabel',
         ].join('\n'),
       ),
     );

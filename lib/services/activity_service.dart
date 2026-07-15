@@ -73,6 +73,52 @@ class ActivityService {
     });
   }
 
+  Stream<List<ActivityParticipantModel>> streamUserParticipations({
+    required String organizationId,
+    required String userId,
+  }) {
+    final trimmedOrganizationId = organizationId.trim();
+    final trimmedUserId = userId.trim();
+    _requireOrganizationId(trimmedOrganizationId);
+    if (trimmedUserId.isEmpty) {
+      return Stream.value(const <ActivityParticipantModel>[]);
+    }
+
+    return _participants
+        .where('userId', isEqualTo: trimmedUserId)
+        .where(
+          Filter.or(
+            Filter('organizationId', isEqualTo: trimmedOrganizationId),
+            // TODO: Remove commandId fallback after participation migration.
+            Filter('commandId', isEqualTo: trimmedOrganizationId),
+          ),
+        )
+        .snapshots()
+        .map((snapshot) {
+      final participants = snapshot.docs
+          .map(ActivityParticipantModel.fromFirestore)
+          .where((participant) {
+        final participantOrganizationId = participant.organizationId.isNotEmpty
+            ? participant.organizationId
+            : participant.commandId;
+        return participant.userId == trimmedUserId &&
+            participantOrganizationId == trimmedOrganizationId;
+      }).toList();
+
+      participants.sort((a, b) {
+        final aTime = a.confirmedAt ?? a.updatedAt ?? a.createdAt;
+        final bTime = b.confirmedAt ?? b.updatedAt ?? b.createdAt;
+        if (aTime == null && bTime == null) {
+          return a.activityId.compareTo(b.activityId);
+        }
+        if (aTime == null) return 1;
+        if (bTime == null) return -1;
+        return bTime.compareTo(aTime);
+      });
+      return participants;
+    });
+  }
+
   Stream<bool> streamCanConfirmParticipation({
     required String organizationId,
     required String userId,
