@@ -1208,10 +1208,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     var onDutyCount = 0;
                     var delayedCount = 0;
                     var offDutyCount = 0;
+                    var effectiveOnDutySecondLevelCount = 0;
 
                     for (final membershipDoc in activeMemberships) {
+                      final membershipData = membershipDoc.data();
                       final userId =
-                          (membershipDoc.data()['userId'] ?? '').toString();
+                          (membershipData['userId'] ?? '').toString();
                       final availability = availabilityByUserId[userId];
                       final manualStatus =
                           availability?.status ?? AvailabilityStatus.offDuty;
@@ -1225,6 +1227,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
                       if (status == AvailabilityStatus.onDuty) {
                         onDutyCount++;
+                        if (SeaRescueLevel.isLevel2(
+                          membershipData['seaRescueLevel'],
+                        )) {
+                          effectiveOnDutySecondLevelCount++;
+                        }
                       } else if (status == AvailabilityStatus.delayed) {
                         delayedCount++;
                       } else {
@@ -1232,8 +1239,29 @@ class _HomeScreenState extends State<HomeScreen> {
                       }
                     }
 
-                    return Card(
-                      child: Padding(
+                    return StreamBuilder<List<PlatformReadinessSummary>>(
+                      stream: _platformReadinessService.streamOrganizationSummary(
+                        organizationId: organizationId,
+                      ),
+                      builder: (context, readinessSnapshot) {
+                        final summaries = readinessSnapshot.data ??
+                            const <PlatformReadinessSummary>[];
+                        final summary =
+                            summaries.isEmpty ? null : summaries.first;
+                        final minimumCrewRequired =
+                            summary?.minimumCrewRequired ?? 0;
+                        final minimumCrewMet = minimumCrewRequired > 0 &&
+                            onDutyCount >= minimumCrewRequired;
+                        final secondLevelMet =
+                            effectiveOnDutySecondLevelCount >= 1;
+                        final responseReady =
+                            minimumCrewMet && secondLevelMet;
+                        final readinessColor = responseReady
+                            ? Colors.green.shade700
+                            : Colors.red.shade700;
+
+                        return Card(
+                          child: Padding(
                         padding: const EdgeInsets.all(16),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1247,8 +1275,35 @@ class _HomeScreenState extends State<HomeScreen> {
                                 Text('Valves: $onDutyCount'),
                                 Text('Hilinen: $delayedCount'),
                                 Text('Ei ole valves: $offDutyCount'),
+                                Text(
+                                  'II aste valves: '
+                                  '$effectiveOnDutySecondLevelCount',
+                                ),
                               ],
                             ),
+                            const SizedBox(height: 8),
+                            Text(
+                              responseReady
+                                  ? 'Ühing on reageerimisvalmis'
+                                  : 'Ühing ei ole reageerimisvalmis',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(
+                                    color: readinessColor,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                            ),
+                            if (!secondLevelMet) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                'II astme merepäästja puudub',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(color: Colors.red[700]),
+                              ),
+                            ],
                             const SizedBox(height: 8),
                             Text(
                               'Valves liikmete arv arvestab aktiivseid '
