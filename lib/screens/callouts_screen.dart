@@ -251,6 +251,7 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
                       organizationId: widget.organizationId,
                       currentUid: widget.currentUid,
                       calloutService: _calloutService,
+                      canViewResponseSummary: widget.canManageCallouts,
                       onTap: () => _openCallout(callout),
                     ),
                   ),
@@ -277,6 +278,7 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
                       organizationId: widget.organizationId,
                       currentUid: widget.currentUid,
                       calloutService: _calloutService,
+                      canViewResponseSummary: widget.canManageCallouts,
                       onTap: () => _openCallout(callout),
                     ),
                   ),
@@ -296,6 +298,7 @@ class _CalloutCard extends StatelessWidget {
     required this.organizationId,
     required this.currentUid,
     required this.calloutService,
+    required this.canViewResponseSummary,
     required this.onTap,
   });
 
@@ -303,6 +306,7 @@ class _CalloutCard extends StatelessWidget {
   final String organizationId;
   final String currentUid;
   final CalloutService calloutService;
+  final bool canViewResponseSummary;
   final VoidCallback onTap;
 
   bool get _isActive => callout.status == CalloutStatus.active;
@@ -380,8 +384,10 @@ class _CalloutCard extends StatelessWidget {
                   const Icon(Icons.chevron_right),
                 ],
               ),
-              const SizedBox(height: 10),
-              _buildResponseSummary(context),
+              if (canViewResponseSummary) ...[
+                const SizedBox(height: 10),
+                _buildResponseSummary(context),
+              ],
             ],
           ),
         ),

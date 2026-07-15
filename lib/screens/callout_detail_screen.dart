@@ -306,8 +306,10 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
           const SizedBox(height: AppTheme.itemSpacing),
           _buildOperationLogAction(),
           const SizedBox(height: AppTheme.itemSpacing),
-          _buildResponseSummary(),
-          const SizedBox(height: AppTheme.sectionSpacing),
+          if (widget.canManageCallouts) ...[
+            _buildResponseSummary(),
+            const SizedBox(height: AppTheme.sectionSpacing),
+          ],
           _buildResponseActions(),
           if (widget.canCloseCallouts && _isActive) ...[
             const SizedBox(height: AppTheme.sectionSpacing),
