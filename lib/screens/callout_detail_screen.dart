@@ -82,11 +82,11 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Vali eeldatav viivitus.'),
+              const Text('Eeldatav hilinemine'),
               const SizedBox(height: 12),
               DropdownButtonFormField<int>(
                 initialValue: selectedMinutes,
-                decoration: const InputDecoration(labelText: 'Hilinen'),
+                decoration: const InputDecoration(labelText: 'Hilinen umbes'),
                 items: const [
                   DropdownMenuItem(value: 15, child: Text('15 minutit')),
                   DropdownMenuItem(value: 30, child: Text('30 minutit')),
@@ -162,12 +162,12 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vastus uuendatud')),
+        const SnackBar(content: Text('Vastus salvestatud.')),
       );
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Vastuse salvestamine ebaõnnestus: $error')),
+        const SnackBar(content: Text('Vastust ei saanud salvestada.')),
       );
     } finally {
       if (mounted) setState(() => _isSavingResponse = false);
@@ -556,7 +556,7 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
               const _ClosedResponseNotice()
             else ...[
               PrimaryActionButton(
-                label: 'Vastan',
+                label: 'Tulen',
                 icon: Icons.directions_boat_outlined,
                 isLoading: _isSavingResponse,
                 onPressed: () => _setResponse(
@@ -580,7 +580,7 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: _ResponseButton(
-                      label: 'Ei saa tulla',
+                      label: 'Ei tule',
                       icon: Icons.cancel_outlined,
                       isDanger: true,
                       selected:
@@ -604,11 +604,11 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
   String _myResponseLabel(String? response, int? minutes) {
     switch (response) {
       case CalloutResponseValue.responding:
-        return 'Oled märkinud, et vastad.';
+        return 'Oled märkinud: Tulen.';
       case CalloutResponseValue.delayed:
-        return 'Oled märkinud viivituseks ${minutes ?? 0} minutit.';
+        return 'Hilinen umbes ${minutes ?? 0} minutit.';
       case CalloutResponseValue.unavailable:
-        return 'Oled märkinud, et ei saa tulla.';
+        return 'Oled märkinud: Ei tule.';
       default:
         return 'Sa ei ole veel sellele väljakutsele vastanud.';
     }
