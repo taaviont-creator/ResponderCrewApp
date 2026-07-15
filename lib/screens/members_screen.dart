@@ -452,6 +452,49 @@ class _PendingOrganizationInvitesSection extends StatelessWidget {
     );
   }
 
+  Future<void> _cancelInvite(
+    BuildContext context,
+    String inviteId,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Kas tühistada kutse?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Katkesta'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Tühista kutse'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await inviteService.cancelInvite(
+        inviteId: inviteId,
+        organizationId: organizationId,
+      );
+
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Kutse tühistatud.')),
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Kutset ei saanud tühistada.')),
+      );
+    }
+  }
+
   String _statusLabel(Object? status) {
     final value = (status ?? '').toString();
     if (value == 'pending') return 'Ootel';
@@ -508,6 +551,7 @@ class _PendingOrganizationInvitesSection extends StatelessWidget {
                       statusLabel: _statusLabel,
                       formatTimestamp: _formatTimestamp,
                       onCopy: () => _copyInviteText(context),
+                      onCancel: () => _cancelInvite(context, invite.id),
                     ),
                     if (invite.id != invites.last.id) const Divider(),
                   ],
@@ -526,12 +570,14 @@ class _PendingOrganizationInviteTile extends StatelessWidget {
     required this.statusLabel,
     required this.formatTimestamp,
     required this.onCopy,
+    required this.onCancel,
   });
 
   final QueryDocumentSnapshot<Map<String, dynamic>> invite;
   final String Function(Object? status) statusLabel;
   final String? Function(Object? value) formatTimestamp;
   final VoidCallback onCopy;
+  final VoidCallback onCancel;
 
   @override
   Widget build(BuildContext context) {
@@ -562,13 +608,21 @@ class _PendingOrganizationInviteTile extends StatelessWidget {
           const SizedBox(height: 4),
           Text(details.join('\n')),
           const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: OutlinedButton.icon(
-              onPressed: onCopy,
-              icon: const Icon(Icons.copy_outlined),
-              label: const Text('Kopeeri kutse tekst'),
-            ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              OutlinedButton.icon(
+                onPressed: onCopy,
+                icon: const Icon(Icons.copy_outlined),
+                label: const Text('Kopeeri kutse tekst'),
+              ),
+              OutlinedButton.icon(
+                onPressed: onCancel,
+                icon: const Icon(Icons.cancel_outlined),
+                label: const Text('Tühista kutse'),
+              ),
+            ],
           ),
         ],
       ),

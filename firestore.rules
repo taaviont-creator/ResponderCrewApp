@@ -526,6 +526,37 @@ service cloud.firestore {
         );
     }
 
+    function isOrganizationInviteCancel() {
+      let organizationId = organizationIdFromData(resource.data);
+      return signedIn() &&
+        commandIsApproved(organizationId) &&
+        (
+          isPlatformAdmin() ||
+          isActiveOrgAdmin(organizationId)
+        ) &&
+        hasValidOrganizationReference(resource.data) &&
+        hasValidOrganizationReference(request.resource.data) &&
+        organizationIdFromData(request.resource.data) == organizationId &&
+        resource.data.status == 'pending' &&
+        request.resource.data.status == 'cancelled' &&
+        request.resource.data.cancelledBy == request.auth.uid &&
+        request.resource.data.cancelledAt == request.time &&
+        request.resource.data.organizationId == resource.data.organizationId &&
+        request.resource.data.commandId == resource.data.commandId &&
+        request.resource.data.email == resource.data.email &&
+        request.resource.data.role == resource.data.role &&
+        request.resource.data.invitedBy == resource.data.invitedBy &&
+        request.resource.data.createdAt == resource.data.createdAt &&
+        request.resource.data.expiresAt == resource.data.expiresAt &&
+        request.resource.data.acceptedBy == resource.data.acceptedBy &&
+        request.resource.data.acceptedAt == resource.data.acceptedAt &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status',
+          'cancelledAt',
+          'cancelledBy'
+        ]);
+    }
+
     function canReadOrganizationInvite(data) {
       let organizationId = organizationIdFromData(data);
       return (
@@ -2358,7 +2389,8 @@ service cloud.firestore {
     match /organizationInvites/{inviteId} {
       allow read: if canReadOrganizationInvite(resource.data);
       allow create: if canCreateOrganizationInvite(request.resource.data);
-      allow update: if isOrganizationInviteAccept(inviteId);
+      allow update: if isOrganizationInviteAccept(inviteId) ||
+        isOrganizationInviteCancel();
     }
 
     match /availability/{availabilityId} {

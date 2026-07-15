@@ -155,6 +155,76 @@ class InviteService {
     });
   }
 
+  Future<void> cancelInvite({
+    required String inviteId,
+    required String organizationId,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw Exception('Kutse tühistamiseks pead olema sisse logitud.');
+    }
+
+    final normalizedInviteId = inviteId.trim();
+    final normalizedOrganizationId = organizationId.trim();
+    if (normalizedInviteId.isEmpty || normalizedOrganizationId.isEmpty) {
+      throw Exception('Kutse tühistamiseks puuduvad vajalikud andmed.');
+    }
+
+    final inviteRef = _invites.doc(normalizedInviteId);
+    final inviteSnapshot = await inviteRef.get();
+    final invite = inviteSnapshot.data();
+    if (!inviteSnapshot.exists || invite == null) {
+      throw Exception('Kutset ei leitud.');
+    }
+
+    final inviteOrganizationId =
+        (invite['organizationId'] ?? invite['commandId'] ?? '').toString();
+    if (inviteOrganizationId != normalizedOrganizationId ||
+        invite['status'] != 'pending') {
+      throw Exception('Kutset ei saanud tühistada.');
+    }
+
+    final commandSnapshot = await _firestore
+        .collection('commands')
+        .doc(normalizedOrganizationId)
+        .get();
+    final commandData = commandSnapshot.data();
+    if (!commandSnapshot.exists || commandData == null) {
+      throw Exception('Ühingut ei leitud.');
+    }
+
+    final commandStatus = commandData['status'];
+    if (commandStatus != null && commandStatus != 'approved') {
+      throw Exception('Kutseid saab tühistada ainult kinnitatud ühingus.');
+    }
+
+    final userSnapshot =
+        await _firestore.collection('users').doc(user.uid).get();
+    final isPlatformAdmin = PlatformRole.isPlatformAdmin(
+      userSnapshot.data()?['systemRole'],
+    );
+
+    if (!isPlatformAdmin) {
+      final membershipSnapshot = await _firestore
+          .collection('memberships')
+          .doc('${user.uid}_$normalizedOrganizationId')
+          .get();
+      final membership = membershipSnapshot.data();
+
+      if (membership == null ||
+          !_isActiveMembership(membership) ||
+          !MembershipRole.isOrgAdmin(membership['role'])) {
+        throw Exception('Sul puudub õigus kutset tühistada.');
+      }
+    }
+
+    await inviteRef.update({
+      'status': 'cancelled',
+      'cancelledAt': FieldValue.serverTimestamp(),
+      'cancelledBy': user.uid,
+    });
+  }
+
   Future<void> acceptInvite(String inviteId) async {
     final user = _auth.currentUser;
     if (user == null) {
