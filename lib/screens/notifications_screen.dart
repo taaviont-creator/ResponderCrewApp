@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../models/notification_model.dart';
 import '../services/callout_alarm_notification_service.dart';
+import '../services/callout_service.dart';
 import '../services/notification_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_section_card.dart';
 import '../widgets/status_badge.dart';
 import 'activities_screen.dart';
 import 'availability_screen.dart';
+import 'callout_detail_screen.dart';
 import 'callouts_screen.dart';
 import 'certificates_screen.dart';
 import 'equipment_screen.dart';
@@ -44,6 +46,7 @@ class NotificationsScreen extends StatefulWidget {
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
   final _notificationService = NotificationService();
+  final _calloutService = CalloutService();
   final _calloutAlarmNotificationService =
       CalloutAlarmNotificationService.instance;
   var _selectedFilter = _NotificationFilter.all;
@@ -336,14 +339,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
     switch (targetType) {
       case 'callout':
-        targetScreen = CalloutsScreen(
-          organizationId: widget.organizationId,
-          currentUid: widget.currentUid,
-          currentUserName: widget.currentUserName,
-          canManageCallouts: widget.canManageNotifications,
-          canCloseCallouts: widget.canManageNotifications,
-          canStartOperationLog: widget.canStartOperationLog,
-        );
+        targetScreen = await _calloutNotificationTarget(notification);
+        if (!mounted) return;
         break;
       case 'equipment':
         targetScreen = EquipmentScreen(
@@ -387,6 +384,50 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => targetScreen!),
+    );
+  }
+
+  Future<Widget> _calloutNotificationTarget(
+    NotificationModel notification,
+  ) async {
+    final fallbackScreen = _buildCalloutsScreen();
+    final relatedId = notification.relatedId?.trim() ?? '';
+
+    if (notification.relatedType != NotificationType.callout ||
+        relatedId.isEmpty) {
+      return fallbackScreen;
+    }
+
+    try {
+      final callout = await _calloutService.getCallout(
+        calloutId: relatedId,
+        organizationId: widget.organizationId,
+      );
+
+      if (callout == null) return fallbackScreen;
+
+      return CalloutDetailScreen(
+        callout: callout,
+        organizationId: widget.organizationId,
+        currentUid: widget.currentUid,
+        currentUserName: widget.currentUserName,
+        canManageCallouts: widget.canManageNotifications,
+        canCloseCallouts: widget.canManageNotifications,
+        canStartOperationLog: widget.canStartOperationLog,
+      );
+    } catch (_) {
+      return fallbackScreen;
+    }
+  }
+
+  Widget _buildCalloutsScreen() {
+    return CalloutsScreen(
+      organizationId: widget.organizationId,
+      currentUid: widget.currentUid,
+      currentUserName: widget.currentUserName,
+      canManageCallouts: widget.canManageNotifications,
+      canCloseCallouts: widget.canManageNotifications,
+      canStartOperationLog: widget.canStartOperationLog,
     );
   }
 

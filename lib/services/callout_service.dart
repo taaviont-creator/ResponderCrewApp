@@ -88,6 +88,25 @@ class CalloutService {
     });
   }
 
+  Future<CalloutModel?> getCallout({
+    required String calloutId,
+    required String organizationId,
+  }) async {
+    final trimmedCalloutId = calloutId.trim();
+    final trimmedOrganizationId = organizationId.trim();
+    _requireCalloutId(trimmedCalloutId);
+    _requireOrganizationId(trimmedOrganizationId);
+
+    final snapshot = await _callouts.doc(trimmedCalloutId).get();
+    if (!snapshot.exists) return null;
+
+    final callout = CalloutModel.fromFirestore(snapshot);
+    final calloutOrganizationId = callout.organizationId.isNotEmpty
+        ? callout.organizationId
+        : callout.commandId;
+    return calloutOrganizationId == trimmedOrganizationId ? callout : null;
+  }
+
   Stream<List<CalloutResponseModel>> streamCalloutResponses({
     required String calloutId,
     required String organizationId,
