@@ -530,8 +530,6 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     unreadCount: unreadCount,
                   ),
                   const SizedBox(height: AppTheme.itemSpacing),
-                  _buildAlarmReadinessCard(),
-                  const SizedBox(height: AppTheme.itemSpacing),
                   _buildFilterChips(unreadCount: unreadCount),
                   if (unreadCount > 0) ...[
                     const SizedBox(height: 8),
@@ -564,6 +562,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         ),
                       );
                     }),
+                  const SizedBox(height: AppTheme.itemSpacing),
+                  _buildAlarmReadinessCard(),
                 ],
               );
             },
@@ -1003,9 +1003,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         96,
       ),
       children: [
-        _buildAlarmReadinessCard(),
-        const SizedBox(height: AppTheme.itemSpacing),
         _buildEmptyCard(message),
+        const SizedBox(height: AppTheme.itemSpacing),
+        _buildAlarmReadinessCard(),
       ],
     );
   }
