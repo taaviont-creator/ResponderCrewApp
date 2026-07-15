@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/availability_model.dart';
+import '../models/certificate_model.dart';
 import '../models/equipment_model.dart';
 import '../models/membership_model.dart';
 import '../services/availability_service.dart';
+import '../services/certificate_service.dart';
 import '../services/equipment_service.dart';
 import '../services/membership_service.dart';
 import '../services/user_service.dart';
@@ -33,6 +35,7 @@ class MemberProfileScreen extends StatefulWidget {
 
 class _MemberProfileScreenState extends State<MemberProfileScreen> {
   final _availabilityService = AvailabilityService();
+  final _certificateService = CertificateService();
   final _equipmentService = EquipmentService();
   final _membershipService = MembershipService();
   final _userService = UserService();
@@ -309,6 +312,117 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
     );
   }
 
+  bool get _canViewTargetCertificates =>
+      _isOwnProfile || _canManageProfileMembership;
+
+  String _certificateTypeLabel(String type) {
+    switch (type) {
+      case CertificateType.firstAid:
+        return 'Esmaabi';
+      case CertificateType.seaRescue:
+        return 'Merepääste';
+      case CertificateType.radio:
+        return 'Raadioside';
+      case CertificateType.navigation:
+        return 'Navigatsioon';
+      case CertificateType.boatOperator:
+        return 'Väikelaevajuht';
+      case CertificateType.safety:
+        return 'Ohutus';
+      default:
+        return 'Muu';
+    }
+  }
+
+  String _certificateStatusLabel(String status) {
+    switch (status) {
+      case CertificateStatus.expiringSoon:
+        return 'Aegumas';
+      case CertificateStatus.expired:
+        return 'Aegunud';
+      case CertificateStatus.missing:
+        return 'Puudub';
+      default:
+        return 'Kehtiv';
+    }
+  }
+
+  String _certificateDisplayStatus(CertificateModel certificate) {
+    final expiresAt = certificate.expiresAt.trim();
+    final parsedExpiry = DateTime.tryParse(expiresAt);
+    if (expiresAt.isEmpty || parsedExpiry == null) {
+      return certificate.status;
+    }
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final expiryDate = DateTime(
+      parsedExpiry.year,
+      parsedExpiry.month,
+      parsedExpiry.day,
+    );
+    if (expiryDate.isBefore(today)) return CertificateStatus.expired;
+    if (!expiryDate.isAfter(today.add(const Duration(days: 30)))) {
+      return CertificateStatus.expiringSoon;
+    }
+    return certificate.status;
+  }
+
+  Widget _buildCertificatesSection() {
+    if (!_canViewTargetCertificates) {
+      return const SizedBox.shrink();
+    }
+    if (_targetUid.isEmpty || widget.organizationId.trim().isEmpty) {
+      return const _ProfileRow(
+        label: 'Tunnistused',
+        value: 'Tunnistusi ei ole.',
+      );
+    }
+
+    return StreamBuilder<List<CertificateModel>>(
+      stream: _certificateService.streamMyCertificates(
+        organizationId: widget.organizationId,
+        userId: _targetUid,
+      ),
+      builder: (context, snapshot) {
+        final certificates = snapshot.data ?? const <CertificateModel>[];
+        if (certificates.isEmpty) {
+          return const _ProfileRow(
+            label: 'Tunnistused',
+            value: 'Tunnistusi ei ole.',
+          );
+        }
+
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                  child: Text(
+                    'Tunnistused',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                ...certificates.map(
+                  (certificate) => _CertificateTile(
+                    certificate: certificate,
+                    typeLabel: _certificateTypeLabel(certificate.type),
+                    statusLabel: _certificateStatusLabel(
+                      _certificateDisplayStatus(certificate),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _editOwnProfile() async {
     if (!_isOwnProfile) return;
 
@@ -550,6 +664,7 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
           _ProfileRow(label: 'Liikmelisuse staatus', value: status),
           _buildAvailabilitySection(),
           _buildEquipmentSection(),
+          _buildCertificatesSection(),
           if (_isOwnProfile) ...[
             const SizedBox(height: 8),
             Card(
@@ -679,6 +794,38 @@ class _EquipmentGroup extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _CertificateTile extends StatelessWidget {
+  const _CertificateTile({
+    required this.certificate,
+    required this.typeLabel,
+    required this.statusLabel,
+  });
+
+  final CertificateModel certificate;
+  final String typeLabel;
+  final String statusLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final title = certificate.title.trim().isEmpty
+        ? typeLabel
+        : certificate.title.trim();
+    final expiresAt = certificate.expiresAt.trim();
+
+    return ListTile(
+      dense: true,
+      title: Text(title),
+      subtitle: Text(
+        [
+          if (certificate.title.trim().isNotEmpty) typeLabel,
+          if (expiresAt.isNotEmpty) 'Kehtib kuni: $expiresAt',
+          'Staatus: $statusLabel',
+        ].join('\n'),
+      ),
     );
   }
 }
