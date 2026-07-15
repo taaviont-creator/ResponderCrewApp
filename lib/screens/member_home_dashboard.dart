@@ -23,18 +23,16 @@ class MemberHomeDashboard extends StatefulWidget {
   const MemberHomeDashboard({
     super.key,
     required this.organizationId,
-    required this.organizationName,
     required this.currentUid,
-    required this.currentUserName,
+    required this.topHeader,
     required this.onOpenCallouts,
     required this.onOpenNotifications,
     required this.onOpenActivities,
   });
 
   final String organizationId;
-  final String? organizationName;
   final String currentUid;
-  final String currentUserName;
+  final Widget topHeader;
   final VoidCallback onOpenCallouts;
   final VoidCallback onOpenNotifications;
   final VoidCallback onOpenActivities;
@@ -50,49 +48,14 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
   final _membershipService = MembershipService();
   final _plannedUnavailabilityService = PlannedUnavailabilityService();
   final _readinessService = PlatformReadinessService();
-  var _isUpdatingAvailability = false;
-
-  Future<void> _updateAvailability(
-    String status, {
-    int? responseMinutes,
-  }) async {
-    if (_isUpdatingAvailability) return;
-
-    setState(() => _isUpdatingAvailability = true);
-    try {
-      await _availabilityService.setMyAvailability(
-        userId: widget.currentUid,
-        organizationId: widget.organizationId,
-        memberName: widget.currentUserName,
-        status: status,
-        responseMinutes: responseMinutes,
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Valmiduse muutmine ebaõnnestus: $e')),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _isUpdatingAvailability = false);
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.all(AppTheme.screenPadding),
       children: [
-        _buildOrganizationCard(),
+        widget.topHeader,
         const SizedBox(height: AppTheme.sectionSpacing),
-        Text(
-          'Minu valmisolek',
-          style: Theme.of(context).textTheme.headlineSmall,
-        ),
-        const SizedBox(height: AppTheme.itemSpacing),
-        _buildAvailabilityCard(),
-        const SizedBox(height: AppTheme.itemSpacing),
         _buildMinimumCrewCompact(),
         const SizedBox(height: AppTheme.sectionSpacing),
         _SectionTitle(
@@ -118,264 +81,6 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
         const SizedBox(height: AppTheme.sectionSpacing),
       ],
     );
-  }
-
-  Widget _buildOrganizationCard() {
-    final organizationName = widget.organizationName?.trim();
-
-    return AppSectionCard(
-      child: Row(
-        children: [
-          const Icon(
-            Icons.anchor,
-            color: AppColors.navy,
-            size: 30,
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  organizationName == null || organizationName.isEmpty
-                      ? 'Aktiivne organisatsioon'
-                      : organizationName,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Aktiivne organisatsioon',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          const StatusBadge(
-            label: 'LIIGE',
-            type: StatusBadgeType.neutral,
-            icon: Icons.person_outline,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAvailabilityCard() {
-    return StreamBuilder<AvailabilityModel?>(
-      stream: _availabilityService.streamMyAvailability(
-        userId: widget.currentUid,
-        organizationId: widget.organizationId,
-      ),
-      builder: (context, snapshot) {
-        final availability = snapshot.data;
-        final status = availability?.status ?? AvailabilityStatus.offDuty;
-        final storedResponseMinutes = availability?.responseMinutes ?? 15;
-        final responseMinutes = const {15, 30, 60}.contains(
-          storedResponseMinutes,
-        )
-            ? storedResponseMinutes
-            : 15;
-        final updatedAt = availability?.updatedAt;
-
-        return _buildAvailabilityCardWithSchedule(
-          status: status,
-          responseMinutes: responseMinutes,
-          updatedAt: updatedAt,
-        );
-      },
-    );
-  }
-
-  Widget _buildAvailabilityCardWithSchedule({
-    required String status,
-    required int responseMinutes,
-    required DateTime? updatedAt,
-  }) {
-    return StreamBuilder<List<PlannedUnavailabilityModel>>(
-      stream: _plannedUnavailabilityService.streamMyPeriods(
-        organizationId: widget.organizationId,
-      ),
-      builder: (context, periodsSnapshot) {
-        return StreamBuilder<List<PlannedUnavailabilityRuleModel>>(
-          stream: _plannedUnavailabilityService.streamMyRules(
-            organizationId: widget.organizationId,
-          ),
-          builder: (context, rulesSnapshot) {
-            final now = DateTime.now();
-            final periods =
-                periodsSnapshot.data ?? const <PlannedUnavailabilityModel>[];
-            final rules = rulesSnapshot.data ??
-                const <PlannedUnavailabilityRuleModel>[];
-            final hasActiveSchedule =
-                _hasActivePlannedUnavailability(periods, now) ||
-                    _hasActivePlannedUnavailabilityRule(rules, now);
-            final effectiveStatus = hasActiveSchedule
-                ? AvailabilityStatus.offDuty
-                : status;
-
-            return _buildAvailabilityCardContent(
-              status: status,
-              effectiveStatus: effectiveStatus,
-              hasActiveSchedule: hasActiveSchedule,
-              responseMinutes: responseMinutes,
-              updatedAt: updatedAt,
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildAvailabilityCardContent({
-    required String status,
-    required String effectiveStatus,
-    required bool hasActiveSchedule,
-    required int responseMinutes,
-    required DateTime? updatedAt,
-  }) {
-    return AppSectionCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: _availabilityBadge(
-                      effectiveStatus,
-                      plannedOffDuty: hasActiveSchedule,
-                    ),
-                  ),
-                  if (updatedAt != null)
-                    Text(
-                      'Uuendatud ${_formatClock(updatedAt)}',
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
-                    ),
-                ],
-              ),
-              if (hasActiveSchedule) ...[
-                const SizedBox(height: 10),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppColors.offDutySurface,
-                    borderRadius: BorderRadius.circular(AppTheme.cardRadius),
-                    border: Border.all(color: AppColors.offDuty),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Planeeritud mittevalves aeg on aktiivne.',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppColors.offDuty,
-                              fontWeight: FontWeight.w600,
-                            ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Nähtav staatus: Valvest väljas',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                      Text(
-                        'Käsitsi staatus: ${_availabilityStatusText(status)}',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-              const SizedBox(height: 20),
-              _AvailabilityButton(
-                label: 'VALVES',
-                icon: Icons.check_circle_outline,
-                isSelected: status == AvailabilityStatus.onDuty,
-                backgroundColor: AppColors.ready,
-                foregroundColor: Colors.white,
-                onPressed: _isUpdatingAvailability
-                    ? null
-                    : () => _updateAvailability(AvailabilityStatus.onDuty),
-              ),
-              const SizedBox(height: AppTheme.itemSpacing),
-              _AvailabilityButton(
-                label: 'EI OLE VALVES',
-                icon: Icons.cancel_outlined,
-                isSelected: status == AvailabilityStatus.offDuty,
-                backgroundColor: Colors.transparent,
-                foregroundColor: AppColors.offDuty,
-                borderColor: AppColors.offDuty,
-                onPressed: _isUpdatingAvailability
-                    ? null
-                    : () => _updateAvailability(AvailabilityStatus.offDuty),
-              ),
-              const SizedBox(height: AppTheme.itemSpacing),
-              Row(
-                children: [
-                  Expanded(
-                    child: _AvailabilityButton(
-                      label: 'HILINEN',
-                      icon: Icons.schedule,
-                      isSelected: status == AvailabilityStatus.delayed,
-                      backgroundColor: AppColors.delayedSurface,
-                      foregroundColor: AppColors.delayed,
-                      borderColor: status == AvailabilityStatus.delayed
-                          ? AppColors.delayed
-                          : null,
-                      onPressed: _isUpdatingAvailability
-                          ? null
-                          : () => _updateAvailability(
-                                AvailabilityStatus.delayed,
-                                responseMinutes: responseMinutes,
-                              ),
-                    ),
-                  ),
-                  const SizedBox(width: AppTheme.itemSpacing),
-                  Container(
-                    height: AppTheme.primaryActionHeight,
-                    constraints: const BoxConstraints(minWidth: 104),
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius:
-                          BorderRadius.circular(AppTheme.controlRadius),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<int>(
-                        value: responseMinutes,
-                        items: const [
-                          DropdownMenuItem(value: 15, child: Text('15 min')),
-                          DropdownMenuItem(value: 30, child: Text('30 min')),
-                          DropdownMenuItem(value: 60, child: Text('60 min')),
-                        ],
-                        onChanged: _isUpdatingAvailability
-                            ? null
-                            : (value) {
-                                if (value == null) return;
-                                _updateAvailability(
-                                  AvailabilityStatus.delayed,
-                                  responseMinutes: value,
-                                );
-                              },
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              if (_isUpdatingAvailability) ...[
-                const SizedBox(height: 12),
-                const LinearProgressIndicator(),
-              ],
-            ],
-          ),
-        );
   }
 
   Widget _buildMinimumCrewCompact() {
@@ -558,37 +263,6 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
           minuteOfDay >= rule.startMinute &&
           minuteOfDay < rule.endMinute;
     });
-  }
-
-  Widget _availabilityBadge(String status, {bool plannedOffDuty = false}) {
-    switch (status) {
-      case AvailabilityStatus.onDuty:
-        return const StatusBadge(
-          label: 'VALVES',
-          type: StatusBadgeType.ready,
-        );
-      case AvailabilityStatus.delayed:
-        return const StatusBadge(
-          label: 'HILINEN',
-          type: StatusBadgeType.delayed,
-        );
-      default:
-        return StatusBadge(
-          label: plannedOffDuty ? 'VALVEST VÄLJAS' : 'EI OLE VALVES',
-          type: StatusBadgeType.offDuty,
-        );
-    }
-  }
-
-  String _availabilityStatusText(String status) {
-    switch (status) {
-      case AvailabilityStatus.onDuty:
-        return 'Valves';
-      case AvailabilityStatus.delayed:
-        return 'Hilinen';
-      default:
-        return 'Ei ole valves';
-    }
   }
 
   Widget _buildLatestCallout() {
@@ -842,12 +516,6 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
     return upcoming.isEmpty ? null : upcoming.first;
   }
 
-  String _formatClock(DateTime value) {
-    final hour = value.hour.toString().padLeft(2, '0');
-    final minute = value.minute.toString().padLeft(2, '0');
-    return '$hour:$minute';
-  }
-
   String _relativeTime(DateTime value) {
     final difference = DateTime.now().difference(value);
     if (difference.inMinutes < 1) return 'Praegu';
@@ -1012,51 +680,6 @@ class _SectionTitle extends StatelessWidget {
           tooltip: 'Ava kõik',
         ),
       ],
-    );
-  }
-}
-
-class _AvailabilityButton extends StatelessWidget {
-  const _AvailabilityButton({
-    required this.label,
-    required this.icon,
-    required this.isSelected,
-    required this.backgroundColor,
-    required this.foregroundColor,
-    required this.onPressed,
-    this.borderColor,
-  });
-
-  final String label;
-  final IconData icon;
-  final bool isSelected;
-  final Color backgroundColor;
-  final Color foregroundColor;
-  final VoidCallback? onPressed;
-  final Color? borderColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: AppTheme.primaryActionHeight,
-      child: ElevatedButton.icon(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: backgroundColor,
-          foregroundColor: foregroundColor,
-          elevation: isSelected ? 2 : 0,
-          side: BorderSide(
-            color: borderColor ??
-                (isSelected ? foregroundColor : Colors.transparent),
-            width: isSelected ? 2 : 1,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppTheme.controlRadius),
-          ),
-        ),
-        icon: Icon(icon),
-        label: Text(label),
-      ),
     );
   }
 }

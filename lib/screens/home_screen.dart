@@ -584,6 +584,7 @@ class _HomeScreenState extends State<HomeScreen> {
     required bool isPlatformAdmin,
     required String? membershipRole,
     required List<QueryDocumentSnapshot<Map<String, dynamic>>> membershipDocs,
+    Widget? availabilityControl,
   }) {
     final theme = Theme.of(context);
     final activeOrganizationName =
@@ -597,10 +598,16 @@ class _HomeScreenState extends State<HomeScreen> {
       membershipRole: membershipRole,
     );
 
-    return Card(
-      margin: EdgeInsets.zero,
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(4, 2, 4, 0),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: theme.dividerColor.withOpacity(0.4)),
+        ),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.only(bottom: 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -612,13 +619,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'RespondCrew',
-                        style: theme.textTheme.titleLarge,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
                         displayName,
-                        style: theme.textTheme.bodyMedium,
+                        style: theme.textTheme.titleMedium,
                       ),
                     ],
                   ),
@@ -662,6 +664,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   fontWeight: FontWeight.w600,
                 ),
               ),
+            if (availabilityControl != null) ...[
+              const SizedBox(height: 12),
+              availabilityControl,
+            ],
           ],
         ),
       ),
@@ -1678,6 +1684,7 @@ class _HomeScreenState extends State<HomeScreen> {
     required User user,
     required String organizationId,
     required String memberName,
+    bool compact = false,
   }) {
     return StreamBuilder<AvailabilityModel?>(
       stream: _availabilityService.streamMyAvailability(
@@ -1734,85 +1741,88 @@ class _HomeScreenState extends State<HomeScreen> {
                       rules: rules,
                       now: now,
                     );
+                final content = Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Minu valmisolek',
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                    if (hasActiveSchedule) ...[
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Planeeritud mittevalves aeg on aktiivne',
+                      ),
+                      const Text('Nähtav staatus: Valvest väljas'),
+                      Text(
+                        'Käsitsi valitud staatus: '
+                        '${_availabilityStatusLabel(status)}',
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        ChoiceChip(
+                          label: const Text('Ei ole valves'),
+                          selected: status == AvailabilityStatus.offDuty,
+                          onSelected: (_) => updateAvailability(
+                            AvailabilityStatus.offDuty,
+                          ),
+                        ),
+                        ChoiceChip(
+                          label: const Text('Valves'),
+                          selected: status == AvailabilityStatus.onDuty,
+                          onSelected: (_) => updateAvailability(
+                            AvailabilityStatus.onDuty,
+                          ),
+                        ),
+                        ChoiceChip(
+                          label: const Text('Hilinen'),
+                          selected: status == AvailabilityStatus.delayed,
+                          onSelected: (_) => updateAvailability(
+                            AvailabilityStatus.delayed,
+                            minutes: responseMinutes,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (status == AvailabilityStatus.delayed) ...[
+                      const SizedBox(height: 8),
+                      DropdownButton<int>(
+                        value: responseMinutes,
+                        items: const [
+                          DropdownMenuItem(
+                            value: 15,
+                            child: Text('15 min'),
+                          ),
+                          DropdownMenuItem(
+                            value: 30,
+                            child: Text('30 min'),
+                          ),
+                          DropdownMenuItem(
+                            value: 60,
+                            child: Text('60 min'),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          if (value == null) return;
+                          updateAvailability(
+                            AvailabilityStatus.delayed,
+                            minutes: value,
+                          );
+                        },
+                      ),
+                    ],
+                  ],
+                );
+                if (compact) return content;
+
                 return Card(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Minu valmisolek'),
-                        if (hasActiveSchedule) ...[
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Planeeritud mittevalves aeg on aktiivne',
-                          ),
-                          const Text('Nähtav staatus: Valvest väljas'),
-                          Text(
-                            'Käsitsi valitud staatus: '
-                            '${_availabilityStatusLabel(status)}',
-                          ),
-                          const Text(
-                            'Planeeringu tõttu ei arvestata sind hetkel '
-                            'valves liikmete hulka.',
-                          ),
-                        ],
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          children: [
-                            ChoiceChip(
-                              label: const Text('Ei ole valves'),
-                              selected: status == AvailabilityStatus.offDuty,
-                              onSelected: (_) => updateAvailability(
-                                AvailabilityStatus.offDuty,
-                              ),
-                            ),
-                            ChoiceChip(
-                              label: const Text('Valves'),
-                              selected: status == AvailabilityStatus.onDuty,
-                              onSelected: (_) => updateAvailability(
-                                AvailabilityStatus.onDuty,
-                              ),
-                            ),
-                            ChoiceChip(
-                              label: const Text('Hilinen'),
-                              selected: status == AvailabilityStatus.delayed,
-                              onSelected: (_) => updateAvailability(
-                                AvailabilityStatus.delayed,
-                                minutes: responseMinutes,
-                              ),
-                            ),
-                          ],
-                        ),
-                        if (status == AvailabilityStatus.delayed) ...[
-                          const SizedBox(height: 8),
-                          DropdownButton<int>(
-                            value: responseMinutes,
-                            items: const [
-                              DropdownMenuItem(
-                                value: 15,
-                                child: Text('15 min'),
-                              ),
-                              DropdownMenuItem(
-                                value: 30,
-                                child: Text('30 min'),
-                              ),
-                              DropdownMenuItem(
-                                value: 60,
-                                child: Text('60 min'),
-                              ),
-                            ],
-                            onChanged: (value) {
-                              if (value == null) return;
-                              updateAvailability(
-                                AvailabilityStatus.delayed,
-                                minutes: value,
-                              );
-                            },
-                          ),
-                        ],
-                      ],
-                    ),
+                    child: content,
                   ),
                 );
               },
@@ -2105,8 +2115,21 @@ class _HomeScreenState extends State<HomeScreen> {
                   body: permissions.canManageOrganization
                       ? AdminHomeDashboard(
                           organizationId: selectedOrganizationId,
-                          organizationName: commandName,
                           currentUid: user.uid,
+                          topHeader: _buildCompactOperationalHeader(
+                            displayName: displayName,
+                            commandId: selectedOrganizationId,
+                            commandName: commandName,
+                            isPlatformAdmin: isPlatformAdmin,
+                            membershipRole: myMembershipRole,
+                            membershipDocs: membershipDocs,
+                            availabilityControl: _buildAvailabilityControl(
+                              user: user,
+                              organizationId: selectedOrganizationId,
+                              memberName: displayName,
+                              compact: true,
+                            ),
+                          ),
                           onCreateCallout: () {
                             Navigator.push(
                               context,
@@ -2173,41 +2196,24 @@ class _HomeScreenState extends State<HomeScreen> {
                           onOpenNotifications: () {
                             setState(() => _selectedNavigationIndex = 3);
                           },
-                          onOpenOrganizationSettings: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => Scaffold(
-                                  appBar: AppBar(
-                                    title: const Text(
-                                      'Organisatsiooni seaded',
-                                    ),
-                                  ),
-                                  body: _buildOrganizationSettingsContent(
-                                    user: user,
-                                    commandId: selectedOrganizationId,
-                                    commandName: commandName,
-                                    joinCode: joinCode,
-                                    canSeeJoinCode: canSeeJoinCode,
-                                    isPlatformAdmin: isPlatformAdmin,
-                                    membershipRole: myMembershipRole,
-                                    allowMembersToCreateActivities:
-                                        allowMembersToCreateActivities,
-                                    allowMembersToViewStatistics:
-                                        allowMembersToViewStatistics,
-                                    allowMembersToStartOperationLog:
-                                        allowMembersToStartOperationLog,
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
                         )
                       : MemberHomeDashboard(
                           organizationId: selectedOrganizationId,
-                          organizationName: commandName,
                           currentUid: user.uid,
-                          currentUserName: displayName,
+                          topHeader: _buildCompactOperationalHeader(
+                            displayName: displayName,
+                            commandId: selectedOrganizationId,
+                            commandName: commandName,
+                            isPlatformAdmin: isPlatformAdmin,
+                            membershipRole: myMembershipRole,
+                            membershipDocs: membershipDocs,
+                            availabilityControl: _buildAvailabilityControl(
+                              user: user,
+                              organizationId: selectedOrganizationId,
+                              memberName: displayName,
+                              compact: true,
+                            ),
+                          ),
                           onOpenCallouts: () {
                             setState(() => _selectedNavigationIndex = 2);
                           },

@@ -24,27 +24,25 @@ class AdminHomeDashboard extends StatelessWidget {
   AdminHomeDashboard({
     super.key,
     required this.organizationId,
-    required this.organizationName,
     required this.currentUid,
+    required this.topHeader,
     required this.onCreateCallout,
     required this.onCreateActivity,
     required this.onCreateEquipment,
     required this.onOpenCallouts,
     required this.onOpenEquipment,
     required this.onOpenNotifications,
-    required this.onOpenOrganizationSettings,
   });
 
   final String organizationId;
-  final String? organizationName;
   final String currentUid;
+  final Widget topHeader;
   final VoidCallback onCreateCallout;
   final VoidCallback onCreateActivity;
   final VoidCallback onCreateEquipment;
   final VoidCallback onOpenCallouts;
   final VoidCallback onOpenEquipment;
   final VoidCallback onOpenNotifications;
-  final VoidCallback onOpenOrganizationSettings;
 
   final AvailabilityService _availabilityService = AvailabilityService();
   final CalloutService _calloutService = CalloutService();
@@ -60,7 +58,7 @@ class AdminHomeDashboard extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(AppTheme.screenPadding),
       children: [
-        _buildOrganizationCard(context),
+        topHeader,
         const SizedBox(height: AppTheme.sectionSpacing),
         Text(
           'Ühingu valmisolek',
@@ -117,51 +115,6 @@ class AdminHomeDashboard extends StatelessWidget {
         _buildLatestNotifications(),
         const SizedBox(height: AppTheme.sectionSpacing),
       ],
-    );
-  }
-
-  Widget _buildOrganizationCard(BuildContext context) {
-    final name = organizationName?.trim();
-
-    return AppSectionCard(
-      child: Row(
-        children: [
-          const Icon(Icons.anchor, color: AppColors.navy, size: 30),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name == null || name.isEmpty
-                      ? 'Aktiivne organisatsioon'
-                      : name,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Aktiivne organisatsioon',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          const StatusBadge(
-            label: 'ADMIN',
-            type: StatusBadgeType.neutral,
-            icon: Icons.admin_panel_settings_outlined,
-          ),
-          const SizedBox(width: 4),
-          IconButton(
-            onPressed: onOpenOrganizationSettings,
-            icon: const Icon(Icons.settings_outlined),
-            tooltip: 'Organisatsiooni seaded',
-          ),
-        ],
-      ),
     );
   }
 
