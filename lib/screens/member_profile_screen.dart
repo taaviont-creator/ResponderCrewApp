@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/availability_model.dart';
+import '../models/equipment_model.dart';
 import '../models/membership_model.dart';
 import '../services/availability_service.dart';
+import '../services/equipment_service.dart';
 import '../services/membership_service.dart';
 import '../services/user_service.dart';
 
@@ -31,6 +33,7 @@ class MemberProfileScreen extends StatefulWidget {
 
 class _MemberProfileScreenState extends State<MemberProfileScreen> {
   final _availabilityService = AvailabilityService();
+  final _equipmentService = EquipmentService();
   final _membershipService = MembershipService();
   final _userService = UserService();
 
@@ -188,6 +191,119 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
         return _ProfileRow(
           label: 'Valmisolek',
           value: lines.join('\n'),
+        );
+      },
+    );
+  }
+
+  bool get _canViewTargetPersonalEquipment =>
+      _isOwnProfile || _canManageProfileMembership;
+
+  String _equipmentCategoryLabel(String category) {
+    switch (category) {
+      case EquipmentCategory.vessel:
+        return 'Alus';
+      case EquipmentCategory.engine:
+        return 'Mootor';
+      case EquipmentCategory.rescue:
+        return 'Päästevarustus';
+      case EquipmentCategory.medical:
+        return 'Meditsiin';
+      case EquipmentCategory.radio:
+        return 'Raadio';
+      case EquipmentCategory.safety:
+        return 'Ohutus';
+      default:
+        return 'Muu';
+    }
+  }
+
+  String _equipmentStatusLabel(String status) {
+    switch (status) {
+      case EquipmentStatus.needsMaintenance:
+        return 'Vajab hooldust';
+      case EquipmentStatus.broken:
+        return 'Katki';
+      case EquipmentStatus.outOfService:
+        return 'Kasutusest väljas';
+      default:
+        return 'Korras';
+    }
+  }
+
+  Widget _buildEquipmentSection() {
+    if (_targetUid.isEmpty ||
+        widget.organizationId.trim().isEmpty ||
+        widget.currentUid.trim().isEmpty) {
+      return const _ProfileRow(
+        label: 'Varustus',
+        value: 'Varustust ei ole.',
+      );
+    }
+
+    return StreamBuilder<List<EquipmentModel>>(
+      stream: _equipmentService.streamVisibleEquipment(
+        organizationId: widget.organizationId,
+        currentUserId: widget.currentUid,
+        canViewMemberPersonalEquipment: _canManageProfileMembership,
+      ),
+      builder: (context, snapshot) {
+        final equipment = snapshot.data ?? const <EquipmentModel>[];
+        final issuedEquipment = equipment
+            .where(
+              (item) =>
+                  item.scope == EquipmentScope.organization &&
+                  item.assignedToUserId == _targetUid,
+            )
+            .toList(growable: false);
+        final personalEquipment = _canViewTargetPersonalEquipment
+            ? equipment
+                .where(
+                  (item) =>
+                      item.scope == EquipmentScope.personal &&
+                      item.ownerUserId == _targetUid,
+                )
+                .toList(growable: false)
+            : const <EquipmentModel>[];
+
+        if (issuedEquipment.isEmpty && personalEquipment.isEmpty) {
+          return const _ProfileRow(
+            label: 'Varustus',
+            value: 'Varustust ei ole.',
+          );
+        }
+
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                  child: Text(
+                    'Varustus',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                if (issuedEquipment.isNotEmpty)
+                  _EquipmentGroup(
+                    title: 'Väljastatud varustus',
+                    equipment: issuedEquipment,
+                    categoryLabel: _equipmentCategoryLabel,
+                    statusLabel: _equipmentStatusLabel,
+                    showIssuedLabel: true,
+                  ),
+                if (personalEquipment.isNotEmpty)
+                  _EquipmentGroup(
+                    title: 'Isiklik varustus',
+                    equipment: personalEquipment,
+                    categoryLabel: _equipmentCategoryLabel,
+                    statusLabel: _equipmentStatusLabel,
+                  ),
+              ],
+            ),
+          ),
         );
       },
     );
@@ -433,6 +549,7 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
           _ProfileRow(label: 'Merepääste aste', value: seaRescueLevel),
           _ProfileRow(label: 'Liikmelisuse staatus', value: status),
           _buildAvailabilitySection(),
+          _buildEquipmentSection(),
           if (_isOwnProfile) ...[
             const SizedBox(height: 8),
             Card(
@@ -517,6 +634,51 @@ class _RoleOption extends StatelessWidget {
     return RadioListTile<String>(
       value: role,
       title: Text(label),
+    );
+  }
+}
+
+class _EquipmentGroup extends StatelessWidget {
+  const _EquipmentGroup({
+    required this.title,
+    required this.equipment,
+    required this.categoryLabel,
+    required this.statusLabel,
+    this.showIssuedLabel = false,
+  });
+
+  final String title;
+  final List<EquipmentModel> equipment;
+  final String Function(String category) categoryLabel;
+  final String Function(String status) statusLabel;
+  final bool showIssuedLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          child: Text(
+            title,
+            style: Theme.of(context).textTheme.labelLarge,
+          ),
+        ),
+        ...equipment.map(
+          (item) => ListTile(
+            dense: true,
+            title: Text(item.name.isEmpty ? 'Varustus' : item.name),
+            subtitle: Text(
+              [
+                'Kategooria: ${categoryLabel(item.category)}',
+                'Staatus: ${statusLabel(item.status)}',
+                if (showIssuedLabel) 'Väljastatud liikmele',
+              ].join('\n'),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
