@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../models/availability_model.dart';
 import '../models/membership_model.dart';
+import '../services/availability_service.dart';
 import '../services/membership_service.dart';
 import '../services/user_service.dart';
 
@@ -28,6 +30,7 @@ class MemberProfileScreen extends StatefulWidget {
 }
 
 class _MemberProfileScreenState extends State<MemberProfileScreen> {
+  final _availabilityService = AvailabilityService();
   final _membershipService = MembershipService();
   final _userService = UserService();
 
@@ -139,6 +142,57 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
     return 'Staatus puudub';
   }
 
+  String _availabilityStatusLabel(Object? status) {
+    switch (status) {
+      case AvailabilityStatus.onDuty:
+        return 'Valves';
+      case AvailabilityStatus.delayed:
+        return 'Hilinen';
+      case AvailabilityStatus.offDuty:
+        return 'Valvest väljas';
+      default:
+        return 'Valmisolek märkimata';
+    }
+  }
+
+  Widget _buildAvailabilitySection() {
+    if (_targetUid.isEmpty || widget.organizationId.trim().isEmpty) {
+      return const _ProfileRow(
+        label: 'Valmisolek',
+        value: 'Valmisolek märkimata',
+      );
+    }
+
+    return StreamBuilder<AvailabilityModel?>(
+      stream: _availabilityService.streamMyAvailability(
+        userId: _targetUid,
+        organizationId: widget.organizationId,
+      ),
+      builder: (context, snapshot) {
+        final availability = snapshot.data;
+        if (availability == null) {
+          return const _ProfileRow(
+            label: 'Valmisolek',
+            value: 'Valmisolek märkimata',
+          );
+        }
+
+        final lines = <String>[
+          _availabilityStatusLabel(availability.status),
+        ];
+        final responseMinutes = availability.responseMinutes;
+        if (responseMinutes != null && responseMinutes > 0) {
+          lines.add('Hilinemine: $responseMinutes min');
+        }
+
+        return _ProfileRow(
+          label: 'Valmisolek',
+          value: lines.join('\n'),
+        );
+      },
+    );
+  }
+
   Future<void> _editOwnProfile() async {
     if (!_isOwnProfile) return;
 
@@ -224,20 +278,30 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
         return SimpleDialog(
           title: const Text('Merepääste aste'),
           children: [
-            _SeaRescueLevelOption(
-              level: SeaRescueLevel.none,
-              label: _seaRescueLevelLabel(SeaRescueLevel.none),
-              selectedLevel: selectedLevel,
-            ),
-            _SeaRescueLevelOption(
-              level: SeaRescueLevel.level1,
-              label: _seaRescueLevelLabel(SeaRescueLevel.level1),
-              selectedLevel: selectedLevel,
-            ),
-            _SeaRescueLevelOption(
-              level: SeaRescueLevel.level2,
-              label: _seaRescueLevelLabel(SeaRescueLevel.level2),
-              selectedLevel: selectedLevel,
+            RadioGroup<String>(
+              groupValue: selectedLevel,
+              onChanged: (value) {
+                if (value != null) {
+                  Navigator.of(context).pop(value);
+                }
+              },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _SeaRescueLevelOption(
+                    level: SeaRescueLevel.none,
+                    label: _seaRescueLevelLabel(SeaRescueLevel.none),
+                  ),
+                  _SeaRescueLevelOption(
+                    level: SeaRescueLevel.level1,
+                    label: _seaRescueLevelLabel(SeaRescueLevel.level1),
+                  ),
+                  _SeaRescueLevelOption(
+                    level: SeaRescueLevel.level2,
+                    label: _seaRescueLevelLabel(SeaRescueLevel.level2),
+                  ),
+                ],
+              ),
             ),
           ],
         );
@@ -282,15 +346,26 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
         return SimpleDialog(
           title: const Text('Muuda rolli'),
           children: [
-            _RoleOption(
-              role: MembershipRole.member,
-              label: _roleLabel(MembershipRole.member),
-              selectedRole: selectedRole,
-            ),
-            _RoleOption(
-              role: MembershipRole.orgAdmin,
-              label: _roleLabel(MembershipRole.orgAdmin),
-              selectedRole: selectedRole,
+            RadioGroup<String>(
+              groupValue: selectedRole,
+              onChanged: (value) {
+                if (value != null) {
+                  Navigator.of(context).pop(value);
+                }
+              },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _RoleOption(
+                    role: MembershipRole.member,
+                    label: _roleLabel(MembershipRole.member),
+                  ),
+                  _RoleOption(
+                    role: MembershipRole.orgAdmin,
+                    label: _roleLabel(MembershipRole.orgAdmin),
+                  ),
+                ],
+              ),
             ),
           ],
         );
@@ -357,6 +432,7 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
           _ProfileRow(label: 'Organisatsiooni roll', value: role),
           _ProfileRow(label: 'Merepääste aste', value: seaRescueLevel),
           _ProfileRow(label: 'Liikmelisuse staatus', value: status),
+          _buildAvailabilitySection(),
           if (_isOwnProfile) ...[
             const SizedBox(height: 8),
             Card(
@@ -413,20 +489,16 @@ class _SeaRescueLevelOption extends StatelessWidget {
   const _SeaRescueLevelOption({
     required this.level,
     required this.label,
-    required this.selectedLevel,
   });
 
   final String level;
   final String label;
-  final String selectedLevel;
 
   @override
   Widget build(BuildContext context) {
     return RadioListTile<String>(
       value: level,
-      groupValue: selectedLevel,
       title: Text(label),
-      onChanged: (value) => Navigator.of(context).pop(value),
     );
   }
 }
@@ -435,20 +507,16 @@ class _RoleOption extends StatelessWidget {
   const _RoleOption({
     required this.role,
     required this.label,
-    required this.selectedRole,
   });
 
   final String role;
   final String label;
-  final String selectedRole;
 
   @override
   Widget build(BuildContext context) {
     return RadioListTile<String>(
       value: role,
-      groupValue: selectedRole,
       title: Text(label),
-      onChanged: (value) => Navigator.of(context).pop(value),
     );
   }
 }
