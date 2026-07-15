@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
+import '../models/membership_model.dart';
+import '../services/membership_service.dart';
 import '../services/user_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_section_card.dart';
@@ -19,6 +21,7 @@ class SelfProfileScreen extends StatefulWidget {
 
 class _SelfProfileScreenState extends State<SelfProfileScreen> {
   final _userService = UserService();
+  final _membershipService = MembershipService();
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   bool _loadedInitialData = false;
@@ -77,6 +80,63 @@ class _SelfProfileScreenState extends State<SelfProfileScreen> {
     );
   }
 
+  String _seaRescueLevelLabel(Object? level) {
+    switch (SeaRescueLevel.normalize(level)) {
+      case SeaRescueLevel.level1:
+        return 'I aste';
+      case SeaRescueLevel.level2:
+        return 'II aste';
+      default:
+        return 'Määramata';
+    }
+  }
+
+  String? _activeOrganizationId(Map<String, dynamic> data) {
+    final value = data['activeOrganizationId'] ??
+        data['activeCommandId'] ??
+        data['commandId'];
+    if (value is String && value.trim().isNotEmpty) {
+      return value.trim();
+    }
+    return null;
+  }
+
+  Widget _buildSeaRescueLevel(String organizationId) {
+    final membershipId = _membershipService.membershipId(
+      userId: widget.currentUid,
+      organizationId: organizationId,
+    );
+
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('memberships')
+          .doc(membershipId)
+          .snapshots(),
+      builder: (context, snapshot) {
+        final membership = snapshot.data?.data() ?? <String, dynamic>{};
+        final seaRescueLevel =
+            _seaRescueLevelLabel(membership['seaRescueLevel']);
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Merepääste aste',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              seaRescueLevel,
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -101,6 +161,7 @@ class _SelfProfileScreenState extends State<SelfProfileScreen> {
           final data = snapshot.data!.data()!;
           _setInitialData(data);
           final email = (data['email'] as String?)?.trim();
+          final activeOrganizationId = _activeOrganizationId(data);
 
           return ListView(
             padding: const EdgeInsets.all(AppTheme.screenPadding),
@@ -144,6 +205,10 @@ class _SelfProfileScreenState extends State<SelfProfileScreen> {
                       email?.isNotEmpty == true ? email! : 'E-post puudub',
                       style: Theme.of(context).textTheme.bodyLarge,
                     ),
+                    if (activeOrganizationId != null) ...[
+                      const SizedBox(height: AppTheme.itemSpacing),
+                      _buildSeaRescueLevel(activeOrganizationId),
+                    ],
                     const SizedBox(height: AppTheme.sectionSpacing),
                     SizedBox(
                       width: double.infinity,

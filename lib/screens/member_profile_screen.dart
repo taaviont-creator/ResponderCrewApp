@@ -64,6 +64,17 @@ class MemberProfileScreen extends StatelessWidget {
     return 'Roll puudub';
   }
 
+  String _seaRescueLevelLabel(Object? level) {
+    switch (SeaRescueLevel.normalize(level)) {
+      case SeaRescueLevel.level1:
+        return 'I aste';
+      case SeaRescueLevel.level2:
+        return 'II aste';
+      default:
+        return 'Määramata';
+    }
+  }
+
   String _membershipStatusLabel(Map<String, dynamic> membership) {
     final status = _stringValue(membership['status'], '');
     if (status == 'active') return 'Aktiivne';
@@ -87,6 +98,8 @@ class MemberProfileScreen extends StatelessWidget {
     final email = _stringValue(userData['email'], 'E-post puudub');
     final phone = _optionalString(userData['phone']);
     final role = _roleLabel(membershipData['role']);
+    final seaRescueLevel =
+        _seaRescueLevelLabel(membershipData['seaRescueLevel']);
     final status = _membershipStatusLabel(membershipData);
 
     return Scaffold(
@@ -112,6 +125,7 @@ class MemberProfileScreen extends StatelessWidget {
               ),
             ),
           _ProfileRow(label: 'Organisatsiooni roll', value: role),
+          _ProfileRow(label: 'Merepääste aste', value: seaRescueLevel),
           _ProfileRow(label: 'Liikmelisuse staatus', value: status),
         ],
       ),

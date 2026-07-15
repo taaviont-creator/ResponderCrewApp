@@ -94,6 +94,48 @@ class _MembersScreenState extends State<MembersScreen> {
     );
   }
 
+  Future<void> _updateSeaRescueLevel({
+    required String membershipId,
+    required String targetUid,
+    required String seaRescueLevel,
+  }) async {
+    await _membershipService.updateSeaRescueLevel(
+      membershipId: membershipId,
+      targetUserId: targetUid,
+      organizationId: widget.organizationId,
+      seaRescueLevel: seaRescueLevel,
+    );
+  }
+
+  Future<String?> _showSeaRescueLevelDialog(Object? currentLevel) {
+    final selectedLevel = SeaRescueLevel.normalize(currentLevel);
+    return showDialog<String>(
+      context: context,
+      builder: (context) {
+        return SimpleDialog(
+          title: const Text('Merepääste aste'),
+          children: [
+            _SeaRescueLevelOption(
+              level: SeaRescueLevel.none,
+              label: _seaRescueLevelLabel(SeaRescueLevel.none),
+              selectedLevel: selectedLevel,
+            ),
+            _SeaRescueLevelOption(
+              level: SeaRescueLevel.level1,
+              label: _seaRescueLevelLabel(SeaRescueLevel.level1),
+              selectedLevel: selectedLevel,
+            ),
+            _SeaRescueLevelOption(
+              level: SeaRescueLevel.level2,
+              label: _seaRescueLevelLabel(SeaRescueLevel.level2),
+              selectedLevel: selectedLevel,
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   String _membershipRoleFromData(Map<String, dynamic> membership) {
     return MembershipRole.normalize(membership['role']);
   }
@@ -111,11 +153,11 @@ class _MembersScreenState extends State<MembersScreen> {
   String _seaRescueLevelLabel(Object? level) {
     switch (SeaRescueLevel.normalize(level)) {
       case SeaRescueLevel.level1:
-        return 'Merepääste tase 1';
+        return 'I aste';
       case SeaRescueLevel.level2:
-        return 'Merepääste tase 2';
+        return 'II aste';
       default:
-        return 'Merepääste pädevus puudub';
+        return 'Määramata';
     }
   }
 
@@ -262,6 +304,28 @@ class _MembersScreenState extends State<MembersScreen> {
                                     targetUid: targetUid,
                                     newRole: MembershipRole.member,
                                   );
+                                } else if (value == 'change_sea_rescue_level') {
+                                  final level =
+                                      await _showSeaRescueLevelDialog(
+                                    membership['seaRescueLevel'],
+                                  );
+                                  if (level == null) return;
+
+                                  await _updateSeaRescueLevel(
+                                    membershipId: membershipDoc.id,
+                                    targetUid: targetUid,
+                                    seaRescueLevel: level,
+                                  );
+
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Merepääste aste salvestatud.',
+                                      ),
+                                    ),
+                                  );
+                                  return;
                                 }
 
                                 if (!context.mounted) return;
@@ -272,10 +336,14 @@ class _MembersScreenState extends State<MembersScreen> {
                                 );
                               } catch (e) {
                                 if (!context.mounted) return;
+                                final message =
+                                    value == 'change_sea_rescue_level'
+                                        ? 'Merepääste astet ei saanud salvestada.'
+                                        : 'Sul puudub õigus seda toimingut teha.';
                                 ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
+                                  SnackBar(
                                     content: Text(
-                                      'Sul puudub õigus seda toimingut teha.',
+                                      message,
                                     ),
                                   ),
                                 );
@@ -292,6 +360,10 @@ class _MembersScreenState extends State<MembersScreen> {
                                 value: 'make_member',
                                 child: Text('Tee liikmeks'),
                               ),
+                              PopupMenuItem(
+                                value: 'change_sea_rescue_level',
+                                child: Text('Muuda merepääste astet'),
+                              ),
                             ],
                           ),
                         ],
@@ -303,6 +375,37 @@ class _MembersScreenState extends State<MembersScreen> {
             },
           );
         },
+      ),
+    );
+  }
+}
+
+class _SeaRescueLevelOption extends StatelessWidget {
+  const _SeaRescueLevelOption({
+    required this.level,
+    required this.label,
+    required this.selectedLevel,
+  });
+
+  final String level;
+  final String label;
+  final String selectedLevel;
+
+  @override
+  Widget build(BuildContext context) {
+    return SimpleDialogOption(
+      onPressed: () => Navigator.of(context).pop(level),
+      child: Row(
+        children: [
+          Icon(
+            selectedLevel == level
+                ? Icons.radio_button_checked
+                : Icons.radio_button_unchecked,
+            size: 18,
+          ),
+          const SizedBox(width: 12),
+          Text(label),
+        ],
       ),
     );
   }
