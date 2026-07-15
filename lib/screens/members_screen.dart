@@ -225,6 +225,7 @@ class _MembersScreenState extends State<MembersScreen> {
               final membershipDoc = memberships[index];
               final membership = membershipDoc.data();
               final targetUid = (membership['userId'] ?? '') as String;
+              final isCurrentUser = targetUid == widget.currentUid;
               final membershipRole = _membershipRoleFromData(membership);
               final seaRescueLevel =
                   _seaRescueLevelLabel(membership['seaRescueLevel']);
@@ -286,19 +287,20 @@ class _MembersScreenState extends State<MembersScreen> {
                               ? const Color.fromARGB(255, 72, 212, 79)
                               : const Color.fromARGB(255, 179, 32, 30),
                         ),
-                        if (widget.canManageRoles &&
-                            targetUid != widget.currentUid) ...[
+                        if (widget.canManageRoles) ...[
                           const SizedBox(width: 8),
                           PopupMenuButton<String>(
                             onSelected: (value) async {
                               try {
                                 if (value == 'make_org_admin') {
+                                  if (isCurrentUser) return;
                                   await _updateMembershipRole(
                                     membershipId: membershipDoc.id,
                                     targetUid: targetUid,
                                     newRole: MembershipRole.orgAdmin,
                                   );
                                 } else if (value == 'make_member') {
+                                  if (isCurrentUser) return;
                                   await _updateMembershipRole(
                                     membershipId: membershipDoc.id,
                                     targetUid: targetUid,
@@ -349,18 +351,20 @@ class _MembersScreenState extends State<MembersScreen> {
                                 );
                               }
                             },
-                            itemBuilder: (context) => const [
-                              PopupMenuItem(
-                                value: 'make_org_admin',
-                                child: Text(
-                                  'Tee organisatsiooni administraatoriks',
+                            itemBuilder: (context) => [
+                              if (!isCurrentUser) ...const [
+                                PopupMenuItem(
+                                  value: 'make_org_admin',
+                                  child: Text(
+                                    'Tee organisatsiooni administraatoriks',
+                                  ),
                                 ),
-                              ),
-                              PopupMenuItem(
-                                value: 'make_member',
-                                child: Text('Tee liikmeks'),
-                              ),
-                              PopupMenuItem(
+                                PopupMenuItem(
+                                  value: 'make_member',
+                                  child: Text('Tee liikmeks'),
+                                ),
+                              ],
+                              const PopupMenuItem(
                                 value: 'change_sea_rescue_level',
                                 child: Text('Muuda merepääste astet'),
                               ),
