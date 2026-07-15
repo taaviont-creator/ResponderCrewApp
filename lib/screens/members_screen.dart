@@ -267,6 +267,10 @@ class _MembersScreenState extends State<MembersScreen> {
                           builder: (_) => MemberProfileScreen(
                             userData: userData,
                             membershipData: membership,
+                            membershipId: membershipDoc.id,
+                            organizationId: widget.organizationId,
+                            currentUid: widget.currentUid,
+                            canManageRoles: widget.canManageRoles,
                           ),
                         ),
                       );

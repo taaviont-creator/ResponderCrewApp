@@ -2,16 +2,41 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models/membership_model.dart';
+import '../services/membership_service.dart';
 
-class MemberProfileScreen extends StatelessWidget {
+class MemberProfileScreen extends StatefulWidget {
   const MemberProfileScreen({
     super.key,
     required this.userData,
     required this.membershipData,
+    required this.membershipId,
+    required this.organizationId,
+    required this.currentUid,
+    required this.canManageRoles,
   });
 
   final Map<String, dynamic> userData;
   final Map<String, dynamic> membershipData;
+  final String membershipId;
+  final String organizationId;
+  final String currentUid;
+  final bool canManageRoles;
+
+  @override
+  State<MemberProfileScreen> createState() => _MemberProfileScreenState();
+}
+
+class _MemberProfileScreenState extends State<MemberProfileScreen> {
+  final _membershipService = MembershipService();
+  late String _seaRescueLevel;
+
+  @override
+  void initState() {
+    super.initState();
+    _seaRescueLevel = SeaRescueLevel.normalize(
+      widget.membershipData['seaRescueLevel'],
+    );
+  }
 
   String _stringValue(Object? value, String fallback) {
     if (value is String && value.trim().isNotEmpty) {
@@ -92,15 +117,85 @@ class MemberProfileScreen extends StatelessWidget {
     return 'Staatus puudub';
   }
 
+  bool get _canManageProfileMembership {
+    if (!widget.canManageRoles) return false;
+    if (widget.currentUid.trim().isEmpty) return false;
+
+    final targetUid = _stringValue(widget.membershipData['userId'], '');
+    if (targetUid.isEmpty) return false;
+
+    final membershipOrganizationId =
+        _membershipService.organizationIdFromMembership(widget.membershipData);
+    return membershipOrganizationId == widget.organizationId;
+  }
+
+  Future<String?> _showSeaRescueLevelDialog() {
+    final selectedLevel = SeaRescueLevel.normalize(_seaRescueLevel);
+    return showDialog<String>(
+      context: context,
+      builder: (context) {
+        return SimpleDialog(
+          title: const Text('Merepääste aste'),
+          children: [
+            _SeaRescueLevelOption(
+              level: SeaRescueLevel.none,
+              label: _seaRescueLevelLabel(SeaRescueLevel.none),
+              selectedLevel: selectedLevel,
+            ),
+            _SeaRescueLevelOption(
+              level: SeaRescueLevel.level1,
+              label: _seaRescueLevelLabel(SeaRescueLevel.level1),
+              selectedLevel: selectedLevel,
+            ),
+            _SeaRescueLevelOption(
+              level: SeaRescueLevel.level2,
+              label: _seaRescueLevelLabel(SeaRescueLevel.level2),
+              selectedLevel: selectedLevel,
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _changeSeaRescueLevel() async {
+    final targetUid = _stringValue(widget.membershipData['userId'], '');
+    if (targetUid.isEmpty) return;
+
+    final level = await _showSeaRescueLevelDialog();
+    if (level == null) return;
+
+    try {
+      await _membershipService.updateSeaRescueLevel(
+        membershipId: widget.membershipId,
+        targetUserId: targetUid,
+        organizationId: widget.organizationId,
+        seaRescueLevel: level,
+      );
+
+      if (!mounted) return;
+      setState(() => _seaRescueLevel = level);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Merepääste aste salvestatud.')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Merepääste astet ei saanud salvestada.'),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final name = _stringValue(userData['name'], 'Nimi puudub');
-    final email = _stringValue(userData['email'], 'E-post puudub');
-    final phone = _optionalString(userData['phone']);
-    final role = _roleLabel(membershipData['role']);
-    final seaRescueLevel =
-        _seaRescueLevelLabel(membershipData['seaRescueLevel']);
-    final status = _membershipStatusLabel(membershipData);
+    final name = _stringValue(widget.userData['name'], 'Nimi puudub');
+    final email = _stringValue(widget.userData['email'], 'E-post puudub');
+    final phone = _optionalString(widget.userData['phone']);
+    final role = _roleLabel(widget.membershipData['role']);
+    final seaRescueLevel = _seaRescueLevelLabel(_seaRescueLevel);
+    final status = _membershipStatusLabel(widget.membershipData);
 
     return Scaffold(
       appBar: AppBar(
@@ -127,8 +222,42 @@ class MemberProfileScreen extends StatelessWidget {
           _ProfileRow(label: 'Organisatsiooni roll', value: role),
           _ProfileRow(label: 'Merepääste aste', value: seaRescueLevel),
           _ProfileRow(label: 'Liikmelisuse staatus', value: status),
+          if (_canManageProfileMembership) ...[
+            const SizedBox(height: 8),
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.admin_panel_settings_outlined),
+                title: const Text('Halda liiget'),
+                subtitle: const Text('Muuda merepääste astet'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: _changeSeaRescueLevel,
+              ),
+            ),
+          ],
         ],
       ),
+    );
+  }
+}
+
+class _SeaRescueLevelOption extends StatelessWidget {
+  const _SeaRescueLevelOption({
+    required this.level,
+    required this.label,
+    required this.selectedLevel,
+  });
+
+  final String level;
+  final String label;
+  final String selectedLevel;
+
+  @override
+  Widget build(BuildContext context) {
+    return RadioListTile<String>(
+      value: level,
+      groupValue: selectedLevel,
+      title: Text(label),
+      onChanged: (value) => Navigator.of(context).pop(value),
     );
   }
 }
