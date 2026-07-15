@@ -1041,6 +1041,158 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildOrganizationSettingsContent({
+    required User user,
+    required String? commandId,
+    required String? commandName,
+    required String? joinCode,
+    required bool canSeeJoinCode,
+    required bool isPlatformAdmin,
+    required String? membershipRole,
+    required bool allowMembersToCreateActivities,
+    required bool allowMembersToViewStatistics,
+    required bool allowMembersToStartOperationLog,
+  }) {
+    final isOrganizationAdmin = MembershipRole.isOrgAdmin(membershipRole);
+    final permissions = _HomePermissions(
+      isPlatformAdmin: isPlatformAdmin,
+      isOrganizationAdmin: isOrganizationAdmin,
+      allowMembersToCreateActivities: allowMembersToCreateActivities,
+      allowMembersToViewStatistics: allowMembersToViewStatistics,
+      allowMembersToStartOperationLog: allowMembersToStartOperationLog,
+    );
+    final organizationId = commandId?.trim() ?? '';
+    final hasOrganization = organizationId.isNotEmpty;
+    final visibleJoinCode = canSeeJoinCode ? joinCode?.trim() ?? '' : '';
+    final hasJoinCode = visibleJoinCode.isNotEmpty;
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Text(
+          'Ühing',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: 8),
+        Card(
+          child: Column(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.apartment_outlined),
+                title: Text(
+                  commandName?.trim().isNotEmpty == true
+                      ? commandName!.trim()
+                      : 'Nimi puudub',
+                ),
+                subtitle: Text(
+                  hasOrganization
+                      ? 'Komando ID: $organizationId'
+                      : 'Komando ID puudub',
+                ),
+              ),
+              if (hasJoinCode) ...[
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.key_outlined),
+                  title: const Text('Liitumiskood'),
+                  subtitle: Text(visibleJoinCode),
+                  trailing: IconButton(
+                    onPressed: () => _copyJoinCode(visibleJoinCode),
+                    icon: const Icon(Icons.copy),
+                    tooltip: 'Kopeeri kood',
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        if (permissions.canManageOrganizationSettings && hasOrganization) ...[
+          if (permissions.canManageOrganization) ...[
+            const SizedBox(height: 16),
+            Text(
+              'Valmisoleku seaded',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            _buildMinimumCrewSettingsCard(
+              organizationId: organizationId,
+              organizationName: commandName,
+              currentUid: user.uid,
+            ),
+          ],
+          const SizedBox(height: 16),
+          Text(
+            'Liikmete õigused',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          _buildMemberPermissionSettingsCard(
+            organizationId: organizationId,
+            allowMembersToCreateActivities: allowMembersToCreateActivities,
+            allowMembersToViewStatistics: allowMembersToViewStatistics,
+            allowMembersToStartOperationLog:
+                allowMembersToStartOperationLog,
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildMemberPermissionSettingsCard({
+    required String organizationId,
+    required bool allowMembersToCreateActivities,
+    required bool allowMembersToViewStatistics,
+    required bool allowMembersToStartOperationLog,
+  }) {
+    return Card(
+      child: Column(
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Määra, mida tavaliikmed saavad selles ühingus teha.',
+              ),
+            ),
+          ),
+          SwitchListTile(
+            title: const Text('Liikmed võivad lisada tegevusi/koolitusi'),
+            value: allowMembersToCreateActivities,
+            onChanged: (value) => _updateMemberPermissions(
+              organizationId: organizationId,
+              allowMembersToCreateActivities: value,
+              allowMembersToViewStatistics: allowMembersToViewStatistics,
+              allowMembersToStartOperationLog:
+                  allowMembersToStartOperationLog,
+            ),
+          ),
+          SwitchListTile(
+            title: const Text('Liikmed võivad näha statistikat'),
+            value: allowMembersToViewStatistics,
+            onChanged: (value) => _updateMemberPermissions(
+              organizationId: organizationId,
+              allowMembersToCreateActivities: allowMembersToCreateActivities,
+              allowMembersToViewStatistics: value,
+              allowMembersToStartOperationLog:
+                  allowMembersToStartOperationLog,
+            ),
+          ),
+          SwitchListTile(
+            title: const Text('Liikmed võivad alustada operatsioonilogi'),
+            value: allowMembersToStartOperationLog,
+            onChanged: (value) => _updateMemberPermissions(
+              organizationId: organizationId,
+              allowMembersToCreateActivities: allowMembersToCreateActivities,
+              allowMembersToViewStatistics: allowMembersToViewStatistics,
+              allowMembersToStartOperationLog: value,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _updateMemberPermissions({
     required String organizationId,
     required bool allowMembersToCreateActivities,
@@ -1906,26 +2058,20 @@ class _HomeScreenState extends State<HomeScreen> {
                                       'Organisatsiooni seaded',
                                     ),
                                   ),
-                                  body: ListView(
-                                    children: [
-                                      _buildHeaderSection(
-                                        user: user,
-                                        displayName: displayName,
-                                        commandId: selectedOrganizationId,
-                                        commandName: commandName,
-                                        joinCode: joinCode,
-                                        canSeeJoinCode: canSeeJoinCode,
-                                        isPlatformAdmin: isPlatformAdmin,
-                                        membershipRole: myMembershipRole,
-                                        allowMembersToCreateActivities:
-                                            allowMembersToCreateActivities,
-                                        allowMembersToViewStatistics:
-                                            allowMembersToViewStatistics,
-                                        allowMembersToStartOperationLog:
-                                            allowMembersToStartOperationLog,
-                                        membershipDocs: membershipDocs,
-                                      ),
-                                    ],
+                                  body: _buildOrganizationSettingsContent(
+                                    user: user,
+                                    commandId: selectedOrganizationId,
+                                    commandName: commandName,
+                                    joinCode: joinCode,
+                                    canSeeJoinCode: canSeeJoinCode,
+                                    isPlatformAdmin: isPlatformAdmin,
+                                    membershipRole: myMembershipRole,
+                                    allowMembersToCreateActivities:
+                                        allowMembersToCreateActivities,
+                                    allowMembersToViewStatistics:
+                                        allowMembersToViewStatistics,
+                                    allowMembersToStartOperationLog:
+                                        allowMembersToStartOperationLog,
                                   ),
                                 ),
                               ),
@@ -2006,26 +2152,20 @@ class _HomeScreenState extends State<HomeScreen> {
                                 'Organisatsiooni seaded',
                               ),
                             ),
-                            body: ListView(
-                              children: [
-                                _buildHeaderSection(
-                                  user: user,
-                                  displayName: displayName,
-                                  commandId: selectedOrganizationId,
-                                  commandName: commandName,
-                                  joinCode: joinCode,
-                                  canSeeJoinCode: canSeeJoinCode,
-                                  isPlatformAdmin: isPlatformAdmin,
-                                  membershipRole: myMembershipRole,
-                                  allowMembersToCreateActivities:
-                                      allowMembersToCreateActivities,
-                                  allowMembersToViewStatistics:
-                                      allowMembersToViewStatistics,
-                                  allowMembersToStartOperationLog:
-                                      allowMembersToStartOperationLog,
-                                  membershipDocs: membershipDocs,
-                                ),
-                              ],
+                            body: _buildOrganizationSettingsContent(
+                              user: user,
+                              commandId: selectedOrganizationId,
+                              commandName: commandName,
+                              joinCode: joinCode,
+                              canSeeJoinCode: canSeeJoinCode,
+                              isPlatformAdmin: isPlatformAdmin,
+                              membershipRole: myMembershipRole,
+                              allowMembersToCreateActivities:
+                                  allowMembersToCreateActivities,
+                              allowMembersToViewStatistics:
+                                  allowMembersToViewStatistics,
+                              allowMembersToStartOperationLog:
+                                  allowMembersToStartOperationLog,
                             ),
                           ),
                         ),
