@@ -547,6 +547,7 @@ class AdminHomeDashboard extends StatelessWidget {
   Widget _buildLatestNotifications() {
     return LatestNotificationsCard(
       organizationId: organizationId,
+      currentUid: currentUid,
       onTap: onOpenNotifications,
       usePriorityIcons: false,
     );

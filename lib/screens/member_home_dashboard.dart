@@ -821,6 +821,7 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
   Widget _buildLatestNotifications() {
     return LatestNotificationsCard(
       organizationId: widget.organizationId,
+      currentUid: widget.currentUid,
       onTap: widget.onOpenNotifications,
       usePriorityIcons: true,
     );
