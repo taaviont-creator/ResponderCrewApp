@@ -1,14 +1,17 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../models/activity_model.dart';
 import '../models/availability_model.dart';
 import '../models/callout_model.dart';
+import '../models/membership_model.dart';
 import '../models/platform_readiness_model.dart';
 import '../models/planned_unavailability_model.dart';
 import '../models/planned_unavailability_rule_model.dart';
 import '../services/activity_service.dart';
 import '../services/availability_service.dart';
 import '../services/callout_service.dart';
+import '../services/membership_service.dart';
 import '../services/platform_readiness_service.dart';
 import '../services/planned_unavailability_service.dart';
 import '../widgets/latest_notifications_card.dart';
@@ -44,6 +47,7 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
   final _activityService = ActivityService();
   final _availabilityService = AvailabilityService();
   final _calloutService = CalloutService();
+  final _membershipService = MembershipService();
   final _plannedUnavailabilityService = PlannedUnavailabilityService();
   final _readinessService = PlatformReadinessService();
   var _isUpdatingAvailability = false;
@@ -383,14 +387,150 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
         final summaries =
             readinessSnapshot.data ?? const <PlatformReadinessSummary>[];
         final summary = summaries.isEmpty ? null : summaries.first;
+        final minimumCrewRequired = summary?.minimumCrewRequired ?? 0;
 
-        return _MinimumCrewCompact(
-          minimumCrewRequired: summary?.minimumCrewRequired ?? 0,
-          onDutyCount: summary?.onDutyCount ?? 0,
-          minimumCrewMet: summary?.minimumCrewMet ?? false,
+        return StreamBuilder<
+            List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
+          stream: _membershipService.streamActiveMembershipsForOrganization(
+            widget.organizationId,
+          ),
+          builder: (context, membershipsSnapshot) {
+            final memberships = membershipsSnapshot.data ??
+                const <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+
+            return StreamBuilder<List<AvailabilityModel>>(
+              stream: _availabilityService.streamOrganizationAvailability(
+                organizationId: widget.organizationId,
+              ),
+              builder: (context, availabilitySnapshot) {
+                final availabilityByUserId = <String, AvailabilityModel>{
+                  for (final availability in availabilitySnapshot.data ??
+                      const <AvailabilityModel>[])
+                    if (availability.userId.isNotEmpty)
+                      availability.userId: availability,
+                };
+
+                return StreamBuilder<List<PlannedUnavailabilityModel>>(
+                  stream:
+                      _plannedUnavailabilityService.streamOrganizationPeriods(
+                    organizationId: widget.organizationId,
+                  ),
+                  builder: (context, periodsSnapshot) {
+                    return StreamBuilder<List<PlannedUnavailabilityRuleModel>>(
+                      stream:
+                          _plannedUnavailabilityService.streamOrganizationRules(
+                        organizationId: widget.organizationId,
+                      ),
+                      builder: (context, rulesSnapshot) {
+                        final now = DateTime.now();
+                        final periods = periodsSnapshot.data ??
+                            const <PlannedUnavailabilityModel>[];
+                        final rules = rulesSnapshot.data ??
+                            const <PlannedUnavailabilityRuleModel>[];
+                        var effectiveOnDutyCount = 0;
+                        var effectiveOnDutySecondLevelCount = 0;
+
+                        for (final membershipDoc in memberships) {
+                          final membership = membershipDoc.data();
+                          final userId =
+                              (membership['userId'] ?? '').toString();
+                          final manualStatus =
+                              availabilityByUserId[userId]?.status ??
+                                  AvailabilityStatus.offDuty;
+                          final effectiveStatus = _effectiveAvailabilityStatus(
+                            userId: userId,
+                            manualStatus: manualStatus,
+                            periods: periods,
+                            rules: rules,
+                            now: now,
+                          );
+
+                          if (effectiveStatus == AvailabilityStatus.onDuty) {
+                            effectiveOnDutyCount++;
+                            if (SeaRescueLevel.isLevel2(
+                              membership['seaRescueLevel'],
+                            )) {
+                              effectiveOnDutySecondLevelCount++;
+                            }
+                          }
+                        }
+
+                        final minimumCrewMet = minimumCrewRequired > 0 &&
+                            effectiveOnDutyCount >= minimumCrewRequired;
+
+                        return _MinimumCrewCompact(
+                          minimumCrewRequired: minimumCrewRequired,
+                          onDutyCount: effectiveOnDutyCount,
+                          minimumCrewMet: minimumCrewMet,
+                          secondLevelOnDutyCount:
+                              effectiveOnDutySecondLevelCount,
+                        );
+                      },
+                    );
+                  },
+                );
+              },
+            );
+          },
         );
       },
     );
+  }
+
+  String _effectiveAvailabilityStatus({
+    required String userId,
+    required String manualStatus,
+    required Iterable<PlannedUnavailabilityModel> periods,
+    required Iterable<PlannedUnavailabilityRuleModel> rules,
+    required DateTime now,
+  }) {
+    if (_hasActivePlannedUnavailabilityForUser(
+          userId: userId,
+          periods: periods,
+          now: now,
+        ) ||
+        _hasActivePlannedUnavailabilityRuleForUser(
+          userId: userId,
+          rules: rules,
+          now: now,
+        )) {
+      return AvailabilityStatus.offDuty;
+    }
+
+    return manualStatus;
+  }
+
+  bool _hasActivePlannedUnavailabilityForUser({
+    required String userId,
+    required Iterable<PlannedUnavailabilityModel> periods,
+    required DateTime now,
+  }) {
+    return periods.any((period) {
+      final startAt = period.startAt;
+      final endAt = period.endAt;
+      if (period.userId != userId ||
+          !period.isActive ||
+          startAt == null ||
+          endAt == null) {
+        return false;
+      }
+      return !now.isBefore(startAt) && now.isBefore(endAt);
+    });
+  }
+
+  bool _hasActivePlannedUnavailabilityRuleForUser({
+    required String userId,
+    required Iterable<PlannedUnavailabilityRuleModel> rules,
+    required DateTime now,
+  }) {
+    final minuteOfDay = now.hour * 60 + now.minute;
+    return rules.any((rule) {
+      return rule.userId == userId &&
+          rule.isActive &&
+          rule.daysOfWeek.contains(now.weekday) &&
+          minuteOfDay >= rule.startMinute &&
+          minuteOfDay < rule.endMinute;
+    });
   }
 
   bool _hasActivePlannedUnavailability(
@@ -696,17 +836,21 @@ class _MinimumCrewCompact extends StatelessWidget {
     required this.minimumCrewRequired,
     required this.onDutyCount,
     required this.minimumCrewMet,
+    required this.secondLevelOnDutyCount,
   });
 
   final int minimumCrewRequired;
   final int onDutyCount;
   final bool minimumCrewMet;
+  final int secondLevelOnDutyCount;
 
   @override
   Widget build(BuildContext context) {
+    final secondLevelMet = secondLevelOnDutyCount >= 1;
+    final responseReady = minimumCrewMet && secondLevelMet;
     final color = minimumCrewRequired <= 0
         ? AppColors.textSecondary
-        : minimumCrewMet
+        : responseReady
             ? AppColors.ready
             : AppColors.critical;
 
@@ -718,27 +862,56 @@ class _MinimumCrewCompact extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppTheme.controlRadius),
         border: Border.all(color: color.withValues(alpha: 0.35)),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.groups_2_outlined, color: color, size: 20),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'Miinimumkoosseis',
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: color,
+          Row(
+            children: [
+              Icon(Icons.groups_2_outlined, color: color, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Miinimumkoosseis',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: color,
+                      ),
+                ),
+              ),
+              _MinimumCrewValue(
+                label: 'Miinimum',
+                value: minimumCrewRequired,
+              ),
+              const SizedBox(width: 12),
+              _MinimumCrewValue(
+                label: 'Valves',
+                value: onDutyCount,
+              ),
+              const SizedBox(width: 12),
+              _MinimumCrewValue(
+                label: 'II aste valves:',
+                value: secondLevelOnDutyCount,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            responseReady
+                ? 'Ühing on reageerimisvalmis'
+                : 'Ühing ei ole reageerimisvalmis',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+          if (!secondLevelMet) ...[
+            const SizedBox(height: 4),
+            Text(
+              'II astme merepäästja puudub',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.critical,
                   ),
             ),
-          ),
-          _MinimumCrewValue(
-            label: 'Miinimum',
-            value: minimumCrewRequired,
-          ),
-          const SizedBox(width: 12),
-          _MinimumCrewValue(
-            label: 'Valves',
-            value: onDutyCount,
-          ),
+          ],
         ],
       ),
     );
