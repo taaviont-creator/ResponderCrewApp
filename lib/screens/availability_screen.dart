@@ -1161,89 +1161,126 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                   availability.userId: availability,
             };
 
-            final onDuty = <_MemberAvailability>[];
-            final delayed = <_MemberAvailability>[];
-            final offDuty = <_MemberAvailability>[];
+            return StreamBuilder<List<PlannedUnavailabilityModel>>(
+              stream: _plannedUnavailabilityService.streamOrganizationPeriods(
+                organizationId: widget.organizationId,
+              ),
+              builder: (context, periodsSnapshot) {
+                return StreamBuilder<List<PlannedUnavailabilityRuleModel>>(
+                  stream: _plannedUnavailabilityService.streamOrganizationRules(
+                    organizationId: widget.organizationId,
+                  ),
+                  builder: (context, rulesSnapshot) {
+                    final now = DateTime.now();
+                    final periods = periodsSnapshot.data ??
+                        const <PlannedUnavailabilityModel>[];
+                    final rules = rulesSnapshot.data ??
+                        const <PlannedUnavailabilityRuleModel>[];
+                    final onDuty = <_MemberAvailability>[];
+                    final delayed = <_MemberAvailability>[];
+                    final offDuty = <_MemberAvailability>[];
+                    var effectiveOnDutySecondLevelCount = 0;
 
-            for (final membershipDoc in memberships) {
-              final membership = membershipDoc.data();
-              final userId = (membership['userId'] ?? '').toString();
-              final item = _MemberAvailability(
-                userId: userId,
-                role: _roleLabel((membership['role'] ?? '').toString()),
-                availability: availabilityByUserId[userId],
-              );
-              switch (item.status) {
-                case AvailabilityStatus.onDuty:
-                  onDuty.add(item);
-                  break;
-                case AvailabilityStatus.delayed:
-                  delayed.add(item);
-                  break;
-                default:
-                  offDuty.add(item);
-                  break;
-              }
-            }
+                    for (final membershipDoc in memberships) {
+                      final membership = membershipDoc.data();
+                      final userId = (membership['userId'] ?? '').toString();
+                      final effectiveStatus = _effectiveAvailabilityStatus(
+                        userId: userId,
+                        manualStatus: availabilityByUserId[userId]?.status ??
+                            AvailabilityStatus.offDuty,
+                        periods: periods,
+                        rules: rules,
+                        now: now,
+                      );
+                      final item = _MemberAvailability(
+                        userId: userId,
+                        role: _roleLabel((membership['role'] ?? '').toString()),
+                        availability: availabilityByUserId[userId],
+                        effectiveStatus: effectiveStatus,
+                      );
+                      switch (item.status) {
+                        case AvailabilityStatus.onDuty:
+                          onDuty.add(item);
+                          if (SeaRescueLevel.isLevel2(
+                            membership['seaRescueLevel'],
+                          )) {
+                            effectiveOnDutySecondLevelCount++;
+                          }
+                          break;
+                        case AvailabilityStatus.delayed:
+                          delayed.add(item);
+                          break;
+                        default:
+                          offDuty.add(item);
+                          break;
+                      }
+                    }
 
-            if (memberships.isEmpty) {
-              return const _EmptyCard(
-                icon: Icons.group_off_outlined,
-                message: 'Organisatsioonis ei ole aktiivseid liikmeid.',
-              );
-            }
+                    if (memberships.isEmpty) {
+                      return const _EmptyCard(
+                        icon: Icons.group_off_outlined,
+                        message: 'Organisatsioonis ei ole aktiivseid liikmeid.',
+                      );
+                    }
 
-            return Column(
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: _CountCard(
-                        label: 'Valves',
-                        count: onDuty.length,
-                        color: AppColors.ready,
-                        icon: Icons.check_circle_outline,
-                      ),
-                    ),
-                    const SizedBox(width: AppTheme.itemSpacing),
-                    Expanded(
-                      child: _CountCard(
-                        label: 'Hilinen',
-                        count: delayed.length,
-                        color: AppColors.delayed,
-                        icon: Icons.schedule,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppTheme.itemSpacing),
-                _CountCard(
-                  label: 'Ei ole valves',
-                  count: offDuty.length,
-                  color: AppColors.offDuty,
-                  icon: Icons.cancel_outlined,
-                ),
-                const SizedBox(height: AppTheme.itemSpacing),
-                _buildMinimumCrewCard(onDuty.length),
-                const SizedBox(height: AppTheme.itemSpacing),
-                _MemberGroupCard(
-                  title: 'Valves',
-                  type: StatusBadgeType.ready,
-                  members: onDuty,
-                ),
-                const SizedBox(height: AppTheme.itemSpacing),
-                _MemberGroupCard(
-                  title: 'Hilinen',
-                  type: StatusBadgeType.delayed,
-                  members: delayed,
-                ),
-                const SizedBox(height: AppTheme.itemSpacing),
-                _MemberGroupCard(
-                  title: 'Ei ole valves',
-                  type: StatusBadgeType.offDuty,
-                  members: offDuty,
-                ),
-              ],
+                    return Column(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _CountCard(
+                                label: 'Valves',
+                                count: onDuty.length,
+                                color: AppColors.ready,
+                                icon: Icons.check_circle_outline,
+                              ),
+                            ),
+                            const SizedBox(width: AppTheme.itemSpacing),
+                            Expanded(
+                              child: _CountCard(
+                                label: 'Hilinen',
+                                count: delayed.length,
+                                color: AppColors.delayed,
+                                icon: Icons.schedule,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppTheme.itemSpacing),
+                        _CountCard(
+                          label: 'Ei ole valves',
+                          count: offDuty.length,
+                          color: AppColors.offDuty,
+                          icon: Icons.cancel_outlined,
+                        ),
+                        const SizedBox(height: AppTheme.itemSpacing),
+                        _buildMinimumCrewCard(
+                          onDuty.length,
+                          effectiveOnDutySecondLevelCount,
+                        ),
+                        const SizedBox(height: AppTheme.itemSpacing),
+                        _MemberGroupCard(
+                          title: 'Valves',
+                          type: StatusBadgeType.ready,
+                          members: onDuty,
+                        ),
+                        const SizedBox(height: AppTheme.itemSpacing),
+                        _MemberGroupCard(
+                          title: 'Hilinen',
+                          type: StatusBadgeType.delayed,
+                          members: delayed,
+                        ),
+                        const SizedBox(height: AppTheme.itemSpacing),
+                        _MemberGroupCard(
+                          title: 'Ei ole valves',
+                          type: StatusBadgeType.offDuty,
+                          members: offDuty,
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
             );
           },
         );
@@ -1251,7 +1288,10 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     );
   }
 
-  Widget _buildMinimumCrewCard(int onDutyCount) {
+  Widget _buildMinimumCrewCard(
+    int onDutyCount,
+    int secondLevelOnDutyCount,
+  ) {
     return StreamBuilder<List<PlatformReadinessSummary>>(
       stream: _platformReadinessService.streamOrganizationSummary(
         organizationId: widget.organizationId,
@@ -1267,17 +1307,20 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
         }
 
         final requiredCount = summaries.first.minimumCrewRequired;
-        final isMet = onDutyCount >= requiredCount;
+        final minimumCrewMet =
+            requiredCount > 0 && onDutyCount >= requiredCount;
+        final secondLevelMet = secondLevelOnDutyCount >= 1;
+        final responseReady = minimumCrewMet && secondLevelMet;
 
         return AppSectionCard(
-          accentColor: isMet ? AppColors.ready : AppColors.critical,
+          accentColor: responseReady ? AppColors.ready : AppColors.critical,
           child: Row(
             children: [
               Icon(
-                isMet
+                responseReady
                     ? Icons.verified_outlined
                     : Icons.warning_amber_rounded,
-                color: isMet ? AppColors.ready : AppColors.critical,
+                color: responseReady ? AppColors.ready : AppColors.critical,
                 size: 28,
               ),
               const SizedBox(width: 12),
@@ -1291,23 +1334,33 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      isMet
-                          ? 'Miinimumkoosseis täidetud'
-                          : 'Valmisolek alla miinimumi',
+                      responseReady
+                          ? 'Ühing on reageerimisvalmis'
+                          : 'Ühing ei ole reageerimisvalmis',
                     ),
+                    if (!secondLevelMet) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'II astme merepäästja puudub',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppColors.critical,
+                            ),
+                      ),
+                    ],
                     const SizedBox(height: 4),
                     Text(
                       'Miinimum: $requiredCount\n'
-                      'Hetkel valves: $onDutyCount',
+                      'Hetkel valves: $onDutyCount\n'
+                      'II aste valves: $secondLevelOnDutyCount',
                     ),
                   ],
                 ),
               ),
               StatusBadge(
-                label: isMet
-                    ? 'Miinimumkoosseis täidetud'
-                    : 'Valmisolek alla miinimumi',
-                type: isMet
+                label: responseReady
+                    ? 'Ühing on reageerimisvalmis'
+                    : 'Ühing ei ole reageerimisvalmis',
+                type: responseReady
                     ? StatusBadgeType.ready
                     : StatusBadgeType.critical,
               ),
@@ -1316,6 +1369,62 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
         );
       },
     );
+  }
+
+  String _effectiveAvailabilityStatus({
+    required String userId,
+    required String manualStatus,
+    required Iterable<PlannedUnavailabilityModel> periods,
+    required Iterable<PlannedUnavailabilityRuleModel> rules,
+    required DateTime now,
+  }) {
+    if (_hasActivePlannedUnavailabilityForUser(
+          userId: userId,
+          periods: periods,
+          now: now,
+        ) ||
+        _hasActivePlannedUnavailabilityRuleForUser(
+          userId: userId,
+          rules: rules,
+          now: now,
+        )) {
+      return AvailabilityStatus.offDuty;
+    }
+
+    return manualStatus;
+  }
+
+  bool _hasActivePlannedUnavailabilityForUser({
+    required String userId,
+    required Iterable<PlannedUnavailabilityModel> periods,
+    required DateTime now,
+  }) {
+    return periods.any((period) {
+      final startAt = period.startAt;
+      final endAt = period.endAt;
+      if (period.userId != userId ||
+          !period.isActive ||
+          startAt == null ||
+          endAt == null) {
+        return false;
+      }
+      return !now.isBefore(startAt) && now.isBefore(endAt);
+    });
+  }
+
+  bool _hasActivePlannedUnavailabilityRuleForUser({
+    required String userId,
+    required Iterable<PlannedUnavailabilityRuleModel> rules,
+    required DateTime now,
+  }) {
+    final minuteOfDay = now.hour * 60 + now.minute;
+    return rules.any((rule) {
+      return rule.userId == userId &&
+          rule.isActive &&
+          rule.daysOfWeek.contains(now.weekday) &&
+          minuteOfDay >= rule.startMinute &&
+          minuteOfDay < rule.endMinute;
+    });
   }
 
   Widget _buildAvailabilityReminderSettings() {
@@ -1495,13 +1604,15 @@ class _MemberAvailability {
     required this.userId,
     required this.role,
     required this.availability,
+    required this.effectiveStatus,
   });
 
   final String userId;
   final String role;
   final AvailabilityModel? availability;
+  final String effectiveStatus;
 
-  String get status => availability?.status ?? AvailabilityStatus.offDuty;
+  String get status => effectiveStatus;
 }
 
 class _StatusActionButton extends StatelessWidget {
