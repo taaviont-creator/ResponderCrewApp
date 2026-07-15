@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../models/availability_model.dart';
 import '../models/callout_model.dart';
 import '../models/equipment_model.dart';
+import '../models/membership_model.dart';
 import '../models/platform_readiness_model.dart';
 import '../models/planned_unavailability_model.dart';
 import '../models/planned_unavailability_rule_model.dart';
@@ -202,10 +203,12 @@ class AdminHomeDashboard extends StatelessWidget {
                     var onDutyCount = 0;
                     var delayedCount = 0;
                     var offDutyCount = 0;
+                    var effectiveOnDutySecondLevelCount = 0;
 
                     for (final membership in memberships) {
+                      final membershipData = membership.data();
                       final userId =
-                          (membership.data()['userId'] ?? '').toString();
+                          (membershipData['userId'] ?? '').toString();
                       final manualStatus = availabilityByUserId[userId]?.status ??
                           AvailabilityStatus.offDuty;
                       final status = _effectiveAvailabilityStatus(
@@ -217,6 +220,11 @@ class AdminHomeDashboard extends StatelessWidget {
                       );
                       if (status == AvailabilityStatus.onDuty) {
                         onDutyCount++;
+                        if (SeaRescueLevel.isLevel2(
+                          membershipData['seaRescueLevel'],
+                        )) {
+                          effectiveOnDutySecondLevelCount++;
+                        }
                       } else if (status == AvailabilityStatus.delayed) {
                         delayedCount++;
                       } else {
@@ -284,6 +292,8 @@ class AdminHomeDashboard extends StatelessWidget {
                               minimumCrewRequired: minimumCrewRequired,
                               onDutyCount: onDutyCount,
                               minimumCrewMet: minimumCrewMet,
+                              secondLevelOnDutyCount:
+                                  effectiveOnDutySecondLevelCount,
                             ),
                           ],
                         );
@@ -533,17 +543,21 @@ class _MinimumCrewCompact extends StatelessWidget {
     required this.minimumCrewRequired,
     required this.onDutyCount,
     required this.minimumCrewMet,
+    required this.secondLevelOnDutyCount,
   });
 
   final int minimumCrewRequired;
   final int onDutyCount;
   final bool minimumCrewMet;
+  final int secondLevelOnDutyCount;
 
   @override
   Widget build(BuildContext context) {
+    final secondLevelMet = secondLevelOnDutyCount >= 1;
+    final responseReady = minimumCrewMet && secondLevelMet;
     final color = minimumCrewRequired <= 0
         ? AppColors.textSecondary
-        : minimumCrewMet
+        : responseReady
             ? AppColors.ready
             : AppColors.critical;
 
@@ -555,27 +569,49 @@ class _MinimumCrewCompact extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppTheme.controlRadius),
         border: Border.all(color: color.withValues(alpha: 0.35)),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.groups_2_outlined, color: color, size: 20),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'Miinimumkoosseis',
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: color,
+          Row(
+            children: [
+              Icon(Icons.groups_2_outlined, color: color, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Miinimumkoosseis',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: color,
+                      ),
+                ),
+              ),
+              _MinimumCrewValue(
+                label: 'Miinimum',
+                value: minimumCrewRequired,
+              ),
+              const SizedBox(width: 12),
+              _MinimumCrewValue(
+                label: 'Valves',
+                value: onDutyCount,
+              ),
+              const SizedBox(width: 12),
+              _MinimumCrewValue(
+                label: 'II aste',
+                value: secondLevelOnDutyCount,
+              ),
+            ],
+          ),
+          if (minimumCrewRequired > 0 && !responseReady) ...[
+            const SizedBox(height: 8),
+            Text(
+              secondLevelMet
+                  ? 'Ühing ei ole reageerimisvalmis'
+                  : 'II astme merepäästja puudub. '
+                      'Ühing ei ole reageerimisvalmis',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.critical,
                   ),
             ),
-          ),
-          _MinimumCrewValue(
-            label: 'Miinimum',
-            value: minimumCrewRequired,
-          ),
-          const SizedBox(width: 12),
-          _MinimumCrewValue(
-            label: 'Valves',
-            value: onDutyCount,
-          ),
+          ],
         ],
       ),
     );
