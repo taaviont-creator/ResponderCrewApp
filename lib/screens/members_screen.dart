@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../models/membership_model.dart';
 import '../services/invite_service.dart';
@@ -219,10 +220,17 @@ class _MembersScreenState extends State<MembersScreen> {
 
           return ListView.separated(
             padding: const EdgeInsets.all(16),
-            itemCount: memberships.length,
+            itemCount: memberships.length + 1,
             separatorBuilder: (_, _) => const Divider(height: 1),
             itemBuilder: (context, index) {
-              final membershipDoc = memberships[index];
+              if (index == 0) {
+                return _PendingOrganizationInvitesSection(
+                  organizationId: widget.organizationId,
+                  inviteService: _inviteService,
+                );
+              }
+
+              final membershipDoc = memberships[index - 1];
               final membership = membershipDoc.data();
               final targetUid = (membership['userId'] ?? '') as String;
               final isCurrentUser = targetUid == widget.currentUid;
@@ -413,6 +421,155 @@ class _SeaRescueLevelOption extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Text(label),
+        ],
+      ),
+    );
+  }
+}
+
+class _PendingOrganizationInvitesSection extends StatelessWidget {
+  const _PendingOrganizationInvitesSection({
+    required this.organizationId,
+    required this.inviteService,
+  });
+
+  static const _inviteMessage =
+      'Tere! Sind on kutsutud liituma RespondCrew ühinguga. '
+      'Kutse e-kirja automaatselt ei saadeta. '
+      'Palun registreeru või logi sisse sama e-posti aadressiga, '
+      'millele kutse saadeti, ning ava äpis kutsete vaade, '
+      'et liitumine kinnitada.';
+
+  final String organizationId;
+  final InviteService inviteService;
+
+  Future<void> _copyInviteText(BuildContext context) async {
+    await Clipboard.setData(const ClipboardData(text: _inviteMessage));
+
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Kutse tekst kopeeritud.')),
+    );
+  }
+
+  String _statusLabel(Object? status) {
+    final value = (status ?? '').toString();
+    if (value == 'pending') return 'Ootel';
+    if (value.isEmpty) return 'Staatus puudub';
+    return value;
+  }
+
+  String? _formatTimestamp(Object? value) {
+    if (value is! Timestamp) return null;
+
+    final date = value.toDate().toLocal();
+    String twoDigits(int number) => number.toString().padLeft(2, '0');
+
+    return '${twoDigits(date.day)}.${twoDigits(date.month)}.${date.year} '
+        '${twoDigits(date.hour)}:${twoDigits(date.minute)}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: StreamBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
+          stream: inviteService.streamPendingInvitesForOrganization(
+            organizationId,
+          ),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const LinearProgressIndicator();
+            }
+
+            if (snapshot.hasError) {
+              return const Text('Kutsete laadimine ebaõnnestus.');
+            }
+
+            final invites = snapshot.data ??
+                <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Ootel kutsed',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                if (invites.isEmpty)
+                  const Text('Ootel kutseid ei ole.')
+                else
+                  for (final invite in invites) ...[
+                    _PendingOrganizationInviteTile(
+                      invite: invite,
+                      statusLabel: _statusLabel,
+                      formatTimestamp: _formatTimestamp,
+                      onCopy: () => _copyInviteText(context),
+                    ),
+                    if (invite.id != invites.last.id) const Divider(),
+                  ],
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _PendingOrganizationInviteTile extends StatelessWidget {
+  const _PendingOrganizationInviteTile({
+    required this.invite,
+    required this.statusLabel,
+    required this.formatTimestamp,
+    required this.onCopy,
+  });
+
+  final QueryDocumentSnapshot<Map<String, dynamic>> invite;
+  final String Function(Object? status) statusLabel;
+  final String? Function(Object? value) formatTimestamp;
+  final VoidCallback onCopy;
+
+  @override
+  Widget build(BuildContext context) {
+    final data = invite.data();
+    final email = (data['email'] ?? 'E-post puudub').toString();
+    final details = <String>[
+      'Staatus: ${statusLabel(data['status'])}',
+    ];
+    final expiresAt = formatTimestamp(data['expiresAt']);
+    final createdAt = formatTimestamp(data['createdAt']);
+
+    if (expiresAt != null) {
+      details.add('Aegub: $expiresAt');
+    }
+    if (createdAt != null) {
+      details.add('Loodud: $createdAt');
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            email,
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          const SizedBox(height: 4),
+          Text(details.join('\n')),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              onPressed: onCopy,
+              icon: const Icon(Icons.copy_outlined),
+              label: const Text('Kopeeri kutse tekst'),
+            ),
+          ),
         ],
       ),
     );

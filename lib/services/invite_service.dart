@@ -51,6 +51,27 @@ class InviteService {
     });
   }
 
+  Stream<List<QueryDocumentSnapshot<Map<String, dynamic>>>>
+      streamPendingInvitesForOrganization(String organizationId) {
+    final normalizedOrganizationId = organizationId.trim();
+    if (normalizedOrganizationId.isEmpty) {
+      return Stream.value(<QueryDocumentSnapshot<Map<String, dynamic>>>[]);
+    }
+
+    return _invites
+        .where('organizationId', isEqualTo: normalizedOrganizationId)
+        .where('status', isEqualTo: 'pending')
+        .snapshots()
+        .map((snapshot) {
+      return snapshot.docs.where((doc) {
+        final invite = doc.data();
+        final inviteOrganizationId =
+            (invite['organizationId'] ?? invite['commandId'] ?? '').toString();
+        return inviteOrganizationId == normalizedOrganizationId;
+      }).toList(growable: false);
+    });
+  }
+
   Future<void> createMemberInvite({
     required String organizationId,
     required String email,
