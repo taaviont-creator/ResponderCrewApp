@@ -82,7 +82,7 @@ class AdminHomeDashboard extends StatelessWidget {
         ),
         const SizedBox(height: AppTheme.itemSpacing),
         PrimaryActionButton(
-          label: 'Lisa tegevus',
+          label: 'Lisa tegevus/koolitus',
           icon: Icons.event_available_outlined,
           style: PrimaryActionButtonStyle.secondary,
           onPressed: onCreateActivity,

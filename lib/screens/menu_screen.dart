@@ -127,21 +127,8 @@ class MenuScreen extends StatelessWidget {
           ),
           _MenuEntry(
             icon: Icons.event_outlined,
-            title: 'Tegevused',
-            subtitle: 'Kohtumised, õppused ja sündmused',
-            onTap: () => _open(
-              context,
-              ActivitiesScreen(
-                organizationId: organizationId,
-                currentUid: currentUid,
-                canManageActivities: canCreateActivities,
-              ),
-            ),
-          ),
-          _MenuEntry(
-            icon: Icons.school_outlined,
-            title: 'Koolitused',
-            subtitle: 'Koolitused ja õppused',
+            title: 'Tegevused ja koolitused',
+            subtitle: 'Kohtumised, koolitused ja õppused',
             onTap: () => _open(
               context,
               ActivitiesScreen(

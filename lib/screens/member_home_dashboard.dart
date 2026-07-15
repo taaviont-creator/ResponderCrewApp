@@ -103,7 +103,7 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
         _buildLatestCallout(),
         const SizedBox(height: AppTheme.sectionSpacing),
         _SectionTitle(
-          title: 'Tulev tegevus',
+          title: 'Tulev tegevus/koolitus',
           onOpen: widget.onOpenActivities,
         ),
         const SizedBox(height: AppTheme.itemSpacing),

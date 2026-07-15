@@ -66,7 +66,7 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) {
           return AlertDialog(
-            title: const Text('Lisa tegevus'),
+            title: const Text('Lisa tegevus/koolitus'),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,

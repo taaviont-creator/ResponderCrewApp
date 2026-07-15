@@ -954,7 +954,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 _buildModuleButton(
                   icon: Icons.event,
-                  label: 'Tegevused',
+                  label: 'Tegevused ja koolitused',
                   onPressed: () => Navigator.push(
                     context,
                     MaterialPageRoute(
