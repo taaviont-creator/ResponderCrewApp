@@ -270,6 +270,10 @@ service cloud.firestore {
     function isOwnMemberMembership() {
       return isOwnMembershipCreate() &&
         request.resource.data.role == 'member' &&
+        (
+          !request.resource.data.keys().hasAny(['seaRescueLevel']) ||
+          request.resource.data.seaRescueLevel == 'none'
+        ) &&
         commandIsApprovedAfter(organizationIdFromData(request.resource.data));
     }
 
