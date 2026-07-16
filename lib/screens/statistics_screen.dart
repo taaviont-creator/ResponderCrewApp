@@ -96,7 +96,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                   alignment: Alignment.centerRight,
                   child: OutlinedButton.icon(
                     icon: const Icon(Icons.copy_outlined),
-                    label: const Text('Kopeeri CSV'),
+                    label: const Text('Kopeeri CSV lõikelauale'),
                     onPressed: () => _copyStatisticsCsv(statistics),
                   ),
                 ),
@@ -127,6 +127,13 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
               ),
               if (statistics.hasConfirmedParticipationStatistics) ...[
                 const Divider(),
+                Padding(
+                  padding: const EdgeInsets.only(top: 8, bottom: 4),
+                  child: Text(
+                    'Panusesse lähevad ainult admini kinnitatud osalemised ja tunnid.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
                 _buildStatisticTile(
                   'Kinnitatud osalemisi',
                   statistics.confirmedParticipationCount!,
@@ -143,14 +150,14 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
               const Divider(),
               _buildStatisticTile(
                 widget.canViewOrganizationCertificates
-                    ? 'Kehtivaid kvalifikatsioone'
-                    : 'Minu kehtivaid kvalifikatsioone',
+                    ? 'Kehtivaid tunnistusi'
+                    : 'Minu kehtivaid tunnistusi',
                 statistics.validCertificateCount,
               ),
               _buildStatisticTile(
                 widget.canViewOrganizationCertificates
-                    ? 'Aegunud kvalifikatsioone'
-                    : 'Minu aegunud kvalifikatsioone',
+                    ? 'Aegunud tunnistusi'
+                    : 'Minu aegunud tunnistusi',
                 statistics.expiredCertificateCount,
               ),
             ],
@@ -217,17 +224,17 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
     rows.addAll([
       [
-        'Kvalifikatsioonid',
+        'Tunnistused',
         widget.canViewOrganizationCertificates
-            ? 'Kehtivaid kvalifikatsioone'
-            : 'Minu kehtivaid kvalifikatsioone',
+            ? 'Kehtivaid tunnistusi'
+            : 'Minu kehtivaid tunnistusi',
         statistics.validCertificateCount.toString(),
       ],
       [
-        'Kvalifikatsioonid',
+        'Tunnistused',
         widget.canViewOrganizationCertificates
-            ? 'Aegunud kvalifikatsioone'
-            : 'Minu aegunud kvalifikatsioone',
+            ? 'Aegunud tunnistusi'
+            : 'Minu aegunud tunnistusi',
         statistics.expiredCertificateCount.toString(),
       ],
     ]);
@@ -241,7 +248,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     if (contributions != null) {
       buffer
         ..writeln()
-        ..writeln(_csvLine(const ['Liikmete panus']))
+        ..writeln(_csvLine(const ['Liikmete kinnitatud panus']))
         ..writeln(
           _csvLine(
             const ['Liige', 'Kinnitatud osalemisi', 'Kinnitatud tunnid'],
@@ -292,7 +299,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       children: [
         const SizedBox(height: 8),
         Text(
-          'Liikmete panus',
+          'Liikmete kinnitatud panus',
           style: Theme.of(context).textTheme.titleMedium,
         ),
         if (contributions.isEmpty)
