@@ -238,33 +238,6 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
     });
   }
 
-  bool _hasActivePlannedUnavailability(
-    Iterable<PlannedUnavailabilityModel> periods,
-    DateTime now,
-  ) {
-    return periods.any((period) {
-      final startAt = period.startAt;
-      final endAt = period.endAt;
-      if (!period.isActive || startAt == null || endAt == null) {
-        return false;
-      }
-      return !now.isBefore(startAt) && now.isBefore(endAt);
-    });
-  }
-
-  bool _hasActivePlannedUnavailabilityRule(
-    Iterable<PlannedUnavailabilityRuleModel> rules,
-    DateTime now,
-  ) {
-    final minuteOfDay = now.hour * 60 + now.minute;
-    return rules.any((rule) {
-      return rule.isActive &&
-          rule.daysOfWeek.contains(now.weekday) &&
-          minuteOfDay >= rule.startMinute &&
-          minuteOfDay < rule.endMinute;
-    });
-  }
-
   Widget _buildLatestCallout() {
     return StreamBuilder<List<CalloutModel>>(
       stream: _calloutService.streamActiveCallouts(
@@ -555,6 +528,10 @@ class _MinimumCrewCompact extends StatelessWidget {
   Widget build(BuildContext context) {
     final secondLevelMet = secondLevelOnDutyCount >= 1;
     final responseReady = minimumCrewMet && secondLevelMet;
+    final readinessReasons = <String>[
+      if (!minimumCrewMet) 'Miinimumkoosseis puudu',
+      if (secondLevelOnDutyCount < 1) 'II astme liige puudub',
+    ];
     final color = minimumCrewRequired <= 0
         ? AppColors.textSecondary
         : responseReady
@@ -603,24 +580,51 @@ class _MinimumCrewCompact extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             responseReady
-                ? 'Ühing on reageerimisvalmis'
-                : 'Ühing ei ole reageerimisvalmis',
+                ? 'Ühing on reageerimiseks valmis'
+                : 'Ühing ei ole reageerimiseks valmis',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: color,
                   fontWeight: FontWeight.w600,
                 ),
           ),
-          if (!secondLevelMet) ...[
-            const SizedBox(height: 4),
-            Text(
-              'II astme merepäästja puudub',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.critical,
-                  ),
-            ),
+          if (!responseReady && readinessReasons.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            for (final reason in readinessReasons) ...[
+              _ReadinessReasonLine(label: reason),
+              if (reason != readinessReasons.last) const SizedBox(height: 2),
+            ],
           ],
         ],
       ),
+    );
+  }
+}
+
+class _ReadinessReasonLine extends StatelessWidget {
+  const _ReadinessReasonLine({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          Icons.error_outline,
+          color: AppColors.critical,
+          size: 14,
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.critical,
+                ),
+          ),
+        ),
+      ],
     );
   }
 }

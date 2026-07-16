@@ -569,6 +569,10 @@ class _MinimumCrewCompact extends StatelessWidget {
   Widget build(BuildContext context) {
     final secondLevelMet = secondLevelOnDutyCount >= 1;
     final responseReady = minimumCrewMet && secondLevelMet;
+    final readinessReasons = <String>[
+      if (!minimumCrewMet) 'Miinimumkoosseis puudu',
+      if (secondLevelOnDutyCount < 1) 'II astme liige puudub',
+    ];
     final color = minimumCrewRequired <= 0
         ? AppColors.textSecondary
         : responseReady
@@ -614,20 +618,54 @@ class _MinimumCrewCompact extends StatelessWidget {
               ),
             ],
           ),
-          if (minimumCrewRequired > 0 && !responseReady) ...[
-            const SizedBox(height: 8),
-            Text(
-              secondLevelMet
-                  ? 'Ühing ei ole reageerimisvalmis'
-                  : 'II astme merepäästja puudub. '
-                      'Ühing ei ole reageerimisvalmis',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.critical,
-                  ),
-            ),
+          const SizedBox(height: 8),
+          Text(
+            responseReady
+                ? 'Ühing on reageerimiseks valmis'
+                : 'Ühing ei ole reageerimiseks valmis',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+          if (!responseReady && readinessReasons.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            for (final reason in readinessReasons) ...[
+              _ReadinessReasonLine(label: reason),
+              if (reason != readinessReasons.last) const SizedBox(height: 2),
+            ],
           ],
         ],
       ),
+    );
+  }
+}
+
+class _ReadinessReasonLine extends StatelessWidget {
+  const _ReadinessReasonLine({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          Icons.error_outline,
+          color: AppColors.critical,
+          size: 14,
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.critical,
+                ),
+          ),
+        ),
+      ],
     );
   }
 }
