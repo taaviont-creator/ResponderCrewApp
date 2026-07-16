@@ -395,6 +395,11 @@ class OperationLogService {
     required String completedBy,
   }) async {
     _requireOrganizationId(organizationId);
+    await _ensureCanStartOperationLog(
+      organizationId: organizationId,
+      createdBy: completedBy,
+    );
+
     final trimmedSummary = summary.trim();
     final trimmedOutcome = outcome.trim();
     final doc = _operationLogs.doc(operationLogId);

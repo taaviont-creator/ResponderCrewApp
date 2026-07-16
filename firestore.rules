@@ -1266,7 +1266,7 @@ service cloud.firestore {
           'completedBy',
           'updatedAt'
         ]) &&
-        isActiveMember(organizationIdFromData(resource.data));
+        canManageOperationLog(organizationIdFromData(resource.data));
     }
 
     function isOperationLogEventCreate(logId, eventId) {
