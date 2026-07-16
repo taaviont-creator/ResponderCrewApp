@@ -2054,6 +2054,43 @@ service cloud.firestore {
         );
     }
 
+    function isActiveMemberOfOrganization(userId, organizationId) {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/memberships/$(membershipIdForUser(userId, organizationId))) &&
+        isActiveMembershipData(
+          get(/databases/$(database)/documents/memberships/$(membershipIdForUser(userId, organizationId))).data
+        ) &&
+        hasValidOrganizationReference(
+          get(/databases/$(database)/documents/memberships/$(membershipIdForUser(userId, organizationId))).data
+        ) &&
+        organizationIdFromData(
+          get(/databases/$(database)/documents/memberships/$(membershipIdForUser(userId, organizationId))).data
+        ) == organizationId;
+    }
+
+    function currentUserActiveOrganizationId() {
+      let currentUserPath =
+        /databases/$(database)/documents/users/$(request.auth.uid);
+      return signedIn() &&
+          exists(currentUserPath)
+        ? activeOrganizationIdFromUserData(get(currentUserPath).data)
+        : '';
+    }
+
+    function canReadOrganizationUser(userId) {
+      let organizationId = currentUserActiveOrganizationId();
+      return organizationId is string &&
+        organizationId.size() > 0 &&
+        isActiveOrgAdmin(organizationId) &&
+        isActiveMemberOfOrganization(userId, organizationId);
+    }
+
+    function canReadUser(userId) {
+      return isSelf(userId) ||
+        isPlatformAdmin() ||
+        canReadOrganizationUser(userId);
+    }
+
     function normalizedEmailMatchesAuth() {
       return request.auth.token.email is string &&
         request.resource.data.normalizedEmail ==
@@ -2342,8 +2379,7 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      // TODO: Restrict user reads to self + same-organization members before production.
-      allow read: if signedIn();
+      allow read: if canReadUser(userId);
       allow create: if isSafeUserCreate(userId);
       allow update: if isSafeUserUpdate(userId);
     }
