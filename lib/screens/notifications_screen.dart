@@ -435,7 +435,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Seotud vaadet ei saa avada.'),
+        content: Text('Selle teavituse seotud vaade pole veel toetatud.'),
       ),
     );
   }
@@ -938,6 +938,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                               ? Icons.mark_email_read_outlined
                               : Icons.mark_email_unread_outlined,
                         ),
+                        StatusBadge(
+                          label:
+                              'Avab: ${_notificationDestinationLabel(notification)}',
+                          type: StatusBadgeType.neutral,
+                          icon: Icons.open_in_new_outlined,
+                        ),
                         if (organizationId.isNotEmpty)
                           StatusBadge(
                             label: 'Org $organizationId',
@@ -1088,6 +1094,43 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         return Icons.card_membership_outlined;
       default:
         return Icons.notifications_outlined;
+    }
+  }
+
+  String _notificationDestinationLabel(NotificationModel notification) {
+    const supportedRelatedTypes = {
+      'callout',
+      'equipment',
+      'activity',
+      'availability',
+      'organizationReadiness',
+      'certificate',
+    };
+    final targetType =
+        supportedRelatedTypes.contains(notification.relatedType)
+            ? notification.relatedType!
+            : notification.type;
+
+    switch (targetType) {
+      case 'callout':
+        final relatedId = notification.relatedId?.trim() ?? '';
+        return notification.relatedType == NotificationType.callout &&
+                relatedId.isNotEmpty
+            ? 'väljakutse detail'
+            : 'väljakutsed';
+      case 'equipment':
+        return 'varustus';
+      case 'activity':
+        return 'tegevused ja koolitused';
+      case 'availability':
+      case 'organizationReadiness':
+      case NotificationType.minimumCrew:
+      case NotificationType.readiness:
+        return 'valvesolek';
+      case NotificationType.certificate:
+        return 'tunnistused';
+      default:
+        return 'teavitused';
     }
   }
 
