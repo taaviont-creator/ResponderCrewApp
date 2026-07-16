@@ -178,7 +178,7 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Tegevuse lisamine ebaonnestus: $e')),
+        SnackBar(content: Text('Tegevuse lisamine ebaõnnestus: $e')),
       );
     }
   }
@@ -237,6 +237,11 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
               ),
               const SizedBox(height: 4),
               Text(statusText),
+              const SizedBox(height: 4),
+              Text(
+                'Panusesse lähevad ainult admini kinnitatud osalemised ja tunnid.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
@@ -304,14 +309,14 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) {
           return AlertDialog(
-            title: const Text('Tunnid'),
+            title: const Text('Kinnitatud tunnid'),
             content: TextField(
               controller: hoursController,
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
               ),
               decoration: InputDecoration(
-                labelText: 'Tunnid',
+                labelText: 'Kinnitatud tunnid',
                 errorText: hoursError,
               ),
             ),
@@ -418,10 +423,8 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
                 'Liikme valik: '
                 '${_participationChoiceLabel(participant.status)}',
               ),
-              if (attendanceLabel != null) ...[
-                const SizedBox(height: 2),
-                Text(attendanceLabel),
-              ],
+              const SizedBox(height: 2),
+              Text(attendanceLabel),
               const SizedBox(height: 6),
               Wrap(
                 spacing: 8,
@@ -667,14 +670,14 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
     }
   }
 
-  String? _attendanceConfirmationLabel(String status) {
+  String _attendanceConfirmationLabel(String status) {
     switch (status) {
       case ActivityAttendanceStatus.confirmed:
         return 'Kinnitatud: osales';
       case ActivityAttendanceStatus.absent:
         return 'Kinnitatud: puudus';
       default:
-        return null;
+        return 'Kinnitamata';
     }
   }
 
