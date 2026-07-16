@@ -576,6 +576,7 @@ service cloud.firestore {
     }
 
     function isOrgAdminMembershipUpdate() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
       return request.resource.data.userId == resource.data.userId &&
         hasValidOrganizationReference(request.resource.data) &&
         organizationIdFromData(request.resource.data) ==
@@ -589,11 +590,15 @@ service cloud.firestore {
         ) &&
         isValidSeaRescueLevel(request.resource.data) &&
         request.resource.data.updatedAt == request.time &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        changed.hasOnly([
           'role',
           'seaRescueLevel',
           'updatedAt'
         ]) &&
+        (
+          !changed.hasAny(['role']) ||
+          resource.data.userId != request.auth.uid
+        ) &&
         isActiveOrgAdmin(organizationIdFromData(resource.data));
     }
 
