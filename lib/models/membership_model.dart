@@ -80,6 +80,8 @@ class SeaRescueLevel {
 }
 
 class MembershipModel {
+  static const defaultDisplayName = 'Liige';
+
   const MembershipModel({
     required this.id,
     required this.userId,
@@ -87,6 +89,7 @@ class MembershipModel {
     required this.role,
     required this.seaRescueLevel,
     required this.isActive,
+    required this.displayName,
   });
 
   final String id;
@@ -95,6 +98,7 @@ class MembershipModel {
   final String role;
   final String seaRescueLevel;
   final bool isActive;
+  final String displayName;
 
   factory MembershipModel.fromMap({
     required String id,
@@ -109,6 +113,7 @@ class MembershipModel {
       role: MembershipRole.normalize(data['role']),
       seaRescueLevel: SeaRescueLevel.normalize(data['seaRescueLevel']),
       isActive: _isActiveMembership(data),
+      displayName: _stringValue(data['displayName']),
     );
   }
 
@@ -116,6 +121,8 @@ class MembershipModel {
   bool get isOrgAdmin => isActive && MembershipRole.isOrgAdmin(role);
   bool get isSeaRescueLevel1 => SeaRescueLevel.isLevel1(seaRescueLevel);
   bool get isSeaRescueLevel2 => SeaRescueLevel.isLevel2(seaRescueLevel);
+  String get safeDisplayName =>
+      displayName.isEmpty ? defaultDisplayName : displayName;
 
   static String _stringValue(Object? value) {
     return value is String ? value.trim() : '';

@@ -6,6 +6,7 @@ class MembershipService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   static const allowedRoles = MembershipRole.values;
+  static const defaultDisplayName = MembershipModel.defaultDisplayName;
 
   CollectionReference<Map<String, dynamic>> get _memberships =>
       _firestore.collection('memberships');
@@ -103,6 +104,13 @@ class MembershipService {
 
   bool isSeaRescueLevel2(Map<String, dynamic> membership) {
     return SeaRescueLevel.isLevel2(membership['seaRescueLevel']);
+  }
+
+  String safeDisplayNameFromMembership(Map<String, dynamic> membership) {
+    final displayName = _stringValue(membership['displayName']);
+    return displayName == null || displayName.isEmpty
+        ? defaultDisplayName
+        : displayName;
   }
 
   String? resolveActiveOrganizationId({

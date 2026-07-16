@@ -285,6 +285,8 @@ class InviteService {
     }
 
     final userRef = _firestore.collection('users').doc(user.uid);
+    final userSnapshot = await userRef.get();
+    final displayName = _safeDisplayName(userSnapshot.data()?['name']);
     final batch = _firestore.batch();
 
     batch.update(inviteRef, {
@@ -293,7 +295,7 @@ class InviteService {
       'acceptedAt': FieldValue.serverTimestamp(),
     });
 
-    batch.set(membershipRef, {
+    final membershipData = <String, dynamic>{
       'userId': user.uid,
       'organizationId': organizationId,
       // TODO: Remove commandId after all reads use organizationId.
@@ -305,7 +307,11 @@ class InviteService {
       'joinedAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
       'acceptedInviteId': inviteId,
-    }, SetOptions(merge: true));
+    };
+    if (displayName != null) {
+      membershipData['displayName'] = displayName;
+    }
+    batch.set(membershipRef, membershipData, SetOptions(merge: true));
 
     batch.set(userRef, {
       'activeOrganizationId': organizationId,
@@ -319,6 +325,14 @@ class InviteService {
 
   bool _isValidEmail(String value) {
     return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value);
+  }
+
+  String? _safeDisplayName(Object? value) {
+    if (value is! String) return null;
+    final trimmed = value.trim();
+    if (trimmed.isEmpty || trimmed.contains('@')) return null;
+    if (trimmed.length <= 80) return trimmed;
+    return trimmed.substring(0, 80).trim();
   }
 
   Timestamp? _timestampValue(Object? value) {

@@ -57,5 +57,75 @@ class UserService {
           data,
           SetOptions(merge: true),
         );
+    await _syncOwnActiveMembershipDisplayNames(
+      uid: uid,
+      displayName: trimmedName,
+    );
+  }
+
+  Future<void> _syncOwnActiveMembershipDisplayNames({
+    required String uid,
+    required String displayName,
+  }) async {
+    final safeDisplayName = _safeDisplayName(displayName);
+    if (safeDisplayName == null) return;
+
+    final snapshot = await _firestore
+        .collection('memberships')
+        .where('userId', isEqualTo: uid)
+        .get();
+    final batch = _firestore.batch();
+    var hasWrites = false;
+
+    for (final doc in snapshot.docs) {
+      final membership = doc.data();
+      if (!_isActiveMembership(membership)) continue;
+      final organizationId = _organizationIdFromMembership(membership);
+      if (organizationId == null || doc.id != '${uid}_$organizationId') {
+        continue;
+      }
+
+      batch.set(doc.reference, {
+        'displayName': safeDisplayName,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      hasWrites = true;
+    }
+
+    if (hasWrites) {
+      await batch.commit();
+    }
+  }
+
+  String? _safeDisplayName(Object? value) {
+    if (value is! String) return null;
+    final trimmed = value.trim();
+    if (trimmed.isEmpty || trimmed.contains('@')) return null;
+    if (trimmed.length <= 80) return trimmed;
+    return trimmed.substring(0, 80).trim();
+  }
+
+  String? _organizationIdFromMembership(Map<String, dynamic> membership) {
+    final organizationId = membership['organizationId'];
+    if (organizationId is String && organizationId.trim().isNotEmpty) {
+      return organizationId.trim();
+    }
+
+    final commandId = membership['commandId'];
+    if (commandId is String && commandId.trim().isNotEmpty) {
+      return commandId.trim();
+    }
+
+    return null;
+  }
+
+  bool _isActiveMembership(Map<String, dynamic> membership) {
+    final hasActiveMarker =
+        membership['status'] == 'active' || membership['isActive'] == true;
+    final statusIsActive =
+        !membership.containsKey('status') || membership['status'] == 'active';
+    final flagIsActive =
+        !membership.containsKey('isActive') || membership['isActive'] == true;
+    return hasActiveMarker && statusIsActive && flagIsActive;
   }
 }

@@ -59,6 +59,16 @@ service cloud.firestore {
         data.seaRescueLevel == 'level2';
     }
 
+    function isValidMembershipDisplayName(data) {
+      return !data.keys().hasAny(['displayName']) ||
+        (
+          data.displayName is string &&
+          data.displayName.size() > 0 &&
+          data.displayName.size() <= 80 &&
+          !data.displayName.matches('.*@.*')
+        );
+    }
+
     function commandExistsAfter(commandId) {
       return existsAfter(/databases/$(database)/documents/commands/$(commandId)) &&
         getAfter(/databases/$(database)/documents/commands/$(commandId)).data.createdBy is string;
@@ -245,6 +255,7 @@ service cloud.firestore {
         request.resource.data.userId == request.auth.uid &&
         hasValidOrganizationReference(request.resource.data) &&
         isValidSeaRescueLevel(request.resource.data) &&
+        isValidMembershipDisplayName(request.resource.data) &&
         isActiveMembershipData(request.resource.data);
     }
 
@@ -264,6 +275,7 @@ service cloud.firestore {
         request.resource.data.userId == request.auth.uid &&
         hasValidOrganizationReference(request.resource.data) &&
         isValidSeaRescueLevel(request.resource.data) &&
+        isValidMembershipDisplayName(request.resource.data) &&
         request.resource.data.role == 'orgAdmin' &&
         (
           !request.resource.data.keys().hasAny(['seaRescueLevel']) ||
@@ -312,6 +324,21 @@ service cloud.firestore {
           'isActive',
           'updatedAt'
         ]);
+    }
+
+    function isOwnMembershipDisplayNameUpdate(membershipId) {
+      let organizationId = organizationIdFromData(resource.data);
+      return signedIn() &&
+        resource.data.userId == request.auth.uid &&
+        membershipId == membershipIdForUser(request.auth.uid, organizationId) &&
+        keepsMembershipIdentityAndRole() &&
+        request.resource.data.updatedAt == request.time &&
+        isValidMembershipDisplayName(request.resource.data) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'displayName',
+          'updatedAt'
+        ]) &&
+        isActiveMembershipData(resource.data);
     }
 
     function isPlatformApprovalMembershipUpdate() {
@@ -442,6 +469,7 @@ service cloud.firestore {
           'commandId',
           'role',
           'seaRescueLevel',
+          'displayName',
           'status',
           'isActive',
           'joinedAt',
@@ -463,6 +491,7 @@ service cloud.firestore {
         membershipId == membershipIdForUser(request.auth.uid, organizationId) &&
         request.resource.data.userId == request.auth.uid &&
         hasValidOrganizationReference(request.resource.data) &&
+        isValidMembershipDisplayName(request.resource.data) &&
         request.resource.data.role == 'member' &&
         request.resource.data.seaRescueLevel == 'none' &&
         request.resource.data.status == 'active' &&
@@ -484,6 +513,7 @@ service cloud.firestore {
         organizationIdFromData(request.resource.data) == organizationIdFromData(resource.data) &&
         membershipId == membershipIdForUser(request.auth.uid, organizationId) &&
         hasValidOrganizationReference(request.resource.data) &&
+        isValidMembershipDisplayName(request.resource.data) &&
         request.resource.data.role == 'member' &&
         request.resource.data.seaRescueLevel == 'none' &&
         request.resource.data.status == 'active' &&
@@ -494,6 +524,7 @@ service cloud.firestore {
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'role',
           'seaRescueLevel',
+          'displayName',
           'status',
           'isActive',
           'joinedAt',
@@ -589,10 +620,12 @@ service cloud.firestore {
           )
         ) &&
         isValidSeaRescueLevel(request.resource.data) &&
+        isValidMembershipDisplayName(request.resource.data) &&
         request.resource.data.updatedAt == request.time &&
         changed.hasOnly([
           'role',
           'seaRescueLevel',
+          'displayName',
           'updatedAt'
         ]) &&
         (
@@ -2423,6 +2456,7 @@ service cloud.firestore {
           isPlatformApprovalMembershipUpdate() ||
           isOrgAdminMembershipUpdate() ||
           isOwnMembershipStatusUpdate() ||
+          isOwnMembershipDisplayNameUpdate(membershipId) ||
           isInviteMembershipUpdate(membershipId)
         );
     }

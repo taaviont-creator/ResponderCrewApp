@@ -1194,6 +1194,10 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                       );
                       final item = _MemberAvailability(
                         userId: userId,
+                        displayName:
+                            _membershipService.safeDisplayNameFromMembership(
+                          membership,
+                        ),
                         role: _roleLabel((membership['role'] ?? '').toString()),
                         availability: availabilityByUserId[userId],
                         effectiveStatus: effectiveStatus,
@@ -1602,12 +1606,14 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
 class _MemberAvailability {
   const _MemberAvailability({
     required this.userId,
+    required this.displayName,
     required this.role,
     required this.availability,
     required this.effectiveStatus,
   });
 
   final String userId;
+  final String displayName;
   final String role;
   final AvailabilityModel? availability;
   final String effectiveStatus;
@@ -1937,59 +1943,49 @@ class _MemberTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      future: FirebaseFirestore.instance
-          .collection('users')
-          .doc(member.userId)
-          .get(),
-      builder: (context, snapshot) {
-        final data = snapshot.data?.data() ?? const <String, dynamic>{};
-        final name = (data['name'] ?? '').toString();
-        final email = (data['email'] ?? '').toString();
-        final displayName =
-            name.isNotEmpty ? name : (email.isNotEmpty ? email : 'Liige');
-        final initials = _initials(displayName);
-        final minutes = member.availability?.responseMinutes;
-        final note = member.availability?.note?.trim();
-        final details = <String>[
-          member.role,
-          if (member.status == AvailabilityStatus.delayed && minutes != null)
-            '+ $minutes min',
-          if (note != null && note.isNotEmpty) note,
-        ];
+    final displayName = member.displayName.trim().isEmpty
+        ? MembershipModel.defaultDisplayName
+        : member.displayName.trim();
+    final initials = _initials(displayName);
+    final minutes = member.availability?.responseMinutes;
+    final note = member.availability?.note?.trim();
+    final details = <String>[
+      member.role,
+      if (member.status == AvailabilityStatus.delayed && minutes != null)
+        '+ $minutes min',
+      if (note != null && note.isNotEmpty) note,
+    ];
 
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              CircleAvatar(
-                backgroundColor: AppColors.surfaceBlueStrong,
-                foregroundColor: AppColors.navy,
-                child: Text(initials),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      displayName,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    Text(
-                      details.join(' • '),
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            backgroundColor: AppColors.surfaceBlueStrong,
+            foregroundColor: AppColors.navy,
+            child: Text(initials),
           ),
-        );
-      },
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  displayName,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                Text(
+                  details.join(' • '),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 

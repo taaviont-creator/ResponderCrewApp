@@ -55,6 +55,7 @@ class CommandService {
     }
 
     final joinCode = await _generateUniqueJoinCode();
+    final displayName = await _loadOwnDisplayName(user.uid);
 
     final commandRef = _db.collection('commands').doc();
     final membershipRef = _db
@@ -74,7 +75,7 @@ class CommandService {
       'isOnDuty': false,
     });
 
-    batch.set(membershipRef, {
+    final membershipData = <String, dynamic>{
       'userId': user.uid,
       'organizationId': commandRef.id,
       'commandId': commandRef.id,
@@ -83,7 +84,11 @@ class CommandService {
       'status': 'pending',
       'isActive': false,
       'joinedAt': FieldValue.serverTimestamp(),
-    });
+    };
+    if (displayName != null) {
+      membershipData['displayName'] = displayName;
+    }
+    batch.set(membershipRef, membershipData);
 
     await batch.commit();
 
@@ -191,10 +196,11 @@ class CommandService {
         .collection('memberships')
         .doc(_membershipId(user.uid, commandId));
     final userRef = _db.collection('users').doc(user.uid);
+    final displayName = await _loadOwnDisplayName(user.uid);
 
     final batch = _db.batch();
 
-    batch.set(membershipRef, {
+    final membershipData = <String, dynamic>{
       'userId': user.uid,
       'organizationId': commandId,
       'commandId': commandId,
@@ -204,7 +210,11 @@ class CommandService {
       'isActive': true,
       'joinedAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    };
+    if (displayName != null) {
+      membershipData['displayName'] = displayName;
+    }
+    batch.set(membershipRef, membershipData, SetOptions(merge: true));
 
     batch.set(userRef, {
       'activeOrganizationId': commandId,
@@ -371,5 +381,18 @@ class CommandService {
     }
 
     await batch.commit();
+  }
+
+  Future<String?> _loadOwnDisplayName(String uid) async {
+    final snapshot = await _db.collection('users').doc(uid).get();
+    return _safeDisplayName(snapshot.data()?['name']);
+  }
+
+  String? _safeDisplayName(Object? value) {
+    if (value is! String) return null;
+    final trimmed = value.trim();
+    if (trimmed.isEmpty || trimmed.contains('@')) return null;
+    if (trimmed.length <= 80) return trimmed;
+    return trimmed.substring(0, 80).trim();
   }
 }
