@@ -488,13 +488,13 @@ class _CalloutCard extends StatelessWidget {
   String _responseLabel(CalloutResponseModel? response) {
     switch (response?.response) {
       case CalloutResponseValue.responding:
-        return 'Tulen';
+        return 'Sinu vastus: Tulen';
       case CalloutResponseValue.delayed:
         return response?.responseMinutes == null
-            ? 'Hilinen'
-            : 'Hilinen umbes ${response!.responseMinutes} minutit';
+            ? 'Sinu vastus: Hilinen'
+            : 'Sinu vastus: Hilinen · ${response!.responseMinutes} min';
       case CalloutResponseValue.unavailable:
-        return 'Ei tule';
+        return 'Sinu vastus: Ei tule';
       default:
         return _isActive ? 'Vasta' : 'Vastus puudub';
     }

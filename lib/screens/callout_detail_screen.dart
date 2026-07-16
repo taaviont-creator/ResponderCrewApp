@@ -643,11 +643,13 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
   String _myResponseLabel(String? response, int? minutes) {
     switch (response) {
       case CalloutResponseValue.responding:
-        return 'Oled märkinud: Tulen.';
+        return 'Sinu vastus: Tulen';
       case CalloutResponseValue.delayed:
-        return 'Hilinen umbes ${minutes ?? 0} minutit.';
+        return minutes == null
+            ? 'Sinu vastus: Hilinen'
+            : 'Sinu vastus: Hilinen · $minutes min';
       case CalloutResponseValue.unavailable:
-        return 'Oled märkinud: Ei tule.';
+        return 'Sinu vastus: Ei tule';
       default:
         return 'Sa ei ole veel sellele väljakutsele vastanud.';
     }

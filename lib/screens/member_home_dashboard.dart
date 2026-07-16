@@ -358,7 +358,9 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
   String _myCalloutResponseLabel(CalloutResponseModel? response) {
     return switch (response?.response) {
       CalloutResponseValue.responding => 'Sinu vastus: Tulen',
-      CalloutResponseValue.delayed => 'Sinu vastus: Hilinen',
+      CalloutResponseValue.delayed => response?.responseMinutes == null
+          ? 'Sinu vastus: Hilinen'
+          : 'Sinu vastus: Hilinen · ${response!.responseMinutes} min',
       CalloutResponseValue.unavailable => 'Sinu vastus: Ei tule',
       _ => 'Vastus puudub',
     };
