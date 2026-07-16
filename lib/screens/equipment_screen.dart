@@ -160,7 +160,7 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
                   const SizedBox(height: 8),
                   TextField(
                     controller: noteController,
-                    decoration: const InputDecoration(labelText: 'Markus'),
+                    decoration: const InputDecoration(labelText: 'Märkus'),
                     maxLines: 2,
                   ),
                 ],
@@ -225,7 +225,7 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Varustuse lisamine ebaonnestus: $e')),
+        SnackBar(content: Text('Varustuse lisamine ebaõnnestus: $e')),
       );
     }
   }
@@ -327,7 +327,7 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
                   const SizedBox(height: 8),
                   TextField(
                     controller: noteController,
-                    decoration: const InputDecoration(labelText: 'Markus'),
+                    decoration: const InputDecoration(labelText: 'Märkus'),
                     maxLines: 2,
                   ),
                 ],
@@ -389,7 +389,7 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Varustuse uuendamine ebaonnestus: $e')),
+        SnackBar(content: Text('Varustuse uuendamine ebaõnnestus: $e')),
       );
     }
   }
@@ -630,7 +630,7 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
               _buildEquipmentSection(
                 title: 'Ühingu varustus',
                 equipment: organizationEquipment,
-                emptyText: 'Varustust ei ole lisatud.',
+                emptyText: 'Ühingu varustust ei ole lisatud.',
                 addLabel: 'Lisa ühingu varustus',
                 helperText: widget.canManageEquipment
                     ? null
@@ -811,7 +811,8 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
   }
 
   String? _assignmentStatusLabel(EquipmentModel item) {
-    if (item.isPersonal || !item.isAssigned) return null;
+    if (item.isPersonal) return null;
+    if (!item.isAssigned) return 'Saadaval';
     if (item.assignedToUserId == widget.currentUid) return 'Väljastatud mulle';
 
     final assignedToName = item.assignedToName.trim();
