@@ -2051,7 +2051,8 @@ class _ScheduledStatusPreview extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             hasActiveSchedule
-                ? 'Planeeritud mittevalves aeg on hetkel aktiivne.'
+                ? 'Planeeritud mittevalves aeg on aktiivne ja sind ei '
+                    'arvestata valmisolekus valves liikmena.'
                 : 'Planeeritud mittevalves aeg ei ole hetkel aktiivne.',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: color,

@@ -603,7 +603,7 @@ class _HomeScreenState extends State<HomeScreen> {
       padding: const EdgeInsets.fromLTRB(4, 2, 4, 0),
       decoration: BoxDecoration(
         border: Border(
-          bottom: BorderSide(color: theme.dividerColor.withOpacity(0.4)),
+          bottom: BorderSide(color: theme.dividerColor.withValues(alpha: 0.4)),
         ),
       ),
       child: Padding(
