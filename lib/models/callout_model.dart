@@ -203,6 +203,7 @@ class CalloutResponseMember {
     required this.userId,
     required this.displayName,
     required this.response,
+    this.isSeaRescueLevel2 = false,
     this.responseMinutes,
     this.respondedAt,
   });
@@ -210,6 +211,7 @@ class CalloutResponseMember {
   final String userId;
   final String displayName;
   final String response;
+  final bool isSeaRescueLevel2;
   final int? responseMinutes;
   final DateTime? respondedAt;
 }

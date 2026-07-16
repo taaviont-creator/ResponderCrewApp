@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/callout_model.dart';
+import '../models/membership_model.dart';
 import '../models/notification_model.dart';
 import '../models/operation_log_model.dart';
 import 'membership_service.dart';
@@ -158,10 +159,15 @@ class CalloutService {
       }
 
       final currentVersion = ++emissionVersion;
-      final memberIds = memberships!
-          .map((membership) => (membership.data()['userId'] ?? '').toString())
-          .where((userId) => userId.isNotEmpty)
-          .toSet();
+      final membershipsByUserId = <String, Map<String, dynamic>>{};
+      for (final membership in memberships!) {
+        final data = membership.data();
+        final userId = (data['userId'] ?? '').toString();
+        if (userId.isNotEmpty) {
+          membershipsByUserId[userId] = data;
+        }
+      }
+      final memberIds = membershipsByUserId.keys.toSet();
       final responsesByUserId = <String, CalloutResponseModel>{};
       final displayNames = Map<String, String>.from(displayNameCache);
       for (final response in responses!) {
@@ -211,6 +217,9 @@ class CalloutService {
           userId: userId,
           displayName: displayNames[userId] ?? 'Liige',
           response: response?.response ?? CalloutResponseValue.noResponse,
+          isSeaRescueLevel2: SeaRescueLevel.isLevel2(
+            membershipsByUserId[userId]?['seaRescueLevel'],
+          ),
           responseMinutes: response?.responseMinutes,
           respondedAt: response?.updatedAt ?? response?.createdAt,
         );

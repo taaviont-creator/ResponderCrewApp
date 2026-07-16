@@ -456,6 +456,12 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
         }
 
         final summary = details.summary;
+        final comingCount = details.responding.length + details.delayed.length;
+        final hasSecondLevelComing = [
+          ...details.responding,
+          ...details.delayed,
+        ].any((member) => member.isSeaRescueLevel2);
+
         return AppSectionCard(
           title: 'Meeskonna vastused',
           subtitle: '${summary.totalResponded} vastanud',
@@ -482,6 +488,25 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
                   StatusBadge(
                     label: 'Vastamata ${summary.noResponse}',
                     type: StatusBadgeType.neutral,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  StatusBadge(
+                    label: 'Tulemas: $comingCount',
+                    type: StatusBadgeType.ready,
+                  ),
+                  StatusBadge(
+                    label: hasSecondLevelComing
+                        ? 'II astme tulija olemas'
+                        : 'II astme tulija puudub',
+                    type: hasSecondLevelComing
+                        ? StatusBadgeType.ready
+                        : StatusBadgeType.delayed,
                   ),
                 ],
               ),
