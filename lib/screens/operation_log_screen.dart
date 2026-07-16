@@ -655,54 +655,14 @@ class _OperationLogCardState extends State<_OperationLogCard> {
   }
 
   List<Widget> _buildExpandedChildren(OperationLogModel log) {
+    final isActiveLog = _isActiveOperationLog(log.status);
+
     return [
       _buildStatusSummary(log),
       if (widget.canViewCalloutResponseSummary && log.calloutId != null)
         _buildCalloutResponseSummary(log.calloutId!),
-      const Align(
-        alignment: Alignment.centerLeft,
-        child: Text(
-          'Lõppkokkuvõte',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-      ),
-      const SizedBox(height: 4),
-      Align(
-        alignment: Alignment.centerLeft,
-        child: Text(
-          log.summary.isEmpty ? 'Kokkuvõte puudub' : log.summary,
-        ),
-      ),
-      const SizedBox(height: 12),
-      const Align(
-        alignment: Alignment.centerLeft,
-        child: Text(
-          'Tulemus',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-      ),
-      const SizedBox(height: 4),
-      Align(
-        alignment: Alignment.centerLeft,
-        child: Text(
-          log.outcome.isEmpty ? 'Tulemus puudub' : log.outcome,
-        ),
-      ),
-      if (log.status == OperationLogStatus.completed &&
-          widget.canStartOperationLog)
-        Align(
-          alignment: Alignment.centerRight,
-          child: TextButton.icon(
-            onPressed: () => widget.onShowFinalSummaryDialog(log),
-            icon: const Icon(Icons.summarize_outlined),
-            label: Text(
-              log.summary.isEmpty
-                  ? 'Lisa lõppkokkuvõte'
-                  : 'Muuda lõppkokkuvõtet',
-            ),
-          ),
-        ),
-      if (_isActiveOperationLog(log.status) && widget.canStartOperationLog) ...[
+      if (!isActiveLog) ..._buildFinalSummaryChildren(log),
+      if (isActiveLog && widget.canStartOperationLog) ...[
         _buildOperationalModeHint(context),
         const SizedBox(height: 12),
       ],
@@ -761,6 +721,58 @@ class _OperationLogCardState extends State<_OperationLogCard> {
         operationLogId: log.id,
         organizationId: widget.organizationId,
       ),
+      if (isActiveLog) ...[
+        const SizedBox(height: 12),
+        ..._buildFinalSummaryChildren(log),
+      ],
+    ];
+  }
+
+  List<Widget> _buildFinalSummaryChildren(OperationLogModel log) {
+    return [
+      const Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          'Lõppkokkuvõte',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+      ),
+      const SizedBox(height: 4),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          log.summary.isEmpty ? 'Kokkuvõte puudub' : log.summary,
+        ),
+      ),
+      const SizedBox(height: 12),
+      const Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          'Tulemus',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+      ),
+      const SizedBox(height: 4),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          log.outcome.isEmpty ? 'Tulemus puudub' : log.outcome,
+        ),
+      ),
+      if (log.status == OperationLogStatus.completed &&
+          widget.canStartOperationLog)
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton.icon(
+            onPressed: () => widget.onShowFinalSummaryDialog(log),
+            icon: const Icon(Icons.summarize_outlined),
+            label: Text(
+              log.summary.isEmpty
+                  ? 'Lisa lõppkokkuvõte'
+                  : 'Muuda lõppkokkuvõtet',
+            ),
+          ),
+        ),
     ];
   }
 
