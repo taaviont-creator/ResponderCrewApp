@@ -88,7 +88,7 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) {
           return AlertDialog(
-            title: const Text('Lisa kvalifikatsioon'),
+            title: const Text('Lisa tunnistus'),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -132,6 +132,14 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
                       if (value == null) return;
                       setDialogState(() => selectedType = value);
                     },
+                  ),
+                  const SizedBox(height: 4),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Merepääste aste määratakse liikmelisuse all eraldi.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   TextField(
@@ -289,7 +297,7 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Kvalifikatsioonid'),
+        title: const Text('Tunnistused'),
       ),
       floatingActionButton: widget.canManageCertificates
           ? FloatingActionButton(
@@ -322,6 +330,11 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              Text(
+                'Merepääste aste määratakse liikmelisuse all eraldi.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 12),
               Text(
                 'Tähelepanu vajavad tunnistused',
                 style: Theme.of(context).textTheme.titleMedium,
