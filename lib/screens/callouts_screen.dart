@@ -68,7 +68,18 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text(
+                  'Väljakutse on mõeldud reageerimisvalmis liikmetele. '
+                  'Liikmed saavad anda kiire vastuse: Tulen, Hilinen või '
+                  'Ei tule.\n'
+                  'Sündmuse op-logi saab avada väljakutse detailist.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                ),
+                const SizedBox(height: 12),
                 TextField(
                   controller: titleController,
                   onChanged: (value) {

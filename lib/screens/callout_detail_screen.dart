@@ -341,14 +341,28 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
         return AppSectionCard(
           title: 'Operatsioonilogi',
           leading: const Icon(Icons.assignment_outlined),
-          child: PrimaryActionButton(
-            label: existingLog == null ? 'Alusta op-logi' : 'Ava op-logi',
-            icon: existingLog == null
-                ? Icons.playlist_add_outlined
-                : Icons.open_in_new,
-            style: PrimaryActionButtonStyle.secondary,
-            isLoading: _isOpeningOperationLog,
-            onPressed: () => _openOrStartOperationLog(existingLog),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                existingLog == null
+                    ? 'Op-logi luuakse selle väljakutse põhjal.'
+                    : 'Väljakutsega seotud op-logi on valmis avamiseks.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+              ),
+              const SizedBox(height: 12),
+              PrimaryActionButton(
+                label: existingLog == null ? 'Alusta op-logi' : 'Ava op-logi',
+                icon: existingLog == null
+                    ? Icons.playlist_add_outlined
+                    : Icons.open_in_new,
+                style: PrimaryActionButtonStyle.secondary,
+                isLoading: _isOpeningOperationLog,
+                onPressed: () => _openOrStartOperationLog(existingLog),
+              ),
+            ],
           ),
         );
       },
