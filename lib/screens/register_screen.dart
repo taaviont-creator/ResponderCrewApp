@@ -38,7 +38,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (user == null) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Viga: kasutaja loomine ebaõnnestus')),
+          const SnackBar(content: Text('Konto loomine ebaõnnestus')),
         );
         return;
       }
@@ -57,7 +57,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } on Exception catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Viga: $e')),
+        SnackBar(content: Text('Konto loomine ebaõnnestus: $e')),
       );
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -67,7 +67,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('RespondCrew – Registreeru')),
+      appBar: AppBar(title: const Text('RespondCrew – Loo konto')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -81,7 +81,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             TextField(
               controller: _emailController,
               keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(labelText: 'E-mail'),
+              decoration: const InputDecoration(labelText: 'E-post'),
               textInputAction: TextInputAction.next,
             ),
             const SizedBox(height: 12),
@@ -96,8 +96,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: _loading ? null : _register,
-                child: Text(_loading ? 'Loon...' : 'Loo konto'),
+                child: Text(_loading ? 'Konto loomine...' : 'Loo konto'),
               ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Konto olemas? Logi sisse'),
             ),
           ],
         ),

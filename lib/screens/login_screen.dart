@@ -58,7 +58,7 @@ class _LoginScreenState extends State<LoginScreen> {
       // 3.5 Vea korral näita kasutajale
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Viga: $e')),
+        SnackBar(content: Text('Sisselogimine ebaõnnestus: $e')),
       );
     } finally {
       // 3.6 Lülita loading välja (kui ekraan on alles elus)
@@ -83,7 +83,7 @@ class _LoginScreenState extends State<LoginScreen> {
     return TextField(
       controller: _emailController,
       keyboardType: TextInputType.emailAddress,
-      decoration: const InputDecoration(labelText: 'E-mail'),
+      decoration: const InputDecoration(labelText: 'E-post'),
     );
   }
 
@@ -106,7 +106,7 @@ class _LoginScreenState extends State<LoginScreen> {
       width: double.infinity,
       child: ElevatedButton(
         onPressed: _loading ? null : _login,
-        child: Text(_loading ? 'Login...' : 'Logi sisse'),
+        child: Text(_loading ? 'Sisselogimine...' : 'Logi sisse'),
       ),
     );
   }
@@ -117,7 +117,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildCreateAccountButton() {
     return TextButton(
       onPressed: _goToRegister,
-      child: const Text('Loo konto'),
+      child: const Text('Pole veel kontot? Loo konto'),
     );
   }
 
@@ -128,7 +128,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       // 9.1 AppBar (ekraani pealkiri)
-      appBar: AppBar(title: const Text('RespondCrew – Login')),
+      appBar: AppBar(title: const Text('RespondCrew – Logi sisse')),
 
       // 9.2 Body (form)
       body: Padding(
