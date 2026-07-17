@@ -160,7 +160,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Liitusid komandoga!')),
+        const SnackBar(content: Text('Liitusid ühinguga!')),
       );
     } catch (e) {
       if (!mounted) return;
