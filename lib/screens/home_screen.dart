@@ -13,6 +13,7 @@ import '../services/membership_service.dart';
 import '../services/notification_service.dart';
 import '../services/platform_readiness_service.dart';
 import '../services/planned_unavailability_service.dart';
+import '../theme/app_theme.dart';
 import '../widgets/pending_invites_section.dart';
 import 'activities_screen.dart';
 import 'admin_home_dashboard.dart';
@@ -130,7 +131,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final code = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Liitu komandoga'),
+        title: const Text('Liitu ühinguga'),
         content: TextField(
           controller: codeController,
           textCapitalization: TextCapitalization.characters,
@@ -176,13 +177,31 @@ class _HomeScreenState extends State<HomeScreen> {
     final commandName = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Uus komando'),
-        content: TextField(
-          controller: nameController,
-          decoration: const InputDecoration(
-            labelText: 'Komando nimi',
-            hintText: 'nt Purtse',
-          ),
+        title: const Text('Uus ühing'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Uus ühing saadetakse platvormi haldurile kinnitamiseks. '
+              'Ühingut saab kasutada pärast kinnitamist.',
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(
+                labelText: 'Ühingu nimi',
+                hintText: 'nt Purtse',
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Haldurile eraldi e-kirja praegu automaatselt ei saadeta.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -254,11 +273,11 @@ class _HomeScreenState extends State<HomeScreen> {
     final selectedCommandId = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Vali aktiivne organisatsioon'),
+        title: const Text('Vali aktiivne ühing'),
         content: SizedBox(
           width: double.maxFinite,
           child: items.isEmpty
-              ? const Text('Ühtegi organisatsiooni ei leitud')
+              ? const Text('Ühtegi ühingut ei leitud')
               : ListView.builder(
                   shrinkWrap: true,
                   itemCount: items.length,
@@ -294,7 +313,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Aktiivne organisatsioon muudetud')),
+        const SnackBar(content: Text('Aktiivne ühing muudetud')),
       );
     } catch (e) {
       if (!mounted) return;
@@ -313,9 +332,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Lahku organisatsioonist'),
+        title: const Text('Lahku ühingust'),
         content: Text(
-          'Kas soovid lahkuda organisatsioonist '
+          'Kas soovid lahkuda ühingust '
           '"${commandName ?? commandId}"?',
         ),
         actions: [
@@ -526,7 +545,7 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.only(top: 8),
           child: DropdownButton<String>(
             value: selectedId,
-            hint: const Text('Vali organisatsioon'),
+            hint: const Text('Vali ühing'),
             isExpanded: true,
             items: items.map((item) {
               return DropdownMenuItem<String>(
@@ -705,7 +724,7 @@ class _HomeScreenState extends State<HomeScreen> {
               if (hasMemberships)
                 ElevatedButton.icon(
                   icon: const Icon(Icons.swap_horiz),
-                  label: const Text('Vali organisatsioon'),
+                  label: const Text('Vali ühing'),
                   onPressed: () => _showSwitchOrganizationDialog(
                     membershipDocs: membershipDocs,
                     currentActiveCommandId: null,
@@ -713,12 +732,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               OutlinedButton.icon(
                 icon: const Icon(Icons.group_add),
-                label: const Text('Loo uus organisatsioon'),
+                label: const Text('Loo uus ühing'),
                 onPressed: _showCreateCommandDialog,
               ),
               OutlinedButton.icon(
                 icon: const Icon(Icons.vpn_key),
-                label: const Text('Liitu organisatsiooniga'),
+                label: const Text('Liitu ühinguga'),
                 onPressed: _showJoinCommandDialog,
               ),
             ],
@@ -739,7 +758,8 @@ class _HomeScreenState extends State<HomeScreen> {
         : 'Ühing ootab kinnitamist.';
     final message = isRejected
         ? 'Vali teine ühing või loo uus taotlus.'
-        : 'Platvormi haldur peab ühingu enne kasutamist kinnitama.';
+        : 'Ühing ootab platvormi halduri kinnitust. '
+            'Pärast kinnitamist saad rakendust kasutada.';
 
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -762,7 +782,7 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 16),
           OutlinedButton.icon(
             icon: const Icon(Icons.group_add),
-            label: const Text('Loo uus organisatsioon'),
+            label: const Text('Loo uus ühing'),
             onPressed: _showCreateCommandDialog,
           ),
           if (isPlatformAdmin) ...[
@@ -1979,14 +1999,15 @@ class _HomeScreenState extends State<HomeScreen> {
               final hasDisabledMembership =
                   _hasDisabledMembership(allMembershipDocs);
               final missingOrganizationTitle = hasPendingMembership
-                  ? 'Sinu liikmelisus ei ole aktiivne.'
+                  ? 'Ühing ootab kinnitamist.'
                   : hasDisabledMembership
                       ? 'Sinu liikmelisus ei ole aktiivne.'
                       : null;
               final missingOrganizationMessage = hasPendingMembership
-                  ? 'Oota ühingu kinnitust või vali teine ühing.'
+                  ? 'Ühing ootab platvormi halduri kinnitust. '
+                      'Pärast kinnitamist saad rakendust kasutada.'
                   : hasDisabledMembership
-                      ? 'Oota ühingu kinnitust või vali teine ühing.'
+                      ? 'Vali teine ühing, liitu koodiga või loo uus taotlus.'
                       : null;
 
               return Scaffold(
