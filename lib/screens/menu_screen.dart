@@ -141,7 +141,7 @@ class MenuScreen extends StatelessWidget {
           _MenuEntry(
             icon: Icons.card_membership_outlined,
             title:
-                isOrganizationAdmin ? 'Sertifikaadid' : 'Minu sertifikaadid',
+                isOrganizationAdmin ? 'Tunnistused' : 'Minu tunnistused',
             subtitle: 'Pädevused ja kehtivusajad',
             onTap: () => _open(
               context,
@@ -156,7 +156,7 @@ class MenuScreen extends StatelessWidget {
             _MenuEntry(
               icon: Icons.insights_outlined,
               title: 'Statistika',
-              subtitle: 'Organisatsiooni ülevaated',
+              subtitle: 'Ühingu ülevaated',
               onTap: () => _open(
                 context,
                 StatisticsScreen(
@@ -170,15 +170,15 @@ class MenuScreen extends StatelessWidget {
           if (onSwitchOrganization != null)
             _MenuEntry(
               icon: Icons.swap_horiz_outlined,
-              title: 'Vaheta organisatsiooni',
-              subtitle: 'Lülitu teise komando vaatele',
+              title: 'Vaheta ühingut',
+              subtitle: 'Lülitu teise ühingu vaatele',
               onTap: onSwitchOrganization,
             ),
           if (isPlatformAdmin || isOrganizationAdmin)
             _MenuEntry(
               icon: Icons.settings_outlined,
-              title: 'Organisatsiooni seaded',
-              subtitle: 'Õigused ja organisatsiooni valikud',
+              title: 'Ühingu seaded',
+              subtitle: 'Õigused ja ühingu valikud',
               onTap: onOpenOrganizationSettings,
             ),
           if (isPlatformAdmin)
@@ -197,7 +197,7 @@ class MenuScreen extends StatelessWidget {
             _MenuEntry(
               icon: Icons.health_and_safety_outlined,
               title: 'Juhtimiskeskuse koondvaade',
-              subtitle: 'Organisatsioonide valmisoleku ülevaade',
+              subtitle: 'Ühingute valmisoleku ülevaade',
               onTap: () => _open(
                 context,
                 PlatformReadinessScreen(

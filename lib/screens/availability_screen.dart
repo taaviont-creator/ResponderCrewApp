@@ -77,7 +77,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Valmiduse muutmine ebaõnnestus.')),
+        const SnackBar(content: Text('Valmisoleku muutmine ebaõnnestus.')),
       );
     } finally {
       if (mounted) setState(() => _isUpdating = false);
@@ -108,7 +108,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                     children: [
                       Text(
                         organizationName == null || organizationName.isEmpty
-                            ? 'Aktiivne organisatsioon'
+                            ? 'Aktiivne ühing'
                             : organizationName,
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
@@ -1223,7 +1223,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                     if (memberships.isEmpty) {
                       return const _EmptyCard(
                         icon: Icons.group_off_outlined,
-                        message: 'Organisatsioonis ei ole aktiivseid liikmeid.',
+                        message: 'Ühingus ei ole aktiivseid liikmeid.',
                       );
                     }
 
@@ -1583,7 +1583,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
 
   String _roleLabel(String role) {
     return MembershipRole.isOrgAdmin(role)
-        ? 'Organisatsiooni administraator'
+        ? 'Ühingu administraator'
         : 'Liige';
   }
 

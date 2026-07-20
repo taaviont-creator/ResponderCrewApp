@@ -112,7 +112,7 @@ class _PlatformPendingOrganizationsScreenState
 
               return AppSectionCard(
                 title: name,
-                subtitle: 'Staatus: pending',
+                subtitle: 'Staatus: ootel',
                 leading: const Icon(Icons.apartment_outlined),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

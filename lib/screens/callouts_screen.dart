@@ -48,7 +48,7 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
     if (widget.organizationId.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Väljakutse loomiseks vali aktiivne organisatsioon'),
+          content: Text('Väljakutse loomiseks vali aktiivne ühing'),
         ),
       );
       return;

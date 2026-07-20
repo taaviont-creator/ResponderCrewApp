@@ -437,7 +437,7 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
 
           if (snapshot.hasError) {
             return Center(
-              child: Text('Logi laadimine ebaonnestus: ${snapshot.error}'),
+              child: Text('Logi laadimine ebaõnnestus: ${snapshot.error}'),
             );
           }
 

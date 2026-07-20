@@ -61,7 +61,7 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) {
           return AlertDialog(
-            title: const Text('Valmiduse kokkuvote'),
+            title: const Text('Valmisoleku kokkuvõte'),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -86,7 +86,7 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
                   DropdownButtonFormField<String>(
                     initialValue: readinessStatus,
                     decoration:
-                        const InputDecoration(labelText: 'Valmiduse staatus'),
+                        const InputDecoration(labelText: 'Valmisoleku staatus'),
                     items: ReadinessStatus.values.map((status) {
                       return DropdownMenuItem<String>(
                         value: status,
@@ -102,14 +102,14 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
                   TextField(
                     controller: onDutyController,
                     decoration:
-                        const InputDecoration(labelText: 'On duty arv'),
+                        const InputDecoration(labelText: 'Valves arv'),
                     keyboardType: TextInputType.number,
                   ),
                   const SizedBox(height: 8),
                   TextField(
                     controller: delayedController,
                     decoration:
-                        const InputDecoration(labelText: 'Delayed arv'),
+                        const InputDecoration(labelText: 'Hilinenud arv'),
                     keyboardType: TextInputType.number,
                   ),
                   const SizedBox(height: 8),
@@ -127,7 +127,7 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
                   DropdownButtonFormField<String>(
                     initialValue: primaryVesselStatus,
                     decoration:
-                        const InputDecoration(labelText: 'Pohialuse staatus'),
+                        const InputDecoration(labelText: 'Põhialuse staatus'),
                     items: ReadinessEquipmentStatus.values.map((status) {
                       return DropdownMenuItem<String>(
                         value: status,
@@ -210,12 +210,12 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Valmiduse kokkuvote salvestatud')),
+        const SnackBar(content: Text('Valmisoleku kokkuvõte salvestatud')),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Salvestamine ebaonnestus: $e')),
+        SnackBar(content: Text('Salvestamine ebaõnnestus: $e')),
       );
     }
   }
@@ -225,7 +225,7 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
     if (!widget.isPlatformAdmin && !widget.canManageOwnSummary) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('Platvormi valmidus'),
+          title: const Text('Platvormi valmisolek'),
         ),
         body: const Center(
           child: Text('See vaade on ainult administraatorile'),
@@ -246,7 +246,7 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Platvormi valmidus'),
+        title: const Text('Platvormi valmisolek'),
       ),
       floatingActionButton: widget.canManageOwnSummary &&
               activeOrganizationId != null &&
@@ -265,14 +265,14 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
 
           if (snapshot.hasError) {
             return Center(
-              child: Text('Valmiduse laadimine ebaonnestus: ${snapshot.error}'),
+              child: Text('Valmisoleku laadimine ebaõnnestus: ${snapshot.error}'),
             );
           }
 
           final summaries = snapshot.data ?? const <PlatformReadinessSummary>[];
           if (summaries.isEmpty) {
             return const Center(
-              child: Text('Valmiduse kokkuvotteid ei ole lisatud'),
+              child: Text('Valmisoleku kokkuvõtteid ei ole lisatud'),
             );
           }
 
@@ -295,8 +295,8 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
                 subtitle: Text(
                   [
                     _readinessStatusLabel(summary.readinessStatus),
-                    'On duty: ${summary.onDutyCount}',
-                    'Delayed: ${summary.delayedCount}',
+                    'Valves: ${summary.onDutyCount}',
+                    'Hilinenud: ${summary.delayedCount}',
                     'Min: ${summary.minimumCrewRequired}',
                     summary.minimumCrewMet
                         ? 'Miinimum koos'

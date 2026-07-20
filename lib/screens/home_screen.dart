@@ -91,7 +91,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (user == null) throw Exception('Not authenticated');
     final organizationId = commandId.trim();
     if (organizationId.isEmpty) {
-      throw Exception('Selle toimingu jaoks puudub aktiivne organisatsioon');
+      throw Exception('Selle toimingu jaoks puudub aktiivne ühing');
     }
 
     final membershipSnapshot = await FirebaseFirestore.instance
@@ -106,7 +106,7 @@ class _HomeScreenState extends State<HomeScreen> {
         !_membershipService.isActiveMembership(membership) ||
         _membershipService.organizationIdFromMembership(membership) !=
             organizationId) {
-      throw Exception('Sul puudub selle organisatsiooni aktiivne liikmelisus');
+      throw Exception('Sul puudub selle ühingu aktiivne liikmelisus');
     }
 
     await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
@@ -357,7 +357,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Lahkusid organisatsioonist')),
+        const SnackBar(content: Text('Lahkusid ühingust')),
       );
     } catch (e) {
       if (!mounted) return;
@@ -563,7 +563,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
-                      'Organisatsiooni vahetamine ebaõnnestus: $e',
+                      'Ühingu vahetamine ebaõnnestus: $e',
                     ),
                   ),
                 );
@@ -972,7 +972,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 16),
             OutlinedButton.icon(
               icon: const Icon(Icons.health_and_safety),
-              label: const Text('Platvormi valmidus'),
+              label: const Text('Platvormi valmisolek'),
               onPressed: () {
                 Navigator.push(
                   context,
@@ -1120,8 +1120,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 _buildModuleButton(
                   icon: Icons.card_membership,
                   label: permissions.canManageCertificates
-                      ? 'Kvalifikatsioonid'
-                      : 'Minu kvalifikatsioonid',
+                      ? 'Tunnistused'
+                      : 'Minu tunnistused',
                   onPressed: () => Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -1237,8 +1237,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 subtitle: Text(
                   hasOrganization
-                      ? 'Komando ID: $organizationId'
-                      : 'Komando ID puudub',
+                      ? 'Ühingu ID: $organizationId'
+                      : 'Ühingu ID puudub',
                 ),
               ),
               if (hasJoinCode) ...[
@@ -1731,7 +1731,7 @@ class _HomeScreenState extends State<HomeScreen> {
           } catch (e) {
             if (!context.mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Valmiduse muutmine ebaõnnestus: $e')),
+              SnackBar(content: Text('Valmisoleku muutmine ebaõnnestus: $e')),
             );
           }
         }
@@ -2301,7 +2301,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           builder: (_) => Scaffold(
                             appBar: AppBar(
                               title: const Text(
-                                'Organisatsiooni seaded',
+                                'Ühingu seaded',
                               ),
                             ),
                             body: _buildOrganizationSettingsContent(
