@@ -297,6 +297,38 @@ service cloud.firestore {
         commandIsApprovedAfter(organizationIdFromData(request.resource.data));
     }
 
+    function isOwnRemovedMembershipReactivation(membershipId) {
+      let organizationId = organizationIdFromData(request.resource.data);
+      return signedIn() &&
+        resource.data.userId == request.auth.uid &&
+        resource.data.status == 'removed' &&
+        resource.data.isActive == false &&
+        request.resource.data.userId == request.auth.uid &&
+        membershipId ==
+          membershipIdForUser(request.auth.uid, organizationId) &&
+        hasValidOrganizationReference(request.resource.data) &&
+        organizationIdFromData(resource.data) == organizationId &&
+        request.resource.data.role == 'member' &&
+        request.resource.data.seaRescueLevel == 'none' &&
+        request.resource.data.status == 'active' &&
+        request.resource.data.isActive == true &&
+        request.resource.data.joinedAt == request.time &&
+        request.resource.data.updatedAt == request.time &&
+        isValidMembershipDisplayName(request.resource.data) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'organizationId',
+          'commandId',
+          'role',
+          'seaRescueLevel',
+          'displayName',
+          'status',
+          'isActive',
+          'joinedAt',
+          'updatedAt'
+        ]) &&
+        commandIsApprovedAfter(organizationId);
+    }
+
     function keepsMembershipIdentityAndRole() {
       return request.resource.data.userId == resource.data.userId &&
         hasValidOrganizationReference(request.resource.data) &&
@@ -2456,6 +2488,7 @@ service cloud.firestore {
           isPlatformApprovalMembershipUpdate() ||
           isOrgAdminMembershipUpdate() ||
           isOwnMembershipStatusUpdate() ||
+          isOwnRemovedMembershipReactivation(membershipId) ||
           isOwnMembershipDisplayNameUpdate(membershipId) ||
           isInviteMembershipUpdate(membershipId)
         );
