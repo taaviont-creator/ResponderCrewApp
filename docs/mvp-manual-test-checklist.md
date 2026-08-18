@@ -148,7 +148,6 @@ See kontrollnimekiri on mõeldud käsitsi suitsutestiks emulaatoris või telefon
 - Tulemus: [ ] Läbis / [ ] Ei läbinud
 - Märkused:
 
-
 ### ORG-07 - Lahkunud liikme uuesti liitumine
 - ID: ORG-07
 - Roll: Tavaliige
