@@ -148,6 +148,19 @@ See kontrollnimekiri on mõeldud käsitsi suitsutestiks emulaatoris või telefon
 - Tulemus: [ ] Läbis / [ ] Ei läbinud
 - Märkused:
 
+### ORG-07 - Lahkunud liikme uuesti liitumine
+- ID: ORG-07
+- Roll: Tavaliige
+- Eeldused: Kasutaja lahkus varem kinnitatud ühingust ning tema liikmesuse `status` on `removed` ja `isActive` on `false`.
+- Sammud:
+  1. Logi lahkunud kasutajana sisse.
+  2. Ava "Liitu koodiga".
+  3. Sisesta sama kinnitatud ühingu liitumiskood.
+  4. Kinnita liitumine.
+- Oodatud tulemus: Olemasolev eemaldatud liikmesus aktiveeritakse uuesti, kasutaja roll on Liige, merepääste aste on Määramata ja ühing muutub aktiivseks.
+- Tulemus: [ ] Läbis / [ ] Ei läbinud
+- Märkused:
+
 ## HOME
 
 ### HOME-01 - Avalehe kompaktne päis ja aktiivne ühing
