@@ -59,6 +59,7 @@ class CalloutAlarmNotificationService {
   StreamSubscription<String>? _tokenRefreshSubscription;
 
   bool _initialized = false;
+  Future<void>? _initialization;
 
   bool get _supportsClientNotifications {
     if (kIsWeb) return false;
@@ -72,20 +73,31 @@ class CalloutAlarmNotificationService {
     );
   }
 
-  Future<void> initialize() async {
-    if (_initialized || !_supportsClientNotifications) return;
-    _initialized = true;
+  Future<void> initialize() {
+    if (_initialized || !_supportsClientNotifications) {
+      return Future<void>.value();
+    }
 
-    await _initializeLocalNotifications();
-    await _requestNotificationPermissions();
-    await _messaging.setForegroundNotificationPresentationOptions(
-      alert: false,
-      badge: true,
-      sound: false,
-    );
+    return _initialization ??= _initialize();
+  }
 
-    _startDeviceTokenStorage();
-    FirebaseMessaging.onMessage.listen(_showForegroundCalloutNotification);
+  Future<void> _initialize() async {
+    try {
+      await _initializeLocalNotifications();
+      await _requestNotificationPermissions();
+      await _messaging.setForegroundNotificationPresentationOptions(
+        alert: false,
+        badge: true,
+        sound: false,
+      );
+
+      _startDeviceTokenStorage();
+      FirebaseMessaging.onMessage.listen(_showForegroundCalloutNotification);
+      _initialized = true;
+    } catch (_) {
+      _initialization = null;
+      rethrow;
+    }
   }
 
   Future<CalloutAlarmNotificationReadiness> getNotificationReadiness() async {
