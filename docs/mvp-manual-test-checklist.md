@@ -121,7 +121,7 @@ See kontrollnimekiri on mõeldud käsitsi suitsutestiks emulaatoris või telefon
   1. Ava "Liitu ühinguga".
   2. Sisesta liitumiskood.
   3. Kinnita.
-- Oodatud tulemus: Kasutaja liitub ühinguga ja saab selle aktiivseks valida.
+- Oodatud tulemus: Tekib ootel liitumistaotlus. Enne ühingu admini kinnitust ei saa kasutaja ühingu infot näha ega seda aktiivseks valida. Admin näeb liikmete vaates taotlust ning saab selle kinnitada või tagasi lükata. Alles kinnituse järel saab kasutaja ühingu aktiivseks valida; olemasolev aktiivne ühing jääb ooteajal alles.
 - Tulemus: [ ] Läbis / [ ] Ei läbinud
 - Märkused:
 
@@ -157,7 +157,7 @@ See kontrollnimekiri on mõeldud käsitsi suitsutestiks emulaatoris või telefon
   2. Ava "Liitu koodiga".
   3. Sisesta sama kinnitatud ühingu liitumiskood.
   4. Kinnita liitumine.
-- Oodatud tulemus: Olemasolev eemaldatud liikmesus aktiveeritakse uuesti, kasutaja roll on Liige, merepääste aste on Määramata ja ühing muutub aktiivseks.
+- Oodatud tulemus: Olemasolev eemaldatud liikmesus muutub ootel taotluseks, roll on Liige ja merepääste aste Määramata. Ligipääs taastub alles ühingu admini kinnituse järel. Kasutaja ei saa end ise aktiveerida.
 - Tulemus: [ ] Läbis / [ ] Ei läbinud
 - Märkused:
 

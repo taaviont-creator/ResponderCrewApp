@@ -63,6 +63,40 @@ class MembershipService {
     }).toList(growable: false);
   }
 
+  Stream<List<QueryDocumentSnapshot<Map<String, dynamic>>>>
+  streamPendingMemberRequests(String organizationId) {
+    _requireOrganizationId(organizationId);
+    return _organizationMembershipQuery(organizationId).snapshots().map(
+      (snapshot) => snapshot.docs
+          .where((doc) {
+            final data = doc.data();
+            return organizationIdFromMembership(data) == organizationId &&
+                data['role'] == MembershipRole.member &&
+                data['status'] == 'pending' &&
+                data['isActive'] == false;
+          })
+          .toList(growable: false),
+    );
+  }
+
+  Future<void> reviewMemberRequest({
+    required String organizationId,
+    required String targetUserId,
+    required bool approve,
+  }) async {
+    _requireOrganizationId(organizationId);
+    if (targetUserId.trim().isEmpty) {
+      throw Exception('Liitumistaotluse kasutaja puudub.');
+    }
+    await _memberships
+        .doc(membershipId(userId: targetUserId, organizationId: organizationId))
+        .update({
+          'status': approve ? 'active' : 'rejected',
+          'isActive': approve,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+  }
+
   String? organizationIdFromMembership(Map<String, dynamic> membership) {
     final organizationId = _stringValue(membership['organizationId']);
     if (organizationId != null && organizationId.isNotEmpty) {

@@ -216,17 +216,29 @@ class _HomeScreenState extends State<HomeScreen> {
     if (code == null || code.trim().isEmpty) return;
 
     try {
-      await _commandService.joinCommand(joinCode: code.trim());
+      final result = await _commandService.joinCommand(joinCode: code.trim());
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Liitusid ühinguga!')),
+        SnackBar(
+          content: Text(
+            result == JoinCommandResult.alreadyMember
+                ? 'Oled juba selle ühingu liige.'
+                : 'Liitumistaotlus saadetud. Oota ühingu administraatori kinnitust.',
+          ),
+        ),
       );
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
-
+      final message = error is JoinCommandException
+          ? error.message
+          : error is FirebaseException &&
+                  (error.code == 'unavailable' ||
+                      error.code == 'deadline-exceeded')
+              ? 'Ühendus puudub. Kontrolli internetti ja proovi uuesti.'
+              : 'Liitumistaotlust ei saanud saata. Proovi uuesti või võta ühendust ühingu administraatoriga.';
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ühinguga liitumine ebaõnnestus.')),
+        SnackBar(content: Text(message)),
       );
     }
   }
@@ -1997,12 +2009,13 @@ class _HomeScreenState extends State<HomeScreen> {
               final hasDisabledMembership =
                   _hasDisabledMembership(allMembershipDocs);
               final missingOrganizationTitle = hasPendingMembership
-                  ? 'Ühing ootab kinnitamist.'
+                  ? 'Ootad kinnitust.'
                   : hasDisabledMembership
                       ? 'Sinu liikmelisus ei ole aktiivne.'
                       : null;
               final missingOrganizationMessage = hasPendingMembership
-                  ? 'Ühing ootab platvormi halduri kinnitust. '
+                  ? 'Liitumistaotluse kinnitab ühingu administraator, '
+                      'uue ühingu kinnitab platvormi haldur. '
                       'Pärast kinnitamist saad rakendust kasutada.'
                   : hasDisabledMembership
                       ? 'Vali teine ühing, liitu koodiga või loo uus taotlus.'

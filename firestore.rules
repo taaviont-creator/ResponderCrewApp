@@ -287,20 +287,40 @@ service cloud.firestore {
         commandIsPendingAfter(organizationIdFromData(request.resource.data));
     }
 
-    function isOwnMemberMembership() {
-      return isOwnMembershipCreate() &&
-        request.resource.data.role == 'member' &&
-        (
-          !request.resource.data.keys().hasAny(['seaRescueLevel']) ||
-          request.resource.data.seaRescueLevel == 'none'
-        ) &&
-        commandIsApprovedAfter(organizationIdFromData(request.resource.data));
+    // Joining by code requests access; only an existing org admin approves it.
+    function isValidMemberJoinRequest(data) {
+      return data.keys().hasAll([
+          'userId', 'organizationId', 'commandId', 'role',
+          'seaRescueLevel', 'status', 'isActive', 'joinedAt', 'updatedAt'
+        ]) &&
+        data.userId is string && data.userId.size() <= 128 &&
+        data.organizationId is string && data.organizationId.size() <= 128 &&
+        hasValidOrganizationReference(data) &&
+        data.role == 'member' && data.seaRescueLevel == 'none' &&
+        data.status == 'pending' && data.isActive == false &&
+        data.joinedAt is timestamp && data.updatedAt is timestamp &&
+        isValidMembershipDisplayName(data);
     }
 
-    function isOwnRemovedMembershipReactivation(membershipId) {
+    function isOwnMemberJoinRequestCreate(membershipId) {
+      let data = request.resource.data;
+      return signedIn() &&
+        data.userId == request.auth.uid &&
+        membershipId == membershipIdForUser(request.auth.uid, data.organizationId) &&
+        data.keys().hasOnly([
+          'userId', 'organizationId', 'commandId', 'role', 'seaRescueLevel',
+          'displayName', 'status', 'isActive', 'joinedAt', 'updatedAt'
+        ]) &&
+        isValidMemberJoinRequest(data) &&
+        data.joinedAt == request.time && data.updatedAt == request.time &&
+        commandIsApproved(data.organizationId);
+    }
+
+    function isOwnMemberRejoinRequest(membershipId) {
       let organizationId = organizationIdFromData(request.resource.data);
       return signedIn() &&
         resource.data.userId == request.auth.uid &&
+        resource.data.role == 'member' &&
         resource.data.status == 'removed' &&
         resource.data.isActive == false &&
         request.resource.data.userId == request.auth.uid &&
@@ -310,8 +330,7 @@ service cloud.firestore {
         organizationIdFromData(resource.data) == organizationId &&
         request.resource.data.role == 'member' &&
         request.resource.data.seaRescueLevel == 'none' &&
-        request.resource.data.status == 'active' &&
-        request.resource.data.isActive == true &&
+        isValidMemberJoinRequest(request.resource.data) &&
         request.resource.data.joinedAt == request.time &&
         request.resource.data.updatedAt == request.time &&
         isValidMembershipDisplayName(request.resource.data) &&
@@ -327,6 +346,33 @@ service cloud.firestore {
           'updatedAt'
         ]) &&
         commandIsApprovedAfter(organizationId);
+    }
+
+    function isOrgAdminJoinRequestReview(membershipId) {
+      let organizationId = organizationIdFromData(resource.data);
+      return signedIn() &&
+        isValidMemberJoinRequest(resource.data) &&
+        membershipId == membershipIdForUser(resource.data.userId, organizationId) &&
+        resource.data.userId != request.auth.uid &&
+        isActiveOrgAdmin(organizationId) && commandIsApproved(organizationId) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'isActive', 'updatedAt'
+        ]) &&
+        request.resource.data.updatedAt == request.time &&
+        (
+          (request.resource.data.status == 'active' &&
+            request.resource.data.isActive == true) ||
+          (request.resource.data.status == 'rejected' &&
+            request.resource.data.isActive == false)
+        );
+    }
+
+    function isOwnMembershipGet(membershipId) {
+      return signedIn() &&
+        request.auth.uid.matches('^[A-Za-z0-9_-]+$') &&
+        membershipId.matches('^' + request.auth.uid + '_[^/]+$') &&
+        (!exists(/databases/$(database)/documents/memberships/$(membershipId)) ||
+          resource.data.userId == request.auth.uid);
     }
 
     function keepsMembershipIdentityAndRole() {
@@ -2454,6 +2500,7 @@ service cloud.firestore {
     }
 
     match /memberships/{membershipId} {
+      allow get: if isOwnMembershipGet(membershipId);
       allow read: if signedIn() &&
         (
           resource.data.userId == request.auth.uid ||
@@ -2462,17 +2509,19 @@ service cloud.firestore {
 
       allow create: if isOwnOrgAdminMembershipForCreatedCommand() ||
         isOwnPendingOrgAdminMembershipForCreatedCommand() ||
-        isOwnMemberMembership() ||
+        isOwnMemberJoinRequestCreate(membershipId) ||
         isInviteMembershipCreate(membershipId);
 
       allow update: if signedIn() &&
         (
+          (request.resource.data.keys().hasAny(['acceptedInviteId']) &&
+            isInviteMembershipUpdate(membershipId)) ||
+          isOwnMemberRejoinRequest(membershipId) ||
+          isOrgAdminJoinRequestReview(membershipId) ||
           isPlatformApprovalMembershipUpdate() ||
           isOrgAdminMembershipUpdate() ||
           isOwnMembershipStatusUpdate() ||
-          isOwnRemovedMembershipReactivation(membershipId) ||
-          isOwnMembershipDisplayNameUpdate(membershipId) ||
-          isInviteMembershipUpdate(membershipId)
+          isOwnMembershipDisplayNameUpdate(membershipId)
         );
     }
 
