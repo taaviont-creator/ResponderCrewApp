@@ -5,12 +5,16 @@ import '../models/activity_model.dart';
 import '../models/availability_model.dart';
 import '../models/certificate_model.dart';
 import '../models/equipment_model.dart';
+import '../models/effective_availability.dart';
 import '../models/membership_model.dart';
+import '../models/planned_unavailability_model.dart';
+import '../models/planned_unavailability_rule_model.dart';
 import '../services/activity_service.dart';
 import '../services/availability_service.dart';
 import '../services/certificate_service.dart';
 import '../services/equipment_service.dart';
 import '../services/membership_service.dart';
+import '../services/planned_unavailability_service.dart';
 import '../services/user_service.dart';
 
 class MemberProfileScreen extends StatefulWidget {
@@ -41,6 +45,7 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
   final _certificateService = CertificateService();
   final _equipmentService = EquipmentService();
   final _membershipService = MembershipService();
+  final _plannedUnavailabilityService = PlannedUnavailabilityService();
   final _userService = UserService();
 
   late String _name;
@@ -168,35 +173,75 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
     if (_targetUid.isEmpty || widget.organizationId.trim().isEmpty) {
       return const _ProfileRow(
         label: 'Valmisolek',
-        value: 'Valmisolek märkimata',
+        value: 'Valvest väljas',
       );
     }
+
+    final periodsStream = _isOwnProfile
+        ? _plannedUnavailabilityService.streamMyPeriods(
+            organizationId: widget.organizationId,
+          )
+        : _plannedUnavailabilityService.streamOrganizationPeriods(
+            organizationId: widget.organizationId,
+          );
+    final rulesStream = _isOwnProfile
+        ? _plannedUnavailabilityService.streamMyRules(
+            organizationId: widget.organizationId,
+          )
+        : _plannedUnavailabilityService.streamOrganizationRules(
+            organizationId: widget.organizationId,
+          );
 
     return StreamBuilder<AvailabilityModel?>(
       stream: _availabilityService.streamMyAvailability(
         userId: _targetUid,
         organizationId: widget.organizationId,
       ),
-      builder: (context, snapshot) {
-        final availability = snapshot.data;
-        if (availability == null) {
-          return const _ProfileRow(
-            label: 'Valmisolek',
-            value: 'Valmisolek märkimata',
-          );
-        }
+      builder: (context, availabilitySnapshot) {
+        return StreamBuilder<List<PlannedUnavailabilityModel>>(
+          stream: periodsStream,
+          builder: (context, periodsSnapshot) {
+            return StreamBuilder<List<PlannedUnavailabilityRuleModel>>(
+              stream: rulesStream,
+              builder: (context, rulesSnapshot) {
+                if (availabilitySnapshot.hasError ||
+                    periodsSnapshot.hasError ||
+                    rulesSnapshot.hasError) {
+                  return const _ProfileRow(
+                    label: 'Valmisolek',
+                    value: 'Valmisoleku laadimine ebaõnnestus',
+                  );
+                }
 
-        final lines = <String>[
-          _availabilityStatusLabel(availability.status),
-        ];
-        final responseMinutes = availability.responseMinutes;
-        if (responseMinutes != null && responseMinutes > 0) {
-          lines.add('Hilinemine: $responseMinutes min');
-        }
+                final availability = availabilitySnapshot.data;
+                final manualStatus =
+                    availability?.status ?? AvailabilityStatus.offDuty;
+                final effectiveStatus = EffectiveAvailability.resolve(
+                  userId: _targetUid,
+                  manualStatus: manualStatus,
+                  periods: periodsSnapshot.data ??
+                      const <PlannedUnavailabilityModel>[],
+                  rules: rulesSnapshot.data ??
+                      const <PlannedUnavailabilityRuleModel>[],
+                );
 
-        return _ProfileRow(
-          label: 'Valmisolek',
-          value: lines.join('\n'),
+                final lines = <String>[
+                  _availabilityStatusLabel(effectiveStatus),
+                ];
+                final responseMinutes = availability?.responseMinutes;
+                if (effectiveStatus == AvailabilityStatus.delayed &&
+                    responseMinutes != null &&
+                    responseMinutes > 0) {
+                  lines.add('Hilinemine: $responseMinutes min');
+                }
+
+                return _ProfileRow(
+                  label: 'Valmisolek',
+                  value: lines.join('\n'),
+                );
+              },
+            );
+          },
         );
       },
     );
