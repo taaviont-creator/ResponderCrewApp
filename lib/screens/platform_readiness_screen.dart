@@ -27,7 +27,7 @@ class PlatformReadinessScreen extends StatefulWidget {
 class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
   final _platformReadinessService = PlatformReadinessService();
 
-  Future<void> _showSummaryDialog({
+  Future<void> _showSettingsDialog({
     PlatformReadinessSummary? summary,
   }) async {
     final organizationId = widget.activeOrganizationId;
@@ -38,92 +38,42 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
         TextEditingController(text: summary?.contactName ?? '');
     final contactPhoneController =
         TextEditingController(text: summary?.contactPhone ?? '');
-    final onDutyController = TextEditingController(
-      text: (summary?.onDutyCount ?? 0).toString(),
-    );
-    final delayedController = TextEditingController(
-      text: (summary?.delayedCount ?? 0).toString(),
-    );
     final minimumCrewController = TextEditingController(
       text: (summary?.minimumCrewRequired ?? 0).toString(),
     );
     final criticalIssuesController =
         TextEditingController(text: summary?.criticalIssues ?? '');
 
-    var readinessStatus = summary?.readinessStatus ?? ReadinessStatus.unknown;
     var primaryVesselStatus =
         summary?.primaryVesselStatus ?? ReadinessEquipmentStatus.unknown;
     var equipmentStatus =
         summary?.equipmentStatus ?? ReadinessEquipmentStatus.unknown;
+    String? minimumCrewError;
 
     final shouldSave = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) {
           return AlertDialog(
-            title: const Text('Valmisoleku kokkuvõte'),
+            title: const Text('Valmisoleku seaded'),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextField(
-                    controller: regionController,
-                    decoration: const InputDecoration(labelText: 'Piirkond'),
+                  const Text(
+                    'Reageerimisvalmidus arvutatakse automaatselt liikmete '
+                    'tegeliku valvesoleku ja II astme olemasolu põhjal.',
                   ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: contactNameController,
-                    decoration:
-                        const InputDecoration(labelText: 'Kontaktisik'),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: contactPhoneController,
-                    decoration:
-                        const InputDecoration(labelText: 'Kontakttelefon'),
-                  ),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    initialValue: readinessStatus,
-                    decoration:
-                        const InputDecoration(labelText: 'Valmisoleku staatus'),
-                    items: ReadinessStatus.values.map((status) {
-                      return DropdownMenuItem<String>(
-                        value: status,
-                        child: Text(_readinessStatusLabel(status)),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value == null) return;
-                      setDialogState(() => readinessStatus = value);
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: onDutyController,
-                    decoration:
-                        const InputDecoration(labelText: 'Valves arv'),
-                    keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: delayedController,
-                    decoration:
-                        const InputDecoration(labelText: 'Hilinenud arv'),
-                    keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   TextField(
                     controller: minimumCrewController,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Minimaalne meeskond',
+                      errorText: minimumCrewError,
                     ),
                     keyboardType: TextInputType.number,
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Miinimumkoosseisu täituvus arvutatakse valves liikmete arvu põhjal.',
-                  ),
                   DropdownButtonFormField<String>(
                     initialValue: primaryVesselStatus,
                     decoration:
@@ -157,9 +107,26 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
                   ),
                   const SizedBox(height: 8),
                   TextField(
+                    controller: regionController,
+                    decoration: const InputDecoration(labelText: 'Piirkond'),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: contactNameController,
+                    decoration:
+                        const InputDecoration(labelText: 'Kontaktisik'),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: contactPhoneController,
+                    decoration:
+                        const InputDecoration(labelText: 'Kontakttelefon'),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
                     controller: criticalIssuesController,
                     decoration: const InputDecoration(
-                      labelText: 'Kriitilised probleemid',
+                      labelText: 'Olulised probleemid',
                     ),
                     maxLines: 3,
                   ),
@@ -172,7 +139,17 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
                 child: const Text('Katkesta'),
               ),
               ElevatedButton(
-                onPressed: () => Navigator.pop(context, true),
+                onPressed: () {
+                  final minimumCrew =
+                      int.tryParse(minimumCrewController.text.trim());
+                  if (minimumCrew == null || minimumCrew < 0) {
+                    setDialogState(
+                      () => minimumCrewError = 'Sisesta korrektne arv.',
+                    );
+                    return;
+                  }
+                  Navigator.pop(context, true);
+                },
                 child: const Text('Salvesta'),
               ),
             ],
@@ -184,24 +161,16 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
     if (shouldSave != true) return;
 
     try {
-      final onDutyCount = int.tryParse(onDutyController.text) ?? 0;
-      final delayedCount = int.tryParse(delayedController.text) ?? 0;
       final minimumCrewRequired =
-          int.tryParse(minimumCrewController.text) ?? 0;
-      final minimumCrewMet =
-          minimumCrewRequired > 0 && onDutyCount >= minimumCrewRequired;
+          int.parse(minimumCrewController.text.trim());
 
-      await _platformReadinessService.saveOrganizationSummary(
+      await _platformReadinessService.saveOrganizationSettings(
         organizationId: organizationId,
         organizationName: widget.activeOrganizationName ?? organizationId,
         region: regionController.text,
         contactName: contactNameController.text,
         contactPhone: contactPhoneController.text,
-        readinessStatus: readinessStatus,
-        onDutyCount: onDutyCount,
-        delayedCount: delayedCount,
         minimumCrewRequired: minimumCrewRequired,
-        minimumCrewMet: minimumCrewMet,
         primaryVesselStatus: primaryVesselStatus,
         equipmentStatus: equipmentStatus,
         criticalIssues: criticalIssuesController.text,
@@ -210,13 +179,19 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Valmisoleku kokkuvõte salvestatud')),
+        const SnackBar(content: Text('Valmisoleku seaded salvestatud')),
       );
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Salvestamine ebaõnnestus: $e')),
+        const SnackBar(content: Text('Salvestamine ebaõnnestus.')),
       );
+    } finally {
+      regionController.dispose();
+      contactNameController.dispose();
+      contactPhoneController.dispose();
+      minimumCrewController.dispose();
+      criticalIssuesController.dispose();
     }
   }
 
@@ -224,9 +199,7 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
   Widget build(BuildContext context) {
     if (!widget.isPlatformAdmin && !widget.canManageOwnSummary) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('Platvormi valmisolek'),
-        ),
+        appBar: AppBar(title: const Text('Valmisoleku seaded')),
         body: const Center(
           child: Text('See vaade on ainult administraatorile'),
         ),
@@ -246,13 +219,17 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Platvormi valmisolek'),
+        title: Text(
+          widget.isPlatformAdmin
+              ? 'Ühingute valmisoleku seaded'
+              : 'Valmisoleku seaded',
+        ),
       ),
       floatingActionButton: widget.canManageOwnSummary &&
               activeOrganizationId != null &&
               activeOrganizationId.isNotEmpty
           ? FloatingActionButton(
-              onPressed: () => _showSummaryDialog(),
+              onPressed: () => _showSettingsDialog(),
               child: const Icon(Icons.edit),
             )
           : null,
@@ -264,15 +241,15 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
           }
 
           if (snapshot.hasError) {
-            return Center(
-              child: Text('Valmisoleku laadimine ebaõnnestus: ${snapshot.error}'),
+            return const Center(
+              child: Text('Valmisoleku seadete laadimine ebaõnnestus.'),
             );
           }
 
           final summaries = snapshot.data ?? const <PlatformReadinessSummary>[];
           if (summaries.isEmpty) {
             return const Center(
-              child: Text('Valmisoleku kokkuvõtteid ei ole lisatud'),
+              child: Text('Valmisoleku seadeid ei ole lisatud'),
             );
           }
 
@@ -284,6 +261,26 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
               final summary = summaries[index];
               final canEdit = widget.canManageOwnSummary &&
                   summary.organizationId == widget.activeOrganizationId;
+              final details = <String>[
+                summary.minimumCrewRequired > 0
+                    ? 'Miinimumkoosseis: ${summary.minimumCrewRequired}'
+                    : 'Miinimumkoosseis seadistamata',
+                if (summary.primaryVesselStatus !=
+                    ReadinessEquipmentStatus.unknown)
+                  'Põhialus: '
+                      '${_equipmentStatusLabel(summary.primaryVesselStatus)}',
+                if (summary.equipmentStatus != ReadinessEquipmentStatus.unknown)
+                  'Varustus: ${_equipmentStatusLabel(summary.equipmentStatus)}',
+                if (summary.region.isNotEmpty) summary.region,
+                if (summary.contactName.isNotEmpty ||
+                    summary.contactPhone.isNotEmpty)
+                  'Kontakt: ${[
+                    if (summary.contactName.isNotEmpty) summary.contactName,
+                    if (summary.contactPhone.isNotEmpty) summary.contactPhone,
+                  ].join(' · ')}',
+                if (summary.criticalIssues.isNotEmpty)
+                  'Probleemid: ${summary.criticalIssues}',
+              ];
 
               return ListTile(
                 contentPadding: EdgeInsets.zero,
@@ -292,25 +289,11 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
                       ? summary.organizationId
                       : summary.organizationName,
                 ),
-                subtitle: Text(
-                  [
-                    _readinessStatusLabel(summary.readinessStatus),
-                    'Valves: ${summary.onDutyCount}',
-                    'Hilinenud: ${summary.delayedCount}',
-                    'Min: ${summary.minimumCrewRequired}',
-                    summary.minimumCrewMet
-                        ? 'Miinimum koos'
-                        : 'Miinimum puudu',
-                    'Varustus: ${_equipmentStatusLabel(summary.equipmentStatus)}',
-                    if (summary.region.isNotEmpty) summary.region,
-                    if (summary.criticalIssues.isNotEmpty)
-                      'Probleemid: ${summary.criticalIssues}',
-                  ].join('\n'),
-                ),
+                subtitle: Text(details.join('\n')),
                 trailing: canEdit
                     ? IconButton(
                         icon: const Icon(Icons.edit),
-                        onPressed: () => _showSummaryDialog(summary: summary),
+                        onPressed: () => _showSettingsDialog(summary: summary),
                       )
                     : null,
               );
@@ -319,19 +302,6 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
         },
       ),
     );
-  }
-
-  String _readinessStatusLabel(String status) {
-    switch (status) {
-      case ReadinessStatus.ready:
-        return 'Valmis';
-      case ReadinessStatus.limited:
-        return 'Piiratud';
-      case ReadinessStatus.notReady:
-        return 'Ei ole valmis';
-      default:
-        return 'Teadmata';
-    }
   }
 
   String _equipmentStatusLabel(String status) {
@@ -343,7 +313,7 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
       case ReadinessEquipmentStatus.critical:
         return 'Kriitiline';
       default:
-        return 'Teadmata';
+        return 'Määramata';
     }
   }
 }
