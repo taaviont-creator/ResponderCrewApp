@@ -1,6 +1,7 @@
 class StatisticsSummary {
   const StatisticsSummary({
     required this.memberCount,
+    required this.hasAvailabilityStatistics,
     required this.onDutyCount,
     required this.delayedCount,
     required this.offDutyCount,
@@ -17,6 +18,7 @@ class StatisticsSummary {
   });
 
   final int memberCount;
+  final bool hasAvailabilityStatistics;
   final int onDutyCount;
   final int delayedCount;
   final int offDutyCount;

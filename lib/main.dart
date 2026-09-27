@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
@@ -9,8 +11,17 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   CalloutAlarmNotificationService.registerBackgroundHandler();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  await CalloutAlarmNotificationService.instance.initialize();
   runApp(const MyApp());
+  unawaited(_initializeCalloutAlarmNotifications());
+}
+
+Future<void> _initializeCalloutAlarmNotifications() async {
+  try {
+    await CalloutAlarmNotificationService.instance.initialize();
+  } catch (error, stackTrace) {
+    debugPrint('Callout notification initialization failed: $error');
+    debugPrintStack(stackTrace: stackTrace);
+  }
 }
 
 class MyApp extends StatelessWidget {

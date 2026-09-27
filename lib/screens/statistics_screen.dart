@@ -103,9 +103,14 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 const SizedBox(height: 8),
               ],
               _buildStatisticTile('Liikmeid', statistics.memberCount),
-              _buildStatisticTile('Valves', statistics.onDutyCount),
-              _buildStatisticTile('Hilinenud', statistics.delayedCount),
-              _buildStatisticTile('Valvest väljas', statistics.offDutyCount),
+              if (statistics.hasAvailabilityStatistics) ...[
+                _buildStatisticTile('Valves', statistics.onDutyCount),
+                _buildStatisticTile('Hilinenud', statistics.delayedCount),
+                _buildStatisticTile(
+                  'Valvest väljas',
+                  statistics.offDutyCount,
+                ),
+              ],
               const Divider(),
               _buildStatisticTile('Varustust kokku', statistics.equipmentCount),
               _buildStatisticTile(
@@ -181,9 +186,11 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     final rows = <List<String>>[
       const ['Jaotis', 'Näitaja', 'Väärtus'],
       ['Koond', 'Liikmeid', statistics.memberCount.toString()],
-      ['Koond', 'Valves', statistics.onDutyCount.toString()],
-      ['Koond', 'Hilinenud', statistics.delayedCount.toString()],
-      ['Koond', 'Valvest väljas', statistics.offDutyCount.toString()],
+      if (statistics.hasAvailabilityStatistics) ...[
+        ['Koond', 'Valves', statistics.onDutyCount.toString()],
+        ['Koond', 'Hilinenud', statistics.delayedCount.toString()],
+        ['Koond', 'Valvest väljas', statistics.offDutyCount.toString()],
+      ],
       ['Varustus', 'Varustust kokku', statistics.equipmentCount.toString()],
       [
         'Varustus',

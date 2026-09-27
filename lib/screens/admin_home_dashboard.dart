@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import '../models/availability_model.dart';
 import '../models/callout_model.dart';
 import '../models/equipment_model.dart';
+import '../models/effective_availability.dart';
 import '../models/membership_model.dart';
 import '../models/platform_readiness_model.dart';
+import '../models/response_readiness.dart';
 import '../models/planned_unavailability_model.dart';
 import '../models/planned_unavailability_rule_model.dart';
 import '../services/availability_service.dart';
@@ -166,7 +168,7 @@ class AdminHomeDashboard extends StatelessWidget {
                           (membershipData['userId'] ?? '').toString();
                       final manualStatus = availabilityByUserId[userId]?.status ??
                           AvailabilityStatus.offDuty;
-                      final status = _effectiveAvailabilityStatus(
+                      final status = EffectiveAvailability.resolve(
                         userId: userId,
                         manualStatus: manualStatus,
                         periods: periods,
@@ -198,8 +200,6 @@ class AdminHomeDashboard extends StatelessWidget {
                             summaries.isEmpty ? null : summaries.first;
                         final minimumCrewRequired =
                             summary?.minimumCrewRequired ?? 0;
-                        final minimumCrewMet = minimumCrewRequired > 0 &&
-                            onDutyCount >= minimumCrewRequired;
 
                         return Column(
                           children: [
@@ -246,7 +246,6 @@ class AdminHomeDashboard extends StatelessWidget {
                             _MinimumCrewCompact(
                               minimumCrewRequired: minimumCrewRequired,
                               onDutyCount: onDutyCount,
-                              minimumCrewMet: minimumCrewMet,
                               secondLevelOnDutyCount:
                                   effectiveOnDutySecondLevelCount,
                             ),
@@ -262,62 +261,6 @@ class AdminHomeDashboard extends StatelessWidget {
         );
       },
     );
-  }
-
-  String _effectiveAvailabilityStatus({
-    required String userId,
-    required String manualStatus,
-    required Iterable<PlannedUnavailabilityModel> periods,
-    required Iterable<PlannedUnavailabilityRuleModel> rules,
-    required DateTime now,
-  }) {
-    if (_hasActivePlannedUnavailability(
-          userId: userId,
-          periods: periods,
-          now: now,
-        ) ||
-        _hasActivePlannedUnavailabilityRule(
-          userId: userId,
-          rules: rules,
-          now: now,
-        )) {
-      return AvailabilityStatus.offDuty;
-    }
-
-    return manualStatus;
-  }
-
-  bool _hasActivePlannedUnavailability({
-    required String userId,
-    required Iterable<PlannedUnavailabilityModel> periods,
-    required DateTime now,
-  }) {
-    return periods.any((period) {
-      final startAt = period.startAt;
-      final endAt = period.endAt;
-      if (period.userId != userId ||
-          !period.isActive ||
-          startAt == null ||
-          endAt == null) {
-        return false;
-      }
-      return !now.isBefore(startAt) && now.isBefore(endAt);
-    });
-  }
-
-  bool _hasActivePlannedUnavailabilityRule({
-    required String userId,
-    required Iterable<PlannedUnavailabilityRuleModel> rules,
-    required DateTime now,
-  }) {
-    final minuteOfDay = now.hour * 60 + now.minute;
-    return rules.any((rule) {
-      return rule.userId == userId &&
-          rule.isActive &&
-          rule.daysOfWeek.contains(now.weekday) &&
-          minuteOfDay >= rule.startMinute &&
-          minuteOfDay < rule.endMinute;
-    });
   }
 
   Widget _buildEquipmentAlerts() {
@@ -558,24 +501,23 @@ class _MinimumCrewCompact extends StatelessWidget {
   const _MinimumCrewCompact({
     required this.minimumCrewRequired,
     required this.onDutyCount,
-    required this.minimumCrewMet,
     required this.secondLevelOnDutyCount,
   });
 
   final int minimumCrewRequired;
   final int onDutyCount;
-  final bool minimumCrewMet;
   final int secondLevelOnDutyCount;
 
   @override
   Widget build(BuildContext context) {
-    final secondLevelMet = secondLevelOnDutyCount >= 1;
-    final responseReady = minimumCrewMet && secondLevelMet;
-    final readinessReasons = <String>[
-      if (!minimumCrewMet) 'Miinimumkoosseis puudu',
-      if (secondLevelOnDutyCount < 1) 'II astme liige puudub',
-    ];
-    final color = minimumCrewRequired <= 0
+    final readiness = ResponseReadiness.evaluate(
+      minimumCrewRequired: minimumCrewRequired,
+      onDutyCount: onDutyCount,
+      secondLevelOnDutyCount: secondLevelOnDutyCount,
+    );
+    final responseReady = readiness.isReady;
+    final readinessReasons = readiness.missingRequirements;
+    final color = !readiness.isConfigured
         ? AppColors.textSecondary
         : responseReady
             ? AppColors.ready

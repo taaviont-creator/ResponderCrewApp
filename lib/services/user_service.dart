@@ -17,7 +17,6 @@ class UserService {
       'email': email,
       'normalizedEmail': normalizedEmail,
       'name': name,
-      'status': 'available', // vaba
       'activeOrganizationId': null,
       'systemRole': PlatformRole.user,
       // TODO: Remove commandId after activeOrganizationId migration.
