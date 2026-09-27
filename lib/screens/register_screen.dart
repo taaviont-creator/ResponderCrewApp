@@ -57,7 +57,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } on Exception catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Konto loomine ebaõnnestus: $e')),
+        const SnackBar(content: Text('Konto loomine ebaõnnestus.')),
       );
     } finally {
       if (mounted) setState(() => _loading = false);
