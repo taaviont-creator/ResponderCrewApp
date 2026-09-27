@@ -27,43 +27,42 @@ class MainNavigationShell extends StatelessWidget {
         color: AppColors.surface,
         child: SafeArea(
           top: false,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minWidth: MediaQuery.sizeOf(context).width,
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  for (var i = 0; i < labels.length; i++)
-                    Semantics(
-                      selected: currentIndex == i,
-                      child: TextButton(
-                        style: TextButton.styleFrom(
-                          minimumSize: const Size(64, 64),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 8,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (var i = 0; i < labels.length; i++)
+                Expanded(
+                  child: Semantics(
+                    selected: currentIndex == i,
+                    child: TextButton(
+                      style: TextButton.styleFrom(
+                        minimumSize: const Size(48, 64),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 2,
+                          vertical: 10,
+                        ),
+                        backgroundColor: currentIndex == i
+                            ? AppColors.surfaceBlueStrong
+                            : null,
+                      ),
+                      onPressed: () => onDestinationSelected(i),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(icons[i]),
+                          const SizedBox(height: 4),
+                          Text(
+                            labels[i],
+                            softWrap: true,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontSize: 12),
                           ),
-                          backgroundColor: currentIndex == i
-                              ? AppColors.surfaceBlueStrong
-                              : null,
-                        ),
-                        onPressed: () => onDestinationSelected(i),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(icons[i]),
-                            const SizedBox(height: 4),
-                            Text(labels[i]),
-                          ],
-                        ),
+                        ],
                       ),
                     ),
-                ],
-              ),
-            ),
+                  ),
+                ),
+            ],
           ),
         ),
       ),

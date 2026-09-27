@@ -12,7 +12,7 @@
 ## Mobiilivaade ja logi
 Stitchi mereline tume palett on kohandatud selgete läbipaistmatute kaartidega. Töölaud alustab aktiivse väljakutsega ning selle kaart avab täpse väljakutse. Valmisoleku juures kuvatakse salvestuse ootel olek; vigased/laadimata allikad ei esine kinnitatud valmisolekuna. Aluste kokkuvõte kasutab päris varustuskirjeid ja ilmub ainult olemasolevate aluste korral.
 
-Põhimenüü: Töölaud, Väljakutsed, Liikmed, Varustus, Veel. Teavitused on töölaua ülaribal ja Veel all; valmisoleku planeerimine ja statistika Veel all. Väga kitsa ekraani või suurendatud teksti korral saab alumist menüüd horisontaalselt kerida, et nimetusi ei kärbitaks. Peamised tegevusnupud kasvavad tekstiga kaasa.
+Põhimenüü: Töölaud, Väljakutsed, Liikmed, Varustus, Veel. Teavitused on töölaua ülaribal ja Veel all; valmisoleku planeerimine ja statistika Veel all. Alumises menüüs jäävad kõik viis sihtkohta nähtavaks; kitsa ekraani või suurendatud teksti korral murravad nimetused mitmele reale. Peamised tegevusnupud kasvavad tekstiga kaasa.
 
 Logi staatuse muutus nõuab kinnitamist; ajajoon ja väljavõte näitavad autorit (nimi või olemasoleva kande kasutaja ID). Side ja pukseerimine on eraldi valitavad tegevused, mitte automaatsed etapid. Muudatus ei loo näidisandmeid, aluse/meeskonna määranguid ega väliste ühenduste nuppe.
 
