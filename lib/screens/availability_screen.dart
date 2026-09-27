@@ -27,8 +27,10 @@ class AvailabilityScreen extends StatefulWidget {
     required this.canViewOrganizationReadiness,
     this.organizationName,
     this.membershipRole,
+    this.openPlanningOnStart = false,
   });
 
+  final bool openPlanningOnStart;
   final String organizationId;
   final String? organizationName;
   final String? membershipRole;
@@ -47,16 +49,18 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
   final _membershipService = MembershipService();
   final _platformReadinessService = PlatformReadinessService();
   final _plannedUnavailabilityService = PlannedUnavailabilityService();
-  final _noteController = TextEditingController();
-  var _noteInitialized = false;
   var _isUpdating = false;
   String? _cancellingPlannedUnavailabilityId;
   String? _cancellingPlannedUnavailabilityRuleId;
 
   @override
-  void dispose() {
-    _noteController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    if (widget.openPlanningOnStart) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showAddPlannedUnavailabilityDialog();
+      });
+    }
   }
 
   Future<void> _updateAvailability(
@@ -227,11 +231,6 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
             const {15, 30, 60}.contains(storedMinutes) ? storedMinutes : 15;
         final note = availability?.note ?? '';
 
-        if (!_noteInitialized && snapshot.hasData) {
-          _noteInitialized = true;
-          _noteController.text = note;
-        }
-
         return AppSectionCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -266,7 +265,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                     ? null
                     : () => _updateAvailabilityRespectingSchedule(
                           AvailabilityStatus.onDuty,
-                          note: _noteController.text,
+                          note: note,
                         ),
               ),
               const SizedBox(height: AppTheme.itemSpacing),
@@ -284,7 +283,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                     : () => _updateAvailabilityRespectingSchedule(
                           AvailabilityStatus.delayed,
                           responseMinutes: responseMinutes,
-                          note: _noteController.text,
+                          note: note,
                         ),
               ),
               const SizedBox(height: AppTheme.itemSpacing),
@@ -299,7 +298,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                     ? null
                     : () => _updateAvailability(
                           AvailabilityStatus.offDuty,
-                          note: _noteController.text,
+                          note: note,
                         ),
               ),
               const SizedBox(height: 20),
@@ -313,7 +312,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Reageerimise viide',
+                      'Reageerimisviivitus',
                       style: Theme.of(context).textTheme.labelLarge,
                     ),
                     const SizedBox(height: 8),
@@ -334,40 +333,9 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                               _updateAvailabilityRespectingSchedule(
                                 AvailabilityStatus.delayed,
                                 responseMinutes: value,
-                                note: _noteController.text,
+                                note: note,
                               );
                             },
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Märkus (valikuline)',
-                      style: Theme.of(context).textTheme.labelLarge,
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: _noteController,
-                      maxLines: 2,
-                      decoration: const InputDecoration(
-                        hintText: 'Nt: Olen teel sadamasse...',
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton.icon(
-                        onPressed: _isUpdating
-                            ? null
-                            : () => _updateAvailability(
-                                  status,
-                                  responseMinutes:
-                                      status == AvailabilityStatus.delayed
-                                          ? responseMinutes
-                                          : null,
-                                  note: _noteController.text,
-                                ),
-                        icon: const Icon(Icons.save_outlined),
-                        label: const Text('Salvesta märkus'),
-                      ),
                     ),
                   ],
                 ),
@@ -788,7 +756,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     var isSaving = false;
     final noteController = TextEditingController();
 
-    await showDialog<void>(
+    final route = DialogRoute<void>(
       context: context,
       builder: (dialogContext) {
         return StatefulBuilder(
@@ -898,6 +866,8 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
       },
     );
 
+    await Navigator.of(context).push(route);
+    await route.completed;
     noteController.dispose();
   }
 
