@@ -1,3 +1,4 @@
+import '../widgets/home_absence_preview.dart';
 import '../widgets/minimum_crew_dialog.dart';
 import '../widgets/member_permission_settings.dart';
 import 'dart:async';
@@ -1606,6 +1607,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         },
                       ),
                     ],
+                    const SizedBox(height: 8),
+                    HomeAbsencePreview(userId: user.uid, periods: periods, rules: rules,
+                      onPlan: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                        builder: (_) => AvailabilityScreen(organizationId: organizationId,
+                          currentUid: user.uid, currentUserName: memberName,
+                          canViewOrganizationReadiness: false, openPlanningOnStart: true)))),
                   ],
                 );
                 if (compact) return content;
