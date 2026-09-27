@@ -124,8 +124,6 @@ class AvailabilityService {
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
-
-    });
     });
   }
 
