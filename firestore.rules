@@ -734,6 +734,19 @@ service cloud.firestore {
         data.responseMinutes is int;
     }
 
+    // A first status save reads the absent document in a transaction.
+    // The matching membership supplies identity without trusting missing data.
+    function canGetMissingOwnAvailability(availabilityId) {
+      let membershipPath = /databases/$(database)/documents/memberships/$(availabilityId);
+      return signedIn() &&
+        !exists(/databases/$(database)/documents/availability/$(availabilityId)) &&
+        exists(membershipPath) &&
+        get(membershipPath).data.userId == request.auth.uid &&
+        hasValidOrganizationReference(get(membershipPath).data) &&
+        availabilityId == request.auth.uid + '_' + organizationIdFromData(get(membershipPath).data) &&
+        isActiveMembershipData(get(membershipPath).data);
+    }
+
     function isOwnAvailabilityWrite(availabilityId) {
       return signedIn() &&
         request.resource.data.userId == request.auth.uid &&
@@ -2544,6 +2557,7 @@ service cloud.firestore {
     }
 
     match /availability/{availabilityId} {
+      allow get: if canGetMissingOwnAvailability(availabilityId);
       allow read: if signedIn() &&
         isActiveMember(organizationIdFromData(resource.data));
       allow create, update: if isOwnAvailabilityWrite(availabilityId);

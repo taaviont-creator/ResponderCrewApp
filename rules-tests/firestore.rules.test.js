@@ -788,3 +788,31 @@ test('TROSS creates callout, notification and open log atomically; recorded depa
   await assertFails(setDoc(doc(db,'callouts/fake-time'),calloutData('fake-time',{
     calloutType:'tross',responseTargetMinutes:60,createdAt:new Date('2020-01-01')})));
 });
+
+test('first availability transaction reads missing own record and writes status with notification', async () => {
+  const db = testEnv.authenticatedContext(activeMemberId).firestore();
+  const id = `${activeMemberId}_${organizationId}`;
+  await assertSucceeds(runTransaction(db, async tx => {
+    const ref = doc(db, `availability/${id}`);
+    const snapshot = await tx.get(ref);
+    if (snapshot.exists()) throw new Error('Expected a new member without availability');
+    tx.set(ref, {id, userId: activeMemberId, organizationId, commandId: organizationId,
+      status: 'onDuty', responseMinutes: null, note: null,
+      createdAt: serverTimestamp(), updatedAt: serverTimestamp()});
+    tx.set(doc(db, 'notifications/first-duty'), {id:'first-duty', organizationId, commandId:organizationId,
+      title:'Valvesoleku muudatus', message:'Liige märkis ennast valvesse.', type:'availability', priority:'normal',
+      relatedType:'availability', relatedId:id, createdBy:activeMemberId,
+      createdAt:serverTimestamp(), updatedAt:serverTimestamp()});
+  }));
+  const snapshot = await assertSucceeds(getDoc(doc(db, `availability/${id}`)));
+  if(snapshot.data().status !== 'onDuty') throw new Error('Status not persisted');
+});
+
+test('missing availability read does not grant other-user, other-org, removed or anonymous access', async () => {
+  const db = testEnv.authenticatedContext(activeMemberId).firestore();
+  await assertFails(getDoc(doc(db, `availability/${targetMemberId}_${organizationId}`)));
+  await assertFails(getDoc(doc(db, `availability/${activeMemberId}_${otherOrganizationId}`)));
+  const removedDb = testEnv.authenticatedContext(memberId).firestore();
+  await assertFails(getDoc(doc(removedDb, `availability/${memberId}_${organizationId}`)));
+  await assertFails(getDoc(doc(testEnv.unauthenticatedContext().firestore(), `availability/${activeMemberId}_${organizationId}`)));
+});
