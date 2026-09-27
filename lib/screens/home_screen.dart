@@ -1633,7 +1633,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       style: Theme.of(context).textTheme.labelLarge,
                     ),
                     if (_savingAvailability) const Text('Salvestan valmisolekut… Serveri kinnitus on ootel.'),
-                    const Text('Üldine valmisolek ei ole väljakutse vastus ega pardalolek.'),
                     if (hasActiveSchedule) ...[
                       const SizedBox(height: 6),
                       const Text(
