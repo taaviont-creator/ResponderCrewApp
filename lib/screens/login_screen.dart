@@ -54,7 +54,7 @@ class _LoginScreenState extends State<LoginScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Sisselogimine õnnestus')),
       );
-    } on Exception catch (e) {
+    } on Exception catch (_) {
       // 3.5 Vea korral näita kasutajale
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
