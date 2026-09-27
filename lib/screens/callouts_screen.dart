@@ -17,6 +17,8 @@ class CalloutsScreen extends StatefulWidget {
     required this.canCloseCallouts,
     required this.canStartOperationLog,
     this.openCreateOnLoad = false,
+    this.initialCalloutId,
+    this.onInitialCalloutOpened,
   });
 
   final String organizationId;
@@ -26,6 +28,8 @@ class CalloutsScreen extends StatefulWidget {
   final bool canCloseCallouts;
   final bool canStartOperationLog;
   final bool openCreateOnLoad;
+  final String? initialCalloutId;
+  final VoidCallback? onInitialCalloutOpened;
 
   @override
   State<CalloutsScreen> createState() => _CalloutsScreenState();
@@ -33,6 +37,7 @@ class CalloutsScreen extends StatefulWidget {
 
 class _CalloutsScreenState extends State<CalloutsScreen> {
   final _calloutService = CalloutService();
+  String? _openedInitialCalloutId;
 
   @override
   void initState() {
@@ -71,10 +76,10 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Väljakutse on mõeldud reageerimisvalmis liikmetele. '
-                  'Liikmed saavad anda kiire vastuse: Tulen, Hilinen või '
-                  'Ei tule.\n'
-                  'Sündmuse op-logi saab avada väljakutse detailist.',
+                  'Väljakutse teavitus saadetakse ühingu aktiivsetele '
+                  'liikmetele. Liikmed saavad anda kiire vastuse: Tulen, '
+                  'Hilinen või Ei tule.\n'
+                  'Sündmuse operatsioonilogi saab avada väljakutse detailist.',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppColors.textSecondary,
                       ),
@@ -193,6 +198,24 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
     );
   }
 
+  void _openInitialCalloutIfNeeded(List<CalloutModel> callouts) {
+    final requestedId = widget.initialCalloutId?.trim() ?? '';
+    if (requestedId.isEmpty || _openedInitialCalloutId == requestedId) {
+      return;
+    }
+
+    final matchingCallouts =
+        callouts.where((callout) => callout.id == requestedId).toList();
+    if (matchingCallouts.isEmpty) return;
+
+    _openedInitialCalloutId = requestedId;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      widget.onInitialCalloutOpened?.call();
+      _openCallout(matchingCallouts.first);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -226,6 +249,7 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
           }
 
           final callouts = snapshot.data ?? const <CalloutModel>[];
+          _openInitialCalloutIfNeeded(callouts);
           final activeCallouts = callouts
               .where((callout) => callout.status == CalloutStatus.active)
               .toList(growable: false);

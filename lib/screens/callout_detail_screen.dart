@@ -164,7 +164,7 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Vastus salvestatud.')),
       );
-    } catch (error) {
+    } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Vastust ei saanud salvestada.')),
@@ -222,10 +222,10 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
         ),
       );
       Navigator.pop(context);
-    } catch (error) {
+    } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Väljakutse uuendamine ebaõnnestus: $error')),
+        const SnackBar(content: Text('Väljakutse uuendamine ebaõnnestus.')),
       );
     } finally {
       if (mounted) setState(() => _isUpdatingStatus = false);
@@ -268,10 +268,10 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
           ),
         ),
       );
-    } catch (error) {
+    } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Op-logi avamine ebaõnnestus: $error')),
+        const SnackBar(content: Text('Operatsioonilogi avamine ebaõnnestus.')),
       );
     } finally {
       if (mounted) setState(() => _isOpeningOperationLog = false);

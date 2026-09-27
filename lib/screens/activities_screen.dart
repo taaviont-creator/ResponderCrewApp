@@ -175,10 +175,10 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(successMessage)),
       );
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Tegevuse lisamine ebaõnnestus: $e')),
+        const SnackBar(content: Text('Tegevuse lisamine ebaõnnestus.')),
       );
     }
   }

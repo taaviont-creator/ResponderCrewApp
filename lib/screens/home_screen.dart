@@ -85,6 +85,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final _platformReadinessService = PlatformReadinessService();
   final _plannedUnavailabilityService = PlannedUnavailabilityService();
   StreamSubscription<CalloutNotificationOpenEvent>? _calloutOpenSubscription;
+  String? _pendingCalloutId;
   var _selectedNavigationIndex = 0;
 
   @override
@@ -135,7 +136,10 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     if (!mounted) return;
-    setState(() => _selectedNavigationIndex = 2);
+    setState(() {
+      _pendingCalloutId = event.calloutId;
+      _selectedNavigationIndex = 2;
+    });
   }
 
   Future<void> _signOut() async {
@@ -218,7 +222,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Liitusid ühinguga!')),
       );
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -274,7 +278,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Ühing loodud ja saadetud kinnitamisele.')),
       );
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -364,7 +368,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Aktiivne ühing muudetud')),
       );
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -408,7 +412,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Lahkusid ühingust')),
       );
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Ühingust lahkumine ebaõnnestus.')),
@@ -607,12 +611,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
               try {
                 await _setActiveCommand(value);
-              } catch (e) {
+              } catch (_) {
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
-                      'Ühingu vahetamine ebaõnnestus: $e',
+                      'Ühingu vahetamine ebaõnnestus.',
                     ),
                   ),
                 );
@@ -1284,11 +1288,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       ? commandName!.trim()
                       : 'Nimi puudub',
                 ),
-                subtitle: Text(
-                  hasOrganization
-                      ? 'Ühingu ID: $organizationId'
-                      : 'Ühingu ID puudub',
-                ),
               ),
               if (hasJoinCode) ...[
                 const Divider(height: 1),
@@ -1406,10 +1405,10 @@ class _HomeScreenState extends State<HomeScreen> {
         allowMembersToViewStatistics: allowMembersToViewStatistics,
         allowMembersToStartOperationLog: allowMembersToStartOperationLog,
       );
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Seadete muutmine ebaõnnestus: $e')),
+        const SnackBar(content: Text('Seadete muutmine ebaõnnestus.')),
       );
     }
   }
@@ -1510,10 +1509,10 @@ class _HomeScreenState extends State<HomeScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Miinimumkoosseis salvestatud.')),
       );
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Seadete muutmine ebaõnnestus: $e')),
+        const SnackBar(content: Text('Seadete muutmine ebaõnnestus.')),
       );
     }
   }
@@ -1723,10 +1722,10 @@ class _HomeScreenState extends State<HomeScreen> {
               status: newStatus,
               responseMinutes: minutes,
             );
-          } catch (e) {
+          } catch (_) {
             if (!context.mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Valmisoleku muutmine ebaõnnestus: $e')),
+              const SnackBar(content: Text('Valmisoleku muutmine ebaõnnestus.')),
             );
           }
         }
@@ -2274,6 +2273,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     canManageCallouts: permissions.canCreateCallout,
                     canCloseCallouts: permissions.canCloseCallout,
                     canStartOperationLog: permissions.canStartOperationLog,
+                    initialCalloutId: _pendingCalloutId,
+                    onInitialCalloutOpened: () {
+                      if (!mounted) return;
+                      setState(() => _pendingCalloutId = null);
+                    },
                   ),
                   NotificationsScreen(
                     organizationId: selectedOrganizationId,
