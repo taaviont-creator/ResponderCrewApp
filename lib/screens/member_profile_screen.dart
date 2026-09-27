@@ -821,7 +821,7 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Liikme profiil'),
+        title: Text(_isOwnProfile ? 'Minu profiil' : 'Liikme profiil'),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),

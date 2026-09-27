@@ -77,10 +77,14 @@ class MenuScreen extends StatelessWidget {
           _MenuEntry(
             icon: Icons.person_outline,
             title: 'Minu profiil',
-            subtitle: 'Nimi ja telefon',
+            subtitle: 'Andmed, valmisolek ja panus',
             onTap: () => _open(
               context,
-              SelfProfileScreen(currentUid: currentUid),
+              SelfProfileScreen(
+                currentUid: currentUid,
+                organizationId: organizationId,
+                canManageRoles: isPlatformAdmin || isOrganizationAdmin,
+              ),
             ),
           ),
           if (isOrganizationAdmin)

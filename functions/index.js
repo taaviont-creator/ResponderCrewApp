@@ -143,6 +143,7 @@ async function loadEnabledDeviceTokens(userIds) {
         token,
         userId,
         platform: stringValue(data.platform),
+        documentId: doc.id,
       });
     }
   }
@@ -157,6 +158,7 @@ async function sendCalloutAlarm({
 }) {
   let successCount = 0;
   let failureCount = 0;
+  const staleTokenDocumentIds = new Set();
 
   for (const tokenRecordChunk of chunkArray(
     tokenRecords,
@@ -203,15 +205,35 @@ async function sendCalloutAlarm({
       const errorCode = sendResponse.error && sendResponse.error.code;
       const tokenRecord = tokenRecordChunk[index];
 
+      const staleToken = isInvalidTokenError(errorCode);
+      if (staleToken && tokenRecord.documentId) {
+        staleTokenDocumentIds.add(tokenRecord.documentId);
+      }
+
       logger.warn("Failed to send callout alarm push", {
         calloutId,
         organizationId,
         errorCode,
         userId: tokenRecord.userId,
         platform: tokenRecord.platform,
-        staleToken: isInvalidTokenError(errorCode),
+        staleToken,
       });
     });
+  }
+
+  if (staleTokenDocumentIds.size > 0) {
+    await Promise.all(
+      [...staleTokenDocumentIds].map(async (documentId) => {
+        try {
+          await db.collection("userDeviceTokens").doc(documentId).delete();
+        } catch (error) {
+          logger.warn("Failed to delete stale callout device token", {
+            documentId,
+            error: error && error.message,
+          });
+        }
+      }),
+    );
   }
 
   logger.info("Callout alarm push send finished", {
@@ -220,6 +242,7 @@ async function sendCalloutAlarm({
     tokenCount: tokenRecords.length,
     successCount,
     failureCount,
+    staleTokenCount: staleTokenDocumentIds.size,
   });
 }
 
