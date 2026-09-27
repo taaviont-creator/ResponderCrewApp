@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -10,6 +12,7 @@ import '../models/response_readiness.dart';
 import '../models/planned_unavailability_model.dart';
 import '../models/planned_unavailability_rule_model.dart';
 import '../services/availability_service.dart';
+import '../services/callout_alarm_notification_service.dart';
 import '../services/command_service.dart';
 import '../services/membership_service.dart';
 import '../services/notification_service.dart';
@@ -81,7 +84,59 @@ class _HomeScreenState extends State<HomeScreen> {
   final _notificationService = NotificationService();
   final _platformReadinessService = PlatformReadinessService();
   final _plannedUnavailabilityService = PlannedUnavailabilityService();
+  StreamSubscription<CalloutNotificationOpenEvent>? _calloutOpenSubscription;
   var _selectedNavigationIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+
+    final notificationService = CalloutAlarmNotificationService.instance;
+    _calloutOpenSubscription =
+        notificationService.calloutOpenEvents.listen((event) {
+      unawaited(_handleCalloutNotificationOpen(event));
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final pendingEvent =
+          notificationService.takePendingCalloutOpenEvent();
+      if (pendingEvent != null) {
+        unawaited(_handleCalloutNotificationOpen(pendingEvent));
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    final subscription = _calloutOpenSubscription;
+    if (subscription != null) {
+      unawaited(subscription.cancel());
+    }
+    super.dispose();
+  }
+
+  Future<void> _handleCalloutNotificationOpen(
+    CalloutNotificationOpenEvent event,
+  ) async {
+    if (!mounted) return;
+
+    try {
+      await _setActiveCommand(event.organizationId);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Selle väljakutse ühing ei ole enam aktiivne.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() => _selectedNavigationIndex = 2);
+  }
 
   Future<void> _signOut() async {
     await FirebaseAuth.instance.signOut();
