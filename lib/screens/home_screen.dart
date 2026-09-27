@@ -218,7 +218,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Liitusid ühinguga!')),
       );
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -274,7 +274,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Ühing loodud ja saadetud kinnitamisele.')),
       );
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -364,7 +364,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Aktiivne ühing muudetud')),
       );
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -408,7 +408,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Lahkusid ühingust')),
       );
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Ühingust lahkumine ebaõnnestus.')),
@@ -607,12 +607,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
               try {
                 await _setActiveCommand(value);
-              } catch (e) {
+              } catch (_) {
                 if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
-                      'Ühingu vahetamine ebaõnnestus: $e',
+                      'Ühingu vahetamine ebaõnnestus.',
                     ),
                   ),
                 );
@@ -1406,10 +1406,10 @@ class _HomeScreenState extends State<HomeScreen> {
         allowMembersToViewStatistics: allowMembersToViewStatistics,
         allowMembersToStartOperationLog: allowMembersToStartOperationLog,
       );
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Seadete muutmine ebaõnnestus: $e')),
+        const SnackBar(content: Text('Seadete muutmine ebaõnnestus.')),
       );
     }
   }
@@ -1510,10 +1510,10 @@ class _HomeScreenState extends State<HomeScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Miinimumkoosseis salvestatud.')),
       );
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Seadete muutmine ebaõnnestus: $e')),
+        const SnackBar(content: Text('Seadete muutmine ebaõnnestus.')),
       );
     }
   }
@@ -1723,10 +1723,10 @@ class _HomeScreenState extends State<HomeScreen> {
               status: newStatus,
               responseMinutes: minutes,
             );
-          } catch (e) {
+          } catch (_) {
             if (!context.mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Valmisoleku muutmine ebaõnnestus: $e')),
+              const SnackBar(content: Text('Valmisoleku muutmine ebaõnnestus.')),
             );
           }
         }
