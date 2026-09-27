@@ -74,12 +74,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       });
 
       final message = readiness.notificationsAllowed
-          ? 'Teavituste registreering v\u00e4rskendatud'
-          : 'Teavituste luba ei ole veel aktiivne';
+          ? 'Väljakutse teavitused on lubatud.'
+          : 'Teavitused vajavad telefoni seadetes luba.';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message)),
       );
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       setState(() => _isRefreshingAlarmReadiness = false);
       ScaffoldMessenger.of(context).showSnackBar(
