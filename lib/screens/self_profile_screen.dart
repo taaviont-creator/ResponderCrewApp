@@ -38,9 +38,9 @@ class SelfProfileScreen extends StatelessWidget {
         }
 
         if (userSnapshot.hasError || userSnapshot.data?.data() == null) {
-          return const Scaffold(
-            appBar: AppBar(title: Text('Minu profiil')),
-            body: Center(child: Text('Profiili ei saanud laadida.')),
+          return Scaffold(
+            appBar: AppBar(title: const Text('Minu profiil')),
+            body: const Center(child: Text('Profiili ei saanud laadida.')),
           );
         }
 
@@ -64,9 +64,9 @@ class SelfProfileScreen extends StatelessWidget {
                 !membershipService.isActiveMembership(membership) ||
                 membershipService.organizationIdFromMembership(membership) !=
                     organizationId) {
-              return const Scaffold(
-                appBar: AppBar(title: Text('Minu profiil')),
-                body: Center(
+              return Scaffold(
+                appBar: AppBar(title: const Text('Minu profiil')),
+                body: const Center(
                   child: Text('Aktiivse ühingu liikmelisust ei leitud.'),
                 ),
               );
