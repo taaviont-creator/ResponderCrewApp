@@ -228,11 +228,17 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       );
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
-
+      final message = error is JoinCommandException
+          ? error.message
+          : error is FirebaseException &&
+                  (error.code == 'unavailable' ||
+                      error.code == 'deadline-exceeded')
+              ? 'Ühendus puudub. Kontrolli internetti ja proovi uuesti.'
+              : 'Liitumistaotlust ei saanud saata. Proovi uuesti või võta ühendust ühingu administraatoriga.';
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ühinguga liitumine ebaõnnestus.')),
+        SnackBar(content: Text(message)),
       );
     }
   }

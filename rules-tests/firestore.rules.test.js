@@ -14,6 +14,9 @@ const {
   query,
   collection,
   where,
+  limit,
+  or,
+  runTransaction,
   writeBatch,
   serverTimestamp,
   setDoc,
@@ -180,6 +183,57 @@ test('new member can read missing own membership and submit pending request', as
   await assertFails(updateDoc(ref, {
     status: 'active', isActive: true, updatedAt: serverTimestamp(),
   }));
+});
+
+test('code lookup, request transaction and administrator approval work together', async () => {
+  const uid = 'code-join-member';
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    const db = context.firestore();
+    await updateDoc(doc(db, 'commands', organizationId), { joinCode: 'ABC234' });
+    await setDoc(doc(db, 'users', uid), { name: 'Test Member' });
+  });
+  const memberDb = testEnv.authenticatedContext(uid).firestore();
+  const code = ' abc234 '.trim().toUpperCase();
+  const organizations = await assertSucceeds(getDocs(query(
+    collection(memberDb, 'commands'), where('joinCode', '==', code), limit(1),
+  )));
+  const orgId = organizations.docs[0].id;
+  const memberRef = doc(memberDb, 'memberships', `${uid}_${orgId}`);
+  await assertSucceeds(getDoc(doc(memberDb, 'users', uid)));
+  await assertSucceeds(runTransaction(memberDb, async (transaction) => {
+    const existing = await transaction.get(memberRef);
+    if (existing.exists()) throw new Error('Expected a new membership');
+    transaction.set(memberRef, joinRequest(uid, orgId), { merge: true });
+  }));
+  await assertFails(updateDoc(memberRef, {
+    status: 'active', isActive: true, updatedAt: serverTimestamp(),
+  }));
+  const adminDb = testEnv.authenticatedContext(orgAdminId).firestore();
+  const requests = await assertSucceeds(getDocs(query(collection(adminDb, 'memberships'),
+    or(where('organizationId', '==', orgId), where('commandId', '==', orgId)),
+  )));
+  if (!requests.docs.some(d => d.id === memberRef.id && d.data().status === 'pending')) {
+    throw new Error('Administrator must see the pending request');
+  }
+  await assertSucceeds(updateDoc(doc(adminDb, 'memberships', memberRef.id), {
+    status: 'active', isActive: true, updatedAt: serverTimestamp(),
+  }));
+  await assertSucceeds(getDocs(query(collection(memberDb, 'memberships'),
+    where('organizationId', '==', orgId))));
+});
+
+test('old app immediate-activation batch remains denied by approval rules', async () => {
+  const uid = 'old-app-member';
+  const db = testEnv.authenticatedContext(uid).firestore();
+  const batch = writeBatch(db);
+  batch.set(doc(db, 'memberships', `${uid}_${organizationId}`), {
+    ...joinRequest(uid), status: 'active', isActive: true,
+  }, { merge: true });
+  batch.set(doc(db, 'users', uid), {
+    activeOrganizationId: organizationId, activeCommandId: organizationId,
+    commandId: organizationId,
+  }, { merge: true });
+  await assertFails(batch.commit());
 });
 
 for (const [name, overrides] of Object.entries({

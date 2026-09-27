@@ -7,6 +7,12 @@ import 'membership_service.dart';
 
 enum JoinCommandResult { pendingApproval, alreadyMember }
 
+class JoinCommandException implements Exception {
+  const JoinCommandException(this.message);
+
+  final String message;
+}
+
 class CommandService {
   static const _statusPending = 'pending';
   static const _statusApproved = 'approved';
@@ -170,10 +176,14 @@ class CommandService {
 
   Future<JoinCommandResult> joinCommand({required String joinCode}) async {
     final user = _auth.currentUser;
-    if (user == null) throw Exception('Not authenticated');
+    if (user == null) {
+      throw const JoinCommandException('Liitumiseks logi sisse.');
+    }
 
     final code = joinCode.trim().toUpperCase();
-    if (code.isEmpty) throw Exception('Join code is empty');
+    if (code.isEmpty) {
+      throw const JoinCommandException('Sisesta liitumiskood.');
+    }
 
     final query = await _db
         .collection('commands')
@@ -182,20 +192,22 @@ class CommandService {
         .get();
 
     if (query.docs.isEmpty) {
-      throw Exception('Komandot selle koodiga ei leitud');
+      throw const JoinCommandException(
+        'Selle koodiga ühingut ei leitud. Kontrolli liitumiskoodi.',
+      );
     }
 
     final commandDoc = query.docs.first;
     final commandId = commandDoc.id;
     final status = commandDoc.data()['status'];
     if (status == _statusPending) {
-      throw Exception('Ühing ootab kinnitamist.');
+      throw const JoinCommandException('Ühing ootab kinnitamist.');
     }
     if (status == _statusRejected) {
-      throw Exception('Ühingu taotlus on tagasi lükatud.');
+      throw const JoinCommandException('Ühingu taotlus on tagasi lükatud.');
     }
     if (status != null && status != _statusApproved) {
-      throw Exception('Selle ühinguga ei saa praegu liituda.');
+      throw const JoinCommandException('Selle ühinguga ei saa praegu liituda.');
     }
 
     final membershipRef = _db
@@ -216,7 +228,7 @@ class CommandService {
         if (existing['role'] != MembershipRole.member ||
             existing['status'] != 'removed' ||
             existing['isActive'] != false) {
-          throw Exception(
+          throw const JoinCommandException(
             'Liitumiseks võta ühendust ühingu administraatoriga.',
           );
         }

@@ -17,7 +17,7 @@ Existing legacy authorization branches are retained. This is a focused correctio
 
 ## Verification
 
-Firestore emulator: 36 tests pass, including new-member creation/read, malformed fields, wrong identity/document ID/organization, inactive organizations, forbidden active membership, self/ordinary/other-organization approval, removed-member rejoin, atomic activation bypass, valid admin approval and rejection, admin-issued invite acceptance for new/pending/removed members and fabricated invite denial. Existing role, equipment and operation-log tests also pass. Invitation updates are checked early to avoid exhausting the rule expression budget before reaching this legitimate path.
+Firestore emulator: 38 tests pass, including new-member creation/read, malformed fields, wrong identity/document ID/organization, inactive organizations, forbidden active membership, self/ordinary/other-organization approval, removed-member rejoin, atomic activation bypass, valid admin approval and rejection, admin-issued invite acceptance for new/pending/removed members and fabricated invite denial. The complete code query → request transaction → admin listing and approval flow passes. A regression test reproduces rejection of the original main build's immediate-activation batch. Existing role, equipment and operation-log tests also pass. Invitation updates are checked early to avoid exhausting the rule expression budget before reaching this legitimate path.
 
 Flutter: analyzer and 29 existing tests pass. The new administrator controls still require the real-device test; unit tests do not establish that the whole approval flow works on a phone.
 
