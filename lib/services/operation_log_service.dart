@@ -297,6 +297,9 @@ class OperationLogService {
 
       final currentStatus = OperationLogStatus.normalize(data['status']);
       if (currentStatus == status) return;
+      if (!OperationLogStatus.canTransition(currentStatus, status)) {
+        throw Exception('Seda operatsioonilogi staatuse muutust ei saa teha');
+      }
 
       transaction.update(doc, {
         'status': status,
