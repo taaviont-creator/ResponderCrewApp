@@ -85,6 +85,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final _platformReadinessService = PlatformReadinessService();
   final _plannedUnavailabilityService = PlannedUnavailabilityService();
   StreamSubscription<CalloutNotificationOpenEvent>? _calloutOpenSubscription;
+  String? _pendingCalloutId;
   var _selectedNavigationIndex = 0;
 
   @override
@@ -135,7 +136,10 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     if (!mounted) return;
-    setState(() => _selectedNavigationIndex = 2);
+    setState(() {
+      _pendingCalloutId = event.calloutId;
+      _selectedNavigationIndex = 2;
+    });
   }
 
   Future<void> _signOut() async {
@@ -2274,6 +2278,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     canManageCallouts: permissions.canCreateCallout,
                     canCloseCallouts: permissions.canCloseCallout,
                     canStartOperationLog: permissions.canStartOperationLog,
+                    initialCalloutId: _pendingCalloutId,
+                    onInitialCalloutOpened: () {
+                      if (!mounted) return;
+                      setState(() => _pendingCalloutId = null);
+                    },
                   ),
                   NotificationsScreen(
                     organizationId: selectedOrganizationId,
