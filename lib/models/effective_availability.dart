@@ -15,7 +15,29 @@ class EffectiveAvailability {
     if (userId.trim().isEmpty) return AvailabilityStatus.offDuty;
 
     final moment = now ?? DateTime.now();
-    if (_hasActivePeriod(
+    if (isPlannedUnavailable(
+      userId: userId,
+      periods: periods,
+      rules: rules,
+      now: moment,
+    )) {
+      return AvailabilityStatus.offDuty;
+    }
+
+    return AvailabilityStatus.values.contains(manualStatus)
+        ? manualStatus
+        : AvailabilityStatus.offDuty;
+  }
+
+  static bool isPlannedUnavailable({
+    required String userId,
+    required Iterable<PlannedUnavailabilityModel> periods,
+    required Iterable<PlannedUnavailabilityRuleModel> rules,
+    DateTime? now,
+  }) {
+    if (userId.trim().isEmpty) return false;
+    final moment = now ?? DateTime.now();
+    return _hasActivePeriod(
           userId: userId,
           periods: periods,
           now: moment,
@@ -24,13 +46,7 @@ class EffectiveAvailability {
           userId: userId,
           rules: rules,
           now: moment,
-        )) {
-      return AvailabilityStatus.offDuty;
-    }
-
-    return AvailabilityStatus.values.contains(manualStatus)
-        ? manualStatus
-        : AvailabilityStatus.offDuty;
+        );
   }
 
   static bool _hasActivePeriod({
