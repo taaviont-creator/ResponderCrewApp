@@ -58,7 +58,7 @@ class _LoginScreenState extends State<LoginScreen> {
       // 3.5 Vea korral näita kasutajale
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Sisselogimine ebaõnnestus: $e')),
+        const SnackBar(content: Text('Sisselogimine ebaõnnestus. Kontrolli e-posti ja parooli.')),
       );
     } finally {
       // 3.6 Lülita loading välja (kui ekraan on alles elus)
