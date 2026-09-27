@@ -1699,16 +1699,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     const <PlannedUnavailabilityModel>[];
                 final rules = rulesSnapshot.data ??
                     const <PlannedUnavailabilityRuleModel>[];
-                final hasActiveSchedule = _hasActivePlannedUnavailability(
-                      userId: user.uid,
-                      periods: periods,
-                      now: now,
-                    ) ||
-                    _hasActivePlannedUnavailabilityRule(
-                      userId: user.uid,
-                      rules: rules,
-                      now: now,
-                    );
+                final hasActiveSchedule =
+                    EffectiveAvailability.isPlannedUnavailable(
+                  userId: user.uid,
+                  periods: periods,
+                  rules: rules,
+                  now: now,
+                );
                 final content = Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
