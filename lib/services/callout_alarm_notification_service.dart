@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -17,6 +18,52 @@ const _calloutAlarmChannel = AndroidNotificationChannel(
   playSound: true,
   enableVibration: true,
 );
+
+class CalloutNotificationOpenEvent {
+  const CalloutNotificationOpenEvent({
+    required this.organizationId,
+    required this.calloutId,
+  });
+
+  final String organizationId;
+  final String calloutId;
+
+  bool get isValid => organizationId.isNotEmpty && calloutId.isNotEmpty;
+
+  String toPayload() {
+    return jsonEncode({
+      'organizationId': organizationId,
+      'calloutId': calloutId,
+    });
+  }
+
+  static CalloutNotificationOpenEvent? fromData(
+    Map<String, dynamic> data,
+  ) {
+    final organizationId =
+        (data['organizationId'] ?? data['commandId'] ?? '').toString().trim();
+    final calloutId =
+        (data['calloutId'] ?? data['relatedId'] ?? '').toString().trim();
+
+    final event = CalloutNotificationOpenEvent(
+      organizationId: organizationId,
+      calloutId: calloutId,
+    );
+    return event.isValid ? event : null;
+  }
+
+  static CalloutNotificationOpenEvent? fromPayload(String? payload) {
+    if (payload == null || payload.trim().isEmpty) return null;
+
+    try {
+      final decoded = jsonDecode(payload);
+      if (decoded is! Map) return null;
+      return fromData(Map<String, dynamic>.from(decoded));
+    } catch (_) {
+      return null;
+    }
+  }
+}
 
 class CalloutAlarmNotificationReadiness {
   const CalloutAlarmNotificationReadiness({
@@ -57,9 +104,22 @@ class CalloutAlarmNotificationService {
 
   StreamSubscription<User?>? _authSubscription;
   StreamSubscription<String>? _tokenRefreshSubscription;
+  StreamSubscription<RemoteMessage>? _messageOpenedSubscription;
+  final _calloutOpenController =
+      StreamController<CalloutNotificationOpenEvent>.broadcast();
+  CalloutNotificationOpenEvent? _pendingCalloutOpenEvent;
 
   bool _initialized = false;
   Future<void>? _initialization;
+
+  Stream<CalloutNotificationOpenEvent> get calloutOpenEvents =>
+      _calloutOpenController.stream;
+
+  CalloutNotificationOpenEvent? takePendingCalloutOpenEvent() {
+    final event = _pendingCalloutOpenEvent;
+    _pendingCalloutOpenEvent = null;
+    return event;
+  }
 
   bool get _supportsClientNotifications {
     if (kIsWeb) return false;
@@ -93,6 +153,14 @@ class CalloutAlarmNotificationService {
 
       _startDeviceTokenStorage();
       FirebaseMessaging.onMessage.listen(_showForegroundCalloutNotification);
+      _messageOpenedSubscription ??=
+          FirebaseMessaging.onMessageOpenedApp.listen(_handleOpenedRemoteMessage);
+
+      final initialMessage = await _messaging.getInitialMessage();
+      if (initialMessage != null) {
+        _handleOpenedRemoteMessage(initialMessage);
+      }
+
       _initialized = true;
     } catch (_) {
       _initialization = null;
@@ -215,7 +283,10 @@ class CalloutAlarmNotificationService {
       ),
     );
 
-    await _localNotifications.initialize(settings: initializationSettings);
+    await _localNotifications.initialize(
+      settings: initializationSettings,
+      onDidReceiveNotificationResponse: _handleLocalNotificationResponse,
+    );
 
     await _localNotifications
         .resolvePlatformSpecificImplementation<
@@ -273,13 +344,40 @@ class CalloutAlarmNotificationService {
       ),
     );
 
+    final openEvent =
+        CalloutNotificationOpenEvent.fromData(message.data);
+
     await _localNotifications.show(
       id: message.hashCode,
       title: title,
       body: body,
       notificationDetails: details,
-      payload: message.data['calloutId'] ?? message.data['relatedId'],
+      payload: openEvent?.toPayload(),
     );
+  }
+
+  void _handleOpenedRemoteMessage(RemoteMessage message) {
+    if (!_isCalloutMessage(message)) return;
+    final event = CalloutNotificationOpenEvent.fromData(message.data);
+    if (event != null) {
+      _emitCalloutOpenEvent(event);
+    }
+  }
+
+  void _handleLocalNotificationResponse(NotificationResponse response) {
+    final event =
+        CalloutNotificationOpenEvent.fromPayload(response.payload);
+    if (event != null) {
+      _emitCalloutOpenEvent(event);
+    }
+  }
+
+  void _emitCalloutOpenEvent(CalloutNotificationOpenEvent event) {
+    if (_calloutOpenController.hasListener) {
+      _calloutOpenController.add(event);
+    } else {
+      _pendingCalloutOpenEvent = event;
+    }
   }
 
   bool _isCalloutMessage(RemoteMessage message) {
