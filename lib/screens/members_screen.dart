@@ -178,7 +178,7 @@ class _MembersScreenState extends State<MembersScreen> {
       case AvailabilityStatus.delayed:
         return 'Hilinen';
       default:
-        return 'Valvest väljas';
+        return 'Ei ole valves';
     }
   }
 
