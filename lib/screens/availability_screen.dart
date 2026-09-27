@@ -5,6 +5,7 @@ import '../models/availability_model.dart';
 import '../models/membership_model.dart';
 import '../models/availability_reminder_settings_model.dart';
 import '../models/platform_readiness_model.dart';
+import '../models/response_readiness.dart';
 import '../models/planned_unavailability_model.dart';
 import '../models/planned_unavailability_rule_model.dart';
 import '../services/availability_reminder_settings_service.dart';
@@ -1310,11 +1311,14 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
           );
         }
 
-        final requiredCount = summaries.first.minimumCrewRequired;
-        final minimumCrewMet =
-            requiredCount > 0 && onDutyCount >= requiredCount;
-        final secondLevelMet = secondLevelOnDutyCount >= 1;
-        final responseReady = minimumCrewMet && secondLevelMet;
+        final readiness = ResponseReadiness.evaluate(
+          minimumCrewRequired: summaries.first.minimumCrewRequired,
+          onDutyCount: onDutyCount,
+          secondLevelOnDutyCount: secondLevelOnDutyCount,
+        );
+        final requiredCount = readiness.minimumCrewRequired;
+        final secondLevelMet = readiness.secondLevelMet;
+        final responseReady = readiness.isReady;
 
         return AppSectionCard(
           accentColor: responseReady ? AppColors.ready : AppColors.critical,
