@@ -49,7 +49,7 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
         createdBy: widget.currentUid,
         canManageOrganizationEquipment: widget.canManageEquipment,
       );
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -222,10 +222,10 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Varustus salvestatud')),
       );
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Varustuse lisamine ebaõnnestus: $e')),
+        const SnackBar(content: Text('Varustuse lisamine ebaõnnestus.')),
       );
     }
   }
@@ -386,10 +386,10 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Varustus salvestatud')),
       );
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Varustuse uuendamine ebaõnnestus: $e')),
+        const SnackBar(content: Text('Varustuse uuendamine ebaõnnestus.')),
       );
     }
   }
