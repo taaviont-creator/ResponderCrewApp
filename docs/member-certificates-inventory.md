@@ -6,7 +6,7 @@
 
 ## Tunnistuste aegumise teated
 
-`sendCertificateExpiryReminders` käivitub iga päev kell 09:00 Europe/Tallinn. 30 päeva enne lõppu (või esimese kontrolli ajal, kui aega on vähem) salvestatakse liikmele ja sama ühingu aktiivsetele adminidele privaatne teade ning saadetakse tavaline push. Aegumisele järgneval päeval saadetakse eraldi aegumise teade. Liige peab olema aktiivne ja ühing kinnitatud. Puuduvaks märgitud tunnistusi ei teavitata. Uue tähtajaga tunnistus saab uue teate; sama tähtaja sama etappi ei saadeta iga päev uuesti.
+`sendCertificateExpiryReminders` asub `europe-west1` piirkonnas ([Cloud Scheduleri toetatud piirkonnad](https://docs.cloud.google.com/scheduler/docs/locations)) ja käivitub iga päev kell 09:00 Europe/Tallinn. 30 päeva enne lõppu (või esimese kontrolli ajal, kui aega on vähem) salvestatakse liikmele ja sama ühingu aktiivsetele adminidele privaatne teade ning saadetakse tavaline push. Aegumisele järgneval päeval saadetakse eraldi aegumise teade. Liige peab olema aktiivne ja ühing kinnitatud. Puuduvaks märgitud tunnistusi ei teavitata. Uue tähtajaga tunnistus saab uue teate; sama tähtaja sama etappi ei saadeta iga päev uuesti.
 
 Push vajab seadmes lubatud teavitusi ja registreeritud seadmetokenit. Äpi teavituste kirje on alles ka siis, kui push ei jõua seadmesse. Ebaselge FCM saatmisvea järel automaatselt uuesti ei saadeta, et vältida korduvaid teateid; tõrked logitakse. Teatele vajutamine avab asjaomase liikme tunnistused ja kontrollib kehtivaid liikmeõigusi.
 
