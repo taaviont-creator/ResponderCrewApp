@@ -1,3 +1,8 @@
+import 'package:url_launcher/url_launcher.dart';
+import '../widgets/member_directory.dart';
+import '../services/member_contact_service.dart';
+import 'self_profile_screen.dart';
+import 'certificates_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,7 +16,6 @@ import '../services/availability_service.dart';
 import '../services/invite_service.dart';
 import '../services/membership_service.dart';
 import '../services/planned_unavailability_service.dart';
-import '../theme/app_theme.dart';
 import 'member_profile_screen.dart';
 
 class MembersScreen extends StatefulWidget {
@@ -38,7 +42,7 @@ class _MembersScreenState extends State<MembersScreen> {
 
   Future<void> _showInviteDialog() async {
     final controller = TextEditingController();
-    final email = await showDialog<String>(
+    final route = DialogRoute<String>(
       context: context,
       builder: (context) {
         return AlertDialog(
@@ -65,6 +69,8 @@ class _MembersScreenState extends State<MembersScreen> {
       },
     );
 
+    final email = await Navigator.of(context).push(route);
+    await route.completed;
     controller.dispose();
     if (email == null || email.trim().isEmpty) return;
 
@@ -91,116 +97,22 @@ class _MembersScreenState extends State<MembersScreen> {
     return message.isNotEmpty ? message : 'Kutse loomine ebaõnnestus.';
   }
 
-  Future<void> _updateMembershipRole({
-    required String membershipId,
-    required String targetUid,
-    required String newRole,
-  }) async {
-    await _membershipService.updateMembershipRole(
-      membershipId: membershipId,
-      targetUserId: targetUid,
-      organizationId: widget.organizationId,
-      role: newRole,
-    );
-  }
-
-  Future<void> _updateSeaRescueLevel({
-    required String membershipId,
-    required String targetUid,
-    required String seaRescueLevel,
-  }) async {
-    await _membershipService.updateSeaRescueLevel(
-      membershipId: membershipId,
-      targetUserId: targetUid,
-      organizationId: widget.organizationId,
-      seaRescueLevel: seaRescueLevel,
-    );
-  }
-
-  Future<String?> _showSeaRescueLevelDialog(Object? currentLevel) {
-    final selectedLevel = SeaRescueLevel.normalize(currentLevel);
-    return showDialog<String>(
-      context: context,
-      builder: (context) {
-        return SimpleDialog(
-          title: const Text('Merepääste aste'),
-          children: [
-            _SeaRescueLevelOption(
-              level: SeaRescueLevel.none,
-              label: _seaRescueLevelLabel(SeaRescueLevel.none),
-              selectedLevel: selectedLevel,
-            ),
-            _SeaRescueLevelOption(
-              level: SeaRescueLevel.level1,
-              label: _seaRescueLevelLabel(SeaRescueLevel.level1),
-              selectedLevel: selectedLevel,
-            ),
-            _SeaRescueLevelOption(
-              level: SeaRescueLevel.level2,
-              label: _seaRescueLevelLabel(SeaRescueLevel.level2),
-              selectedLevel: selectedLevel,
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  String _membershipRoleFromData(Map<String, dynamic> membership) {
-    return MembershipRole.normalize(membership['role']);
-  }
-
-  int _roleSortOrder(String role) {
-    return MembershipRole.isOrgAdmin(role) ? 0 : 1;
-  }
-
-  String _roleLabel(String role) {
-    return MembershipRole.isOrgAdmin(role)
-        ? 'Organisatsiooni administraator'
-        : 'Liige';
-  }
-
-  String _seaRescueLevelLabel(Object? level) {
-    switch (SeaRescueLevel.normalize(level)) {
-      case SeaRescueLevel.level1:
-        return 'I aste';
-      case SeaRescueLevel.level2:
-        return 'II aste';
-      default:
-        return 'Määramata';
-    }
-  }
-
-  String _availabilityStatusLabel(String status) {
-    switch (status) {
-      case AvailabilityStatus.onDuty:
-        return 'Valves';
-      case AvailabilityStatus.delayed:
-        return 'Hilinen';
-      default:
-        return 'Ei ole valves';
-    }
-  }
-
-  IconData _availabilityStatusIcon(String status) {
-    switch (status) {
-      case AvailabilityStatus.onDuty:
-        return Icons.check_circle;
-      case AvailabilityStatus.delayed:
-        return Icons.schedule;
-      default:
-        return Icons.cancel;
-    }
-  }
-
-  Color _availabilityStatusColor(String status) {
-    switch (status) {
-      case AvailabilityStatus.onDuty:
-        return AppColors.ready;
-      case AvailabilityStatus.delayed:
-        return AppColors.delayed;
-      default:
-        return AppColors.offDuty;
+  String? _busyContact;
+  Future<void> _contact(String uid, bool sms) async {
+    if (_busyContact != null) return;
+    setState(() => _busyContact = uid);
+    try {
+      final uri = await MemberContactService().contactUri(
+        organizationId: widget.organizationId, userId: uid, sms: sms);
+      if (!mounted) return;
+      if (uri == null || !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+        throw StateError('Contact unavailable');
+      }
+    } catch (_) {
+      if (mounted) { ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Kontakti ei saanud avada. Kontrolli, et liikmel on telefoninumber.'))); }
+    } finally {
+      if (mounted) setState(() => _busyContact = null);
     }
   }
 
@@ -211,18 +123,23 @@ class _MembersScreenState extends State<MembersScreen> {
     final targetUid = (membership['userId'] ?? '').toString().trim();
     if (targetUid.isEmpty) return;
 
+    if (targetUid == widget.currentUid) {
+      await Navigator.push(context, MaterialPageRoute<void>(builder: (_) => SelfProfileScreen(
+        currentUid: widget.currentUid, organizationId: widget.organizationId, canManageRoles: widget.canManageRoles)));
+      return;
+    }
     try {
-      final userSnapshot = await FirebaseFirestore.instance
+      final userSnapshot = widget.canManageRoles ? await FirebaseFirestore.instance
           .collection('users')
           .doc(targetUid)
-          .get();
+          .get() : null;
       if (!mounted) return;
 
       await Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => MemberProfileScreen(
-            userData: userSnapshot.data() ?? const <String, dynamic>{},
+            userData: userSnapshot?.data() ?? {'name': _membershipService.safeDisplayNameFromMembership(membership)},
             membershipData: membership,
             membershipId: membershipDoc.id,
             organizationId: widget.organizationId,
@@ -247,182 +164,41 @@ class _MembersScreenState extends State<MembersScreen> {
     required List<PlannedUnavailabilityModel> periods,
     required List<PlannedUnavailabilityRuleModel> rules,
   }) {
-    final memberships = membershipDocs
-        .where((doc) => (doc.data()['userId'] ?? '').toString().isNotEmpty)
-        .toList();
-
-    memberships.sort((a, b) {
-      final aRole = _membershipRoleFromData(a.data());
-      final bRole = _membershipRoleFromData(b.data());
-      final roleComparison =
-          _roleSortOrder(aRole).compareTo(_roleSortOrder(bRole));
-      if (roleComparison != 0) return roleComparison;
-
-      final aName =
-          _membershipService.safeDisplayNameFromMembership(a.data());
-      final bName =
-          _membershipService.safeDisplayNameFromMembership(b.data());
-      return aName.toLowerCase().compareTo(bName.toLowerCase());
-    });
-
+    final byId = {for (final doc in membershipDocs) doc.data()['userId'].toString(): doc};
     final now = DateTime.now();
-
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: memberships.length + 1,
-      separatorBuilder: (_, _) => const Divider(height: 1),
-      itemBuilder: (context, index) {
-        if (index == 0) {
-          return Column(
-            children: [
-              _PendingMemberRequestsSection(
-                key: ValueKey(widget.organizationId),
-                organizationId: widget.organizationId,
-                membershipService: _membershipService,
-              ),
-              _PendingOrganizationInvitesSection(
-                organizationId: widget.organizationId,
-                inviteService: _inviteService,
-              ),
-            ],
-          );
-        }
-
-        final membershipDoc = memberships[index - 1];
-        final membership = membershipDoc.data();
-        final targetUid = (membership['userId'] ?? '').toString();
-        final isCurrentUser = targetUid == widget.currentUid;
-        final membershipRole = _membershipRoleFromData(membership);
-        final seaRescueLevel =
-            _seaRescueLevelLabel(membership['seaRescueLevel']);
-        final displayName =
-            _membershipService.safeDisplayNameFromMembership(membership);
-        final manualStatus =
-            availabilityByUserId[targetUid]?.status ?? AvailabilityStatus.offDuty;
-        final effectiveStatus = EffectiveAvailability.resolve(
-          userId: targetUid,
-          manualStatus: manualStatus,
-          periods: periods,
-          rules: rules,
-          now: now,
-        );
-
-        return ListTile(
-          onTap: () => _openMemberProfile(
-            membershipDoc: membershipDoc,
-            membership: membership,
-          ),
-          title: Text(displayName),
-          subtitle: Text(
-            '${_availabilityStatusLabel(effectiveStatus)}\n'
-            '${_roleLabel(membershipRole)} • $seaRescueLevel',
-          ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                _availabilityStatusIcon(effectiveStatus),
-                color: _availabilityStatusColor(effectiveStatus),
-              ),
-              if (widget.canManageRoles) ...[
-                const SizedBox(width: 8),
-                PopupMenuButton<String>(
-                  onSelected: (value) async {
-                    try {
-                      if (value == 'make_org_admin') {
-                        if (isCurrentUser) return;
-                        await _updateMembershipRole(
-                          membershipId: membershipDoc.id,
-                          targetUid: targetUid,
-                          newRole: MembershipRole.orgAdmin,
-                        );
-                      } else if (value == 'make_member') {
-                        if (isCurrentUser) return;
-                        await _updateMembershipRole(
-                          membershipId: membershipDoc.id,
-                          targetUid: targetUid,
-                          newRole: MembershipRole.member,
-                        );
-                      } else if (value == 'change_sea_rescue_level') {
-                        final level = await _showSeaRescueLevelDialog(
-                          membership['seaRescueLevel'],
-                        );
-                        if (level == null) return;
-
-                        await _updateSeaRescueLevel(
-                          membershipId: membershipDoc.id,
-                          targetUid: targetUid,
-                          seaRescueLevel: level,
-                        );
-
-                        if (!context.mounted) return;
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Merepääste aste salvestatud.'),
-                          ),
-                        );
-                        return;
-                      }
-
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Roll uuendatud')),
-                      );
-                    } catch (_) {
-                      if (!context.mounted) return;
-                      final message = value == 'change_sea_rescue_level'
-                          ? 'Merepääste astet ei saanud salvestada.'
-                          : 'Sul puudub õigus seda toimingut teha.';
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(message)),
-                      );
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    if (!isCurrentUser) ...const [
-                      PopupMenuItem(
-                        value: 'make_org_admin',
-                        child: Text(
-                          'Tee organisatsiooni administraatoriks',
-                        ),
-                      ),
-                      PopupMenuItem(
-                        value: 'make_member',
-                        child: Text('Tee liikmeks'),
-                      ),
-                    ],
-                    const PopupMenuItem(
-                      value: 'change_sea_rescue_level',
-                      child: Text('Muuda merepääste astet'),
-                    ),
-                  ],
-                ),
-              ],
-            ],
-          ),
-        );
-      },
+    return MemberDirectory(
+      key: ValueKey(widget.organizationId),
+      busyUserId: _busyContact,
+      members: [for (final doc in membershipDocs)
+        DirectoryMember(id: doc.data()['userId'].toString(),
+          name: _membershipService.safeDisplayNameFromMembership(doc.data()),
+          role: MembershipRole.normalize(doc.data()['role']),
+          level: SeaRescueLevel.normalize(doc.data()['seaRescueLevel']),
+          isSelf: doc.data()['userId'] == widget.currentUid,
+          status: switch (EffectiveAvailability.resolve(userId: doc.data()['userId'].toString(),
+            manualStatus: availabilityByUserId[doc.data()['userId']]?.status ?? AvailabilityStatus.offDuty,
+            periods: periods, rules: rules, now: now)) {
+              AvailabilityStatus.onDuty => 'Valves', AvailabilityStatus.delayed => 'Hilinen', _ => 'Ei ole valves',
+            }),
+      ],
+      onOpen: (uid) { final doc = byId[uid]; if (doc != null) _openMemberProfile(membershipDoc: doc, membership: doc.data()); },
+      onContact: _contact,
+      onCertificates: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => CertificatesScreen(
+        organizationId: widget.organizationId, currentUid: widget.currentUid, canManageCertificates: widget.canManageRoles))),
+      adminSections: widget.canManageRoles ? [
+        _PendingMemberRequestsSection(key: ValueKey(widget.organizationId), organizationId: widget.organizationId, membershipService: _membershipService),
+        _PendingOrganizationInvitesSection(organizationId: widget.organizationId, inviteService: _inviteService),
+      ] : const [],
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!widget.canManageRoles) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Liikmed')),
-        body: const Center(
-          child: Text(
-            'Liikmete ja rollide haldamine on ainult administraatorile.',
-          ),
-        ),
-      );
-    }
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Liikmed'),
         actions: [
-          IconButton(
+          if (widget.canManageRoles) IconButton(
             tooltip: 'Kutsu liige',
             icon: const Icon(Icons.person_add_alt_1),
             onPressed: _showInviteDialog,
@@ -622,36 +398,6 @@ class _PendingMemberRequestsSectionState
   }
 }
 
-class _SeaRescueLevelOption extends StatelessWidget {
-  const _SeaRescueLevelOption({
-    required this.level,
-    required this.label,
-    required this.selectedLevel,
-  });
-
-  final String level;
-  final String label;
-  final String selectedLevel;
-
-  @override
-  Widget build(BuildContext context) {
-    return SimpleDialogOption(
-      onPressed: () => Navigator.of(context).pop(level),
-      child: Row(
-        children: [
-          Icon(
-            selectedLevel == level
-                ? Icons.radio_button_checked
-                : Icons.radio_button_unchecked,
-            size: 18,
-          ),
-          const SizedBox(width: 12),
-          Text(label),
-        ],
-      ),
-    );
-  }
-}
 
 class _PendingOrganizationInvitesSection extends StatelessWidget {
   const _PendingOrganizationInvitesSection({
