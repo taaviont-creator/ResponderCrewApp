@@ -9,6 +9,7 @@ const {
 } = require('@firebase/rules-unit-testing');
 const {
   doc,
+  getDoc,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -19,6 +20,9 @@ const organizationId = 'approved-org';
 const memberId = 'member-user';
 const otherUserId = 'other-user';
 const orgAdminId = 'org-admin';
+const activeMemberId = 'active-member';
+const targetMemberId = 'target-member';
+const otherOrganizationId = 'other-org';
 const membershipId = `${memberId}_${organizationId}`;
 
 let testEnv;
@@ -72,6 +76,58 @@ beforeEach(async () => {
         updatedAt: new Date('2026-01-01T00:00:00.000Z'),
       },
     );
+
+    for (const userId of [activeMemberId, targetMemberId]) {
+      await updateDocOrCreate(
+        firestore,
+        `memberships/${userId}_${organizationId}`,
+        activeMembership(userId, organizationId),
+      );
+    }
+
+    await updateDocOrCreate(
+      firestore,
+      `commands/${otherOrganizationId}`,
+      {
+        createdBy: 'other-admin',
+        status: 'approved',
+      },
+    );
+
+    await updateDocOrCreate(
+      firestore,
+      'equipment/other-org-equipment',
+      {
+        id: 'other-org-equipment',
+        organizationId: otherOrganizationId,
+        commandId: otherOrganizationId,
+        scope: 'organization',
+        name: 'Other org radio',
+        category: 'radio',
+        status: 'ok',
+        location: '',
+        note: '',
+        createdBy: 'other-admin',
+      },
+    );
+
+    await updateDocOrCreate(
+      firestore,
+      'equipment/target-personal-equipment',
+      {
+        id: 'target-personal-equipment',
+        organizationId,
+        commandId: organizationId,
+        scope: 'personal',
+        ownerUserId: targetMemberId,
+        name: 'Target personal PFD',
+        category: 'safety',
+        status: 'ok',
+        location: '',
+        note: '',
+        createdBy: targetMemberId,
+      },
+    );
   });
 });
 
@@ -119,6 +175,103 @@ test('rejected membership cannot use the removed-member reactivation path', asyn
       doc(firestore, 'memberships', membershipId),
       reactivatedMembership(),
     ),
+  );
+});
+
+test('ordinary member cannot change another member role or sea rescue level', async () => {
+  const firestore = testEnv.authenticatedContext(activeMemberId).firestore();
+  const targetRef = doc(
+    firestore,
+    'memberships',
+    `${targetMemberId}_${organizationId}`,
+  );
+
+  await assertFails(
+    updateDoc(targetRef, {
+      role: 'orgAdmin',
+      updatedAt: serverTimestamp(),
+    }),
+  );
+
+  await assertFails(
+    updateDoc(targetRef, {
+      seaRescueLevel: 'level2',
+      updatedAt: serverTimestamp(),
+    }),
+  );
+});
+
+test('org admin can change own sea rescue level but not own role', async () => {
+  const firestore = testEnv.authenticatedContext(orgAdminId).firestore();
+  const ownMembershipRef = doc(
+    firestore,
+    'memberships',
+    `${orgAdminId}_${organizationId}`,
+  );
+
+  await assertSucceeds(
+    updateDoc(ownMembershipRef, {
+      seaRescueLevel: 'level1',
+      updatedAt: serverTimestamp(),
+    }),
+  );
+
+  await assertFails(
+    updateDoc(ownMembershipRef, {
+      role: 'member',
+      updatedAt: serverTimestamp(),
+    }),
+  );
+});
+
+test('ordinary member can create own personal equipment but not organization equipment', async () => {
+  const firestore = testEnv.authenticatedContext(activeMemberId).firestore();
+
+  await assertSucceeds(
+    setDoc(doc(firestore, 'equipment', 'member-personal-equipment'), {
+      id: 'member-personal-equipment',
+      organizationId,
+      commandId: organizationId,
+      scope: 'personal',
+      ownerUserId: activeMemberId,
+      name: 'My PFD',
+      category: 'safety',
+      status: 'ok',
+      location: '',
+      note: '',
+      createdBy: activeMemberId,
+    }),
+  );
+
+  await assertFails(
+    setDoc(doc(firestore, 'equipment', 'member-org-equipment'), {
+      id: 'member-org-equipment',
+      organizationId,
+      commandId: organizationId,
+      scope: 'organization',
+      name: 'Organization radio',
+      category: 'radio',
+      status: 'ok',
+      location: '',
+      note: '',
+      createdBy: activeMemberId,
+    }),
+  );
+});
+
+test('ordinary member cannot read another member personal equipment', async () => {
+  const firestore = testEnv.authenticatedContext(activeMemberId).firestore();
+
+  await assertFails(
+    getDoc(doc(firestore, 'equipment', 'target-personal-equipment')),
+  );
+});
+
+test('ordinary member cannot read equipment from another organization', async () => {
+  const firestore = testEnv.authenticatedContext(activeMemberId).firestore();
+
+  await assertFails(
+    getDoc(doc(firestore, 'equipment', 'other-org-equipment')),
   );
 });
 
@@ -223,6 +376,21 @@ async function seedOperationLog(logId, status) {
       },
     );
   });
+}
+
+function activeMembership(userId, orgId) {
+  return {
+    userId,
+    organizationId: orgId,
+    commandId: orgId,
+    role: 'member',
+    seaRescueLevel: 'none',
+    displayName: userId,
+    status: 'active',
+    isActive: true,
+    joinedAt: new Date('2026-01-01T00:00:00.000Z'),
+    updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+  };
 }
 
 function removedMembership() {
