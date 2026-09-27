@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/operation_log_model.dart';
+import '../models/operation_log_report.dart';
 import '../services/operation_log_service.dart';
 
 /// Displays the notes and full event timeline for a single operation log.
@@ -132,9 +133,8 @@ class _OperationLogTimelineViewState extends State<OperationLogTimelineView> {
       ?otherDescription,
       if (otherDescription == null && event.description.isNotEmpty)
         event.description,
-      if (event.latitude != null && event.longitude != null)
-        _formatCoordinates(event),
-      if (event.createdAt != null) _shortDateTime(event.createdAt!),
+      operationLogEventLocation(event),
+      operationLogEventTime(event.createdAt),
     ];
 
     return ListTile(
@@ -169,12 +169,6 @@ class _OperationLogTimelineViewState extends State<OperationLogTimelineView> {
     }
   }
 
-  String _shortDateTime(DateTime value) {
-    String twoDigits(int n) => n.toString().padLeft(2, '0');
-    final date = '${twoDigits(value.day)}.${twoDigits(value.month)}';
-    final time = '${twoDigits(value.hour)}:${twoDigits(value.minute)}';
-    return '$date $time';
-  }
 
   String? _otherQuickActionDescription(OperationLogEventModel event) {
     const prefix = 'Muu: ';
@@ -187,13 +181,4 @@ class _OperationLogTimelineViewState extends State<OperationLogTimelineView> {
     return description.isEmpty ? null : description;
   }
 
-  String _formatCoordinates(OperationLogEventModel event) {
-    final latitude = event.latitude!.toStringAsFixed(5);
-    final longitude = event.longitude!.toStringAsFixed(5);
-    final accuracy = event.accuracyMeters;
-    if (accuracy == null) {
-      return 'GPS: $latitude, $longitude';
-    }
-    return 'GPS: $latitude, $longitude (~${accuracy.round()} m)';
-  }
 }

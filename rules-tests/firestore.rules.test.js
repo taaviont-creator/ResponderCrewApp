@@ -666,3 +666,63 @@ function reactivatedMembership() {
 async function updateDocOrCreate(firestore, documentPath, data) {
   await setDoc(doc(firestore, documentPath), data);
 }
+
+test('operation timeline requires organization-scoped query and persists after completion', async () => {
+  const logId = 'timeline-regression';
+  await seedOperationLog(logId, 'open');
+  const db = testEnv.authenticatedContext(orgAdminId).firestore();
+  const logRef = doc(db, 'operationLogs', logId);
+  const eventRef = doc(db, 'operationLogs', logId, 'events', 'departure');
+  const batch = writeBatch(db);
+  batch.update(logRef, {status: 'enRoute', updatedAt: serverTimestamp()});
+  batch.set(eventRef, {id: 'departure', operationLogId: logId, organizationId,
+    commandId: organizationId, type: 'statusChange', status: 'enRoute',
+    title: 'Teel', description: '', createdBy: orgAdminId,
+    latitude: 59.45, longitude: 24.75, accuracyMeters: 8, createdAt: serverTimestamp()});
+  await assertSucceeds(batch.commit());
+  await assertFails(getDocs(collection(db, 'operationLogs', logId, 'events')));
+  const timeline = query(collection(db, 'operationLogs', logId, 'events'), or(
+    where('organizationId', '==', organizationId), where('commandId', '==', organizationId)));
+  let saved = await assertSucceeds(getDocs(timeline));
+  if (saved.size !== 1 || saved.docs[0].data().latitude !== 59.45 || !saved.docs[0].data().createdAt) {
+    throw new Error('Timeline did not preserve time and location');
+  }
+  await updateDoc(logRef, {status: 'completed', updatedAt: serverTimestamp()});
+  await updateDoc(logRef, {status: 'returnedToBase', updatedAt: serverTimestamp()});
+  saved = await assertSucceeds(getDocs(timeline));
+  if (saved.size !== 1) throw new Error('Completed log lost its events');
+  const outsider = testEnv.authenticatedContext(otherUserId).firestore();
+  await assertFails(getDocs(query(collection(outsider, 'operationLogs', logId, 'events'),
+    where('organizationId', '==', organizationId))));
+});
+
+test('final summary and audit event can be saved after returning to base', async () => {
+  const logId = 'summary-after-return';
+  await seedOperationLog(logId, 'returnedToBase');
+  const db = testEnv.authenticatedContext(orgAdminId).firestore();
+  const batch = writeBatch(db);
+  batch.update(doc(db, 'operationLogs', logId), {summary: 'Sündmuse kirjeldus', outcome: 'Kõik baasis',
+    completedBy: orgAdminId, completedAt: serverTimestamp(), updatedAt: serverTimestamp()});
+  batch.set(doc(db, 'operationLogs', logId, 'events', 'summary'), {
+    id: 'summary', operationLogId: logId, organizationId, commandId: organizationId,
+    type: 'summarySaved', status: 'returnedToBase', title: 'Lõppkokkuvõte salvestatud',
+    description: 'Kõik baasis', createdBy: orgAdminId, createdAt: serverTimestamp(),
+  });
+  await assertSucceeds(batch.commit());
+  const saved = await getDoc(doc(db, 'operationLogs', logId));
+  if (saved.data().status !== 'returnedToBase' || saved.data().summary !== 'Sündmuse kirjeldus') {
+    throw new Error('Final summary changed operational status or was not saved');
+  }
+});
+
+test('summary edits remain forbidden for active operations and unauthorized users', async () => {
+  for (const [status, user] of [['open', orgAdminId], ['returnedToBase', activeMemberId], ['returnedToBase', otherUserId]]) {
+    const logId = `summary-denied-${status}-${user}`;
+    await seedOperationLog(logId, status);
+    const db = testEnv.authenticatedContext(user).firestore();
+    await assertFails(updateDoc(doc(db, 'operationLogs', logId), {
+      summary: 'Not allowed', outcome: 'Not allowed', completedBy: user,
+      completedAt: serverTimestamp(), updatedAt: serverTimestamp(),
+    }));
+  }
+});
