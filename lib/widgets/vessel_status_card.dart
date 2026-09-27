@@ -31,11 +31,12 @@ class _VesselStatusCardState extends State<VesselStatusCard> {
   Widget build(BuildContext context) => StreamBuilder<List<EquipmentModel>>(
     stream: _stream,
     builder: (context, snapshot) {
-      if (snapshot.hasError)
+      if (snapshot.hasError) {
         return const AppSectionCard(
           title: 'Alused',
           child: Text('Aluste seisundit ei õnnestunud laadida.'),
         );
+      }
       if (!snapshot.hasData) return const LinearProgressIndicator();
       final vessels = snapshot.data!
           .where(
