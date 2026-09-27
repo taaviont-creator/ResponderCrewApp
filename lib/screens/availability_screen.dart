@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../models/availability_model.dart';
+import '../models/effective_availability.dart';
 import '../models/membership_model.dart';
 import '../models/availability_reminder_settings_model.dart';
 import '../models/platform_readiness_model.dart';
@@ -360,11 +361,19 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
             final rules =
                 rulesSnapshot.data ?? const <PlannedUnavailabilityRuleModel>[];
             final hasActiveSchedule =
-                _hasActivePlannedUnavailability(periods, now) ||
-                    _hasActivePlannedUnavailabilityRule(rules, now);
-            final scheduledStatus =
-                hasActiveSchedule ? AvailabilityStatus.offDuty : null;
-            final effectiveStatus = scheduledStatus ?? manualStatus;
+                EffectiveAvailability.isPlannedUnavailable(
+              userId: widget.currentUid,
+              periods: periods,
+              rules: rules,
+              now: now,
+            );
+            final effectiveStatus = EffectiveAvailability.resolve(
+              userId: widget.currentUid,
+              manualStatus: manualStatus,
+              periods: periods,
+              rules: rules,
+              now: now,
+            );
 
             return _ScheduledStatusPreview(
               hasActiveSchedule: hasActiveSchedule,
@@ -374,33 +383,6 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
         );
       },
     );
-  }
-
-  bool _hasActivePlannedUnavailability(
-    Iterable<PlannedUnavailabilityModel> periods,
-    DateTime now,
-  ) {
-    return periods.any((period) {
-      final startAt = period.startAt;
-      final endAt = period.endAt;
-      if (!period.isActive || startAt == null || endAt == null) {
-        return false;
-      }
-      return !now.isBefore(startAt) && now.isBefore(endAt);
-    });
-  }
-
-  bool _hasActivePlannedUnavailabilityRule(
-    Iterable<PlannedUnavailabilityRuleModel> rules,
-    DateTime now,
-  ) {
-    final minuteOfDay = now.hour * 60 + now.minute;
-    return rules.any((rule) {
-      return rule.isActive &&
-          rule.daysOfWeek.contains(now.weekday) &&
-          minuteOfDay >= rule.startMinute &&
-          minuteOfDay < rule.endMinute;
-    });
   }
 
   String _availabilityStatusLabel(String status) {
@@ -1185,7 +1167,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                     for (final membershipDoc in memberships) {
                       final membership = membershipDoc.data();
                       final userId = (membership['userId'] ?? '').toString();
-                      final effectiveStatus = _effectiveAvailabilityStatus(
+                      final effectiveStatus = EffectiveAvailability.resolve(
                         userId: userId,
                         manualStatus: availabilityByUserId[userId]?.status ??
                             AvailabilityStatus.offDuty,
@@ -1377,62 +1359,6 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
         );
       },
     );
-  }
-
-  String _effectiveAvailabilityStatus({
-    required String userId,
-    required String manualStatus,
-    required Iterable<PlannedUnavailabilityModel> periods,
-    required Iterable<PlannedUnavailabilityRuleModel> rules,
-    required DateTime now,
-  }) {
-    if (_hasActivePlannedUnavailabilityForUser(
-          userId: userId,
-          periods: periods,
-          now: now,
-        ) ||
-        _hasActivePlannedUnavailabilityRuleForUser(
-          userId: userId,
-          rules: rules,
-          now: now,
-        )) {
-      return AvailabilityStatus.offDuty;
-    }
-
-    return manualStatus;
-  }
-
-  bool _hasActivePlannedUnavailabilityForUser({
-    required String userId,
-    required Iterable<PlannedUnavailabilityModel> periods,
-    required DateTime now,
-  }) {
-    return periods.any((period) {
-      final startAt = period.startAt;
-      final endAt = period.endAt;
-      if (period.userId != userId ||
-          !period.isActive ||
-          startAt == null ||
-          endAt == null) {
-        return false;
-      }
-      return !now.isBefore(startAt) && now.isBefore(endAt);
-    });
-  }
-
-  bool _hasActivePlannedUnavailabilityRuleForUser({
-    required String userId,
-    required Iterable<PlannedUnavailabilityRuleModel> rules,
-    required DateTime now,
-  }) {
-    final minuteOfDay = now.hour * 60 + now.minute;
-    return rules.any((rule) {
-      return rule.userId == userId &&
-          rule.isActive &&
-          rule.daysOfWeek.contains(now.weekday) &&
-          minuteOfDay >= rule.startMinute &&
-          minuteOfDay < rule.endMinute;
-    });
   }
 
   Widget _buildAvailabilityReminderSettings() {
