@@ -17,6 +17,7 @@ const projectId = 'demo-respondcrew';
 const organizationId = 'approved-org';
 const memberId = 'member-user';
 const otherUserId = 'other-user';
+const orgAdminId = 'org-admin';
 const membershipId = `${memberId}_${organizationId}`;
 
 let testEnv;
@@ -52,6 +53,23 @@ beforeEach(async () => {
       firestore,
       `memberships/${membershipId}`,
       removedMembership(),
+    );
+
+    await updateDocOrCreate(
+      firestore,
+      `memberships/${orgAdminId}_${organizationId}`,
+      {
+        userId: orgAdminId,
+        organizationId,
+        commandId: organizationId,
+        role: 'orgAdmin',
+        seaRescueLevel: 'level2',
+        displayName: 'Org Admin',
+        status: 'active',
+        isActive: true,
+        joinedAt: new Date('2026-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+      },
     );
   });
 });
@@ -102,6 +120,81 @@ test('rejected membership cannot use the removed-member reactivation path', asyn
     ),
   );
 });
+
+test('operation log can progress from open to enRoute', async () => {
+  const logId = 'log-forward';
+  await seedOperationLog(logId, 'open');
+
+  const firestore = testEnv.authenticatedContext(orgAdminId).firestore();
+  await assertSucceeds(
+    updateDoc(doc(firestore, 'operationLogs', logId), {
+      status: 'enRoute',
+      updatedAt: serverTimestamp(),
+    }),
+  );
+});
+
+test('completed operation log can move only to returnedToBase', async () => {
+  const logId = 'log-returned';
+  await seedOperationLog(logId, 'completed');
+
+  const firestore = testEnv.authenticatedContext(orgAdminId).firestore();
+  await assertSucceeds(
+    updateDoc(doc(firestore, 'operationLogs', logId), {
+      status: 'returnedToBase',
+      updatedAt: serverTimestamp(),
+    }),
+  );
+});
+
+test('completed operation log cannot be reopened', async () => {
+  const logId = 'log-reopen';
+  await seedOperationLog(logId, 'completed');
+
+  const firestore = testEnv.authenticatedContext(orgAdminId).firestore();
+  await assertFails(
+    updateDoc(doc(firestore, 'operationLogs', logId), {
+      status: 'open',
+      updatedAt: serverTimestamp(),
+    }),
+  );
+});
+
+test('operation log cannot move backwards from onScene to enRoute', async () => {
+  const logId = 'log-backwards';
+  await seedOperationLog(logId, 'onScene');
+
+  const firestore = testEnv.authenticatedContext(orgAdminId).firestore();
+  await assertFails(
+    updateDoc(doc(firestore, 'operationLogs', logId), {
+      status: 'enRoute',
+      updatedAt: serverTimestamp(),
+    }),
+  );
+});
+
+async function seedOperationLog(logId, status) {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await updateDocOrCreate(
+      context.firestore(),
+      `operationLogs/${logId}`,
+      {
+        id: logId,
+        organizationId,
+        commandId: organizationId,
+        createdBy: orgAdminId,
+        createdByName: 'Org Admin',
+        type: 'note',
+        title: 'Test log',
+        description: '',
+        status,
+        timestamp: new Date('2026-01-01T00:00:00.000Z'),
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+      },
+    );
+  });
+}
 
 function removedMembership() {
   return {
