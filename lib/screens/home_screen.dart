@@ -966,7 +966,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 16),
             OutlinedButton.icon(
               icon: const Icon(Icons.health_and_safety),
-              label: const Text('Platvormi valmisolek'),
+              label: const Text('Valmisoleku seaded'),
               onPressed: () {
                 Navigator.push(
                   context,
@@ -1028,7 +1028,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 _buildModuleButton(
                   icon: Icons.campaign,
-                  label: 'Valjakutsed',
+                  label: 'Väljakutsed',
                   onPressed: () => Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -1710,7 +1710,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       const Text(
                         'Planeeritud mittevalves aeg on aktiivne',
                       ),
-                      const Text('Nähtav staatus: Valvest väljas'),
+                      const Text('Nähtav staatus: Ei ole valves'),
                       Text(
                         'Käsitsi valitud staatus: '
                         '${_availabilityStatusLabel(status)}',
@@ -1730,22 +1730,29 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         ChoiceChip(
                           label: const Text('Valves'),
-                          selected: status == AvailabilityStatus.onDuty,
-                          onSelected: (_) => updateAvailability(
-                            AvailabilityStatus.onDuty,
-                          ),
+                          selected: !hasActiveSchedule &&
+                              status == AvailabilityStatus.onDuty,
+                          onSelected: hasActiveSchedule
+                              ? null
+                              : (_) => updateAvailability(
+                                    AvailabilityStatus.onDuty,
+                                  ),
                         ),
                         ChoiceChip(
                           label: const Text('Hilinen'),
-                          selected: status == AvailabilityStatus.delayed,
-                          onSelected: (_) => updateAvailability(
-                            AvailabilityStatus.delayed,
-                            minutes: responseMinutes,
-                          ),
+                          selected: !hasActiveSchedule &&
+                              status == AvailabilityStatus.delayed,
+                          onSelected: hasActiveSchedule
+                              ? null
+                              : (_) => updateAvailability(
+                                    AvailabilityStatus.delayed,
+                                    minutes: responseMinutes,
+                                  ),
                         ),
                       ],
                     ),
-                    if (status == AvailabilityStatus.delayed) ...[
+                    if (!hasActiveSchedule &&
+                        status == AvailabilityStatus.delayed) ...[
                       const SizedBox(height: 8),
                       DropdownButton<int>(
                         value: responseMinutes,

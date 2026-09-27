@@ -174,6 +174,45 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     );
   }
 
+  Future<void> _updateAvailabilityRespectingSchedule(
+    String status, {
+    int? responseMinutes,
+    String? note,
+  }) async {
+    if (status != AvailabilityStatus.offDuty) {
+      final periods = await _plannedUnavailabilityService
+          .streamMyPeriods(organizationId: widget.organizationId)
+          .first;
+      final rules = await _plannedUnavailabilityService
+          .streamMyRules(organizationId: widget.organizationId)
+          .first;
+      final hasActiveSchedule = EffectiveAvailability.isPlannedUnavailable(
+        userId: widget.currentUid,
+        periods: periods,
+        rules: rules,
+      );
+
+      if (hasActiveSchedule) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Planeeritud mittevalves aeg on aktiivne. '
+              'Tühista see enne valvesse märkimist.',
+            ),
+          ),
+        );
+        return;
+      }
+    }
+
+    await _updateAvailability(
+      status,
+      responseMinutes: responseMinutes,
+      note: note,
+    );
+  }
+
   Widget _buildAvailabilityControl() {
     return StreamBuilder<AvailabilityModel?>(
       stream: _availabilityService.streamMyAvailability(
@@ -225,7 +264,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                 foregroundColor: Colors.white,
                 onPressed: _isUpdating
                     ? null
-                    : () => _updateAvailability(
+                    : () => _updateAvailabilityRespectingSchedule(
                           AvailabilityStatus.onDuty,
                           note: _noteController.text,
                         ),
@@ -242,7 +281,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                     : AppColors.border,
                 onPressed: _isUpdating
                     ? null
-                    : () => _updateAvailability(
+                    : () => _updateAvailabilityRespectingSchedule(
                           AvailabilityStatus.delayed,
                           responseMinutes: responseMinutes,
                           note: _noteController.text,
@@ -292,7 +331,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                           ? null
                           : (value) {
                               if (value == null) return;
-                              _updateAvailability(
+                              _updateAvailabilityRespectingSchedule(
                                 AvailabilityStatus.delayed,
                                 responseMinutes: value,
                                 note: _noteController.text,
@@ -392,7 +431,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
       case AvailabilityStatus.delayed:
         return 'Hilinen';
       default:
-        return 'Valvest väljas';
+        return 'Ei ole valves';
     }
   }
 

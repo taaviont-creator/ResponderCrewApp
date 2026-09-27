@@ -163,7 +163,7 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
       case AvailabilityStatus.delayed:
         return 'Hilinen';
       case AvailabilityStatus.offDuty:
-        return 'Valvest väljas';
+        return 'Ei ole valves';
       default:
         return 'Valmisolek märkimata';
     }
@@ -173,7 +173,7 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
     if (_targetUid.isEmpty || widget.organizationId.trim().isEmpty) {
       return const _ProfileRow(
         label: 'Valmisolek',
-        value: 'Valvest väljas',
+        value: 'Ei ole valves',
       );
     }
 

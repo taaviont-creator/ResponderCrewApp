@@ -107,7 +107,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 _buildStatisticTile('Valves', statistics.onDutyCount),
                 _buildStatisticTile('Hilinenud', statistics.delayedCount),
                 _buildStatisticTile(
-                  'Valvest väljas',
+                  'Ei ole valves',
                   statistics.offDutyCount,
                 ),
               ],
@@ -189,7 +189,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       if (statistics.hasAvailabilityStatistics) ...[
         ['Koond', 'Valves', statistics.onDutyCount.toString()],
         ['Koond', 'Hilinenud', statistics.delayedCount.toString()],
-        ['Koond', 'Valvest väljas', statistics.offDutyCount.toString()],
+        ['Koond', 'Ei ole valves', statistics.offDutyCount.toString()],
       ],
       ['Varustus', 'Varustust kokku', statistics.equipmentCount.toString()],
       [
