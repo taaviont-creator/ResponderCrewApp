@@ -10,6 +10,7 @@ const {
 const {
   doc,
   serverTimestamp,
+  setDoc,
   updateDoc,
 } = require('firebase/firestore');
 
@@ -121,6 +122,34 @@ test('rejected membership cannot use the removed-member reactivation path', asyn
   );
 });
 
+test('org admin can create readiness settings with neutral compatibility fields', async () => {
+  const firestore = testEnv.authenticatedContext(orgAdminId).firestore();
+
+  await assertSucceeds(
+    setDoc(doc(firestore, 'organizationReadinessSummaries', organizationId), {
+      id: organizationId,
+      organizationId,
+      commandId: organizationId,
+      organizationName: 'Approved Org',
+      region: '',
+      contactName: '',
+      contactPhone: '',
+      readinessStatus: 'unknown',
+      onDutyCount: 0,
+      delayedCount: 0,
+      minimumCrewRequired: 3,
+      minimumCrewMet: false,
+      primaryVesselStatus: 'unknown',
+      equipmentStatus: 'unknown',
+      criticalIssues: '',
+      lastUpdatedBy: orgAdminId,
+      lastUpdatedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      createdAt: serverTimestamp(),
+    }),
+  );
+});
+
 test('operation log can progress from open to enRoute', async () => {
   const logId = 'log-forward';
   await seedOperationLog(logId, 'open');
@@ -226,6 +255,5 @@ function reactivatedMembership() {
 }
 
 async function updateDocOrCreate(firestore, documentPath, data) {
-  const { setDoc } = require('firebase/firestore');
   await setDoc(doc(firestore, documentPath), data);
 }
