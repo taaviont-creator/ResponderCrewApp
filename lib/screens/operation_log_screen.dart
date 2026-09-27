@@ -91,10 +91,10 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
         longitude: location?.longitude,
         accuracyMeters: location?.accuracyMeters,
       );
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Staatuse muutmine ebaõnnestus: $e')),
+        const SnackBar(content: Text('Staatuse muutmine ebaõnnestus.')),
       );
     }
   }
@@ -140,10 +140,10 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
         title: noteController.text,
         createdBy: widget.currentUid,
       );
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Märke lisamine ebaõnnestus: $e')),
+        const SnackBar(content: Text('Märke lisamine ebaõnnestus.')),
       );
     }
   }
@@ -171,10 +171,10 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
         longitude: location?.longitude,
         accuracyMeters: location?.accuracyMeters,
       );
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Kiirtegevuse lisamine ebaõnnestus: $e')),
+        const SnackBar(content: Text('Kiirtegevuse lisamine ebaõnnestus.')),
       );
     }
   }
@@ -325,10 +325,10 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
         outcome: outcomeController.text,
         completedBy: widget.currentUid,
       );
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lõppkokkuvõtte salvestamine ebaõnnestus: $e')),
+        const SnackBar(content: Text('Lõppkokkuvõtte salvestamine ebaõnnestus.')),
       );
     }
   }
@@ -397,10 +397,10 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Logikanne lisatud')),
       );
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Logikande lisamine ebaõnnestus: $e')),
+        const SnackBar(content: Text('Logikande lisamine ebaõnnestus.')),
       );
     }
   }
@@ -437,7 +437,7 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
 
           if (snapshot.hasError) {
             return Center(
-              child: Text('Logi laadimine ebaõnnestus: ${snapshot.error}'),
+              child: Text('Logi laadimine ebaõnnestus.'),
             );
           }
 
