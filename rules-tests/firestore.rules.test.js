@@ -10,6 +10,11 @@ const {
 const {
   doc,
   getDoc,
+  getDocs,
+  query,
+  collection,
+  where,
+  writeBatch,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -135,15 +140,197 @@ after(async () => {
   await testEnv.cleanup();
 });
 
-test('member can reactivate only their own removed membership', async () => {
+test('removed member cannot reactivate without admin approval', async () => {
   const firestore = testEnv.authenticatedContext(memberId).firestore();
 
-  await assertSucceeds(
+  await assertFails(
     updateDoc(
       doc(firestore, 'memberships', membershipId),
       reactivatedMembership(),
     ),
   );
+});
+
+function joinRequest(userId = 'new-member', orgId = organizationId) {
+  return {
+    ...activeMembership(userId, orgId),
+    status: 'pending',
+    isActive: false,
+    joinedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  };
+}
+
+async function seedPendingRequest(userId = 'new-member') {
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), 'memberships', `${userId}_${organizationId}`),
+      joinRequest(userId));
+  });
+}
+
+test('new member can read missing own membership and submit pending request', async () => {
+  const firestore = testEnv.authenticatedContext('new-member').firestore();
+  const ref = doc(firestore, 'memberships', `new-member_${organizationId}`);
+  await assertSucceeds(getDoc(ref));
+  await assertSucceeds(setDoc(ref, joinRequest()));
+  await assertSucceeds(getDoc(ref));
+  await assertFails(getDoc(doc(firestore, 'equipment', 'target-personal-equipment')));
+  await assertFails(getDocs(query(collection(firestore, 'memberships'),
+    where('organizationId', '==', organizationId))));
+  await assertFails(updateDoc(ref, {
+    status: 'active', isActive: true, updatedAt: serverTimestamp(),
+  }));
+});
+
+for (const [name, overrides] of Object.entries({
+  active: { status: 'active', isActive: true },
+  contradictory: { isActive: true },
+  admin: { role: 'orgAdmin' },
+  level: { seaRescueLevel: 'level2' },
+  owner: { userId: otherUserId },
+  organization: { commandId: otherOrganizationId },
+  timestamp: { joinedAt: new Date('2000-01-01') },
+  oversizedName: { displayName: 'x'.repeat(81) },
+  extraField: { systemRole: 'platformAdmin' },
+  missingTimestamp: { updatedAt: null },
+})) {
+  test(`join request rejects invalid ${name}`, async () => {
+    const firestore = testEnv.authenticatedContext('new-member').firestore();
+    await assertFails(setDoc(doc(firestore, 'memberships', `new-member_${organizationId}`),
+      { ...joinRequest(), ...overrides }));
+  });
+}
+
+test('join request rejects wrong document id and unapproved or missing organization', async () => {
+  const firestore = testEnv.authenticatedContext('new-member').firestore();
+  await assertFails(setDoc(doc(firestore, 'memberships', 'wrong-id'), joinRequest()));
+  await assertFails(setDoc(doc(firestore, 'memberships', 'new-member_missing'),
+    joinRequest('new-member', 'missing')));
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await updateDoc(doc(context.firestore(), 'commands', organizationId), { status: 'pending' });
+  });
+  await assertFails(setDoc(doc(firestore, 'memberships', `new-member_${organizationId}`), joinRequest()));
+});
+
+test('removed member can request rejoin but has no access until approved', async () => {
+  const firestore = testEnv.authenticatedContext(memberId).firestore();
+  await assertSucceeds(updateDoc(doc(firestore, 'memberships', membershipId), {
+    ...reactivatedMembership(), status: 'pending', isActive: false,
+  }));
+  await assertFails(getDocs(query(collection(firestore, 'memberships'),
+    where('organizationId', '==', organizationId))));
+});
+
+test('pending request cannot switch active organization before approval', async () => {
+  const firestore = testEnv.authenticatedContext('new-member').firestore();
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), 'users', 'new-member'), { systemRole: 'user' });
+  });
+  const batch = writeBatch(firestore);
+  batch.set(doc(firestore, 'memberships', `new-member_${organizationId}`), joinRequest());
+  batch.update(doc(firestore, 'users', 'new-member'), {
+    activeOrganizationId: organizationId, activeCommandId: organizationId, commandId: organizationId,
+  });
+  await assertFails(batch.commit());
+});
+
+for (const approve of [true, false]) {
+  test(`org admin can ${approve ? 'approve' : 'reject'} a pending member`, async () => {
+    await seedPendingRequest();
+    const firestore = testEnv.authenticatedContext(orgAdminId).firestore();
+    await assertSucceeds(getDocs(query(collection(firestore, 'memberships'),
+      where('organizationId', '==', organizationId))));
+    const ref = doc(firestore, 'memberships', `new-member_${organizationId}`);
+    await assertSucceeds(updateDoc(ref, {
+      status: approve ? 'active' : 'rejected', isActive: approve,
+      updatedAt: serverTimestamp(),
+    }));
+    const memberDb = testEnv.authenticatedContext('new-member').firestore();
+    const readMembers = getDocs(query(collection(memberDb, 'memberships'),
+      where('organizationId', '==', organizationId)));
+    await (approve ? assertSucceeds(readMembers) : assertFails(readMembers));
+    if (!approve) {
+      await assertFails(updateDoc(ref, {
+        status: 'active', isActive: true, updatedAt: serverTimestamp(),
+      }));
+    }
+  });
+}
+
+test('request cannot be approved by self, ordinary member, outsider or other org admin', async () => {
+  await seedPendingRequest();
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await setDoc(doc(context.firestore(), 'memberships', `other-admin_${otherOrganizationId}`), {
+      ...activeMembership('other-admin', otherOrganizationId), role: 'orgAdmin',
+    });
+  });
+  for (const uid of ['new-member', activeMemberId, otherUserId, 'other-admin']) {
+    const firestore = testEnv.authenticatedContext(uid).firestore();
+    await assertFails(updateDoc(doc(firestore, 'memberships', `new-member_${organizationId}`), {
+      status: 'active', isActive: true, updatedAt: serverTimestamp(),
+    }));
+  }
+});
+
+test('approval cannot also alter identity, role, qualification or protected fields', async () => {
+  await seedPendingRequest();
+  const firestore = testEnv.authenticatedContext(orgAdminId).firestore();
+  for (const overrides of [
+    { userId: otherUserId }, { role: 'orgAdmin' }, { seaRescueLevel: 'level2' },
+    { organizationId: otherOrganizationId, commandId: otherOrganizationId },
+    { joinedAt: serverTimestamp() }, { displayName: 'Changed' }, { unexpected: true },
+    { isActive: false }, { updatedAt: null },
+  ]) {
+    await assertFails(updateDoc(doc(firestore, 'memberships', `new-member_${organizationId}`), {
+      status: 'active', isActive: true, updatedAt: serverTimestamp(), ...overrides,
+    }));
+  }
+});
+
+test('unauthenticated and other users cannot submit or inspect someone else request', async () => {
+  const anonymous = testEnv.unauthenticatedContext().firestore();
+  await assertFails(setDoc(doc(anonymous, 'memberships', `new-member_${organizationId}`), joinRequest()));
+  const outsider = testEnv.authenticatedContext(otherUserId).firestore();
+  await assertFails(getDoc(doc(outsider, 'memberships', `new-member_${organizationId}`)));
+  await seedPendingRequest();
+  await assertFails(getDoc(doc(outsider, 'memberships', `new-member_${organizationId}`)));
+});
+
+for (const previousStatus of ['missing', 'pending', 'removed']) {
+test(`admin-issued email invite approves its recipient with ${previousStatus} membership`, async () => {
+  const uid = 'invited-member';
+  const email = 'member@example.test';
+  const adminDb = testEnv.authenticatedContext(orgAdminId).firestore();
+  await assertSucceeds(setDoc(doc(adminDb, 'organizationInvites', 'admin-invite'), {
+    organizationId, commandId: organizationId, email, role: 'member',
+    status: 'pending', invitedBy: orgAdminId, createdAt: serverTimestamp(),
+    expiresAt: new Date(Date.now() + 86400000), acceptedBy: null, acceptedAt: null,
+  }));
+  const memberDb = testEnv.authenticatedContext(uid, { email }).firestore();
+  if (previousStatus !== 'missing') {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'memberships', `${uid}_${organizationId}`), {
+        ...joinRequest(uid), status: previousStatus,
+      });
+    });
+  }
+  await assertSucceeds(getDoc(doc(memberDb, 'memberships', `${uid}_${organizationId}`)));
+  const batch = writeBatch(memberDb);
+  batch.update(doc(memberDb, 'organizationInvites', 'admin-invite'), {
+    status: 'accepted', acceptedBy: uid, acceptedAt: serverTimestamp(),
+  });
+  batch.set(doc(memberDb, 'memberships', `${uid}_${organizationId}`), {
+    ...joinRequest(uid), status: 'active', isActive: true, acceptedInviteId: 'admin-invite',
+  });
+  await assertSucceeds(batch.commit());
+});
+}
+
+test('fake invite cannot bypass join approval', async () => {
+  const firestore = testEnv.authenticatedContext('new-member', { email: 'new@example.test' }).firestore();
+  await assertFails(setDoc(doc(firestore, 'memberships', `new-member_${organizationId}`), {
+    ...joinRequest(), status: 'active', isActive: true, acceptedInviteId: 'does-not-exist',
+  }));
 });
 
 test('another user cannot reactivate a removed membership', async () => {

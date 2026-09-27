@@ -3,6 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/membership_model.dart';
+import 'membership_service.dart';
+
+enum JoinCommandResult { pendingApproval, alreadyMember }
 
 class CommandService {
   static const _statusPending = 'pending';
@@ -165,7 +168,7 @@ class CommandService {
     await batch.commit();
   }
 
-  Future<String> joinCommand({required String joinCode}) async {
+  Future<JoinCommandResult> joinCommand({required String joinCode}) async {
     final user = _auth.currentUser;
     if (user == null) throw Exception('Not authenticated');
 
@@ -191,40 +194,50 @@ class CommandService {
     if (status == _statusRejected) {
       throw Exception('Ühingu taotlus on tagasi lükatud.');
     }
+    if (status != null && status != _statusApproved) {
+      throw Exception('Selle ühinguga ei saa praegu liituda.');
+    }
 
     final membershipRef = _db
         .collection('memberships')
         .doc(_membershipId(user.uid, commandId));
-    final userRef = _db.collection('users').doc(user.uid);
     final displayName = await _loadOwnDisplayName(user.uid);
+    return _db.runTransaction((transaction) async {
+      final existing = (await transaction.get(membershipRef)).data();
+      if (existing != null) {
+        if (MembershipService().isActiveMembership(existing)) {
+          return JoinCommandResult.alreadyMember;
+        }
+        if (existing['role'] == MembershipRole.member &&
+            existing['status'] == 'pending' &&
+            existing['isActive'] == false) {
+          return JoinCommandResult.pendingApproval;
+        }
+        if (existing['role'] != MembershipRole.member ||
+            existing['status'] != 'removed' ||
+            existing['isActive'] != false) {
+          throw Exception(
+            'Liitumiseks võta ühendust ühingu administraatoriga.',
+          );
+        }
+      }
 
-    final batch = _db.batch();
-
-    final membershipData = <String, dynamic>{
-      'userId': user.uid,
-      'organizationId': commandId,
-      'commandId': commandId,
-      'role': MembershipRole.member,
-      'seaRescueLevel': SeaRescueLevel.none,
-      'status': 'active',
-      'isActive': true,
-      'joinedAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    };
-    if (displayName != null) {
-      membershipData['displayName'] = displayName;
-    }
-    batch.set(membershipRef, membershipData, SetOptions(merge: true));
-
-    batch.set(userRef, {
-      'activeOrganizationId': commandId,
-      'activeCommandId': commandId,
-      'commandId': commandId,
-    }, SetOptions(merge: true));
-
-    await batch.commit();
-
-    return commandId;
+      final membershipData = <String, dynamic>{
+        'userId': user.uid,
+        'organizationId': commandId,
+        'commandId': commandId,
+        'role': MembershipRole.member,
+        'seaRescueLevel': SeaRescueLevel.none,
+        'status': 'pending',
+        'isActive': false,
+        'joinedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+      if (displayName != null) membershipData['displayName'] = displayName;
+      transaction.set(membershipRef, membershipData, SetOptions(merge: true));
+      // Keep the current organization until the requested membership is approved.
+      return JoinCommandResult.pendingApproval;
+    });
   }
 
   Future<void> updateMemberPermissions({

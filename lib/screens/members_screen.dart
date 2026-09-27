@@ -273,9 +273,18 @@ class _MembersScreenState extends State<MembersScreen> {
       separatorBuilder: (_, _) => const Divider(height: 1),
       itemBuilder: (context, index) {
         if (index == 0) {
-          return _PendingOrganizationInvitesSection(
-            organizationId: widget.organizationId,
-            inviteService: _inviteService,
+          return Column(
+            children: [
+              _PendingMemberRequestsSection(
+                key: ValueKey(widget.organizationId),
+                organizationId: widget.organizationId,
+                membershipService: _membershipService,
+              ),
+              _PendingOrganizationInvitesSection(
+                organizationId: widget.organizationId,
+                inviteService: _inviteService,
+              ),
+            ],
           );
         }
 
@@ -502,6 +511,113 @@ class _MembersScreenState extends State<MembersScreen> {
           );
         },
       ),
+    );
+  }
+}
+
+class _PendingMemberRequestsSection extends StatefulWidget {
+  const _PendingMemberRequestsSection({
+    super.key,
+    required this.organizationId,
+    required this.membershipService,
+  });
+
+  final String organizationId;
+  final MembershipService membershipService;
+
+  @override
+  State<_PendingMemberRequestsSection> createState() =>
+      _PendingMemberRequestsSectionState();
+}
+
+class _PendingMemberRequestsSectionState
+    extends State<_PendingMemberRequestsSection> {
+  final _saving = <String>{};
+  late final _requests = widget.membershipService.streamPendingMemberRequests(
+    widget.organizationId,
+  );
+
+  Future<void> _review(String uid, bool approve) async {
+    setState(() => _saving.add(uid));
+    try {
+      await widget.membershipService.reviewMemberRequest(
+        organizationId: widget.organizationId,
+        targetUserId: uid,
+        approve: approve,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            approve ? 'Liige kinnitatud.' : 'Taotlus tagasi lükatud.',
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Liitumistaotlust ei saanud muuta.')),
+      );
+    } finally {
+      if (mounted) setState(() => _saving.remove(uid));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
+      stream: _requests,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return const Text('Liitumistaotluste laadimine ebaõnnestus.');
+        }
+        final requests = snapshot.data ?? [];
+        if (requests.isEmpty) return const SizedBox.shrink();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Liitumistaotlused',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            for (final request in requests)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(
+                  widget.membershipService.safeDisplayNameFromMembership(
+                    request.data(),
+                  ),
+                ),
+                subtitle: const Text('Ootab kinnitust'),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      tooltip: 'Lükka tagasi',
+                      icon: const Icon(Icons.close),
+                      onPressed: _saving.contains(request.data()['userId'])
+                          ? null
+                          : () => _review(
+                              request.data()['userId'] as String,
+                              false,
+                            ),
+                    ),
+                    IconButton(
+                      tooltip: 'Kinnita liige',
+                      icon: const Icon(Icons.check),
+                      onPressed: _saving.contains(request.data()['userId'])
+                          ? null
+                          : () => _review(
+                              request.data()['userId'] as String,
+                              true,
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }
