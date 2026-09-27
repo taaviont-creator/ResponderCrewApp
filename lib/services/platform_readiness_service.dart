@@ -29,6 +29,54 @@ class PlatformReadinessService {
     });
   }
 
+  Future<void> saveOrganizationSettings({
+    required String organizationId,
+    required String organizationName,
+    required String region,
+    required String contactName,
+    required String contactPhone,
+    required int minimumCrewRequired,
+    required String primaryVesselStatus,
+    required String equipmentStatus,
+    required String criticalIssues,
+    required String lastUpdatedBy,
+  }) async {
+    _requireOrganizationId(organizationId);
+    if (minimumCrewRequired < 0) {
+      throw Exception('Sisesta korrektne miinimumkoosseis.');
+    }
+    if (!ReadinessEquipmentStatus.values.contains(primaryVesselStatus)) {
+      throw Exception('Unsupported vessel status: $primaryVesselStatus');
+    }
+    if (!ReadinessEquipmentStatus.values.contains(equipmentStatus)) {
+      throw Exception('Unsupported equipment status: $equipmentStatus');
+    }
+
+    final doc = _summaries.doc(organizationId);
+    final snapshot = await doc.get();
+
+    await doc.set({
+      'id': organizationId,
+      'organizationId': organizationId,
+      // TODO: Remove commandId after all readiness reads use organizationId.
+      'commandId': organizationId,
+      'organizationName': organizationName.trim().isEmpty
+          ? organizationId
+          : organizationName.trim(),
+      'region': region.trim(),
+      'contactName': contactName.trim(),
+      'contactPhone': contactPhone.trim(),
+      'minimumCrewRequired': minimumCrewRequired,
+      'primaryVesselStatus': primaryVesselStatus,
+      'equipmentStatus': equipmentStatus,
+      'criticalIssues': criticalIssues.trim(),
+      'lastUpdatedBy': lastUpdatedBy,
+      'lastUpdatedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+      if (!snapshot.exists) 'createdAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
   Future<void> saveOrganizationSummary({
     required String organizationId,
     required String organizationName,
@@ -102,46 +150,22 @@ class PlatformReadinessService {
     }
 
     final doc = _summaries.doc(organizationId);
+    final snapshot = await doc.get();
 
-    await _firestore.runTransaction((transaction) async {
-      final snapshot = await transaction.get(doc);
-      final existing = snapshot.data() ?? <String, dynamic>{};
-      final onDutyCount = _nonNegativeInt(existing['onDutyCount']);
-      final sanitizedMinimumCrewRequired = minimumCrewRequired;
-
-      transaction.set(doc, {
-        'id': organizationId,
-        'organizationId': organizationId,
-        // TODO: Remove commandId after all readiness reads use organizationId.
-        'commandId': organizationId,
-        'organizationName': _stringValue(
-          existing['organizationName'],
-          fallback: organizationName.trim().isEmpty
-              ? organizationId
-              : organizationName.trim(),
-        ),
-        'region': _stringValue(existing['region']),
-        'contactName': _stringValue(existing['contactName']),
-        'contactPhone': _stringValue(existing['contactPhone']),
-        'readinessStatus': _readinessStatusValue(
-          existing['readinessStatus'],
-        ),
-        'onDutyCount': onDutyCount,
-        'delayedCount': _nonNegativeInt(existing['delayedCount']),
-        'minimumCrewRequired': sanitizedMinimumCrewRequired,
-        'minimumCrewMet': sanitizedMinimumCrewRequired > 0 &&
-            onDutyCount >= sanitizedMinimumCrewRequired,
-        'primaryVesselStatus': _equipmentStatusValue(
-          existing['primaryVesselStatus'],
-        ),
-        'equipmentStatus': _equipmentStatusValue(existing['equipmentStatus']),
-        'criticalIssues': _stringValue(existing['criticalIssues']),
-        'lastUpdatedBy': lastUpdatedBy,
-        'lastUpdatedAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-        if (!snapshot.exists) 'createdAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-    });
+    await doc.set({
+      'id': organizationId,
+      'organizationId': organizationId,
+      // TODO: Remove commandId after all readiness reads use organizationId.
+      'commandId': organizationId,
+      'organizationName': organizationName.trim().isEmpty
+          ? organizationId
+          : organizationName.trim(),
+      'minimumCrewRequired': minimumCrewRequired,
+      'lastUpdatedBy': lastUpdatedBy,
+      'lastUpdatedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+      if (!snapshot.exists) 'createdAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 
   int _nonNegativeInt(Object? value) {
