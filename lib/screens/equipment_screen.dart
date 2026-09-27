@@ -5,6 +5,7 @@ import '../models/equipment_model.dart';
 import '../services/equipment_service.dart';
 import '../services/membership_service.dart';
 import '../widgets/status_badge.dart';
+import '../widgets/equipment_item_card.dart';
 
 class EquipmentScreen extends StatefulWidget {
   const EquipmentScreen({
@@ -13,12 +14,14 @@ class EquipmentScreen extends StatefulWidget {
     required this.currentUid,
     required this.canManageEquipment,
     this.openOrganizationCreateOnLoad = false,
+    this.initialView = 'shared',
   });
 
   final String organizationId;
   final String currentUid;
   final bool canManageEquipment;
   final bool openOrganizationCreateOnLoad;
+  final String initialView;
 
   @override
   State<EquipmentScreen> createState() => _EquipmentScreenState();
@@ -27,7 +30,7 @@ class EquipmentScreen extends StatefulWidget {
 class _EquipmentScreenState extends State<EquipmentScreen> {
   final _equipmentService = EquipmentService();
   final _membershipService = MembershipService();
-  String _view = 'shared';
+  late String _view = widget.initialView;
   String _search = '';
   String? _category;
 
@@ -694,21 +697,9 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
       if (item.note.isNotEmpty) item.note,
     ];
 
-    return Card(margin: const EdgeInsets.only(top: 12), child: Padding(
-      padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Padding(padding: EdgeInsets.only(right: 12, top: 4), child: Icon(Icons.inventory_2_outlined)),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(item.name, style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 4),
-            Text(subtitleParts.join(' · ')),
-          ])),
-          if (_canEditEquipment(item)) _buildEquipmentActions(item)!,
-        ]),
-        const SizedBox(height: 12),
-        StatusBadge(label: _equipmentStatusLabel(item.status), type: _equipmentStatusBadgeType(item.status), icon: _equipmentStatusIcon(item.status)),
-      ]),
-    ));
+    return EquipmentItemCard(name: item.name, description: subtitleParts.join(' · '),
+      statusLabel: _equipmentStatusLabel(item.status), statusType: _equipmentStatusBadgeType(item.status),
+      statusIcon: _equipmentStatusIcon(item.status), actions: _buildEquipmentActions(item));
   }
 
   Widget? _buildEquipmentActions(EquipmentModel item) {

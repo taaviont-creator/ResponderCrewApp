@@ -1,4 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/material.dart';
+import 'package:respondcrew_app/widgets/equipment_item_card.dart';
+import 'package:respondcrew_app/widgets/status_badge.dart';
 import 'package:respondcrew_app/models/equipment_model.dart';
 import 'package:respondcrew_app/models/certificate_reminder_open.dart';
 import 'package:respondcrew_app/services/callout_alarm_notification_service.dart';
@@ -25,6 +28,47 @@ EquipmentModel item({
   assignedToUserId: assignee,
 );
 void main() {
+  testWidgets(
+    'equipment card fits 320px with large text and long recipient name',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        MaterialApp(
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: TextScaler.linear(1.6)),
+            child: child!,
+          ),
+          home: Scaffold(
+            body: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                EquipmentItemCard(
+                  name: 'Generaator haagisel',
+                  description:
+                      'Väljastatud: Pikk liikmenimi · Sadama päästejaam',
+                  statusLabel: 'Vajab hooldust',
+                  statusType: StatusBadgeType.equipmentWarning,
+                  statusIcon: Icons.build_outlined,
+                  actions: IconButton(
+                    onPressed: () {},
+                    tooltip: 'Varustuse toimingud',
+                    icon: const Icon(Icons.more_vert),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      expect(tester.takeException(), isNull);
+      expect(find.text('Generaator haagisel'), findsOneWidget);
+    },
+  );
   test(
     'issue moves stock into recipient and member views while keeping condition',
     () {
