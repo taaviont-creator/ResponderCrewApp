@@ -64,6 +64,29 @@ class OperationLogStatus {
     }
     return value is String && values.contains(value) ? value : open;
   }
+
+  static bool canTransition(Object? from, Object? to) {
+    final current = normalize(from);
+    final next = normalize(to);
+    if (current == next) return true;
+
+    switch (current) {
+      case open:
+        return next == enRoute || next == onScene || next == completed;
+      case enRoute:
+        return next == onScene || next == completed;
+      case onScene:
+        return next == inProgress || next == completed;
+      case inProgress:
+        return next == completed;
+      case completed:
+        return next == returnedToBase;
+      case returnedToBase:
+        return false;
+      default:
+        return false;
+    }
+  }
 }
 
 class OperationLogEventType {
