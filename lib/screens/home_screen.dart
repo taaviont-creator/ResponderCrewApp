@@ -196,13 +196,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 hintText: 'nt Purtse',
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Haldurile eraldi e-kirja praegu automaatselt ei saadeta.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-            ),
           ],
         ),
         actions: [
