@@ -1,24 +1,12 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
-import '../models/availability_model.dart';
 import '../models/callout_model.dart';
 import '../widgets/vessel_status_card.dart';
+import '../widgets/crew_readiness_card.dart';
 import '../models/equipment_model.dart';
-import '../models/effective_availability.dart';
-import '../models/membership_model.dart';
-import '../models/platform_readiness_model.dart';
-import '../models/response_readiness.dart';
-import '../models/planned_unavailability_model.dart';
-import '../models/planned_unavailability_rule_model.dart';
-import '../services/availability_service.dart';
 import '../services/callout_service.dart';
 import '../services/equipment_service.dart';
-import '../services/membership_service.dart';
-import '../services/planned_unavailability_service.dart';
-import '../widgets/latest_notifications_card.dart';
 import '../widgets/pending_member_requests_notice.dart';
-import '../services/platform_readiness_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_section_card.dart';
 import '../widgets/primary_action_button.dart';
@@ -52,240 +40,31 @@ class AdminHomeDashboard extends StatelessWidget {
   final VoidCallback onOpenEquipment;
   final VoidCallback onOpenNotifications;
 
-  final AvailabilityService _availabilityService = AvailabilityService();
   final CalloutService _calloutService = CalloutService();
   final EquipmentService _equipmentService = EquipmentService();
-  final MembershipService _membershipService = MembershipService();
-  final PlannedUnavailabilityService _plannedUnavailabilityService =
-      PlannedUnavailabilityService();
-  final PlatformReadinessService _readinessService =
-      PlatformReadinessService();
 
   @override
   Widget build(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.all(AppTheme.screenPadding),
       children: [
-        _SectionTitle(
-          title: 'Aktiivne väljakutse',
-          onOpen: onOpenCallouts,
-        ),
-        const SizedBox(height: AppTheme.itemSpacing),
-        _buildActiveCallouts(),
-        const SizedBox(height: AppTheme.sectionSpacing),
         topHeader,
-        PendingMemberRequestsNotice(
-          organizationId: organizationId,
-          currentUid: currentUid,
-        ),
-        const SizedBox(height: AppTheme.sectionSpacing),
-        Text(
-          'Kiirtegevused',
-          style: Theme.of(context).textTheme.headlineSmall,
-        ),
-        const SizedBox(height: AppTheme.itemSpacing),
-        PrimaryActionButton(
-          label: 'Lisa väljakutse',
-          icon: Icons.campaign,
-          style: PrimaryActionButtonStyle.danger,
-          onPressed: onCreateCallout,
-        ),
-        const SizedBox(height: AppTheme.sectionSpacing),
-        Text(
-          'Ühingu valmisolek',
-          style: Theme.of(context).textTheme.headlineSmall,
-        ),
-        const SizedBox(height: AppTheme.itemSpacing),
-        _buildReadinessOverview(),
-        const SizedBox(height: 12),
-        PrimaryActionButton(label: 'Vaata liikmeid', icon: Icons.groups_outlined, style: PrimaryActionButtonStyle.secondary, onPressed: onOpenMembers),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
+        CrewReadinessCard(organizationId: organizationId, currentUid: currentUid),
+        const SizedBox(height: 16),
+        PendingMemberRequestsNotice(organizationId: organizationId, currentUid: currentUid),
+        PrimaryActionButton(label: 'Lisa väljakutse', icon: Icons.campaign_outlined,
+          style: PrimaryActionButtonStyle.danger, onPressed: onCreateCallout),
+        const SizedBox(height: 16),
+        _buildActiveCallouts(),
+        const SizedBox(height: 16),
         VesselStatusCard(organizationId: organizationId),
-        const SizedBox(height: AppTheme.sectionSpacing),
-
-        const SizedBox(height: AppTheme.itemSpacing),
-        PrimaryActionButton(
-          label: 'Lisa tegevus/koolitus',
-          icon: Icons.event_available_outlined,
-          style: PrimaryActionButtonStyle.secondary,
-          onPressed: onCreateActivity,
-        ),
-        const SizedBox(height: AppTheme.itemSpacing),
-        PrimaryActionButton(
-          label: 'Lisa varustus',
-          icon: Icons.build_outlined,
-          style: PrimaryActionButtonStyle.secondary,
-          onPressed: onCreateEquipment,
-        ),
-        const SizedBox(height: AppTheme.sectionSpacing),
-        _SectionTitle(
-          title: 'Varustuse hoiatused',
-          onOpen: onOpenEquipment,
-        ),
-        const SizedBox(height: AppTheme.itemSpacing),
+        const SizedBox(height: 16),
+        _SectionTitle(title: 'Varustuse hoiatused', onOpen: onOpenEquipment),
+        const SizedBox(height: 8),
         _buildEquipmentAlerts(),
-        const SizedBox(height: AppTheme.sectionSpacing),
-        _SectionTitle(
-          title: 'Viimased teavitused',
-          onOpen: onOpenNotifications,
-        ),
-        const SizedBox(height: AppTheme.itemSpacing),
-        _buildLatestNotifications(),
-        const SizedBox(height: AppTheme.sectionSpacing),
+        const SizedBox(height: 16),
       ],
-    );
-  }
-
-  Widget _buildReadinessOverview() {
-    return StreamBuilder<
-        List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
-      stream: _membershipService.streamActiveMembershipsForOrganization(
-        organizationId,
-      ),
-      builder: (context, membershipsSnapshot) {
-        if (membershipsSnapshot.hasError) return const Text('Valmisoleku laadimine ebaõnnestus. Kontrolli ühendust.');
-        if (!membershipsSnapshot.hasData) return const LinearProgressIndicator();
-        final memberships = membershipsSnapshot.data ??
-            const <QueryDocumentSnapshot<Map<String, dynamic>>>[];
-
-        return StreamBuilder<List<AvailabilityModel>>(
-          stream: _availabilityService.streamOrganizationAvailability(
-            organizationId: organizationId,
-          ),
-          builder: (context, availabilitySnapshot) {
-        if (availabilitySnapshot.hasError) return const Text('Valmisoleku laadimine ebaõnnestus. Kontrolli ühendust.');
-        if (!availabilitySnapshot.hasData) return const LinearProgressIndicator();
-            final availabilityByUserId = <String, AvailabilityModel>{
-              for (final availability
-                  in availabilitySnapshot.data ?? const <AvailabilityModel>[])
-                if (availability.userId.isNotEmpty)
-                  availability.userId: availability,
-            };
-
-            return StreamBuilder<List<PlannedUnavailabilityModel>>(
-              stream: _plannedUnavailabilityService.streamOrganizationPeriods(
-                organizationId: organizationId,
-              ),
-              builder: (context, periodsSnapshot) {
-        if (periodsSnapshot.hasError) return const Text('Valmisoleku laadimine ebaõnnestus. Kontrolli ühendust.');
-        if (!periodsSnapshot.hasData) return const LinearProgressIndicator();
-                return StreamBuilder<List<PlannedUnavailabilityRuleModel>>(
-                  stream: _plannedUnavailabilityService.streamOrganizationRules(
-                    organizationId: organizationId,
-                  ),
-                  builder: (context, rulesSnapshot) {
-        if (rulesSnapshot.hasError) return const Text('Valmisoleku laadimine ebaõnnestus. Kontrolli ühendust.');
-        if (!rulesSnapshot.hasData) return const LinearProgressIndicator();
-                    final now = DateTime.now();
-                    final periods = periodsSnapshot.data ??
-                        const <PlannedUnavailabilityModel>[];
-                    final rules = rulesSnapshot.data ??
-                        const <PlannedUnavailabilityRuleModel>[];
-                    var onDutyCount = 0;
-                    var delayedCount = 0;
-                    var offDutyCount = 0;
-                    var effectiveOnDutySecondLevelCount = 0;
-
-                    for (final membership in memberships) {
-                      final membershipData = membership.data();
-                      final userId =
-                          (membershipData['userId'] ?? '').toString();
-                      final manualStatus = availabilityByUserId[userId]?.status ??
-                          AvailabilityStatus.offDuty;
-                      final status = EffectiveAvailability.resolve(
-                        userId: userId,
-                        manualStatus: manualStatus,
-                        periods: periods,
-                        rules: rules,
-                        now: now,
-                      );
-                      if (status == AvailabilityStatus.onDuty) {
-                        onDutyCount++;
-                        if (SeaRescueLevel.isLevel2(
-                          membershipData['seaRescueLevel'],
-                        )) {
-                          effectiveOnDutySecondLevelCount++;
-                        }
-                      } else if (status == AvailabilityStatus.delayed) {
-                        delayedCount++;
-                      } else {
-                        offDutyCount++;
-                      }
-                    }
-
-                    return StreamBuilder<List<PlatformReadinessSummary>>(
-                      stream: _readinessService.streamOrganizationSummary(
-                        organizationId: organizationId,
-                      ),
-                      builder: (context, readinessSnapshot) {
-        if (readinessSnapshot.hasError) return const Text('Valmisoleku laadimine ebaõnnestus. Kontrolli ühendust.');
-        if (!readinessSnapshot.hasData) return const LinearProgressIndicator();
-                        final summaries = readinessSnapshot.data ??
-                            const <PlatformReadinessSummary>[];
-                        final summary =
-                            summaries.isEmpty ? null : summaries.first;
-                        final minimumCrewRequired =
-                            summary?.minimumCrewRequired ?? 0;
-
-                        return Column(
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _ReadinessCountCard(
-                                    label: 'Valves',
-                                    count: onDutyCount,
-                                    icon: Icons.check_circle_outline,
-                                    color: AppColors.ready,
-                                  ),
-                                ),
-                                const SizedBox(width: AppTheme.itemSpacing),
-                                Expanded(
-                                  child: _ReadinessCountCard(
-                                    label: 'Hilinen',
-                                    count: delayedCount,
-                                    icon: Icons.schedule,
-                                    color: AppColors.delayed,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: AppTheme.itemSpacing),
-                            _ReadinessCountCard(
-                              label: 'Ei ole valves',
-                              count: offDutyCount,
-                              icon: Icons.cancel_outlined,
-                              color: AppColors.offDuty,
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Valves liikmete arv arvestab aktiivseid '
-                              'planeeritud mittevalves aegu.',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(
-                                    color: AppColors.textSecondary,
-                                  ),
-                            ),
-                            const SizedBox(height: AppTheme.itemSpacing),
-                            _MinimumCrewCompact(
-                              minimumCrewRequired: minimumCrewRequired,
-                              onDutyCount: onDutyCount,
-                              secondLevelOnDutyCount:
-                                  effectiveOnDutySecondLevelCount,
-                            ),
-                          ],
-                        );
-                      },
-                    );
-                  },
-                );
-              },
-            );
-          },
-        );
-      },
     );
   }
 
@@ -351,10 +130,7 @@ class AdminHomeDashboard extends StatelessWidget {
         if (snapshot.hasError) return const AppSectionCard(child: Text('Väljakutse laadimine ebaõnnestus. Kontrolli ühendust.'));
         final callouts = snapshot.data ?? const <CalloutModel>[];
         if (callouts.isEmpty) {
-          return const _EmptyPreviewCard(
-            icon: Icons.campaign_outlined,
-            message: 'Aktiivseid väljakutseid ei ole.',
-          );
+          return const SizedBox.shrink();
         }
 
         final callout = callouts.first;
@@ -470,206 +246,7 @@ class AdminHomeDashboard extends StatelessWidget {
     };
   }
 
-  Widget _buildLatestNotifications() {
-    return LatestNotificationsCard(
-      organizationId: organizationId,
-      currentUid: currentUid,
-      onTap: onOpenNotifications,
-      usePriorityIcons: false,
-    );
-  }
-}
 
-class _ReadinessCountCard extends StatelessWidget {
-  const _ReadinessCountCard({
-    required this.label,
-    required this.count,
-    required this.icon,
-    required this.color,
-  });
-
-  final String label;
-  final int count;
-  final IconData icon;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return AppSectionCard(
-      accentColor: color,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: color),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  label,
-                  style: Theme.of(context).textTheme.labelLarge,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            '$count',
-            style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                  color: color,
-                ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MinimumCrewCompact extends StatelessWidget {
-  const _MinimumCrewCompact({
-    required this.minimumCrewRequired,
-    required this.onDutyCount,
-    required this.secondLevelOnDutyCount,
-  });
-
-  final int minimumCrewRequired;
-  final int onDutyCount;
-  final int secondLevelOnDutyCount;
-
-  @override
-  Widget build(BuildContext context) {
-    final readiness = ResponseReadiness.evaluate(
-      minimumCrewRequired: minimumCrewRequired,
-      onDutyCount: onDutyCount,
-      secondLevelOnDutyCount: secondLevelOnDutyCount,
-    );
-    final responseReady = readiness.isReady;
-    final readinessReasons = readiness.missingRequirements;
-    final color = !readiness.isConfigured
-        ? AppColors.textSecondary
-        : responseReady
-            ? AppColors.ready
-            : AppColors.critical;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppTheme.controlRadius),
-        border: Border.all(color: color.withValues(alpha: 0.35)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.groups_2_outlined, color: color, size: 20),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Miinimumkoosseis',
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: color,
-                      ),
-                ),
-              ),
-              _MinimumCrewValue(
-                label: 'Miinimum',
-                value: minimumCrewRequired,
-              ),
-              const SizedBox(width: 12),
-              _MinimumCrewValue(
-                label: 'Valves',
-                value: onDutyCount,
-              ),
-              const SizedBox(width: 12),
-              _MinimumCrewValue(
-                label: 'II aste',
-                value: secondLevelOnDutyCount,
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            responseReady
-                ? 'Ühing on reageerimiseks valmis'
-                : 'Ühing ei ole reageerimiseks valmis',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.w600,
-                ),
-          ),
-          if (!responseReady && readinessReasons.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            for (final reason in readinessReasons) ...[
-              _ReadinessReasonLine(label: reason),
-              if (reason != readinessReasons.last) const SizedBox(height: 2),
-            ],
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _ReadinessReasonLine extends StatelessWidget {
-  const _ReadinessReasonLine({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(
-          Icons.error_outline,
-          color: AppColors.critical,
-          size: 14,
-        ),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Text(
-            label,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.critical,
-                ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _MinimumCrewValue extends StatelessWidget {
-  const _MinimumCrewValue({
-    required this.label,
-    required this.value,
-  });
-
-  final String label;
-  final int value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          label,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: AppColors.textSecondary,
-              ),
-        ),
-        Text(
-          '$value',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-      ],
-    );
-  }
 }
 
 class _SectionTitle extends StatelessWidget {

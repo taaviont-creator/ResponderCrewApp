@@ -1,21 +1,11 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../models/activity_model.dart';
-import '../models/availability_model.dart';
 import '../models/callout_model.dart';
 import '../widgets/vessel_status_card.dart';
-import '../models/membership_model.dart';
-import '../models/platform_readiness_model.dart';
-import '../models/planned_unavailability_model.dart';
-import '../models/planned_unavailability_rule_model.dart';
+import '../widgets/crew_readiness_card.dart';
 import '../services/activity_service.dart';
-import '../services/availability_service.dart';
 import '../services/callout_service.dart';
-import '../services/membership_service.dart';
-import '../services/platform_readiness_service.dart';
-import '../services/planned_unavailability_service.dart';
-import '../widgets/latest_notifications_card.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_section_card.dart';
 import '../widgets/status_badge.dart';
@@ -48,213 +38,28 @@ class MemberHomeDashboard extends StatefulWidget {
 
 class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
   final _activityService = ActivityService();
-  final _availabilityService = AvailabilityService();
   final _calloutService = CalloutService();
-  final _membershipService = MembershipService();
-  final _plannedUnavailabilityService = PlannedUnavailabilityService();
-  final _readinessService = PlatformReadinessService();
 
   @override
   Widget build(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.all(AppTheme.screenPadding),
       children: [
-        _SectionTitle(
-          title: 'Aktiivne väljakutse',
-          onOpen: widget.onOpenCallouts,
-        ),
-        const SizedBox(height: AppTheme.itemSpacing),
-        _buildLatestCallout(),
-        const SizedBox(height: AppTheme.sectionSpacing),
         widget.topHeader,
-        const SizedBox(height: AppTheme.sectionSpacing),
-        _buildMinimumCrewCompact(),
-        const SizedBox(height: 12),
-        OutlinedButton.icon(onPressed: widget.onOpenMembers, icon: const Icon(Icons.groups_outlined), label: const Text('Vaata liikmeid')),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
+        CrewReadinessCard(organizationId: widget.organizationId, currentUid: widget.currentUid),
+        const SizedBox(height: 16),
+
+        _buildLatestCallout(),
+        const SizedBox(height: 16),
         VesselStatusCard(organizationId: widget.organizationId),
-        const SizedBox(height: AppTheme.sectionSpacing),
-        _SectionTitle(
-          title: 'Tulev tegevus/koolitus',
-          onOpen: widget.onOpenActivities,
-        ),
-        const SizedBox(height: AppTheme.itemSpacing),
+        const SizedBox(height: 16),
+        _SectionTitle(title: 'Tulev tegevus/koolitus', onOpen: widget.onOpenActivities),
+        const SizedBox(height: 8),
         _buildUpcomingActivity(),
-        const SizedBox(height: AppTheme.sectionSpacing),
-        _SectionTitle(
-          title: 'Viimased teavitused',
-          onOpen: widget.onOpenNotifications,
-        ),
-        const SizedBox(height: AppTheme.itemSpacing),
-        _buildLatestNotifications(),
-        const SizedBox(height: AppTheme.sectionSpacing),
+        const SizedBox(height: 16),
       ],
     );
-  }
-
-  Widget _buildMinimumCrewCompact() {
-    return StreamBuilder<List<PlatformReadinessSummary>>(
-      stream: _readinessService.streamOrganizationSummary(
-        organizationId: widget.organizationId,
-      ),
-      builder: (context, readinessSnapshot) {
-        if (readinessSnapshot.hasError) return const Text('Valmisoleku laadimine ebaõnnestus. Kontrolli ühendust.');
-        if (!readinessSnapshot.hasData) return const LinearProgressIndicator();
-        final summaries =
-            readinessSnapshot.data ?? const <PlatformReadinessSummary>[];
-        final summary = summaries.isEmpty ? null : summaries.first;
-        final minimumCrewRequired = summary?.minimumCrewRequired ?? 0;
-
-        return StreamBuilder<
-            List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
-          stream: _membershipService.streamActiveMembershipsForOrganization(
-            widget.organizationId,
-          ),
-          builder: (context, membershipsSnapshot) {
-        if (membershipsSnapshot.hasError) return const Text('Valmisoleku laadimine ebaõnnestus. Kontrolli ühendust.');
-        if (!membershipsSnapshot.hasData) return const LinearProgressIndicator();
-            final memberships = membershipsSnapshot.data ??
-                const <QueryDocumentSnapshot<Map<String, dynamic>>>[];
-
-            return StreamBuilder<List<AvailabilityModel>>(
-              stream: _availabilityService.streamOrganizationAvailability(
-                organizationId: widget.organizationId,
-              ),
-              builder: (context, availabilitySnapshot) {
-        if (availabilitySnapshot.hasError) return const Text('Valmisoleku laadimine ebaõnnestus. Kontrolli ühendust.');
-        if (!availabilitySnapshot.hasData) return const LinearProgressIndicator();
-                final availabilityByUserId = <String, AvailabilityModel>{
-                  for (final availability in availabilitySnapshot.data ??
-                      const <AvailabilityModel>[])
-                    if (availability.userId.isNotEmpty)
-                      availability.userId: availability,
-                };
-
-                return StreamBuilder<List<PlannedUnavailabilityModel>>(
-                  stream:
-                      _plannedUnavailabilityService.streamOrganizationPeriods(
-                    organizationId: widget.organizationId,
-                  ),
-                  builder: (context, periodsSnapshot) {
-        if (periodsSnapshot.hasError) return const Text('Valmisoleku laadimine ebaõnnestus. Kontrolli ühendust.');
-        if (!periodsSnapshot.hasData) return const LinearProgressIndicator();
-                    return StreamBuilder<List<PlannedUnavailabilityRuleModel>>(
-                      stream:
-                          _plannedUnavailabilityService.streamOrganizationRules(
-                        organizationId: widget.organizationId,
-                      ),
-                      builder: (context, rulesSnapshot) {
-        if (rulesSnapshot.hasError) return const Text('Valmisoleku laadimine ebaõnnestus. Kontrolli ühendust.');
-        if (!rulesSnapshot.hasData) return const LinearProgressIndicator();
-                        final now = DateTime.now();
-                        final periods = periodsSnapshot.data ??
-                            const <PlannedUnavailabilityModel>[];
-                        final rules = rulesSnapshot.data ??
-                            const <PlannedUnavailabilityRuleModel>[];
-                        var effectiveOnDutyCount = 0;
-                        var effectiveOnDutySecondLevelCount = 0;
-
-                        for (final membershipDoc in memberships) {
-                          final membership = membershipDoc.data();
-                          final userId =
-                              (membership['userId'] ?? '').toString();
-                          final manualStatus =
-                              availabilityByUserId[userId]?.status ??
-                                  AvailabilityStatus.offDuty;
-                          final effectiveStatus = _effectiveAvailabilityStatus(
-                            userId: userId,
-                            manualStatus: manualStatus,
-                            periods: periods,
-                            rules: rules,
-                            now: now,
-                          );
-
-                          if (effectiveStatus == AvailabilityStatus.onDuty) {
-                            effectiveOnDutyCount++;
-                            if (SeaRescueLevel.isLevel2(
-                              membership['seaRescueLevel'],
-                            )) {
-                              effectiveOnDutySecondLevelCount++;
-                            }
-                          }
-                        }
-
-                        final minimumCrewMet = minimumCrewRequired > 0 &&
-                            effectiveOnDutyCount >= minimumCrewRequired;
-
-                        return _MinimumCrewCompact(
-                          minimumCrewRequired: minimumCrewRequired,
-                          onDutyCount: effectiveOnDutyCount,
-                          minimumCrewMet: minimumCrewMet,
-                          secondLevelOnDutyCount:
-                              effectiveOnDutySecondLevelCount,
-                        );
-                      },
-                    );
-                  },
-                );
-              },
-            );
-          },
-        );
-      },
-    );
-  }
-
-  String _effectiveAvailabilityStatus({
-    required String userId,
-    required String manualStatus,
-    required Iterable<PlannedUnavailabilityModel> periods,
-    required Iterable<PlannedUnavailabilityRuleModel> rules,
-    required DateTime now,
-  }) {
-    if (_hasActivePlannedUnavailabilityForUser(
-          userId: userId,
-          periods: periods,
-          now: now,
-        ) ||
-        _hasActivePlannedUnavailabilityRuleForUser(
-          userId: userId,
-          rules: rules,
-          now: now,
-        )) {
-      return AvailabilityStatus.offDuty;
-    }
-
-    return manualStatus;
-  }
-
-  bool _hasActivePlannedUnavailabilityForUser({
-    required String userId,
-    required Iterable<PlannedUnavailabilityModel> periods,
-    required DateTime now,
-  }) {
-    return periods.any((period) {
-      final startAt = period.startAt;
-      final endAt = period.endAt;
-      if (period.userId != userId ||
-          !period.isActive ||
-          startAt == null ||
-          endAt == null) {
-        return false;
-      }
-      return !now.isBefore(startAt) && now.isBefore(endAt);
-    });
-  }
-
-  bool _hasActivePlannedUnavailabilityRuleForUser({
-    required String userId,
-    required Iterable<PlannedUnavailabilityRuleModel> rules,
-    required DateTime now,
-  }) {
-    final minuteOfDay = now.hour * 60 + now.minute;
-    return rules.any((rule) {
-      return rule.userId == userId &&
-          rule.isActive &&
-          rule.daysOfWeek.contains(now.weekday) &&
-          minuteOfDay >= rule.startMinute &&
-          minuteOfDay < rule.endMinute;
-    });
   }
 
   Widget _buildLatestCallout() {
@@ -271,10 +76,7 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
         if (snapshot.hasError) return const AppSectionCard(child: Text('Väljakutse laadimine ebaõnnestus. Kontrolli ühendust.'));
         final callouts = snapshot.data ?? const <CalloutModel>[];
         if (callouts.isEmpty) {
-          return const _EmptyPreviewCard(
-            icon: Icons.campaign_outlined,
-            message: 'Aktiivseid väljakutseid ei ole.',
-          );
+          return const SizedBox.shrink();
         }
 
         final callout = callouts.first;
@@ -487,14 +289,7 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
     );
   }
 
-  Widget _buildLatestNotifications() {
-    return LatestNotificationsCard(
-      organizationId: widget.organizationId,
-      currentUid: widget.currentUid,
-      onTap: widget.onOpenNotifications,
-      usePriorityIcons: true,
-    );
-  }
+
 
   ActivityModel? _nextActivity(List<ActivityModel> activities) {
     final now = DateTime.now();
@@ -530,154 +325,6 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
       default:
         return 'AKTIIVNE';
     }
-  }
-}
-
-class _MinimumCrewCompact extends StatelessWidget {
-  const _MinimumCrewCompact({
-    required this.minimumCrewRequired,
-    required this.onDutyCount,
-    required this.minimumCrewMet,
-    required this.secondLevelOnDutyCount,
-  });
-
-  final int minimumCrewRequired;
-  final int onDutyCount;
-  final bool minimumCrewMet;
-  final int secondLevelOnDutyCount;
-
-  @override
-  Widget build(BuildContext context) {
-    final secondLevelMet = secondLevelOnDutyCount >= 1;
-    final responseReady = minimumCrewMet && secondLevelMet;
-    final readinessReasons = <String>[
-      if (!minimumCrewMet) 'Miinimumkoosseis puudu',
-      if (secondLevelOnDutyCount < 1) 'II astme liige puudub',
-    ];
-    final color = minimumCrewRequired <= 0
-        ? AppColors.textSecondary
-        : responseReady
-            ? AppColors.ready
-            : AppColors.critical;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppTheme.controlRadius),
-        border: Border.all(color: color.withValues(alpha: 0.35)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.groups_2_outlined, color: color, size: 20),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Miinimumkoosseis',
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: color,
-                      ),
-                ),
-              ),
-              _MinimumCrewValue(
-                label: 'Miinimum',
-                value: minimumCrewRequired,
-              ),
-              const SizedBox(width: 12),
-              _MinimumCrewValue(
-                label: 'Valves',
-                value: onDutyCount,
-              ),
-              const SizedBox(width: 12),
-              _MinimumCrewValue(
-                label: 'II aste valves:',
-                value: secondLevelOnDutyCount,
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            responseReady
-                ? 'Ühing on reageerimiseks valmis'
-                : 'Ühing ei ole reageerimiseks valmis',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.w600,
-                ),
-          ),
-          if (!responseReady && readinessReasons.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            for (final reason in readinessReasons) ...[
-              _ReadinessReasonLine(label: reason),
-              if (reason != readinessReasons.last) const SizedBox(height: 2),
-            ],
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _ReadinessReasonLine extends StatelessWidget {
-  const _ReadinessReasonLine({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(
-          Icons.error_outline,
-          color: AppColors.critical,
-          size: 14,
-        ),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Text(
-            label,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.critical,
-                ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _MinimumCrewValue extends StatelessWidget {
-  const _MinimumCrewValue({
-    required this.label,
-    required this.value,
-  });
-
-  final String label;
-  final int value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          label,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: AppColors.textSecondary,
-              ),
-        ),
-        Text(
-          '$value',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-      ],
-    );
   }
 }
 

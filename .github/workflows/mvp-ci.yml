@@ -94,5 +94,5 @@ jobs:
       - name: Run Functions lint script
         run: npm run lint --prefix functions
 
-      - name: Test member request notifications
-        run: node --test functions/member-request-notification.test.js
+      - name: Test Functions
+        run: node --test functions/*.test.js

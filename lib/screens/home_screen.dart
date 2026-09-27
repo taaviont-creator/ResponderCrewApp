@@ -20,6 +20,7 @@ import '../services/notification_service.dart';
 import '../services/platform_readiness_service.dart';
 import '../services/planned_unavailability_service.dart';
 import '../widgets/pending_invites_section.dart';
+import '../widgets/home_header.dart';
 import 'activities_screen.dart';
 import 'admin_home_dashboard.dart';
 import 'availability_screen.dart';
@@ -591,109 +592,6 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  Future<List<Map<String, String>>> _loadOrganizationItems(
-    List<QueryDocumentSnapshot<Map<String, dynamic>>> membershipDocs,
-  ) async {
-    final organizationIds = _organizationIdsFromMembershipDocs(membershipDocs);
-
-    final items = <Map<String, String>>[];
-
-    for (final organizationId in organizationIds) {
-      try {
-        final commandSnap = await FirebaseFirestore.instance
-            .collection('commands')
-            .doc(organizationId)
-            .get();
-        final commandData = commandSnap.data();
-        final commandName = (commandData?['name'] ?? organizationId) as String;
-
-        items.add({
-          'id': organizationId,
-          'name': commandName,
-        });
-      } catch (_) {
-        items.add({
-          'id': organizationId,
-          'name': organizationId,
-        });
-      }
-    }
-
-    items.sort((a, b) => a['name']!.compareTo(b['name']!));
-    return items;
-  }
-
-  Widget _buildOrganizationSelector({
-    required String? activeOrganizationId,
-    required List<QueryDocumentSnapshot<Map<String, dynamic>>> membershipDocs,
-  }) {
-    return FutureBuilder<List<Map<String, String>>>(
-      future: _loadOrganizationItems(membershipDocs),
-      builder: (context, snapshot) {
-        final items = snapshot.data ?? const <Map<String, String>>[];
-        if (items.length <= 1) {
-          return const SizedBox.shrink();
-        }
-
-        final selectedId = items.any((item) => item['id'] == activeOrganizationId)
-            ? activeOrganizationId
-            : null;
-
-        return Padding(
-          padding: const EdgeInsets.only(top: 8),
-          child: DropdownButton<String>(
-            value: selectedId,
-            hint: const Text('Vali ühing'),
-            isExpanded: true,
-            items: items.map((item) {
-              return DropdownMenuItem<String>(
-                value: item['id'],
-                child: Text(item['name']!),
-              );
-            }).toList(),
-            onChanged: (value) async {
-              if (value == null || value == activeOrganizationId) return;
-
-              try {
-                await _setActiveCommand(value);
-              } catch (_) {
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'Ühingu vahetamine ebaõnnestus.',
-                    ),
-                  ),
-                );
-              }
-            },
-          ),
-        );
-      },
-    );
-  }
-
-  String _homeRoleLabel({
-    required bool isPlatformAdmin,
-    required String? membershipRole,
-  }) {
-    final hasOrganizationRole =
-        membershipRole != null && membershipRole.trim().isNotEmpty;
-    final organizationRoleLabel = MembershipRole.isOrgAdmin(membershipRole)
-        ? 'Admin'
-        : hasOrganizationRole
-            ? 'Liige'
-            : 'Roll puudub';
-
-    if (isPlatformAdmin && MembershipRole.isOrgAdmin(membershipRole)) {
-      return 'Admin / platvorm';
-    }
-    if (isPlatformAdmin) {
-      return 'Platvormi admin';
-    }
-    return organizationRoleLabel;
-  }
-
   Widget _buildCompactOperationalHeader({
     required String displayName,
     required String? commandId,
@@ -703,92 +601,14 @@ class _HomeScreenState extends State<HomeScreen> {
     required List<QueryDocumentSnapshot<Map<String, dynamic>>> membershipDocs,
     Widget? availabilityControl,
   }) {
-    final theme = Theme.of(context);
-    final activeOrganizationName =
-        commandName != null && commandName.trim().isNotEmpty
-            ? commandName.trim()
-            : commandId;
-    final organizationCount =
-        _organizationIdsFromMembershipDocs(membershipDocs).length;
-    final roleLabel = _homeRoleLabel(
-      isPlatformAdmin: isPlatformAdmin,
-      membershipRole: membershipRole,
-    );
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(4, 2, 4, 0),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: theme.dividerColor.withValues(alpha: 0.4)),
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        displayName,
-                        style: theme.textTheme.titleMedium,
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    roleLabel,
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      color: theme.colorScheme.onPrimaryContainer,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Aktiivne ühing',
-              style: theme.textTheme.labelMedium,
-            ),
-            const SizedBox(height: 4),
-            if (commandId != null &&
-                commandId.isNotEmpty &&
-                organizationCount > 1)
-              _buildOrganizationSelector(
-                activeOrganizationId: commandId,
-                membershipDocs: membershipDocs,
-              )
-            else
-              Text(
-                activeOrganizationName ?? 'Puudub',
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            if (availabilityControl != null) ...[
-              const SizedBox(height: 12),
-              availabilityControl,
-            ],
-          ],
-        ),
-      ),
-    );
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      HomeGreeting(displayName: displayName,
+        role: MembershipRole.isOrgAdmin(membershipRole) ? 'Ühingu admin' : 'Liige'),
+      if (availabilityControl != null) ...[
+        const SizedBox(height: 16),
+        Card(child: Padding(padding: const EdgeInsets.all(16), child: availabilityControl)),
+      ],
+    ]);
   }
 
   Widget _buildMissingOrganizationState({
@@ -1809,7 +1629,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Minu valmisolek',
+                      'Minu staatus',
                       style: Theme.of(context).textTheme.labelLarge,
                     ),
                     if (_savingAvailability) const Text('Salvestan valmisolekut… Serveri kinnitus on ootel.'),
@@ -1826,40 +1646,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ],
                     const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        ChoiceChip(
-                          label: const Text('Pole saadaval'),
-                          selected: status == AvailabilityStatus.offDuty,
-                          onSelected: _savingAvailability ? null : (_) => updateAvailability(
-                            AvailabilityStatus.offDuty,
-                          ),
-                        ),
-                        ChoiceChip(
-                          label: const Text('Valmis'),
-                          selected: !hasActiveSchedule &&
-                              status == AvailabilityStatus.onDuty,
-                          onSelected: hasActiveSchedule || _savingAvailability
-                              ? null
-                              : (_) => updateAvailability(
-                                    AvailabilityStatus.onDuty,
-                                  ),
-                        ),
-                        ChoiceChip(
-                          label: Text('Saabun $responseMinutes minuti pärast'),
-                          selected: !hasActiveSchedule &&
-                              status == AvailabilityStatus.delayed,
-                          onSelected: hasActiveSchedule || _savingAvailability
-                              ? null
-                              : (_) => updateAvailability(
-                                    AvailabilityStatus.delayed,
-                                    minutes: responseMinutes,
-                                  ),
-                        ),
-                      ],
-                    ),
+                    PersonalStatusChoices(status: status, minutes: responseMinutes,
+                      saving: _savingAvailability, plannedUnavailable: hasActiveSchedule,
+                      onSelect: (value) => updateAvailability(value,
+                        minutes: value == AvailabilityStatus.delayed ? responseMinutes : null)),
                     if (!hasActiveSchedule &&
                         status == AvailabilityStatus.delayed) ...[
                       const SizedBox(height: 8),
@@ -2197,7 +1987,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   )));
                 final homeContent = Scaffold(
                   appBar: AppBar(
-                    title: const Text('RespondCrew'),
+                    title: HomeOrganizationTitle(name: commandName ?? 'Ühing',
+                      onSwitch: organizationCount > 1 ? () => _showSwitchOrganizationDialog(
+                        membershipDocs: membershipDocs, currentActiveCommandId: selectedOrganizationId) : null),
                     actions: [IconButton(tooltip: 'Teavitused', icon: const Icon(Icons.notifications_outlined), onPressed: openNotifications),
                     ..._buildAppBarActions(
                       membershipDocs: membershipDocs,

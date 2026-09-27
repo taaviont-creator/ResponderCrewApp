@@ -3,10 +3,18 @@ const { onDocumentCreated, onDocumentWritten } = require("firebase-functions/v2/
 const { createMemberRequestHandler } = require('./member-request-notification');
 const admin = require("firebase-admin");
 
+const { onCall } = require('firebase-functions/v2/https');
+const { createMemberContactHandler } = require('./member-contact');
+
 admin.initializeApp();
 
 const db = admin.firestore();
 const messaging = admin.messaging();
+
+exports.getOrganizationMemberContact = onCall(
+  {region: 'europe-north1', maxInstances: 5, timeoutSeconds: 15},
+  createMemberContactHandler({db}),
+);
 
 const APP_ID = "respondcrew";
 const CALLOUT_ALARM_CHANNEL_ID = "callout_alarm";
