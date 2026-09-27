@@ -1,3 +1,8 @@
+import '../widgets/own_profile_editor.dart';
+import '../services/member_contact_service.dart';
+import 'equipment_screen.dart';
+import 'certificates_screen.dart';
+import 'activities_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -64,6 +69,15 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
     );
   }
 
+  @override
+  void didUpdateWidget(MemberProfileScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _name = _stringValue(widget.userData['name'], 'Nimi puudub');
+    _phone = _optionalString(widget.userData['phone']);
+    _membershipRole = MembershipRole.normalize(widget.membershipData['role']);
+    _seaRescueLevel = SeaRescueLevel.normalize(widget.membershipData['seaRescueLevel']);
+  }
+
   String _stringValue(Object? value, String fallback) {
     if (value is String && value.trim().isNotEmpty) {
       return value.trim();
@@ -95,26 +109,13 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
 
   bool get _canEditRole => _canManageProfileMembership && !_isOwnProfile;
 
-  Future<void> _openPhoneDialer(BuildContext context, String phone) async {
-    final phoneUri = Uri(scheme: 'tel', path: phone);
-    final messenger = ScaffoldMessenger.of(context);
-
-    if (!await canLaunchUrl(phoneUri)) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Helistamist ei saanud avada.')),
-      );
-      return;
-    }
-
-    final opened = await launchUrl(
-      phoneUri,
-      mode: LaunchMode.externalApplication,
-    );
-
-    if (!opened) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Helistamist ei saanud avada.')),
-      );
+  Future<void> _contact(bool sms) async {
+    try {
+      final uri = await MemberContactService().contactUri(organizationId: widget.organizationId, userId: _targetUid, sms: sms);
+      if (!mounted) return;
+      if (uri == null || !await launchUrl(uri, mode: LaunchMode.externalApplication)) throw StateError('Contact unavailable');
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Kontakti ei saanud avada. Telefoninumber võib puududa.')));
     }
   }
 
@@ -193,10 +194,8 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
           );
 
     return StreamBuilder<AvailabilityModel?>(
-      stream: _availabilityService.streamMyAvailability(
-        userId: _targetUid,
-        organizationId: widget.organizationId,
-      ),
+      stream: _availabilityService.streamOrganizationAvailability(organizationId: widget.organizationId)
+          .map((items) { for (final item in items) { if (item.userId == _targetUid) return item; } return null; }),
       builder: (context, availabilitySnapshot) {
         return StreamBuilder<List<PlannedUnavailabilityModel>>(
           stream: periodsStream,
@@ -299,6 +298,8 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
         canViewMemberPersonalEquipment: _canManageProfileMembership,
       ),
       builder: (context, snapshot) {
+        if (snapshot.hasError) return const _ProfileRow(label: 'Varustus', value: 'Laadimine ebaõnnestus.');
+        if (!snapshot.hasData) return const LinearProgressIndicator();
         final equipment = snapshot.data ?? const <EquipmentModel>[];
         final issuedEquipment = equipment
             .where(
@@ -433,6 +434,8 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
         userId: _targetUid,
       ),
       builder: (context, snapshot) {
+        if (snapshot.hasError) return const _ProfileRow(label: 'Tunnistused', value: 'Laadimine ebaõnnestus.');
+        if (!snapshot.hasData) return const LinearProgressIndicator();
         final certificates = snapshot.data ?? const <CertificateModel>[];
         if (certificates.isEmpty) {
           return const _ProfileRow(
@@ -515,6 +518,8 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
         organizationId: widget.organizationId,
       ),
       builder: (context, activitiesSnapshot) {
+        if (activitiesSnapshot.hasError) return const _ProfileRow(label: 'Tegevused', value: 'Laadimine ebaõnnestus.');
+        if (!activitiesSnapshot.hasData) return const LinearProgressIndicator();
         final activities = activitiesSnapshot.data ?? const <ActivityModel>[];
         final activityById = {
           for (final activity in activities) activity.id: activity,
@@ -526,6 +531,8 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
             userId: _targetUid,
           ),
           builder: (context, participantsSnapshot) {
+            if (participantsSnapshot.hasError) return const _ProfileRow(label: 'Osalemised', value: 'Laadimine ebaõnnestus.');
+            if (!participantsSnapshot.hasData) return const LinearProgressIndicator();
             final confirmedParticipations = (participantsSnapshot.data ??
                     const <ActivityParticipantModel>[])
                 .where(
@@ -607,79 +614,12 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
 
   Future<void> _editOwnProfile() async {
     if (!_isOwnProfile) return;
-
-    final nameController = TextEditingController(text: _name);
-    final phoneController = TextEditingController(text: _phone ?? '');
-
-    final result = await showDialog<_OwnProfileEditResult>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Muuda kontaktandmeid'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                autofocus: true,
-                textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(labelText: 'Nimi'),
-              ),
-              TextField(
-                controller: phoneController,
-                keyboardType: TextInputType.phone,
-                textInputAction: TextInputAction.done,
-                decoration: const InputDecoration(labelText: 'Telefon'),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Katkesta'),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.of(context).pop(
-                  _OwnProfileEditResult(
-                    name: nameController.text,
-                    phone: phoneController.text,
-                  ),
-                );
-              },
-              child: const Text('Salvesta'),
-            ),
-          ],
-        );
-      },
-    );
-
-    nameController.dispose();
-    phoneController.dispose();
-
-    if (result == null) return;
-
-    try {
-      await _userService.updateOwnBasicProfile(
-        uid: widget.currentUid,
-        name: result.name,
-        phone: result.phone,
-      );
-
-      if (!mounted) return;
-      setState(() {
-        _name = result.name.trim();
-        _phone = _optionalString(result.phone);
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Andmed salvestatud.')),
-      );
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Andmeid ei saanud salvestada.')),
-      );
-    }
+    final saved = await showDialog<bool>(context: context, barrierDismissible: false,
+      builder: (_) => OwnProfileEditor(name: _name, phone: _phone ?? '', save: (name, phone) async {
+        await _userService.updateOwnBasicProfile(uid: widget.currentUid, name: name, phone: phone);
+        if (mounted) setState(() { _name = name; _phone = _optionalString(phone); });
+      }));
+    if (saved == true && mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Andmed salvestatud.')));
   }
 
   Future<String?> _showSeaRescueLevelDialog() {
@@ -826,40 +766,24 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _ProfileRow(label: 'Nimi', value: _name),
-          _ProfileRow(label: 'E-post', value: email),
-          _ProfileRow(
-            label: 'Telefon',
-            value: _phone ?? 'Telefoni pole lisatud.',
-          ),
-          if (_phone != null)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: FilledButton.icon(
-                onPressed: () => _openPhoneDialer(context, _phone!),
-                icon: const Icon(Icons.call_outlined),
-                label: const Text('Helista'),
-              ),
-            ),
-          _ProfileRow(label: 'Organisatsiooni roll', value: role),
-          _ProfileRow(label: 'Merepääste aste', value: seaRescueLevel),
-          _ProfileRow(label: 'Liikmelisuse staatus', value: status),
+          Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(_name, style: Theme.of(context).textTheme.headlineSmall),
+              Text('$role · $seaRescueLevel'),
+              const SizedBox(height: 12),
+              if (_isOwnProfile) FilledButton.icon(onPressed: _editOwnProfile,
+                icon: const Icon(Icons.edit_outlined), label: const Text('Muuda minu andmeid'))
+              else Wrap(spacing: 8, children: [
+                OutlinedButton.icon(onPressed: () => _contact(false), icon: const Icon(Icons.phone_outlined), label: const Text('Helista')),
+                OutlinedButton.icon(onPressed: () => _contact(true), icon: const Icon(Icons.sms_outlined), label: const Text('SMS')),
+              ]),
+            ]))),
+          if (_isOwnProfile || _canManageProfileMembership) Card(child: Column(children: [
+            _ProfileRow(label: 'E-post', value: email),
+            _ProfileRow(label: 'Telefon', value: _phone ?? 'Telefoni pole lisatud.'),
+          ])),
+          _ProfileRow(label: 'Liikmesus', value: status),
           _buildAvailabilitySection(),
-          _buildEquipmentSection(),
-          _buildCertificatesSection(),
-          _buildActivityContributionSection(),
-          if (_isOwnProfile) ...[
-            const SizedBox(height: 8),
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.edit_outlined),
-                title: const Text('Muuda minu andmeid'),
-                subtitle: const Text('Muuda kontaktandmeid'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: _editOwnProfile,
-              ),
-            ),
-          ],
           if (_canManageProfileMembership) ...[
             const SizedBox(height: 8),
             Card(
@@ -884,20 +808,23 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
               ),
             ),
           ],
+          const SizedBox(height: 12),
+          _profileSection('Varustus', _buildEquipmentSection(), onOpen: _isOwnProfile ? () => Navigator.push(context,
+            MaterialPageRoute<void>(builder: (_) => EquipmentScreen(organizationId: widget.organizationId,
+              currentUid: widget.currentUid, canManageEquipment: widget.canManageRoles))) : null),
+          if (_canViewTargetCertificates) _profileSection('Tunnistused', _buildCertificatesSection(),
+            onOpen: _isOwnProfile ? () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => CertificatesScreen(
+              organizationId: widget.organizationId, currentUid: widget.currentUid, canManageCertificates: widget.canManageRoles))) : null),
+          if (_canViewTargetParticipation) _profileSection('Tegevused ja koolitused', _buildActivityContributionSection(),
+            onOpen: _isOwnProfile ? () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => ActivitiesScreen(
+              organizationId: widget.organizationId, currentUid: widget.currentUid, canManageActivities: widget.canManageRoles))) : null),
         ],
       ),
     );
   }
-}
-
-class _OwnProfileEditResult {
-  const _OwnProfileEditResult({
-    required this.name,
-    required this.phone,
-  });
-
-  final String name;
-  final String phone;
+  Widget _profileSection(String title, Widget child, {VoidCallback? onOpen}) => Card(child: ExpansionTile(
+    title: Text(title), children: [if (onOpen != null) Align(alignment: Alignment.centerRight,
+      child: TextButton(onPressed: onOpen, child: const Text('Ava'))), child]));
 }
 
 class _SeaRescueLevelOption extends StatelessWidget {
