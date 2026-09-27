@@ -1730,22 +1730,29 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         ChoiceChip(
                           label: const Text('Valves'),
-                          selected: status == AvailabilityStatus.onDuty,
-                          onSelected: (_) => updateAvailability(
-                            AvailabilityStatus.onDuty,
-                          ),
+                          selected: !hasActiveSchedule &&
+                              status == AvailabilityStatus.onDuty,
+                          onSelected: hasActiveSchedule
+                              ? null
+                              : (_) => updateAvailability(
+                                    AvailabilityStatus.onDuty,
+                                  ),
                         ),
                         ChoiceChip(
                           label: const Text('Hilinen'),
-                          selected: status == AvailabilityStatus.delayed,
-                          onSelected: (_) => updateAvailability(
-                            AvailabilityStatus.delayed,
-                            minutes: responseMinutes,
-                          ),
+                          selected: !hasActiveSchedule &&
+                              status == AvailabilityStatus.delayed,
+                          onSelected: hasActiveSchedule
+                              ? null
+                              : (_) => updateAvailability(
+                                    AvailabilityStatus.delayed,
+                                    minutes: responseMinutes,
+                                  ),
                         ),
                       ],
                     ),
-                    if (status == AvailabilityStatus.delayed) ...[
+                    if (!hasActiveSchedule &&
+                        status == AvailabilityStatus.delayed) ...[
                       const SizedBox(height: 8),
                       DropdownButton<int>(
                         value: responseMinutes,
