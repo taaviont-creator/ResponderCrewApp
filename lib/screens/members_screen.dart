@@ -2,9 +2,16 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../models/availability_model.dart';
+import '../models/effective_availability.dart';
 import '../models/membership_model.dart';
+import '../models/planned_unavailability_model.dart';
+import '../models/planned_unavailability_rule_model.dart';
+import '../services/availability_service.dart';
 import '../services/invite_service.dart';
 import '../services/membership_service.dart';
+import '../services/planned_unavailability_service.dart';
+import '../theme/app_theme.dart';
 import 'member_profile_screen.dart';
 
 class MembersScreen extends StatefulWidget {
@@ -24,8 +31,10 @@ class MembersScreen extends StatefulWidget {
 }
 
 class _MembersScreenState extends State<MembersScreen> {
+  final _availabilityService = AvailabilityService();
   final _inviteService = InviteService();
   final _membershipService = MembershipService();
+  final _plannedUnavailabilityService = PlannedUnavailabilityService();
 
   Future<void> _showInviteDialog() async {
     final controller = TextEditingController();
@@ -162,15 +171,228 @@ class _MembersScreenState extends State<MembersScreen> {
     }
   }
 
+  String _availabilityStatusLabel(String status) {
+    switch (status) {
+      case AvailabilityStatus.onDuty:
+        return 'Valves';
+      case AvailabilityStatus.delayed:
+        return 'Hilinen';
+      default:
+        return 'Valvest väljas';
+    }
+  }
+
+  IconData _availabilityStatusIcon(String status) {
+    switch (status) {
+      case AvailabilityStatus.onDuty:
+        return Icons.check_circle;
+      case AvailabilityStatus.delayed:
+        return Icons.schedule;
+      default:
+        return Icons.cancel;
+    }
+  }
+
+  Color _availabilityStatusColor(String status) {
+    switch (status) {
+      case AvailabilityStatus.onDuty:
+        return AppColors.ready;
+      case AvailabilityStatus.delayed:
+        return AppColors.delayed;
+      default:
+        return AppColors.offDuty;
+    }
+  }
+
+  Widget _buildMembersList({
+    required List<QueryDocumentSnapshot<Map<String, dynamic>>> membershipDocs,
+    required Map<String, AvailabilityModel> availabilityByUserId,
+    required List<PlannedUnavailabilityModel> periods,
+    required List<PlannedUnavailabilityRuleModel> rules,
+  }) {
+    final memberships = membershipDocs
+        .where((doc) => (doc.data()['userId'] ?? '').toString().isNotEmpty)
+        .toList();
+
+    memberships.sort((a, b) {
+      final aRole = _membershipRoleFromData(a.data());
+      final bRole = _membershipRoleFromData(b.data());
+      return _roleSortOrder(aRole).compareTo(_roleSortOrder(bRole));
+    });
+
+    final now = DateTime.now();
+
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: memberships.length + 1,
+      separatorBuilder: (_, _) => const Divider(height: 1),
+      itemBuilder: (context, index) {
+        if (index == 0) {
+          return _PendingOrganizationInvitesSection(
+            organizationId: widget.organizationId,
+            inviteService: _inviteService,
+          );
+        }
+
+        final membershipDoc = memberships[index - 1];
+        final membership = membershipDoc.data();
+        final targetUid = (membership['userId'] ?? '').toString();
+        final isCurrentUser = targetUid == widget.currentUid;
+        final membershipRole = _membershipRoleFromData(membership);
+        final seaRescueLevel =
+            _seaRescueLevelLabel(membership['seaRescueLevel']);
+        final manualStatus =
+            availabilityByUserId[targetUid]?.status ?? AvailabilityStatus.offDuty;
+        final effectiveStatus = EffectiveAvailability.resolve(
+          userId: targetUid,
+          manualStatus: manualStatus,
+          periods: periods,
+          rules: rules,
+          now: now,
+        );
+
+        return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          future: FirebaseFirestore.instance.collection('users').doc(targetUid).get(),
+          builder: (context, userSnapshot) {
+            if (userSnapshot.connectionState == ConnectionState.waiting) {
+              return const ListTile(title: Text('Laen kasutajat...'));
+            }
+
+            if (userSnapshot.hasError) {
+              return const ListTile(
+                title: Text('Liikme andmete laadimine ebaõnnestus.'),
+              );
+            }
+
+            final userData = userSnapshot.data?.data() ?? {};
+            final uName = (userData['name'] ?? '').toString().trim();
+            final uEmail = (userData['email'] ?? '').toString().trim();
+            final title = uName.isNotEmpty
+                ? uName
+                : uEmail.isNotEmpty
+                    ? uEmail
+                    : 'Liige';
+
+            return ListTile(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => MemberProfileScreen(
+                      userData: userData,
+                      membershipData: membership,
+                      membershipId: membershipDoc.id,
+                      organizationId: widget.organizationId,
+                      currentUid: widget.currentUid,
+                      canManageRoles: widget.canManageRoles,
+                    ),
+                  ),
+                );
+              },
+              title: Text(title),
+              subtitle: Text(
+                '${_availabilityStatusLabel(effectiveStatus)}\n'
+                '${_roleLabel(membershipRole)} • $seaRescueLevel',
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    _availabilityStatusIcon(effectiveStatus),
+                    color: _availabilityStatusColor(effectiveStatus),
+                  ),
+                  if (widget.canManageRoles) ...[
+                    const SizedBox(width: 8),
+                    PopupMenuButton<String>(
+                      onSelected: (value) async {
+                        try {
+                          if (value == 'make_org_admin') {
+                            if (isCurrentUser) return;
+                            await _updateMembershipRole(
+                              membershipId: membershipDoc.id,
+                              targetUid: targetUid,
+                              newRole: MembershipRole.orgAdmin,
+                            );
+                          } else if (value == 'make_member') {
+                            if (isCurrentUser) return;
+                            await _updateMembershipRole(
+                              membershipId: membershipDoc.id,
+                              targetUid: targetUid,
+                              newRole: MembershipRole.member,
+                            );
+                          } else if (value == 'change_sea_rescue_level') {
+                            final level = await _showSeaRescueLevelDialog(
+                              membership['seaRescueLevel'],
+                            );
+                            if (level == null) return;
+
+                            await _updateSeaRescueLevel(
+                              membershipId: membershipDoc.id,
+                              targetUid: targetUid,
+                              seaRescueLevel: level,
+                            );
+
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Merepääste aste salvestatud.'),
+                              ),
+                            );
+                            return;
+                          }
+
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Roll uuendatud')),
+                          );
+                        } catch (_) {
+                          if (!context.mounted) return;
+                          final message = value == 'change_sea_rescue_level'
+                              ? 'Merepääste astet ei saanud salvestada.'
+                              : 'Sul puudub õigus seda toimingut teha.';
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(message)),
+                          );
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        if (!isCurrentUser) ...const [
+                          PopupMenuItem(
+                            value: 'make_org_admin',
+                            child: Text(
+                              'Tee organisatsiooni administraatoriks',
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: 'make_member',
+                            child: Text('Tee liikmeks'),
+                          ),
+                        ],
+                        const PopupMenuItem(
+                          value: 'change_sea_rescue_level',
+                          child: Text('Muuda merepääste astet'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!widget.canManageRoles) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('Liikmed'),
-        ),
+        appBar: AppBar(title: const Text('Liikmed')),
         body: const Center(
-          child: Text('Liikmete ja rollide haldamine on ainult administraatorile.'),
+          child: Text(
+            'Liikmete ja rollide haldamine on ainult administraatorile.',
+          ),
         ),
       );
     }
@@ -191,10 +413,10 @@ class _MembersScreenState extends State<MembersScreen> {
           widget.organizationId,
         ),
         builder: (context, membershipsSnapshot) {
-          if (membershipsSnapshot.connectionState == ConnectionState.waiting) {
+          if (membershipsSnapshot.connectionState == ConnectionState.waiting &&
+              !membershipsSnapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
-
           if (membershipsSnapshot.hasError) {
             return const Center(
               child: Text('Liikmete laadimine ebaõnnestus.'),
@@ -207,184 +429,60 @@ class _MembersScreenState extends State<MembersScreen> {
             return const Center(child: Text('Liikmeid ei leitud.'));
           }
 
-          final memberships = membershipDocs
-              .where((doc) => (doc.data()['userId'] ?? '').toString().isNotEmpty)
-              .toList();
+          return StreamBuilder<List<AvailabilityModel>>(
+            stream: _availabilityService.streamOrganizationAvailability(
+              organizationId: widget.organizationId,
+            ),
+            builder: (context, availabilitySnapshot) {
+              final availabilityByUserId = <String, AvailabilityModel>{
+                for (final availability
+                    in availabilitySnapshot.data ?? const <AvailabilityModel>[])
+                  if (availability.userId.isNotEmpty)
+                    availability.userId: availability,
+              };
 
-          memberships.sort((a, b) {
-            final aRole = _membershipRoleFromData(a.data());
-            final bRole = _membershipRoleFromData(b.data());
-
-            return _roleSortOrder(aRole).compareTo(_roleSortOrder(bRole));
-          });
-
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: memberships.length + 1,
-            separatorBuilder: (_, _) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              if (index == 0) {
-                return _PendingOrganizationInvitesSection(
+              return StreamBuilder<List<PlannedUnavailabilityModel>>(
+                stream: _plannedUnavailabilityService.streamOrganizationPeriods(
                   organizationId: widget.organizationId,
-                  inviteService: _inviteService,
-                );
-              }
+                ),
+                builder: (context, periodsSnapshot) {
+                  return StreamBuilder<List<PlannedUnavailabilityRuleModel>>(
+                    stream:
+                        _plannedUnavailabilityService.streamOrganizationRules(
+                      organizationId: widget.organizationId,
+                    ),
+                    builder: (context, rulesSnapshot) {
+                      if ((availabilitySnapshot.connectionState ==
+                                  ConnectionState.waiting &&
+                              !availabilitySnapshot.hasData) ||
+                          (periodsSnapshot.connectionState ==
+                                  ConnectionState.waiting &&
+                              !periodsSnapshot.hasData) ||
+                          (rulesSnapshot.connectionState ==
+                                  ConnectionState.waiting &&
+                              !rulesSnapshot.hasData)) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
 
-              final membershipDoc = memberships[index - 1];
-              final membership = membershipDoc.data();
-              final targetUid = (membership['userId'] ?? '') as String;
-              final isCurrentUser = targetUid == widget.currentUid;
-              final membershipRole = _membershipRoleFromData(membership);
-              final seaRescueLevel =
-                  _seaRescueLevelLabel(membership['seaRescueLevel']);
-
-              return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                future: FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(targetUid)
-                    .get(),
-                builder: (context, userSnapshot) {
-                  if (userSnapshot.connectionState == ConnectionState.waiting) {
-                    return const ListTile(
-                      title: Text('Laen kasutajat...'),
-                    );
-                  }
-
-                  if (userSnapshot.hasError) {
-                    return const ListTile(
-                      title: Text('Liikme andmete laadimine ebaõnnestus.'),
-                    );
-                  }
-
-                  final userData = userSnapshot.data?.data() ?? {};
-                  final uName = (userData['name'] ?? '') as String;
-                  final uEmail = (userData['email'] ?? '') as String;
-                  final uStatus =
-                      (userData['status'] ?? 'unavailable') as String;
-
-                  final title = uName.isNotEmpty ? uName : uEmail;
-                  final subtitle = (uStatus == 'available')
-                      ? 'Valves / Saadaval'
-                      : 'Mitte valves';
-
-                  return ListTile(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => MemberProfileScreen(
-                            userData: userData,
-                            membershipData: membership,
-                            membershipId: membershipDoc.id,
-                            organizationId: widget.organizationId,
-                            currentUid: widget.currentUid,
-                            canManageRoles: widget.canManageRoles,
+                      if (availabilitySnapshot.hasError ||
+                          periodsSnapshot.hasError ||
+                          rulesSnapshot.hasError) {
+                        return const Center(
+                          child: Text(
+                            'Liikmete valmisoleku laadimine ebaõnnestus.',
                           ),
-                        ),
+                        );
+                      }
+
+                      return _buildMembersList(
+                        membershipDocs: membershipDocs,
+                        availabilityByUserId: availabilityByUserId,
+                        periods: periodsSnapshot.data ??
+                            const <PlannedUnavailabilityModel>[],
+                        rules: rulesSnapshot.data ??
+                            const <PlannedUnavailabilityRuleModel>[],
                       );
                     },
-                    title: Text(title),
-                    subtitle: Text(
-                      '$subtitle\n'
-                      '${_roleLabel(membershipRole)} • $seaRescueLevel',
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          uStatus == 'available'
-                              ? Icons.check_circle
-                              : Icons.cancel,
-                          color: uStatus == 'available'
-                              ? const Color.fromARGB(255, 72, 212, 79)
-                              : const Color.fromARGB(255, 179, 32, 30),
-                        ),
-                        if (widget.canManageRoles) ...[
-                          const SizedBox(width: 8),
-                          PopupMenuButton<String>(
-                            onSelected: (value) async {
-                              try {
-                                if (value == 'make_org_admin') {
-                                  if (isCurrentUser) return;
-                                  await _updateMembershipRole(
-                                    membershipId: membershipDoc.id,
-                                    targetUid: targetUid,
-                                    newRole: MembershipRole.orgAdmin,
-                                  );
-                                } else if (value == 'make_member') {
-                                  if (isCurrentUser) return;
-                                  await _updateMembershipRole(
-                                    membershipId: membershipDoc.id,
-                                    targetUid: targetUid,
-                                    newRole: MembershipRole.member,
-                                  );
-                                } else if (value == 'change_sea_rescue_level') {
-                                  final level =
-                                      await _showSeaRescueLevelDialog(
-                                    membership['seaRescueLevel'],
-                                  );
-                                  if (level == null) return;
-
-                                  await _updateSeaRescueLevel(
-                                    membershipId: membershipDoc.id,
-                                    targetUid: targetUid,
-                                    seaRescueLevel: level,
-                                  );
-
-                                  if (!context.mounted) return;
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Merepääste aste salvestatud.',
-                                      ),
-                                    ),
-                                  );
-                                  return;
-                                }
-
-                                if (!context.mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Roll uuendatud'),
-                                  ),
-                                );
-                              } catch (e) {
-                                if (!context.mounted) return;
-                                final message =
-                                    value == 'change_sea_rescue_level'
-                                        ? 'Merepääste astet ei saanud salvestada.'
-                                        : 'Sul puudub õigus seda toimingut teha.';
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      message,
-                                    ),
-                                  ),
-                                );
-                              }
-                            },
-                            itemBuilder: (context) => [
-                              if (!isCurrentUser) ...const [
-                                PopupMenuItem(
-                                  value: 'make_org_admin',
-                                  child: Text(
-                                    'Tee organisatsiooni administraatoriks',
-                                  ),
-                                ),
-                                PopupMenuItem(
-                                  value: 'make_member',
-                                  child: Text('Tee liikmeks'),
-                                ),
-                              ],
-                              const PopupMenuItem(
-                                value: 'change_sea_rescue_level',
-                                child: Text('Muuda merepääste astet'),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ],
-                    ),
                   );
                 },
               );
