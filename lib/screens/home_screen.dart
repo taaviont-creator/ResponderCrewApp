@@ -1,3 +1,5 @@
+import '../widgets/minimum_crew_dialog.dart';
+import '../widgets/member_permission_settings.dart';
 import 'dart:async';
 
 import 'package:flutter/services.dart';
@@ -358,11 +360,15 @@ class _HomeScreenState extends State<HomeScreen> {
         items.add({
           'commandId': commandId,
           'commandName': commandName,
+          'available': _membershipService.isActiveMembership(membership) && commandData?['status'] == 'approved' ? 'yes' : 'no',
+          'status': commandData?['status'] == 'pending' ? 'Ühing ootab platvormi halduri kinnitust' : 'Liikmesus ootab kinnitust',
         });
       } catch (_) {
         items.add({
           'commandId': commandId,
           'commandName': commandId,
+          'available': 'no',
+          'status': 'Ühingu andmete laadimine ebaõnnestus',
         });
       }
     }
@@ -388,10 +394,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     return ListTile(
                       title: Text(commandName),
-                      subtitle: Text(commandId),
+                      subtitle: item['available'] == 'yes' ? null : Text(item['status']!),
                       trailing:
                           isSelected ? const Icon(Icons.check_circle) : null,
-                      onTap: () => Navigator.pop(context, commandId),
+                      onTap: item['available'] == 'yes' ? () => Navigator.pop(context, commandId) : null,
                     );
                   },
                 ),
@@ -1208,52 +1214,12 @@ class _HomeScreenState extends State<HomeScreen> {
     required bool allowMembersToViewStatistics,
     required bool allowMembersToStartOperationLog,
   }) {
-    return Card(
-      child: Column(
-        children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Määra, mida tavaliikmed saavad selles ühingus teha.',
-              ),
-            ),
-          ),
-          SwitchListTile(
-            title: const Text('Liikmed võivad lisada tegevusi/koolitusi'),
-            value: allowMembersToCreateActivities,
-            onChanged: (value) => _updateMemberPermissions(
-              organizationId: organizationId,
-              allowMembersToCreateActivities: value,
-              allowMembersToViewStatistics: allowMembersToViewStatistics,
-              allowMembersToStartOperationLog:
-                  allowMembersToStartOperationLog,
-            ),
-          ),
-          SwitchListTile(
-            title: const Text('Liikmed võivad näha statistikat'),
-            value: allowMembersToViewStatistics,
-            onChanged: (value) => _updateMemberPermissions(
-              organizationId: organizationId,
-              allowMembersToCreateActivities: allowMembersToCreateActivities,
-              allowMembersToViewStatistics: value,
-              allowMembersToStartOperationLog:
-                  allowMembersToStartOperationLog,
-            ),
-          ),
-          SwitchListTile(
-            title: const Text('Liikmed võivad alustada operatsioonilogi'),
-            value: allowMembersToStartOperationLog,
-            onChanged: (value) => _updateMemberPermissions(
-              organizationId: organizationId,
-              allowMembersToCreateActivities: allowMembersToCreateActivities,
-              allowMembersToViewStatistics: allowMembersToViewStatistics,
-              allowMembersToStartOperationLog: value,
-            ),
-          ),
-        ],
-      ),
+    return MemberPermissionSettings(
+      key: ValueKey(organizationId),
+      settings: FirebaseFirestore.instance.collection('commands').doc(organizationId)
+          .snapshots().map((snapshot) => snapshot.data() ?? <String, dynamic>{}),
+      save: (field, value) => _commandService.updateMemberPermission(
+        organizationId: organizationId, field: field, value: value),
     );
   }
 
@@ -1318,48 +1284,11 @@ class _HomeScreenState extends State<HomeScreen> {
     required String currentUid,
     required int minimumCrewRequired,
   }) async {
-    final controller = TextEditingController(
-      text: minimumCrewRequired.toString(),
-    );
-    String? errorText;
-
     final value = await showDialog<int>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            title: const Text('Miinimumkoosseis'),
-            content: TextField(
-              controller: controller,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: 'Miinimum valves liikmete arv',
-                errorText: errorText,
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Katkesta'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  final parsed = int.tryParse(controller.text.trim());
-                  if (parsed == null || parsed < 0) {
-                    setDialogState(() => errorText = 'Sisesta korrektne arv.');
-                    return;
-                  }
-                  Navigator.pop(context, parsed);
-                },
-                child: const Text('Salvesta'),
-              ),
-            ],
-          );
-        },
-      ),
+      builder: (_) => MinimumCrewDialog(initialValue: minimumCrewRequired),
     );
 
-    controller.dispose();
     if (value == null) return;
 
     try {
@@ -1802,6 +1731,8 @@ class _HomeScreenState extends State<HomeScreen> {
             final allMembershipDocs = membershipsSnapshot.data ??
                 <QueryDocumentSnapshot<Map<String, dynamic>>>[];
             final membershipDocs = _activeMembershipDocs(allMembershipDocs);
+            final visibleMembershipDocs = allMembershipDocs.where((doc) =>
+              _membershipService.isActiveMembership(doc.data()) || doc.data()['status'] == 'pending').toList();
 
             String? activeCommandId;
             String? myMembershipRole;
@@ -1857,7 +1788,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 appBar: AppBar(
                   title: const Text('RespondCrew'),
                   actions: _buildAppBarActions(
-                    membershipDocs: membershipDocs,
+                    membershipDocs: visibleMembershipDocs,
                     currentActiveCommandId: activeCommandId,
                     currentCommandName: null,
                   ),
@@ -1876,12 +1807,12 @@ class _HomeScreenState extends State<HomeScreen> {
                       allowMembersToCreateActivities: false,
                       allowMembersToViewStatistics: false,
                       allowMembersToStartOperationLog: false,
-                      membershipDocs: membershipDocs,
+                      membershipDocs: visibleMembershipDocs,
                     ),
                     const PendingInvitesSection(),
                     _buildMissingOrganizationState(
                       hasMemberships: membershipDocs.isNotEmpty,
-                      membershipDocs: membershipDocs,
+                      membershipDocs: visibleMembershipDocs,
                       title: missingOrganizationTitle,
                       message: missingOrganizationMessage,
                     ),
@@ -1892,7 +1823,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
             final String selectedOrganizationId = activeCommandId;
             final organizationCount =
-                _organizationIdsFromMembershipDocs(membershipDocs).length;
+                _organizationIdsFromMembershipDocs(visibleMembershipDocs).length;
 
             return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
               stream: FirebaseFirestore.instance
@@ -1907,7 +1838,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     appBar: AppBar(
                       title: const Text('RespondCrew'),
                       actions: _buildAppBarActions(
-                        membershipDocs: membershipDocs,
+                        membershipDocs: visibleMembershipDocs,
                         currentActiveCommandId: selectedOrganizationId,
                         currentCommandName: null,
                       ),
@@ -1949,7 +1880,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     appBar: AppBar(
                       title: const Text('RespondCrew'),
                       actions: _buildAppBarActions(
-                        membershipDocs: membershipDocs,
+                        membershipDocs: visibleMembershipDocs,
                         currentActiveCommandId: selectedOrganizationId,
                         currentCommandName: commandName,
                       ),
@@ -1988,10 +1919,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   appBar: AppBar(
                     title: HomeOrganizationTitle(name: commandName ?? 'Ühing',
                       onSwitch: organizationCount > 1 ? () => _showSwitchOrganizationDialog(
-                        membershipDocs: membershipDocs, currentActiveCommandId: selectedOrganizationId) : null),
+                        membershipDocs: visibleMembershipDocs, currentActiveCommandId: selectedOrganizationId) : null),
                     actions: [IconButton(tooltip: 'Teavitused', icon: const Icon(Icons.notifications_outlined), onPressed: openNotifications),
                     ..._buildAppBarActions(
-                      membershipDocs: membershipDocs,
+                      membershipDocs: visibleMembershipDocs,
                       currentActiveCommandId: selectedOrganizationId,
                       currentCommandName: commandName,
                     )],
@@ -2006,7 +1937,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             commandName: commandName,
                             isPlatformAdmin: isPlatformAdmin,
                             membershipRole: myMembershipRole,
-                            membershipDocs: membershipDocs,
+                            membershipDocs: visibleMembershipDocs,
                             availabilityControl: _buildAvailabilityControl(
                               user: user,
                               organizationId: selectedOrganizationId,
@@ -2092,7 +2023,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             commandName: commandName,
                             isPlatformAdmin: isPlatformAdmin,
                             membershipRole: myMembershipRole,
-                            membershipDocs: membershipDocs,
+                            membershipDocs: visibleMembershipDocs,
                             availabilityControl: _buildAvailabilityControl(
                               user: user,
                               organizationId: selectedOrganizationId,
@@ -2186,7 +2117,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     },
                     onSwitchOrganization: organizationCount > 1
                         ? () => _showSwitchOrganizationDialog(
-                              membershipDocs: membershipDocs,
+                              membershipDocs: visibleMembershipDocs,
                               currentActiveCommandId: selectedOrganizationId,
                             )
                         : null,

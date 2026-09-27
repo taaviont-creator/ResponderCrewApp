@@ -252,6 +252,22 @@ class CommandService {
     });
   }
 
+  Future<void> updateMemberPermission({required String organizationId,
+    required String field, required bool value}) async {
+    const fields = {'allowMembersToCreateActivities', 'allowMembersToViewStatistics',
+      'allowMembersToStartOperationLog'};
+    if (!fields.contains(field) || organizationId.trim().isEmpty) {
+      throw ArgumentError('Vigane seade');
+    }
+    final user = _auth.currentUser;
+    if (user == null) throw StateError('Not authenticated');
+    // Server rules enforce active admin membership. Only patch the changed field,
+    // so concurrent edits cannot overwrite the other permissions.
+    await _db.collection('commands').doc(organizationId).update({
+      field: value, 'updatedBy': user.uid, 'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   Future<void> updateMemberPermissions({
     required String organizationId,
     required bool allowMembersToCreateActivities,
