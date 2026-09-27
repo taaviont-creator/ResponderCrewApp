@@ -51,8 +51,7 @@ class StatusBadge extends StatelessWidget {
             Flexible(
               child: Text(
                 label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+                softWrap: true,
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                       color: colors.foreground,
                       fontWeight: FontWeight.w700,

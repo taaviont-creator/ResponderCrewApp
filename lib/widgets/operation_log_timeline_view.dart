@@ -135,6 +135,7 @@ class _OperationLogTimelineViewState extends State<OperationLogTimelineView> {
         event.description,
       operationLogEventLocation(event),
       operationLogEventTime(event.createdAt),
+      'Autor: ${event.createdByName.isNotEmpty ? event.createdByName : event.createdBy.isNotEmpty ? event.createdBy : 'Teadmata'}',
     ];
 
     return ListTile(

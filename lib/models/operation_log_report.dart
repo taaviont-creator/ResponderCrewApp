@@ -48,6 +48,7 @@ String buildOperationLogReport(
     if (event.description.isNotEmpty && event.description != title) {
       lines.add(event.description);
     }
+    lines.add('Autor: ${event.createdByName.isNotEmpty ? event.createdByName : event.createdBy.isNotEmpty ? event.createdBy : 'Teadmata'}');
     lines.add(operationLogEventLocation(event));
     lines.add('');
   }

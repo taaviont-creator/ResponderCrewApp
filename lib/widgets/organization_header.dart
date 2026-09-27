@@ -125,7 +125,7 @@ class OrganizationHeader extends StatelessWidget {
                         customBorder: const CircleBorder(),
                         child: CircleAvatar(
                           radius: 20,
-                          backgroundColor: AppColors.deepSeaBlue,
+                          backgroundColor: AppColors.surfaceBlueStrong,
                           foregroundColor: Colors.white,
                           child: Text(
                             userInitials!.trim().toUpperCase(),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../models/availability_model.dart';
 import '../models/callout_model.dart';
+import '../widgets/vessel_status_card.dart';
 import '../models/equipment_model.dart';
 import '../models/effective_availability.dart';
 import '../models/membership_model.dart';
@@ -33,6 +34,8 @@ class AdminHomeDashboard extends StatelessWidget {
     required this.onCreateActivity,
     required this.onCreateEquipment,
     required this.onOpenCallouts,
+    required this.onOpenCallout,
+    required this.onOpenMembers,
     required this.onOpenEquipment,
     required this.onOpenNotifications,
   });
@@ -44,6 +47,8 @@ class AdminHomeDashboard extends StatelessWidget {
   final VoidCallback onCreateActivity;
   final VoidCallback onCreateEquipment;
   final VoidCallback onOpenCallouts;
+  final ValueChanged<String> onOpenCallout;
+  final VoidCallback onOpenMembers;
   final VoidCallback onOpenEquipment;
   final VoidCallback onOpenNotifications;
 
@@ -61,10 +66,29 @@ class AdminHomeDashboard extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(AppTheme.screenPadding),
       children: [
+        _SectionTitle(
+          title: 'Aktiivne väljakutse',
+          onOpen: onOpenCallouts,
+        ),
+        const SizedBox(height: AppTheme.itemSpacing),
+        _buildActiveCallouts(),
+        const SizedBox(height: AppTheme.sectionSpacing),
         topHeader,
         PendingMemberRequestsNotice(
           organizationId: organizationId,
           currentUid: currentUid,
+        ),
+        const SizedBox(height: AppTheme.sectionSpacing),
+        Text(
+          'Kiirtegevused',
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
+        const SizedBox(height: AppTheme.itemSpacing),
+        PrimaryActionButton(
+          label: 'Lisa väljakutse',
+          icon: Icons.campaign,
+          style: PrimaryActionButtonStyle.danger,
+          onPressed: onCreateCallout,
         ),
         const SizedBox(height: AppTheme.sectionSpacing),
         Text(
@@ -73,18 +97,12 @@ class AdminHomeDashboard extends StatelessWidget {
         ),
         const SizedBox(height: AppTheme.itemSpacing),
         _buildReadinessOverview(),
+        const SizedBox(height: 12),
+        PrimaryActionButton(label: 'Vaata liikmeid', icon: Icons.groups_outlined, style: PrimaryActionButtonStyle.secondary, onPressed: onOpenMembers),
+        const SizedBox(height: 12),
+        VesselStatusCard(organizationId: organizationId),
         const SizedBox(height: AppTheme.sectionSpacing),
-        Text(
-          'Kiirtegevused',
-          style: Theme.of(context).textTheme.headlineSmall,
-        ),
-        const SizedBox(height: AppTheme.itemSpacing),
-        PrimaryActionButton(
-          label: 'LOO VÄLJAKUTSE',
-          icon: Icons.campaign,
-          style: PrimaryActionButtonStyle.danger,
-          onPressed: onCreateCallout,
-        ),
+
         const SizedBox(height: AppTheme.itemSpacing),
         PrimaryActionButton(
           label: 'Lisa tegevus/koolitus',
@@ -108,13 +126,6 @@ class AdminHomeDashboard extends StatelessWidget {
         _buildEquipmentAlerts(),
         const SizedBox(height: AppTheme.sectionSpacing),
         _SectionTitle(
-          title: 'Aktiivne väljakutse',
-          onOpen: onOpenCallouts,
-        ),
-        const SizedBox(height: AppTheme.itemSpacing),
-        _buildActiveCallouts(),
-        const SizedBox(height: AppTheme.sectionSpacing),
-        _SectionTitle(
           title: 'Viimased teavitused',
           onOpen: onOpenNotifications,
         ),
@@ -132,6 +143,8 @@ class AdminHomeDashboard extends StatelessWidget {
         organizationId,
       ),
       builder: (context, membershipsSnapshot) {
+        if (membershipsSnapshot.hasError) return const Text('Valmisoleku laadimine ebaõnnestus. Kontrolli ühendust.');
+        if (!membershipsSnapshot.hasData) return const LinearProgressIndicator();
         final memberships = membershipsSnapshot.data ??
             const <QueryDocumentSnapshot<Map<String, dynamic>>>[];
 
@@ -140,6 +153,8 @@ class AdminHomeDashboard extends StatelessWidget {
             organizationId: organizationId,
           ),
           builder: (context, availabilitySnapshot) {
+        if (availabilitySnapshot.hasError) return const Text('Valmisoleku laadimine ebaõnnestus. Kontrolli ühendust.');
+        if (!availabilitySnapshot.hasData) return const LinearProgressIndicator();
             final availabilityByUserId = <String, AvailabilityModel>{
               for (final availability
                   in availabilitySnapshot.data ?? const <AvailabilityModel>[])
@@ -152,11 +167,15 @@ class AdminHomeDashboard extends StatelessWidget {
                 organizationId: organizationId,
               ),
               builder: (context, periodsSnapshot) {
+        if (periodsSnapshot.hasError) return const Text('Valmisoleku laadimine ebaõnnestus. Kontrolli ühendust.');
+        if (!periodsSnapshot.hasData) return const LinearProgressIndicator();
                 return StreamBuilder<List<PlannedUnavailabilityRuleModel>>(
                   stream: _plannedUnavailabilityService.streamOrganizationRules(
                     organizationId: organizationId,
                   ),
                   builder: (context, rulesSnapshot) {
+        if (rulesSnapshot.hasError) return const Text('Valmisoleku laadimine ebaõnnestus. Kontrolli ühendust.');
+        if (!rulesSnapshot.hasData) return const LinearProgressIndicator();
                     final now = DateTime.now();
                     final periods = periodsSnapshot.data ??
                         const <PlannedUnavailabilityModel>[];
@@ -199,6 +218,8 @@ class AdminHomeDashboard extends StatelessWidget {
                         organizationId: organizationId,
                       ),
                       builder: (context, readinessSnapshot) {
+        if (readinessSnapshot.hasError) return const Text('Valmisoleku laadimine ebaõnnestus. Kontrolli ühendust.');
+        if (!readinessSnapshot.hasData) return const LinearProgressIndicator();
                         final summaries = readinessSnapshot.data ??
                             const <PlatformReadinessSummary>[];
                         final summary =
@@ -279,6 +300,7 @@ class AdminHomeDashboard extends StatelessWidget {
           return const _PreviewLoadingCard();
         }
 
+        if (snapshot.hasError) return const AppSectionCard(child: Text('Varustuse hoiatusi ei õnnestunud laadida.'));
         final alerts = (snapshot.data ?? const <EquipmentModel>[])
             .where(
               (item) =>
@@ -326,6 +348,7 @@ class AdminHomeDashboard extends StatelessWidget {
           return const _PreviewLoadingCard();
         }
 
+        if (snapshot.hasError) return const AppSectionCard(child: Text('Väljakutse laadimine ebaõnnestus. Kontrolli ühendust.'));
         final callouts = snapshot.data ?? const <CalloutModel>[];
         if (callouts.isEmpty) {
           return const _EmptyPreviewCard(
@@ -338,7 +361,7 @@ class AdminHomeDashboard extends StatelessWidget {
         return AppSectionCard(
           accentColor: AppColors.activeCallout,
           child: InkWell(
-            onTap: onOpenCallouts,
+            onTap: () => onOpenCallout(callout.id),
             borderRadius: BorderRadius.circular(AppTheme.cardRadius),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -359,7 +382,7 @@ class AdminHomeDashboard extends StatelessWidget {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        callout.title,
+            '${CalloutType.label(callout.calloutType)} · ${callout.title}',
                         style: Theme.of(context).textTheme.titleLarge,
                       ),
                       if (callout.location.isNotEmpty) ...[

@@ -29,12 +29,13 @@ class PrimaryActionButton extends StatelessWidget {
     final colors = _colorsFor(style);
     final effectiveOnPressed = isLoading ? null : onPressed;
 
-    return SizedBox(
+    return Container(
       width: double.infinity,
-      height: AppTheme.primaryActionHeight,
+      constraints: const BoxConstraints(minHeight: AppTheme.primaryActionHeight),
       child: ElevatedButton(
         onPressed: effectiveOnPressed,
         style: ElevatedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           backgroundColor: colors.background,
           foregroundColor: colors.foreground,
           disabledBackgroundColor: colors.background.withValues(alpha: 0.45),
@@ -74,8 +75,8 @@ class PrimaryActionButton extends StatelessWidget {
                     Flexible(
                       child: Text(
                         label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        softWrap: true,
+                        textAlign: TextAlign.center,
                       ),
                     ),
                   ],
@@ -90,7 +91,7 @@ class PrimaryActionButton extends StatelessWidget {
       case PrimaryActionButtonStyle.danger:
         return const _ActionColors(
           background: AppColors.activeCallout,
-          foreground: Colors.white,
+          foreground: AppColors.background,
         );
       case PrimaryActionButtonStyle.secondary:
         return const _ActionColors(
@@ -101,7 +102,7 @@ class PrimaryActionButton extends StatelessWidget {
       case PrimaryActionButtonStyle.primary:
         return const _ActionColors(
           background: AppColors.deepSeaBlue,
-          foreground: Colors.white,
+          foreground: AppColors.background,
         );
     }
   }

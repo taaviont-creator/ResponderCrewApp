@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../models/activity_model.dart';
 import '../models/availability_model.dart';
 import '../models/callout_model.dart';
+import '../widgets/vessel_status_card.dart';
 import '../models/membership_model.dart';
 import '../models/platform_readiness_model.dart';
 import '../models/planned_unavailability_model.dart';
@@ -26,6 +27,8 @@ class MemberHomeDashboard extends StatefulWidget {
     required this.currentUid,
     required this.topHeader,
     required this.onOpenCallouts,
+    required this.onOpenCallout,
+    required this.onOpenMembers,
     required this.onOpenNotifications,
     required this.onOpenActivities,
   });
@@ -34,6 +37,8 @@ class MemberHomeDashboard extends StatefulWidget {
   final String currentUid;
   final Widget topHeader;
   final VoidCallback onOpenCallouts;
+  final ValueChanged<String> onOpenCallout;
+  final VoidCallback onOpenMembers;
   final VoidCallback onOpenNotifications;
   final VoidCallback onOpenActivities;
 
@@ -54,16 +59,20 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
     return ListView(
       padding: const EdgeInsets.all(AppTheme.screenPadding),
       children: [
-        widget.topHeader,
-        const SizedBox(height: AppTheme.sectionSpacing),
-        _buildMinimumCrewCompact(),
-        const SizedBox(height: AppTheme.sectionSpacing),
         _SectionTitle(
           title: 'Aktiivne väljakutse',
           onOpen: widget.onOpenCallouts,
         ),
         const SizedBox(height: AppTheme.itemSpacing),
         _buildLatestCallout(),
+        const SizedBox(height: AppTheme.sectionSpacing),
+        widget.topHeader,
+        const SizedBox(height: AppTheme.sectionSpacing),
+        _buildMinimumCrewCompact(),
+        const SizedBox(height: 12),
+        OutlinedButton.icon(onPressed: widget.onOpenMembers, icon: const Icon(Icons.groups_outlined), label: const Text('Vaata liikmeid')),
+        const SizedBox(height: 12),
+        VesselStatusCard(organizationId: widget.organizationId),
         const SizedBox(height: AppTheme.sectionSpacing),
         _SectionTitle(
           title: 'Tulev tegevus/koolitus',
@@ -89,6 +98,8 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
         organizationId: widget.organizationId,
       ),
       builder: (context, readinessSnapshot) {
+        if (readinessSnapshot.hasError) return const Text('Valmisoleku laadimine ebaõnnestus. Kontrolli ühendust.');
+        if (!readinessSnapshot.hasData) return const LinearProgressIndicator();
         final summaries =
             readinessSnapshot.data ?? const <PlatformReadinessSummary>[];
         final summary = summaries.isEmpty ? null : summaries.first;
@@ -100,6 +111,8 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
             widget.organizationId,
           ),
           builder: (context, membershipsSnapshot) {
+        if (membershipsSnapshot.hasError) return const Text('Valmisoleku laadimine ebaõnnestus. Kontrolli ühendust.');
+        if (!membershipsSnapshot.hasData) return const LinearProgressIndicator();
             final memberships = membershipsSnapshot.data ??
                 const <QueryDocumentSnapshot<Map<String, dynamic>>>[];
 
@@ -108,6 +121,8 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
                 organizationId: widget.organizationId,
               ),
               builder: (context, availabilitySnapshot) {
+        if (availabilitySnapshot.hasError) return const Text('Valmisoleku laadimine ebaõnnestus. Kontrolli ühendust.');
+        if (!availabilitySnapshot.hasData) return const LinearProgressIndicator();
                 final availabilityByUserId = <String, AvailabilityModel>{
                   for (final availability in availabilitySnapshot.data ??
                       const <AvailabilityModel>[])
@@ -121,12 +136,16 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
                     organizationId: widget.organizationId,
                   ),
                   builder: (context, periodsSnapshot) {
+        if (periodsSnapshot.hasError) return const Text('Valmisoleku laadimine ebaõnnestus. Kontrolli ühendust.');
+        if (!periodsSnapshot.hasData) return const LinearProgressIndicator();
                     return StreamBuilder<List<PlannedUnavailabilityRuleModel>>(
                       stream:
                           _plannedUnavailabilityService.streamOrganizationRules(
                         organizationId: widget.organizationId,
                       ),
                       builder: (context, rulesSnapshot) {
+        if (rulesSnapshot.hasError) return const Text('Valmisoleku laadimine ebaõnnestus. Kontrolli ühendust.');
+        if (!rulesSnapshot.hasData) return const LinearProgressIndicator();
                         final now = DateTime.now();
                         final periods = periodsSnapshot.data ??
                             const <PlannedUnavailabilityModel>[];
@@ -249,6 +268,7 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
           return const _PreviewLoadingCard();
         }
 
+        if (snapshot.hasError) return const AppSectionCard(child: Text('Väljakutse laadimine ebaõnnestus. Kontrolli ühendust.'));
         final callouts = snapshot.data ?? const <CalloutModel>[];
         if (callouts.isEmpty) {
           return const _EmptyPreviewCard(
@@ -284,7 +304,7 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
               ),
               const SizedBox(height: 16),
               Text(
-                callout.title,
+            '${CalloutType.label(callout.calloutType)} · ${callout.title}',
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
               if (callout.location.isNotEmpty) ...[
@@ -306,12 +326,12 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
               const SizedBox(height: 14),
               SizedBox(
                 width: double.infinity,
-                height: AppTheme.primaryActionHeight,
+
                 child: ElevatedButton.icon(
-                  onPressed: widget.onOpenCallouts,
+                  onPressed: () => widget.onOpenCallout(callout.id),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.activeCallout,
-                    foregroundColor: Colors.white,
+                    foregroundColor: AppColors.background,
                     shape: RoundedRectangleBorder(
                       borderRadius:
                           BorderRadius.circular(AppTheme.controlRadius),
@@ -406,7 +426,7 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
                     activity.type == ActivityType.training
                         ? Icons.school_outlined
                         : Icons.event_outlined,
-                    color: Colors.white,
+                    color: AppColors.background,
                   ),
                 ),
                 const SizedBox(width: 14),

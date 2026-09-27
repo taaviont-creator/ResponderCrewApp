@@ -1,28 +1,28 @@
 import 'package:flutter/material.dart';
 
 abstract final class AppColors {
-  static const Color navy = Color(0xFF001E40);
-  static const Color deepSeaBlue = Color(0xFF003366);
-  static const Color actionBlue = Color(0xFF1F477B);
-  static const Color background = Color(0xFFF9FAFF);
-  static const Color surface = Color(0xFFFFFFFF);
-  static const Color surfaceBlue = Color(0xFFF0F3FF);
-  static const Color surfaceBlueStrong = Color(0xFFE2E8F8);
-  static const Color border = Color(0xFFC3C6D1);
-  static const Color textPrimary = Color(0xFF151C27);
-  static const Color textSecondary = Color(0xFF43474F);
-  static const Color ready = Color(0xFF2E7D32);
-  static const Color readySurface = Color(0xFFE7F5E8);
-  static const Color offDuty = Color(0xFF6B7280);
-  static const Color offDutySurface = Color(0xFFF0F1F3);
-  static const Color delayed = Color(0xFFB45309);
-  static const Color delayedSurface = Color(0xFFFFF3D6);
-  static const Color activeCallout = Color(0xFFC8171E);
-  static const Color activeCalloutSurface = Color(0xFFFFE1DE);
-  static const Color equipmentWarning = Color(0xFFD97706);
-  static const Color equipmentWarningSurface = Color(0xFFFFF1D6);
-  static const Color critical = Color(0xFFB91C1C);
-  static const Color criticalSurface = Color(0xFFFFDAD6);
+  static const Color navy = Color(0xFFD6E3FE);
+  static const Color deepSeaBlue = Color(0xFF4CD6FB);
+  static const Color actionBlue = Color(0xFF4CD6FB);
+  static const Color background = Color(0xFF061426);
+  static const Color surface = Color(0xFF0E1C2F);
+  static const Color surfaceBlue = Color(0xFF132033);
+  static const Color surfaceBlueStrong = Color(0xFF1D2A3E);
+  static const Color border = Color(0xFF3D494D);
+  static const Color textPrimary = Color(0xFFD6E3FE);
+  static const Color textSecondary = Color(0xFFBCC9CE);
+  static const Color ready = Color(0xFF6BD8CB);
+  static const Color readySurface = Color(0xFF123C3A);
+  static const Color offDuty = Color(0xFFBCC9CE);
+  static const Color offDutySurface = Color(0xFF28354A);
+  static const Color delayed = Color(0xFFFFB690);
+  static const Color delayedSurface = Color(0xFF4A2A17);
+  static const Color activeCallout = Color(0xFFFFB690);
+  static const Color activeCalloutSurface = Color(0xFF4A2A17);
+  static const Color equipmentWarning = Color(0xFFFFB690);
+  static const Color equipmentWarningSurface = Color(0xFF4A2A17);
+  static const Color critical = Color(0xFFFFB4AB);
+  static const Color criticalSurface = Color(0xFF572226);
 }
 
 abstract final class AppTheme {
@@ -34,10 +34,12 @@ abstract final class AppTheme {
   static const double minimumTouchTarget = 48;
   static const double primaryActionHeight = 56;
 
-  static ThemeData get light {
-    const colorScheme = ColorScheme.light(
+  static ThemeData get light => maritime;
+
+  static ThemeData get maritime {
+    const colorScheme = ColorScheme.dark(
       primary: AppColors.deepSeaBlue,
-      onPrimary: Colors.white,
+      onPrimary: AppColors.background,
       primaryContainer: AppColors.surfaceBlueStrong,
       onPrimaryContainer: AppColors.navy,
       secondary: Color(0xFF526069),
@@ -45,11 +47,11 @@ abstract final class AppTheme {
       secondaryContainer: Color(0xFFD3E2ED),
       onSecondaryContainer: Color(0xFF0F1D25),
       tertiary: AppColors.ready,
-      onTertiary: Colors.white,
+      onTertiary: AppColors.background,
       error: AppColors.critical,
-      onError: Colors.white,
+      onError: AppColors.background,
       errorContainer: AppColors.criticalSurface,
-      onErrorContainer: Color(0xFF93000A),
+      onErrorContainer: AppColors.critical,
       surface: AppColors.surface,
       onSurface: AppColors.textPrimary,
       outline: Color(0xFF737780),
@@ -119,6 +121,7 @@ abstract final class AppTheme {
 
     return ThemeData(
       useMaterial3: true,
+      brightness: Brightness.dark,
       colorScheme: colorScheme,
       scaffoldBackgroundColor: AppColors.background,
       textTheme: textTheme,
@@ -180,7 +183,7 @@ abstract final class AppTheme {
         style: ElevatedButton.styleFrom(
           minimumSize: const Size(0, minimumTouchTarget),
           backgroundColor: AppColors.deepSeaBlue,
-          foregroundColor: Colors.white,
+          foregroundColor: AppColors.background,
           disabledBackgroundColor: AppColors.surfaceBlueStrong,
           disabledForegroundColor: AppColors.offDuty,
           elevation: 1,
@@ -210,12 +213,12 @@ abstract final class AppTheme {
       ),
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
         backgroundColor: AppColors.deepSeaBlue,
-        foregroundColor: Colors.white,
+        foregroundColor: AppColors.background,
         elevation: 4,
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        backgroundColor: AppColors.navy,
+        backgroundColor: AppColors.surfaceBlueStrong,
         contentTextStyle: textTheme.bodyMedium?.copyWith(color: Colors.white),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(controlRadius),

@@ -81,6 +81,13 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
     OperationLogModel log,
     String status,
   ) async {
+    final confirmed = await showDialog<bool>(context: context, builder: (context) => AlertDialog(
+      title: const Text('Kinnita logi staatus'),
+      content: Text('Kas registreerid staatuse „${_operationLogStatusLabel(status)}”? Salvestatakse praegune aeg ja võimalusel asukoht.'),
+      actions: [TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Katkesta')),
+        FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Kinnita'))],
+    ));
+    if (confirmed != true || !mounted) return;
     try {
       final location = await _tryGetCurrentEventLocation();
       await _operationLogService.updateLogStatus(
@@ -251,14 +258,18 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
 
   Future<void> _handleQuickAction(OperationLogModel log, String action) async {
     switch (action) {
-      case 'Sõitsin välja':
+      case 'Väljasõit':
         await _updateStatus(log, OperationLogStatus.enRoute);
         break;
-      case 'Kohal':
+      case 'Sündmuskohal':
         await _updateStatus(log, OperationLogStatus.onScene);
         break;
       case 'Otsing algas':
         await _updateStatus(log, OperationLogStatus.inProgress);
+        break;
+      case 'Side peetud':
+      case 'Pukseerimine alustatud':
+        await _addQuickAction(log, action);
         break;
       case 'Kannatanu leitud':
         await _addQuickAction(log, 'Kannatanu leitud');
@@ -269,7 +280,7 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
       case 'Tagasi':
         await _addQuickAction(log, 'Tagasi');
         break;
-      case 'Baasis':
+      case 'Tagasi baasis':
         await _updateStatus(log, OperationLogStatus.returnedToBase);
         break;
       case 'Muu':
@@ -521,13 +532,15 @@ class _OperationLogCard extends StatefulWidget {
 
 class _OperationLogCardState extends State<_OperationLogCard> {
   static const _quickActions = [
-    'Sõitsin välja',
-    'Kohal',
+    'Väljasõit',
+    'Sündmuskohal',
     'Otsing algas',
     'Kannatanu leitud',
+    'Side peetud',
+    'Pukseerimine alustatud',
     'Sündmus lõpetatud',
     'Tagasi',
-    'Baasis',
+    'Tagasi baasis',
     'Muu',
   ];
 
@@ -571,13 +584,14 @@ class _OperationLogCardState extends State<_OperationLogCard> {
     }
 
     switch (action) {
-      case 'Sõitsin välja':
+      case 'Väljasõit':
         return normalizedStatus == OperationLogStatus.open;
-      case 'Kohal':
+      case 'Sündmuskohal':
         return normalizedStatus == OperationLogStatus.open ||
             normalizedStatus == OperationLogStatus.enRoute;
       case 'Otsing algas':
         return normalizedStatus == OperationLogStatus.onScene;
+      case 'Pukseerimine alustatud':
       case 'Kannatanu leitud':
         return normalizedStatus == OperationLogStatus.onScene ||
             normalizedStatus == OperationLogStatus.inProgress;
@@ -585,7 +599,7 @@ class _OperationLogCardState extends State<_OperationLogCard> {
         return normalizedStatus != OperationLogStatus.completed &&
             normalizedStatus != OperationLogStatus.returnedToBase;
       case 'Tagasi':
-      case 'Baasis':
+      case 'Tagasi baasis':
         return normalizedStatus == OperationLogStatus.completed;
       default:
         return true;
@@ -695,18 +709,18 @@ class _OperationLogCardState extends State<_OperationLogCard> {
       const SizedBox(height: 4),
       LayoutBuilder(
         builder: (context, constraints) {
-          final buttonWidth = constraints.maxWidth >= 360
+          final buttonWidth = constraints.maxWidth >= 480 && MediaQuery.textScalerOf(context).scale(14) <= 18
               ? (constraints.maxWidth - 8) / 2
               : constraints.maxWidth;
 
           return Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: _quickActions.map((title) {
+            children: _quickActions.where((title) => _isQuickActionEnabled(log, title)).map((title) {
               final enabled = _isQuickActionEnabled(log, title);
-              return SizedBox(
+              return Container(
                 width: buttonWidth,
-                height: 52,
+                constraints: const BoxConstraints(minHeight: 52),
                 child: ElevatedButton.icon(
                   onPressed: enabled
                       ? () => widget.onHandleQuickAction(log, title)
@@ -714,7 +728,7 @@ class _OperationLogCardState extends State<_OperationLogCard> {
                   icon: Icon(_quickActionIcon(title), size: 20),
                   label: Text(
                     title,
-                    maxLines: 2,
+                    softWrap: true,
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -867,9 +881,9 @@ class _OperationLogCardState extends State<_OperationLogCard> {
 
   IconData _quickActionIcon(String action) {
     switch (action) {
-      case 'Sõitsin välja':
+      case 'Väljasõit':
         return Icons.directions_boat_outlined;
-      case 'Kohal':
+      case 'Sündmuskohal':
         return Icons.place_outlined;
       case 'Otsing algas':
         return Icons.search;
@@ -879,7 +893,7 @@ class _OperationLogCardState extends State<_OperationLogCard> {
         return Icons.check_circle_outline;
       case 'Tagasi':
         return Icons.keyboard_return;
-      case 'Baasis':
+      case 'Tagasi baasis':
         return Icons.home_outlined;
       case 'Muu':
         return Icons.more_horiz;
@@ -1023,7 +1037,7 @@ String _operationLogStatusLabel(String status) {
   const labels = {
     OperationLogStatus.open: 'Avatud',
     OperationLogStatus.enRoute: 'Teel',
-    OperationLogStatus.onScene: 'Kohal',
+    OperationLogStatus.onScene: 'Sündmuskohal',
     OperationLogStatus.inProgress: 'Tegevuses',
     OperationLogStatus.completed: 'Lõpetatud',
     OperationLogStatus.returnedToBase: 'Baasis tagasi',
@@ -1035,7 +1049,7 @@ String _operationLogStatusLabel(String status) {
     case OperationLogStatus.departed:
       return 'Väljasõit';
     case OperationLogStatus.arrived:
-      return 'Kohal';
+      return 'Sündmuskohal';
     case OperationLogStatus.inProgress:
       return 'Tegevus käib';
     case OperationLogStatus.completed:

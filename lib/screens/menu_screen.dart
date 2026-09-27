@@ -27,8 +27,12 @@ class MenuScreen extends StatelessWidget {
     required this.canStartOperationLog,
     required this.onOpenOrganizationSettings,
     this.onSwitchOrganization,
+    this.onOpenAvailability,
+    this.onOpenNotifications,
   });
 
+  final VoidCallback? onOpenAvailability;
+  final VoidCallback? onOpenNotifications;
   final String organizationId;
   final String? organizationName;
   final String currentUid;
@@ -55,7 +59,7 @@ class MenuScreen extends StatelessWidget {
     final canManageEquipment = isPlatformAdmin || isOrganizationAdmin;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Menüü')),
+      appBar: AppBar(title: const Text('Veel')),
       body: ListView(
         padding: const EdgeInsets.all(AppTheme.screenPadding),
         children: [
@@ -73,6 +77,10 @@ class MenuScreen extends StatelessWidget {
                 ),
           ),
           const PendingInvitesSection(),
+          if (onOpenAvailability != null) _MenuEntry(icon: Icons.health_and_safety_outlined,
+            title: 'Valmisolek ja planeerimine', subtitle: 'Valvesolek ja planeeritud puudumised', onTap: onOpenAvailability!),
+          if (onOpenNotifications != null) _MenuEntry(icon: Icons.notifications_outlined,
+            title: 'Teavitused', subtitle: 'Ühingu teated', onTap: onOpenNotifications!),
           const SizedBox(height: AppTheme.sectionSpacing),
           _MenuEntry(
             icon: Icons.person_outline,
