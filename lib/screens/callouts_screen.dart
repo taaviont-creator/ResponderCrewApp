@@ -76,10 +76,10 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Väljakutse on mõeldud reageerimisvalmis liikmetele. '
-                  'Liikmed saavad anda kiire vastuse: Tulen, Hilinen või '
-                  'Ei tule.\n'
-                  'Sündmuse op-logi saab avada väljakutse detailist.',
+                  'Väljakutse teavitus saadetakse ühingu aktiivsetele '
+                  'liikmetele. Liikmed saavad anda kiire vastuse: Tulen, '
+                  'Hilinen või Ei tule.\n'
+                  'Sündmuse operatsioonilogi saab avada väljakutse detailist.',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppColors.textSecondary,
                       ),
