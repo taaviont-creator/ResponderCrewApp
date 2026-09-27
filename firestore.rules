@@ -1183,13 +1183,17 @@ service cloud.firestore {
         type == 'other';
     }
 
-    function isValidOperationLogStatus(status) {
+    function isCanonicalOperationLogStatus(status) {
       return status == 'open' ||
         status == 'enRoute' ||
         status == 'onScene' ||
         status == 'inProgress' ||
         status == 'completed' ||
-        status == 'returnedToBase' ||
+        status == 'returnedToBase';
+    }
+
+    function isValidOperationLogStatus(status) {
+      return isCanonicalOperationLogStatus(status) ||
         status == 'created' ||
         status == 'departed' ||
         status == 'arrived';
@@ -1197,6 +1201,39 @@ service cloud.firestore {
 
     function operationLogStatusFromData(data) {
       return data.keys().hasAny(['status']) ? data.status : 'open';
+    }
+
+    function isValidOperationLogTransition(currentStatus, nextStatus) {
+      return (
+          (currentStatus == 'open' || currentStatus == 'created') &&
+          (
+            nextStatus == 'enRoute' ||
+            nextStatus == 'onScene' ||
+            nextStatus == 'completed'
+          )
+        ) ||
+        (
+          (currentStatus == 'enRoute' || currentStatus == 'departed') &&
+          (
+            nextStatus == 'onScene' ||
+            nextStatus == 'completed'
+          )
+        ) ||
+        (
+          (currentStatus == 'onScene' || currentStatus == 'arrived') &&
+          (
+            nextStatus == 'inProgress' ||
+            nextStatus == 'completed'
+          )
+        ) ||
+        (
+          currentStatus == 'inProgress' &&
+          nextStatus == 'completed'
+        ) ||
+        (
+          currentStatus == 'completed' &&
+          nextStatus == 'returnedToBase'
+        );
     }
 
     function isValidCoordinateNumber(value, minValue, maxValue) {
@@ -1299,10 +1336,14 @@ service cloud.firestore {
         request.resource.data.id == resource.data.id &&
         request.resource.data.id == logId &&
         request.resource.data.status is string &&
-        isValidOperationLogStatus(request.resource.data.status) &&
+        isCanonicalOperationLogStatus(request.resource.data.status) &&
         (
           !resource.data.keys().hasAny(['status']) ||
           request.resource.data.status != resource.data.status
+        ) &&
+        isValidOperationLogTransition(
+          operationLogStatusFromData(resource.data),
+          request.resource.data.status
         ) &&
         request.resource.data.updatedAt == request.time &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
