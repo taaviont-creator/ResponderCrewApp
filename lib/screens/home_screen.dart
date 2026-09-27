@@ -1288,11 +1288,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       ? commandName!.trim()
                       : 'Nimi puudub',
                 ),
-                subtitle: Text(
-                  hasOrganization
-                      ? 'Ühingu ID: $organizationId'
-                      : 'Ühingu ID puudub',
-                ),
               ),
               if (hasJoinCode) ...[
                 const Divider(height: 1),
