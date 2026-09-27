@@ -6,6 +6,7 @@ import '../models/callout_model.dart';
 import '../models/equipment_model.dart';
 import '../models/membership_model.dart';
 import '../models/platform_readiness_model.dart';
+import '../models/response_readiness.dart';
 import '../models/planned_unavailability_model.dart';
 import '../models/planned_unavailability_rule_model.dart';
 import '../services/availability_service.dart';
@@ -198,8 +199,6 @@ class AdminHomeDashboard extends StatelessWidget {
                             summaries.isEmpty ? null : summaries.first;
                         final minimumCrewRequired =
                             summary?.minimumCrewRequired ?? 0;
-                        final minimumCrewMet = minimumCrewRequired > 0 &&
-                            onDutyCount >= minimumCrewRequired;
 
                         return Column(
                           children: [
@@ -246,7 +245,6 @@ class AdminHomeDashboard extends StatelessWidget {
                             _MinimumCrewCompact(
                               minimumCrewRequired: minimumCrewRequired,
                               onDutyCount: onDutyCount,
-                              minimumCrewMet: minimumCrewMet,
                               secondLevelOnDutyCount:
                                   effectiveOnDutySecondLevelCount,
                             ),
@@ -558,24 +556,23 @@ class _MinimumCrewCompact extends StatelessWidget {
   const _MinimumCrewCompact({
     required this.minimumCrewRequired,
     required this.onDutyCount,
-    required this.minimumCrewMet,
     required this.secondLevelOnDutyCount,
   });
 
   final int minimumCrewRequired;
   final int onDutyCount;
-  final bool minimumCrewMet;
   final int secondLevelOnDutyCount;
 
   @override
   Widget build(BuildContext context) {
-    final secondLevelMet = secondLevelOnDutyCount >= 1;
-    final responseReady = minimumCrewMet && secondLevelMet;
-    final readinessReasons = <String>[
-      if (!minimumCrewMet) 'Miinimumkoosseis puudu',
-      if (secondLevelOnDutyCount < 1) 'II astme liige puudub',
-    ];
-    final color = minimumCrewRequired <= 0
+    final readiness = ResponseReadiness.evaluate(
+      minimumCrewRequired: minimumCrewRequired,
+      onDutyCount: onDutyCount,
+      secondLevelOnDutyCount: secondLevelOnDutyCount,
+    );
+    final responseReady = readiness.isReady;
+    final readinessReasons = readiness.missingRequirements;
+    final color = !readiness.isConfigured
         ? AppColors.textSecondary
         : responseReady
             ? AppColors.ready
