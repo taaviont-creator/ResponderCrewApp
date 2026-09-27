@@ -4,7 +4,6 @@ import '../theme/app_theme.dart';
 import '../widgets/app_section_card.dart';
 import '../widgets/pending_invites_section.dart';
 import 'activities_screen.dart';
-import 'certificates_screen.dart';
 import 'equipment_screen.dart';
 import 'members_screen.dart';
 import 'operation_log_screen.dart';
@@ -147,20 +146,6 @@ class MenuScreen extends StatelessWidget {
                 organizationId: organizationId,
                 currentUid: currentUid,
                 canManageActivities: canCreateActivities,
-              ),
-            ),
-          ),
-          _MenuEntry(
-            icon: Icons.card_membership_outlined,
-            title:
-                isOrganizationAdmin ? 'Tunnistused' : 'Minu tunnistused',
-            subtitle: 'Pädevused ja kehtivusajad',
-            onTap: () => _open(
-              context,
-              CertificatesScreen(
-                organizationId: organizationId,
-                currentUid: currentUid,
-                canManageCertificates: isOrganizationAdmin,
               ),
             ),
           ),

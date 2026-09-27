@@ -1,12 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/certificate_model.dart';
-import '../models/notification_model.dart';
-import 'notification_service.dart';
 
 class CertificateService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final NotificationService _notificationService = NotificationService();
 
   CollectionReference<Map<String, dynamic>> get _certificates =>
       _firestore.collection('certificates');
@@ -74,6 +71,7 @@ class CertificateService {
     required String status,
     required String note,
     required String createdBy,
+    String? certificateId,
   }) async {
     _requireOrganizationId(
       organizationId,
@@ -95,9 +93,13 @@ class CertificateService {
       throw Exception('Unsupported certificate status: $status');
     }
 
-    final doc = _certificates.doc();
+    final parsed = DateTime.tryParse(expiresAt.trim());
+    if (parsed == null || parsed.toIso8601String().substring(0, 10) != expiresAt.trim()) {
+      throw Exception('Sisesta kehtiv kuupäev kujul AAAA-KK-PP.');
+    }
+    final doc = certificateId == null ? _certificates.doc() : _certificates.doc(certificateId);
 
-    await doc.set({
+    final data = <String, dynamic>{
       'id': doc.id,
       'organizationId': organizationId,
       // TODO: Remove commandId after all certificate reads use organizationId.
@@ -111,69 +113,11 @@ class CertificateService {
       'expiresAt': expiresAt.trim(),
       'status': status,
       'note': note.trim(),
-      'createdBy': createdBy,
-      'createdAt': FieldValue.serverTimestamp(),
+      if (certificateId == null) 'createdBy': createdBy,
+      if (certificateId == null) 'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
-    });
-  }
-
-  Future<void> checkExpiryNotifications({
-    required String organizationId,
-    required String createdBy,
-  }) async {
-    _requireOrganizationId(organizationId);
-    final snapshot = await _certificates
-        .where(
-          Filter.or(
-            Filter('organizationId', isEqualTo: organizationId),
-            // TODO: Remove commandId fallback after certificate migration.
-            Filter('commandId', isEqualTo: organizationId),
-          ),
-        )
-        .get();
-    final today = _dateOnly(DateTime.now());
-    final warningLimit = today.add(const Duration(days: 30));
-
-    for (final document in snapshot.docs) {
-      final certificate = CertificateModel.fromFirestore(document);
-      final certificateOrganizationId = certificate.organizationId.isNotEmpty
-          ? certificate.organizationId
-          : certificate.commandId;
-      if (certificateOrganizationId != organizationId) continue;
-
-      final parsedExpiry = DateTime.tryParse(certificate.expiresAt.trim());
-      if (parsedExpiry == null) continue;
-
-      final expiryDate = _dateOnly(parsedExpiry);
-      final isExpired = expiryDate.isBefore(today);
-      final isExpiringSoon =
-          !isExpired && !expiryDate.isAfter(warningLimit);
-      if (!isExpired && !isExpiringSoon) continue;
-
-      final memberName =
-          certificate.userName.trim().isEmpty ? 'Liige' : certificate.userName;
-      final certificateTitle = certificate.title.trim().isEmpty
-          ? 'sertifikaat'
-          : certificate.title;
-      final expiryState = isExpired ? 'expired' : 'expiringSoon';
-
-      await _notificationService.addNotification(
-        organizationId: organizationId,
-        title: isExpired ? 'Sertifikaat aegunud' : 'Sertifikaat aegub',
-        message: isExpired
-            ? '$memberName sertifikaat „$certificateTitle” on aegunud.'
-            : '$memberName sertifikaat „$certificateTitle” aegub varsti.',
-        type: NotificationType.certificate,
-        priority: isExpired
-            ? NotificationPriority.high
-            : NotificationPriority.normal,
-        createdBy: createdBy,
-        relatedType: NotificationType.certificate,
-        relatedId: certificate.id,
-        notificationId: 'certificate_${certificate.id}_$expiryState',
-        createOnlyIfMissing: true,
-      );
-    }
+    };
+    if (certificateId == null) { await doc.set(data); } else { await doc.update(data); }
   }
 
   void _requireOrganizationId(
@@ -184,8 +128,4 @@ class CertificateService {
       throw Exception(message);
     }
   }
-}
-
-DateTime _dateOnly(DateTime value) {
-  return DateTime(value.year, value.month, value.day);
 }

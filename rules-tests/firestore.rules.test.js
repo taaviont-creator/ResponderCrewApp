@@ -816,3 +816,46 @@ test('missing availability read does not grant other-user, other-org, removed or
   await assertFails(getDoc(doc(removedDb, `availability/${memberId}_${organizationId}`)));
   await assertFails(getDoc(doc(testEnv.unauthenticatedContext().firestore(), `availability/${activeMemberId}_${organizationId}`)));
 });
+
+test('organization permits are admin-managed and cannot change organization or creator', async () => {
+  const admin = testEnv.authenticatedContext(orgAdminId).firestore();
+  const member = testEnv.authenticatedContext(activeMemberId).firestore();
+  const data = {id:'permit',organizationId,title:'Raadioside luba',number:'123',issuer:'TTJA',issuedAt:'2026-09-01',expiresAt:'',note:'',createdBy:orgAdminId,createdAt:serverTimestamp(),updatedAt:serverTimestamp()};
+  await assertSucceeds(setDoc(doc(admin,'organizationPermits/permit'),data));
+  await assertSucceeds(getDocs(query(collection(admin,'organizationPermits'),where('organizationId','==',organizationId))));
+  await assertFails(getDoc(doc(member,'organizationPermits/permit')));
+  await assertFails(setDoc(doc(member,'organizationPermits/member'),{...data,id:'member',createdBy:activeMemberId}));
+  await assertSucceeds(updateDoc(doc(admin,'organizationPermits/permit'),{number:'456',updatedAt:serverTimestamp()}));
+  await assertFails(updateDoc(doc(admin,'organizationPermits/permit'),{organizationId:otherOrganizationId,updatedAt:serverTimestamp()}));
+  await assertFails(updateDoc(doc(admin,'organizationPermits/permit'),{createdBy:activeMemberId,updatedAt:serverTimestamp()}));
+  await assertFails(updateDoc(doc(admin,'organizationPermits/permit'),{unexpected:true,updatedAt:serverTimestamp()}));
+  await assertFails(updateDoc(doc(admin,'organizationPermits/permit'),{title:'',updatedAt:serverTimestamp()}));
+});
+
+test('certificate reminders are server-only, recipient-private and can be marked read', async () => {
+  await testEnv.withSecurityRulesDisabled(async context => {
+    await setDoc(doc(context.firestore(),'certificateReminders/reminder'),{id:'reminder',organizationId,commandId:organizationId,recipientUserId:activeMemberId,memberUserId:activeMemberId,title:'Tunnistus aegub'});
+  });
+  const owner = testEnv.authenticatedContext(activeMemberId).firestore();
+  const peer = testEnv.authenticatedContext(targetMemberId).firestore();
+  await assertSucceeds(getDocs(query(collection(owner,'certificateReminders'),where('organizationId','==',organizationId),where('recipientUserId','==',activeMemberId))));
+  await assertFails(getDoc(doc(peer,'certificateReminders/reminder')));
+  await assertFails(getDocs(collection(owner,'certificateReminders')));
+  await assertFails(setDoc(doc(owner,'certificateReminders/forged'),{organizationId,recipientUserId:activeMemberId}));
+  const read = {id:`reminder_${activeMemberId}`,notificationId:'reminder',userId:activeMemberId,organizationId,commandId:organizationId,readAt:serverTimestamp()};
+  await assertSucceeds(setDoc(doc(owner,`notificationReads/${read.id}`),read));
+  await assertFails(setDoc(doc(peer,`notificationReads/reminder_${targetMemberId}`),{...read,id:`reminder_${targetMemberId}`,userId:targetMemberId}));
+});
+
+test('warehouse assignment keeps condition and requires active same-org recipient', async () => {
+  const admin = testEnv.authenticatedContext(orgAdminId).firestore();
+  const member = testEnv.authenticatedContext(activeMemberId).firestore();
+  const ref = doc(admin,'equipment/warehouse');
+  await assertSucceeds(setDoc(ref,{id:'warehouse',organizationId,commandId:organizationId,scope:'organization',storage:'warehouse',name:'Vest',category:'safety',status:'needsMaintenance',location:'Ladu',note:'',createdBy:orgAdminId}));
+  await assertSucceeds(updateDoc(ref,{assignedToUserId:activeMemberId,assignedToName:'Liige',issuedAt:serverTimestamp(),issuedBy:orgAdminId}));
+  require('node:assert/strict').equal((await getDoc(ref)).data().status,'needsMaintenance');
+  await assertFails(updateDoc(doc(member,'equipment/warehouse'),{assignedToUserId:targetMemberId}));
+  await assertFails(updateDoc(ref,{assignedToUserId:otherUserId}));
+  await assertSucceeds(updateDoc(ref,{assignedToUserId:'',assignedToName:'',storage:'warehouse',returnedAt:serverTimestamp(),returnedBy:orgAdminId}));
+  await assertFails(updateDoc(ref,{storage:'invalid'}));
+});

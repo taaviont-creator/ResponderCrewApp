@@ -322,6 +322,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           organizationId: widget.organizationId,
           currentUid: widget.currentUid,
           canManageCertificates: widget.canManageNotifications,
+          targetUserId: notification.memberUserId,
         );
         break;
     }

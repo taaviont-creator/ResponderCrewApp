@@ -13,11 +13,13 @@ class CertificatesScreen extends StatefulWidget {
     required this.organizationId,
     required this.currentUid,
     required this.canManageCertificates,
+    this.targetUserId,
   });
 
   final String organizationId;
   final String currentUid;
   final bool canManageCertificates;
+  final String? targetUserId;
 
   @override
   State<CertificatesScreen> createState() => _CertificatesScreenState();
@@ -27,34 +29,7 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
   final _certificateService = CertificateService();
   final _membershipService = MembershipService();
 
-  @override
-  void initState() {
-    super.initState();
-    if (widget.canManageCertificates) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        _checkExpiryNotifications();
-      });
-    }
-  }
-
-  Future<void> _checkExpiryNotifications() async {
-    try {
-      await _certificateService.checkExpiryNotifications(
-        organizationId: widget.organizationId,
-        createdBy: widget.currentUid,
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Tunnistuste aegumise kontroll ebaõnnestus.'),
-        ),
-      );
-    }
-  }
-
-  Future<void> _showAddCertificateDialog() async {
+  Future<void> _showAddCertificateDialog([CertificateModel? existing]) async {
     if (widget.organizationId.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -74,21 +49,21 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
       return;
     }
 
-    final titleController = TextEditingController();
-    final issuerController = TextEditingController();
-    final issuedAtController = TextEditingController();
-    final expiresAtController = TextEditingController();
-    final noteController = TextEditingController();
+    final titleController = TextEditingController(text: existing?.title);
+    final issuerController = TextEditingController(text: existing?.issuer);
+    final issuedAtController = TextEditingController(text: existing?.issuedAt);
+    final expiresAtController = TextEditingController(text: existing?.expiresAt);
+    final noteController = TextEditingController(text: existing?.note);
     var selectedMember = members.first;
-    var selectedType = CertificateType.other;
-    var selectedStatus = CertificateStatus.valid;
+    var selectedType = existing?.type ?? CertificateType.other;
+    var selectedStatus = existing?.status ?? CertificateStatus.valid;
 
-    final shouldCreate = await showDialog<bool>(
+    final route = DialogRoute<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) {
           return AlertDialog(
-            title: const Text('Lisa tunnistus'),
+            title: Text(existing == null ? 'Lisa tunnistus' : 'Muuda tunnistust'),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -198,8 +173,16 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
                 child: const Text('Katkesta'),
               ),
               ElevatedButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Lisa'),
+                onPressed: () {
+                  final text = expiresAtController.text.trim();
+                  final date = DateTime.tryParse(text);
+                  if (titleController.text.trim().isEmpty || date == null || date.toIso8601String().substring(0, 10) != text) {
+                    ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Sisesta nimetus ja kehtiv aegumiskuupäev kujul AAAA-KK-PP.')));
+                    return;
+                  }
+                  Navigator.pop(context, true);
+                },
+                child: const Text('Salvesta'),
               ),
             ],
           );
@@ -207,27 +190,18 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
       ),
     );
 
-    if (shouldCreate != true) return;
-    if (!mounted) return;
-
+    final shouldCreate = await Navigator.of(context).push(route);
+    await route.completed;
+    if (shouldCreate != true || !mounted) {
+      for (final controller in [titleController, issuerController, issuedAtController, expiresAtController, noteController]) { controller.dispose(); }
+      return;
+    }
     final title = titleController.text.trim();
     final expiresAt = expiresAtController.text.trim();
-    if (title.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nimetus on kohustuslik.')),
-      );
-      return;
-    }
-
-    if (expiresAt.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Aegumiskuupäev on kohustuslik.')),
-      );
-      return;
-    }
 
     try {
       await _certificateService.addCertificate(
+        certificateId: existing?.id,
         organizationId: widget.organizationId,
         userId: selectedMember.uid,
         userName: selectedMember.name,
@@ -240,19 +214,20 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
         note: noteController.text,
         createdBy: widget.currentUid,
       );
-      await _checkExpiryNotifications();
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tunnistus lisatud.')),
+        const SnackBar(content: Text('Tunnistus salvestatud.')),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Tunnistuse lisamine ebaõnnestus.'),
+          content: Text('Tunnistuse salvestamine ebaõnnestus.'),
         ),
       );
+    } finally {
+      for (final controller in [titleController, issuerController, issuedAtController, expiresAtController, noteController]) { controller.dispose(); }
     }
   }
 
@@ -264,7 +239,7 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
     for (final membershipDoc in membershipDocs) {
       final membership = membershipDoc.data();
       final uid = (membership['userId'] ?? '').toString();
-      if (uid.isEmpty) continue;
+      if (uid != (widget.targetUserId ?? widget.currentUid)) continue;
 
       final userSnapshot =
           await FirebaseFirestore.instance.collection('users').doc(uid).get();
@@ -286,14 +261,10 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final certificateStream = widget.canManageCertificates
-        ? _certificateService.streamOrganizationCertificates(
-            organizationId: widget.organizationId,
-          )
-        : _certificateService.streamMyCertificates(
-            organizationId: widget.organizationId,
-            userId: widget.currentUid,
-          );
+    final certificateStream = _certificateService.streamMyCertificates(
+      organizationId: widget.organizationId,
+      userId: widget.targetUserId ?? widget.currentUid,
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -301,7 +272,7 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
       ),
       floatingActionButton: widget.canManageCertificates
           ? FloatingActionButton(
-              onPressed: _showAddCertificateDialog,
+              onPressed: () => _showAddCertificateDialog(),
               child: const Icon(Icons.add),
             )
           : null,
@@ -387,6 +358,7 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       title: Text(certificate.title),
+      trailing: widget.canManageCertificates ? IconButton(tooltip: 'Muuda tunnistust', icon: const Icon(Icons.edit_outlined), onPressed: () => _showAddCertificateDialog(certificate)) : null,
       subtitle: Text(
         widget.canManageCertificates
             ? '${certificate.userName}\n${subtitleParts.join(' - ')}'

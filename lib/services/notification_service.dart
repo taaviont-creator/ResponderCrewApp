@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/notification_model.dart';
 
@@ -17,29 +18,27 @@ class NotificationService {
     required String organizationId,
   }) {
     _requireOrganizationId(organizationId);
-    return _notifications
-        .where(
-          Filter.or(
-            Filter('organizationId', isEqualTo: organizationId),
-            // TODO: Remove commandId fallback after notification migration.
-            Filter('commandId', isEqualTo: organizationId),
-          ),
-        )
-        .snapshots()
-        .map((snapshot) {
-      final notifications =
-          snapshot.docs.map(NotificationModel.fromFirestore).toList();
-
-      notifications.sort((a, b) {
-        final aTime =
-            a.createdAt ?? a.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final bTime =
-            b.createdAt ?? b.updatedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        return bTime.compareTo(aTime);
-      });
-
-      return notifications;
-    });
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final organization = _notifications.where(Filter.or(
+      Filter('organizationId', isEqualTo: organizationId), Filter('commandId', isEqualTo: organizationId))).snapshots();
+    if (uid == null) return Stream.value(const []);
+    final personal = _firestore.collection('certificateReminders').where('organizationId', isEqualTo: organizationId)
+      .where('recipientUserId', isEqualTo: uid).snapshots();
+    late StreamController<List<NotificationModel>> controller;
+    final subscriptions = <StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>[];
+    final latest = <int, List<NotificationModel>>{};
+    void update(int source, QuerySnapshot<Map<String, dynamic>> value) {
+      latest[source] = value.docs.map(NotificationModel.fromFirestore).toList();
+      if (latest.length != 2 || controller.isClosed) return;
+      final all = latest.values.expand((items) => items).toList();
+      all.sort((a, b) => (b.createdAt ?? DateTime(1970)).compareTo(a.createdAt ?? DateTime(1970)));
+      controller.add(all);
+    }
+    controller = StreamController<List<NotificationModel>>(onListen: () {
+      subscriptions.add(organization.listen((value) => update(0, value), onError: controller.addError));
+      subscriptions.add(personal.listen((value) => update(1, value), onError: controller.addError));
+    }, onCancel: () async { for (final subscription in subscriptions) { await subscription.cancel(); } });
+    return controller.stream;
   }
 
   Stream<Set<String>> streamMyReadNotificationIds({

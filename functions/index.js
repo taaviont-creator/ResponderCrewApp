@@ -292,3 +292,9 @@ function isInvalidTokenError(errorCode) {
     errorCode === "messaging/invalid-registration-token"
   );
 }
+const {onSchedule} = require('firebase-functions/v2/scheduler');
+const {createCertificateReminderJob} = require('./certificate-reminders');
+exports.sendCertificateExpiryReminders = onSchedule({
+  schedule: '0 9 * * *', timeZone: 'Europe/Tallinn', region: 'europe-west1',
+  maxInstances: 1, concurrency: 1, timeoutSeconds: 540, memory: '256MiB', retryCount: 0,
+}, createCertificateReminderJob({db, messaging, logger, loadTokens: loadEnabledDeviceTokens}));

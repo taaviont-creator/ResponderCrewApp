@@ -58,6 +58,7 @@ class EquipmentModel {
     required this.nextMaintenanceDate,
     required this.note,
     required this.createdBy,
+    this.storage = 'shared',
     this.assignedToUserId = '',
     this.assignedToName = '',
     this.issuedAt,
@@ -80,6 +81,7 @@ class EquipmentModel {
   final String nextMaintenanceDate;
   final String note;
   final String createdBy;
+  final String storage;
   final String assignedToUserId;
   final String assignedToName;
   final DateTime? issuedAt;
@@ -116,6 +118,7 @@ class EquipmentModel {
       nextMaintenanceDate: _stringValue(data['nextMaintenanceDate']),
       note: _stringValue(data['note']),
       createdBy: _stringValue(data['createdBy']),
+      storage: _stringValue(data['storage'], fallback: 'shared'),
       assignedToUserId: _stringValue(data['assignedToUserId']),
       assignedToName: _stringValue(data['assignedToName']),
       issuedAt: _dateTimeValue(data['issuedAt']),
@@ -141,6 +144,7 @@ class EquipmentModel {
       'nextMaintenanceDate': nextMaintenanceDate,
       'note': note,
       'createdBy': createdBy,
+      'storage': storage,
       'assignedToUserId': assignedToUserId,
       'assignedToName': assignedToName,
       'issuedAt': issuedAt == null ? null : Timestamp.fromDate(issuedAt!),
@@ -151,6 +155,13 @@ class EquipmentModel {
       'updatedAt': updatedAt == null ? null : Timestamp.fromDate(updatedAt!),
     };
   }
+
+  bool appearsIn(String view, String uid) => switch (view) {
+    'warehouse' => !isPersonal && !isAssigned && storage == 'warehouse',
+    'mine' => assignedToUserId == uid || (isPersonal && ownerUserId == uid),
+    'members' => !isPersonal && isAssigned,
+    _ => !isPersonal && !isAssigned && storage != 'warehouse',
+  };
 
   bool get isPersonal => scope == EquipmentScope.personal;
 

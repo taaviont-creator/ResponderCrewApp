@@ -811,10 +811,10 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
           const SizedBox(height: 12),
           _profileSection('Varustus', _buildEquipmentSection(), onOpen: _isOwnProfile ? () => Navigator.push(context,
             MaterialPageRoute<void>(builder: (_) => EquipmentScreen(organizationId: widget.organizationId,
-              currentUid: widget.currentUid, canManageEquipment: widget.canManageRoles))) : null),
+              currentUid: widget.currentUid, canManageEquipment: widget.canManageRoles, initialView: 'mine'))) : null),
           if (_canViewTargetCertificates) _profileSection('Tunnistused', _buildCertificatesSection(),
-            onOpen: _isOwnProfile ? () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => CertificatesScreen(
-              organizationId: widget.organizationId, currentUid: widget.currentUid, canManageCertificates: widget.canManageRoles))) : null),
+            onOpen: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => CertificatesScreen(
+              organizationId: widget.organizationId, currentUid: widget.currentUid, targetUserId: _targetUid, canManageCertificates: widget.canManageRoles)))),
           if (_canViewTargetParticipation) _profileSection('Tegevused ja koolitused', _buildActivityContributionSection(),
             onOpen: _isOwnProfile ? () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => ActivitiesScreen(
               organizationId: widget.organizationId, currentUid: widget.currentUid, canManageActivities: widget.canManageRoles))) : null),
