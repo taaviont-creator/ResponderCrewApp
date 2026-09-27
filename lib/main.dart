@@ -31,7 +31,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'RespondCrew',
-      theme: AppTheme.light,
+      theme: AppTheme.maritime,
       home: const AuthGate(),
     );
   }

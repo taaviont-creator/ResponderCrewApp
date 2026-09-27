@@ -207,6 +207,7 @@ class OperationLogEventModel {
     required this.text,
     required this.description,
     required this.createdBy,
+    this.createdByName = '',
     this.latitude,
     this.longitude,
     this.accuracyMeters,
@@ -223,6 +224,7 @@ class OperationLogEventModel {
   final String text;
   final String description;
   final String createdBy;
+  final String createdByName;
   final double? latitude;
   final double? longitude;
   final double? accuracyMeters;
@@ -247,6 +249,7 @@ class OperationLogEventModel {
       text: _stringValue(data['text'], fallback: _stringValue(data['title'])),
       description: _stringValue(data['description']),
       createdBy: _stringValue(data['createdBy']),
+      createdByName: _stringValue(data['createdByName']),
       latitude: _numberValue(data['latitude']),
       longitude: _numberValue(data['longitude']),
       accuracyMeters: _numberValue(data['accuracyMeters']),

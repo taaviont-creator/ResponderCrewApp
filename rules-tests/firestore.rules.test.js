@@ -726,3 +726,65 @@ test('summary edits remain forbidden for active operations and unauthorized user
     }));
   }
 });
+
+function calloutData(id, extra = {}) {
+  return { id, organizationId, commandId: organizationId, title: 'SAR title does not define type',
+    description: '', location: '', status: 'active', priority: 'normal',
+    createdBy: orgAdminId, createdByName: 'Admin', createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(), closedAt: null, ...extra };
+}
+
+test('TROSS activation succeeds with one unqualified admin and no responders; SAR legacy stays valid', async () => {
+  const org = 'single-member-org';
+  await testEnv.withSecurityRulesDisabled(async context => {
+    const db = context.firestore();
+    await setDoc(doc(db, `commands/${org}`), {createdBy: orgAdminId, status: 'approved', minimumCrewRequired: 3});
+    await setDoc(doc(db, `memberships/${orgAdminId}_${org}`), {
+      ...activeMembership(orgAdminId, org), role: 'orgAdmin', seaRescueLevel: 'none'});
+  });
+  const db = testEnv.authenticatedContext(orgAdminId).firestore();
+  const id = 'solo-tross';
+  await assertSucceeds(setDoc(doc(db, `callouts/${id}`), calloutData(id, {
+    organizationId: org, commandId: org, calloutType: 'tross', responseTargetMinutes: 60})));
+  const saved = (await getDoc(doc(db, `callouts/${id}`))).data();
+  require('node:assert/strict').equal(saved.calloutType, 'tross');
+  require('node:assert/strict').equal(saved.status, 'active');
+  await assertSucceeds(setDoc(doc(db, 'callouts/legacy-sar'), calloutData('legacy-sar')));
+  await assertSucceeds(setDoc(doc(db, 'callouts/new-sar'), calloutData('new-sar', {calloutType: 'sar', responseTargetMinutes: null})));
+});
+
+test('callout policy enforces TROSS target bounds and explicit type independently of title', async () => {
+  const db = testEnv.authenticatedContext(orgAdminId).firestore();
+  for (const [i, extra] of [
+    {calloutType: 'tross'}, {calloutType: 'tross', responseTargetMinutes: 0},
+    {calloutType: 'tross', responseTargetMinutes: 61}, {calloutType: 'tross', responseTargetMinutes: 1.5},
+    {calloutType: 'tross', responseTargetMinutes: '60'}, {calloutType: 'unknown'},
+    {calloutType: 'sar', responseTargetMinutes: 15},
+  ].entries()) await assertFails(setDoc(doc(db, `callouts/invalid-${i}`), calloutData(`invalid-${i}`, extra)));
+  await assertSucceeds(setDoc(doc(db, 'callouts/short-tross'), calloutData('short-tross', {calloutType:'tross', responseTargetMinutes:1})));
+  await assertFails(updateDoc(doc(db, 'callouts/short-tross'), {calloutType:'sar', responseTargetMinutes:null}));
+  const memberDb = testEnv.authenticatedContext(activeMemberId).firestore();
+  await assertFails(setDoc(doc(memberDb, 'callouts/member-tross'), calloutData('member-tross', {
+    createdBy:activeMemberId, calloutType:'tross', responseTargetMinutes:60})));
+});
+
+test('TROSS creates callout, notification and open log atomically; recorded departure remains separate', async () => {
+  const db = testEnv.authenticatedContext(orgAdminId).firestore();
+  const id='batch-tross', logId=`callout_${id}_created`;
+  const batch=writeBatch(db);
+  batch.set(doc(db,`callouts/${id}`),calloutData(id,{calloutType:'tross',responseTargetMinutes:60}));
+  batch.set(doc(db,'notifications/batch-tross'),{id:'batch-tross',organizationId,commandId:organizationId,
+    title:'Väljakutse: TROSSI mereabi',message:'Tehniline rike.',type:'callout',priority:'high',relatedType:'callout',relatedId:id,
+    createdBy:orgAdminId,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
+  batch.set(doc(db,`operationLogs/${logId}`),{id:logId,organizationId,commandId:organizationId,
+    createdBy:orgAdminId,createdByName:'Admin',type:'note',title:'Väljakutse loodud',description:'',status:'open',calloutId:id,
+    timestamp:serverTimestamp(),createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
+  batch.set(doc(db,`operationLogs/${logId}/events/created`),{id:'created',organizationId,commandId:organizationId,
+    operationLogId:logId,type:'statusChange',status:'open',title:'Avatud',description:'',createdBy:orgAdminId,createdByName:'Admin',createdAt:serverTimestamp()});
+  await assertSucceeds(batch.commit());
+  const log=(await getDoc(doc(db,`operationLogs/${logId}`))).data();
+  require('node:assert/strict').equal(log.status,'open');
+  require('node:assert/strict').equal(log.calloutId,id);
+  await assertFails(setDoc(doc(db,'callouts/fake-time'),calloutData('fake-time',{
+    calloutType:'tross',responseTargetMinutes:60,createdAt:new Date('2020-01-01')})));
+});

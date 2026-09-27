@@ -672,7 +672,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               label: Text(label),
               selected: selected,
               onSelected: (_) => setState(() => _selectedFilter = value),
-              selectedColor: AppColors.navy,
+              selectedColor: AppColors.surfaceBlueStrong,
               labelStyle: TextStyle(
                 color: selected ? Colors.white : AppColors.textPrimary,
                 fontWeight: FontWeight.w700,

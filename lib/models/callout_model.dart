@@ -1,5 +1,19 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+class CalloutType {
+  static const sar = 'sar';
+  static const tross = 'tross';
+  static const values = {sar, tross};
+  static String label(String type) => type == tross ? 'TROSSI mereabi' : 'SAR sündmus';
+  static const sarChoices = ['Kadunud isik.', 'Punase raketi vaatlus.', 'Uppumisohus alus.', 'Eksinud alus.', 'Terviserikkega inimene alusel.', 'Muu sündmus.'];
+  static const trossChoices = ['Tehniline rike.', 'Mootoririke.', 'Vajab pukseerimist.', 'Kütus otsas.', 'Käivitusabi.', 'Muu mereabi.'];
+  static List<String> choices(String type) => type == tross ? trossChoices : sarChoices;
+  static bool validTarget(String type, int? minutes) =>
+      values.contains(type) && (type == tross
+          ? minutes != null && minutes >= 1 && minutes <= 60
+          : minutes == null);
+}
+
 class CalloutStatus {
   static const active = 'active';
   static const closed = 'closed';
@@ -55,6 +69,8 @@ class CalloutModel {
     this.createdAt,
     this.updatedAt,
     this.closedAt,
+    this.calloutType = CalloutType.sar,
+    this.responseTargetMinutes,
   });
 
   final String id;
@@ -70,6 +86,8 @@ class CalloutModel {
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final DateTime? closedAt;
+  final String calloutType;
+  final int? responseTargetMinutes;
 
   factory CalloutModel.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> document,
@@ -93,6 +111,8 @@ class CalloutModel {
       createdAt: _dateTimeValue(data['createdAt']),
       updatedAt: _dateTimeValue(data['updatedAt']),
       closedAt: _dateTimeValue(data['closedAt']),
+      calloutType: _stringValue(data['calloutType'], fallback: CalloutType.sar),
+      responseTargetMinutes: _nullableIntValue(data['responseTargetMinutes']),
     );
   }
 
@@ -111,6 +131,8 @@ class CalloutModel {
       'createdAt': createdAt == null ? null : Timestamp.fromDate(createdAt!),
       'updatedAt': updatedAt == null ? null : Timestamp.fromDate(updatedAt!),
       'closedAt': closedAt == null ? null : Timestamp.fromDate(closedAt!),
+      'calloutType': calloutType,
+      'responseTargetMinutes': responseTargetMinutes,
     };
   }
 }
@@ -204,6 +226,7 @@ class CalloutResponseMember {
     required this.displayName,
     required this.response,
     this.isSeaRescueLevel2 = false,
+    this.seaRescueLevel = 'none',
     this.responseMinutes,
     this.respondedAt,
   });
@@ -212,6 +235,7 @@ class CalloutResponseMember {
   final String displayName;
   final String response;
   final bool isSeaRescueLevel2;
+  final String seaRescueLevel;
   final int? responseMinutes;
   final DateTime? respondedAt;
 }

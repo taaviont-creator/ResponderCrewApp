@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/callout_model.dart';
+import '../widgets/create_callout_dialog.dart';
 import '../services/callout_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_section_card.dart';
@@ -59,125 +60,22 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
       return;
     }
 
-    final titleController = TextEditingController();
-    final descriptionController = TextEditingController();
-    final locationController = TextEditingController();
-    var selectedPriority = CalloutPriority.normal;
-    String? titleError;
-
-    final shouldCreate = await showDialog<bool>(
+    final saved = await showDialog<bool>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Lisa väljakutse'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Väljakutse teavitus saadetakse ühingu aktiivsetele '
-                  'liikmetele. Liikmed saavad anda kiire vastuse: Tulen, '
-                  'Hilinen või Ei tule.\n'
-                  'Sündmuse operatsioonilogi saab avada väljakutse detailist.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: titleController,
-                  onChanged: (value) {
-                    if (titleError != null && value.trim().isNotEmpty) {
-                      setDialogState(() {
-                        titleError = null;
-                      });
-                    }
-                  },
-                  decoration: InputDecoration(
-                    labelText: 'Pealkiri *',
-                    errorText: titleError,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: descriptionController,
-                  decoration: const InputDecoration(labelText: 'Kirjeldus'),
-                  maxLines: 3,
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: locationController,
-                  decoration: const InputDecoration(labelText: 'Asukoht'),
-                ),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  initialValue: selectedPriority,
-                  decoration: const InputDecoration(labelText: 'Prioriteet'),
-                  items: CalloutPriority.values.map((priority) {
-                    return DropdownMenuItem<String>(
-                      value: priority,
-                      child: Text(_priorityLabel(priority)),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    if (value == null) return;
-                    setDialogState(() => selectedPriority = value);
-                  },
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Katkesta'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (titleController.text.trim().isEmpty) {
-                  setDialogState(() {
-                    titleError = 'Pealkiri on kohustuslik';
-                  });
-                  return;
-                }
-                Navigator.pop(context, true);
-              },
-              child: const Text('Lisa'),
-            ),
-          ],
-        ),
-      ),
+      barrierDismissible: false,
+      builder: (context) => CreateCalloutDialog(onSave: (draft) =>
+        _calloutService.addCallout(
+          organizationId: widget.organizationId,
+          title: draft.title, description: draft.description,
+          location: draft.location, priority: draft.priority,
+          calloutType: draft.type,
+          responseTargetMinutes: draft.responseTargetMinutes,
+          createdBy: widget.currentUid, createdByName: widget.currentUserName,
+        )),
     );
-
-    if (shouldCreate != true) return;
-
-    final organizationId = widget.organizationId.trim();
-    final title = titleController.text.trim();
-    final description = descriptionController.text.trim();
-    final location = locationController.text.trim();
-    final currentUid = widget.currentUid.trim();
-    final currentUserName = widget.currentUserName.trim();
-
-    try {
-      await _calloutService.addCallout(
-        organizationId: organizationId,
-        title: title,
-        description: description,
-        location: location,
-        priority: selectedPriority,
-        createdBy: currentUid,
-        createdByName: currentUserName,
-      );
-
-      if (!mounted) return;
+    if (saved == true && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Väljakutse lisatud')),
-      );
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Väljakutse lisamine ebaõnnestus.')),
+        const SnackBar(content: Text('Väljakutse aktiveeritud')),
       );
     }
   }
@@ -384,7 +282,7 @@ class _CalloutCard extends StatelessWidget {
               ),
               const SizedBox(height: 14),
               Text(
-                callout.title,
+            '${CalloutType.label(callout.calloutType)} · ${callout.title}',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               if (callout.location.isNotEmpty) ...[

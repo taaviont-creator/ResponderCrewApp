@@ -217,6 +217,7 @@ class CalloutService {
           userId: userId,
           displayName: displayNames[userId] ?? 'Liige',
           response: response?.response ?? CalloutResponseValue.noResponse,
+          seaRescueLevel: SeaRescueLevel.normalize(membershipsByUserId[userId]?['seaRescueLevel']),
           isSeaRescueLevel2: SeaRescueLevel.isLevel2(
             membershipsByUserId[userId]?['seaRescueLevel'],
           ),
@@ -330,6 +331,8 @@ class CalloutService {
   }
 
   Future<void> addCallout({
+    String calloutType = CalloutType.sar,
+    int? responseTargetMinutes,
     required String organizationId,
     required String title,
     required String description,
@@ -359,6 +362,9 @@ class CalloutService {
       throw Exception('Väljakutse prioriteet ei ole toetatud');
     }
 
+    if (!CalloutType.validTarget(calloutType, responseTargetMinutes)) {
+      throw ArgumentError('TROSSI väljasõidu sihtaeg peab olema 1–60 minutit.');
+    }
     final calloutDoc = _callouts.doc();
     final notificationDoc = _notifications.doc();
     final operationLogDoc =
@@ -375,6 +381,8 @@ class CalloutService {
 
     batch.set(calloutDoc, {
       'id': calloutDoc.id,
+      'calloutType': calloutType,
+      'responseTargetMinutes': responseTargetMinutes,
       'organizationId': trimmedOrganizationId,
       // TODO: Remove commandId after all callout reads use organizationId.
       'commandId': trimmedOrganizationId,
@@ -433,6 +441,7 @@ class CalloutService {
       'title': 'Avatud',
       'description': '',
       'createdBy': trimmedCreatedBy,
+      'createdByName': trimmedCreatedByName,
       'createdAt': timestamp,
     });
 

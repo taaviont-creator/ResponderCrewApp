@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../models/callout_model.dart';
+import '../widgets/callout_departure_timing.dart';
 import '../models/operation_log_model.dart';
 import '../services/callout_service.dart';
 import '../services/operation_log_service.dart';
@@ -41,6 +42,9 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
   final _operationLogService = OperationLogService();
   StreamSubscription<CalloutModel?>? _calloutSubscription;
   CalloutModel? _liveCallout;
+  bool _calloutReadFailed = false;
+  late final Stream<OperationLogModel?> _logStream;
+  final _eventStreams = <String, Stream<List<OperationLogEventModel>>>{};
   bool _isSavingResponse = false;
   bool _isUpdatingStatus = false;
   bool _isOpeningOperationLog = false;
@@ -52,6 +56,7 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
   @override
   void initState() {
     super.initState();
+    _logStream = _operationLogService.streamLogForCallout(calloutId: widget.callout.id, organizationId: widget.organizationId);
     _calloutSubscription = _calloutService
         .streamCallout(
           calloutId: widget.callout.id,
@@ -59,7 +64,9 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
         )
         .listen((callout) {
       if (!mounted || callout == null) return;
-      setState(() => _liveCallout = callout);
+      setState(() { _liveCallout = callout; _calloutReadFailed = false; });
+    }, onError: (Object _) {
+      if (mounted) setState(() => _calloutReadFailed = true);
     });
   }
 
@@ -77,12 +84,12 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Hilinen'),
+          title: const Text('Minu saabumisaeg'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Eeldatav hilinemine'),
+              const Text('Sinu hinnanguline saabumine. See ei muuda väljakutse väljasõidu sihtaega.'),
               const SizedBox(height: 12),
               DropdownButtonFormField<int>(
                 initialValue: selectedMinutes,
@@ -300,6 +307,7 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
       body: ListView(
         padding: const EdgeInsets.all(AppTheme.screenPadding),
         children: [
+          if (_calloutReadFailed) const AppSectionCard(child: Text('Väljakutse värskendamine ebaõnnestus. Kuvatakse viimati saadud andmed. Kontrolli ühendust.')),
           _buildOverviewCard(),
           const SizedBox(height: AppTheme.itemSpacing),
           _buildDescriptionCard(),
@@ -329,11 +337,12 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
 
   Widget _buildOperationLogAction() {
     return StreamBuilder<OperationLogModel?>(
-      stream: _operationLogService.streamLogForCallout(
-        calloutId: _callout.id,
-        organizationId: widget.organizationId,
-      ),
+      stream: _logStream,
       builder: (context, snapshot) {
+        if (snapshot.hasError) return const AppSectionCard(child: Text('Logi laadimine ebaõnnestus. Kontrolli ühendust.'));
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+          return const AppSectionCard(child: LinearProgressIndicator());
+        }
         final existingLog = snapshot.data;
         final canOpenOrStart = existingLog != null || widget.canStartOperationLog;
         if (!canOpenOrStart) return const SizedBox.shrink();
@@ -351,6 +360,14 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppColors.textSecondary,
                     ),
+              ),
+              if (existingLog != null) StreamBuilder<List<OperationLogEventModel>>(
+                stream: _eventStreams.putIfAbsent(existingLog.id, () => _operationLogService.streamLogEvents(operationLogId: existingLog.id, organizationId: widget.organizationId)),
+                builder: (context, events) {
+                  if (events.hasError) return const Text('Väljasõidu aega ei õnnestunud laadida.');
+                  if (!events.hasData) return const LinearProgressIndicator();
+                  return CalloutDepartureTiming(callout: _callout, events: events.data!);
+                },
               ),
               const SizedBox(height: 12),
               PrimaryActionButton(
@@ -379,6 +396,10 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
             spacing: 8,
             runSpacing: 8,
             children: [
+              StatusBadge(
+                label: CalloutType.label(_callout.calloutType),
+                type: StatusBadgeType.neutral,
+              ),
               StatusBadge(
                 label: _priorityLabel(_callout.priority),
                 type: _priorityBadgeType(_callout.priority),
@@ -447,6 +468,7 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
           );
         }
 
+        if (snapshot.hasError) return const AppSectionCard(child: Text('Meeskonna vastuste laadimine ebaõnnestus.'));
         final details = snapshot.data;
         if (details == null) {
           return const AppSectionCard(
@@ -506,10 +528,15 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
                         : 'II astme tulija puudub',
                     type: hasSecondLevelComing
                         ? StatusBadgeType.ready
-                        : StatusBadgeType.delayed,
+                        : _callout.calloutType == CalloutType.tross ? StatusBadgeType.neutral : StatusBadgeType.delayed,
                   ),
                 ],
               ),
+              if (_callout.calloutType == CalloutType.tross) ...[
+                const SizedBox(height: 12),
+                Text(comingCount == 0 ? 'Reageerijaid pole veel kinnitatud.' : 'Reageerimine ei kinnita pardalolekut.'),
+                const Text('SAR-i koosseisu- ja astmenõuded TROSSI aktiveerimist ei piira.'),
+              ],
               if (widget.canManageCallouts) ...[
                 const SizedBox(height: 16),
                 _buildMemberGroup('Reageerivad', details.responding),
@@ -553,7 +580,7 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
                     color: _responseColor(member.response),
                   ),
                   const SizedBox(width: 8),
-                  Expanded(child: Text(member.displayName)),
+                  Expanded(child: Text('${member.displayName} · ${member.isSeaRescueLevel2 ? 'II aste' : member.seaRescueLevel == 'level1' ? 'I aste' : 'Aste puudub'}')),
                   if (showDelay && member.responseMinutes != null)
                     Text('${member.responseMinutes} min'),
                 ],
@@ -585,7 +612,7 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              _myResponseLabel(currentResponse, delayedMinutes),
+              _isSavingResponse ? 'Salvestan vastust… Serveri kinnitus on ootel.' : _myResponseLabel(currentResponse, delayedMinutes),
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: AppColors.textSecondary,
                   ),

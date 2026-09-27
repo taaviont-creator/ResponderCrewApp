@@ -89,6 +89,7 @@ class _HomeScreenState extends State<HomeScreen> {
   StreamSubscription<MemberRequestNotification>? _memberRequestSubscription;
   String? _pendingCalloutId;
   var _selectedNavigationIndex = 0;
+  bool _savingAvailability = false;
 
   @override
   void initState() {
@@ -146,7 +147,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!mounted) return;
     setState(() {
       _pendingCalloutId = event.calloutId;
-      _selectedNavigationIndex = 2;
+      _selectedNavigationIndex = 1;
     });
   }
 
@@ -1750,6 +1751,8 @@ class _HomeScreenState extends State<HomeScreen> {
         organizationId: organizationId,
       ),
       builder: (context, snapshot) {
+        if (snapshot.hasError) return const Text('Valmisolekut ei õnnestunud laadida. Kontrolli ühendust.');
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) return const LinearProgressIndicator();
         final availability = snapshot.data;
         final status = availability?.status ?? AvailabilityStatus.offDuty;
         final responseMinutes = availability?.responseMinutes ?? 15;
@@ -1758,6 +1761,8 @@ class _HomeScreenState extends State<HomeScreen> {
           String newStatus, {
           int? minutes,
         }) async {
+          if (_savingAvailability) return;
+          setState(() => _savingAvailability = true);
           try {
             await _availabilityService.setMyAvailability(
               userId: user.uid,
@@ -1769,8 +1774,10 @@ class _HomeScreenState extends State<HomeScreen> {
           } catch (_) {
             if (!context.mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Valmisoleku muutmine ebaõnnestus.')),
+              const SnackBar(content: Text('Valmisoleku muutmine ebaõnnestus. Kontrolli ühendust.')),
             );
+          } finally {
+            if (mounted) setState(() => _savingAvailability = false);
           }
         }
 
@@ -1784,6 +1791,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 organizationId: organizationId,
               ),
               builder: (context, rulesSnapshot) {
+                if (periodsSnapshot.hasError || rulesSnapshot.hasError) return const Text('Planeeritud puudumisi ei õnnestunud laadida. Valmisolekut ei saa kinnitada.');
+                if (!periodsSnapshot.hasData || !rulesSnapshot.hasData) return const LinearProgressIndicator();
                 final now = DateTime.now();
                 final periods = periodsSnapshot.data ??
                     const <PlannedUnavailabilityModel>[];
@@ -1803,6 +1812,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       'Minu valmisolek',
                       style: Theme.of(context).textTheme.labelLarge,
                     ),
+                    if (_savingAvailability) const Text('Salvestan valmisolekut… Serveri kinnitus on ootel.'),
+                    const Text('Üldine valmisolek ei ole väljakutse vastus ega pardalolek.'),
                     if (hasActiveSchedule) ...[
                       const SizedBox(height: 6),
                       const Text(
@@ -1820,27 +1831,27 @@ class _HomeScreenState extends State<HomeScreen> {
                       runSpacing: 8,
                       children: [
                         ChoiceChip(
-                          label: const Text('Ei ole valves'),
+                          label: const Text('Pole saadaval'),
                           selected: status == AvailabilityStatus.offDuty,
-                          onSelected: (_) => updateAvailability(
+                          onSelected: _savingAvailability ? null : (_) => updateAvailability(
                             AvailabilityStatus.offDuty,
                           ),
                         ),
                         ChoiceChip(
-                          label: const Text('Valves'),
+                          label: const Text('Valmis'),
                           selected: !hasActiveSchedule &&
                               status == AvailabilityStatus.onDuty,
-                          onSelected: hasActiveSchedule
+                          onSelected: hasActiveSchedule || _savingAvailability
                               ? null
                               : (_) => updateAvailability(
                                     AvailabilityStatus.onDuty,
                                   ),
                         ),
                         ChoiceChip(
-                          label: const Text('Hilinen'),
+                          label: Text('Saabun $responseMinutes minuti pärast'),
                           selected: !hasActiveSchedule &&
                               status == AvailabilityStatus.delayed,
-                          onSelected: hasActiveSchedule
+                          onSelected: hasActiveSchedule || _savingAvailability
                               ? null
                               : (_) => updateAvailability(
                                     AvailabilityStatus.delayed,
@@ -1869,7 +1880,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ],
                         onChanged: (value) {
-                          if (value == null) return;
+                          if (value == null || _savingAvailability) return;
                           updateAvailability(
                             AvailabilityStatus.delayed,
                             minutes: value,
@@ -2167,14 +2178,32 @@ class _HomeScreenState extends State<HomeScreen> {
                   );
                 }
 
+                void openNotifications() => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => NotificationsScreen(
+                    organizationId: selectedOrganizationId,
+                    currentUid: user.uid,
+                    currentUserName: displayName,
+                    canManageNotifications: permissions.canManageNotifications,
+                    canCreateActivities: permissions.canCreateActivity,
+                    canStartOperationLog: permissions.canStartOperationLog,
+                  )));
+                void openAvailability() => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => AvailabilityScreen(
+                    organizationId: selectedOrganizationId,
+                    organizationName: commandName,
+                    membershipRole: myMembershipRole,
+                    currentUid: user.uid,
+                    currentUserName: displayName,
+                    canViewOrganizationReadiness:
+                        permissions.canViewOrganizationReadiness,
+                  )));
                 final homeContent = Scaffold(
                   appBar: AppBar(
                     title: const Text('RespondCrew'),
-                    actions: _buildAppBarActions(
+                    actions: [IconButton(tooltip: 'Teavitused', icon: const Icon(Icons.notifications_outlined), onPressed: openNotifications),
+                    ..._buildAppBarActions(
                       membershipDocs: membershipDocs,
                       currentActiveCommandId: selectedOrganizationId,
                       currentCommandName: commandName,
-                    ),
+                    )],
                   ),
                   body: permissions.canManageOrganization
                       ? AdminHomeDashboard(
@@ -2241,8 +2270,10 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             );
                           },
+                          onOpenMembers: () => setState(() => _selectedNavigationIndex = 2),
+                          onOpenCallout: (id) => setState(() { _pendingCalloutId = id; _selectedNavigationIndex = 1; }),
                           onOpenCallouts: () {
-                            setState(() => _selectedNavigationIndex = 2);
+                            setState(() => _selectedNavigationIndex = 1);
                           },
                           onOpenEquipment: () {
                             Navigator.push(
@@ -2258,7 +2289,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             );
                           },
                           onOpenNotifications: () {
-                            setState(() => _selectedNavigationIndex = 3);
+                            openNotifications();
                           },
                         )
                       : MemberHomeDashboard(
@@ -2278,11 +2309,13 @@ class _HomeScreenState extends State<HomeScreen> {
                               compact: true,
                             ),
                           ),
+                          onOpenMembers: () => setState(() => _selectedNavigationIndex = 2),
+                          onOpenCallout: (id) => setState(() { _pendingCalloutId = id; _selectedNavigationIndex = 1; }),
                           onOpenCallouts: () {
-                            setState(() => _selectedNavigationIndex = 2);
+                            setState(() => _selectedNavigationIndex = 1);
                           },
                           onOpenNotifications: () {
-                            setState(() => _selectedNavigationIndex = 3);
+                            openNotifications();
                           },
                           onOpenActivities: () {
                             Navigator.push(
@@ -2302,15 +2335,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 final screens = <Widget>[
                   homeContent,
-                  AvailabilityScreen(
-                    organizationId: selectedOrganizationId,
-                    organizationName: commandName,
-                    membershipRole: myMembershipRole,
-                    currentUid: user.uid,
-                    currentUserName: displayName,
-                    canViewOrganizationReadiness:
-                        permissions.canViewOrganizationReadiness,
-                  ),
                   CalloutsScreen(
                     organizationId: selectedOrganizationId,
                     currentUid: user.uid,
@@ -2324,15 +2348,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       setState(() => _pendingCalloutId = null);
                     },
                   ),
-                  NotificationsScreen(
-                    organizationId: selectedOrganizationId,
-                    currentUid: user.uid,
-                    currentUserName: displayName,
-                    canManageNotifications: permissions.canManageNotifications,
-                    canCreateActivities: permissions.canCreateActivity,
-                    canStartOperationLog: permissions.canStartOperationLog,
-                  ),
+                  MembersScreen(organizationId: selectedOrganizationId,
+                    currentUid: user.uid, canManageRoles: permissions.canManageMembers),
+                  EquipmentScreen(organizationId: selectedOrganizationId,
+                    currentUid: user.uid, canManageEquipment: permissions.canManageOrganizationEquipment),
                   MenuScreen(
+                    onOpenAvailability: openAvailability,
+                    onOpenNotifications: openNotifications,
                     organizationId: selectedOrganizationId,
                     organizationName: commandName,
                     currentUid: user.uid,

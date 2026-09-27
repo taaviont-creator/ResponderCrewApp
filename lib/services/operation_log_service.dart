@@ -170,6 +170,7 @@ class OperationLogService {
       'title': _operationLogStatusLabel(OperationLogStatus.open),
       'description': '',
       'createdBy': createdBy,
+        'createdByName': _auth.currentUser?.displayName ?? '',
       'createdAt': FieldValue.serverTimestamp(),
     });
 
@@ -250,6 +251,7 @@ class OperationLogService {
       'title': _operationLogStatusLabel(OperationLogStatus.open),
       'description': '',
       'createdBy': createdBy,
+        'createdByName': _auth.currentUser?.displayName ?? '',
       'createdAt': FieldValue.serverTimestamp(),
     });
 
@@ -319,6 +321,7 @@ class OperationLogService {
         'title': _operationLogStatusLabel(status),
         'description': '',
         'createdBy': updatedBy,
+        'createdByName': _auth.currentUser?.displayName ?? '',
         if (hasValidLocation) 'latitude': latitude,
         if (hasValidLocation) 'longitude': longitude,
         if (shouldSaveAccuracy) 'accuracyMeters': accuracyMeters,
@@ -386,6 +389,7 @@ class OperationLogService {
         if (type == OperationLogEventType.manualNote) 'text': trimmedTitle,
         'description': '',
         'createdBy': createdBy,
+        'createdByName': _auth.currentUser?.displayName ?? '',
         if (hasValidLocation) 'latitude': latitude,
         if (hasValidLocation) 'longitude': longitude,
         if (shouldSaveAccuracy) 'accuracyMeters': accuracyMeters,
@@ -455,6 +459,7 @@ class OperationLogService {
         'title': 'Lõppkokkuvõte salvestatud',
         'description': trimmedOutcome,
         'createdBy': completedBy,
+        'createdByName': _auth.currentUser?.displayName ?? '',
         'createdAt': FieldValue.serverTimestamp(),
       });
     });
