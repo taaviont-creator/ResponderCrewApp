@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../models/callout_model.dart';
-import '../widgets/vessel_status_card.dart';
 import '../widgets/crew_readiness_card.dart';
 import '../models/equipment_model.dart';
 import '../services/callout_service.dart';
@@ -58,9 +57,7 @@ class AdminHomeDashboard extends StatelessWidget {
         const SizedBox(height: 16),
         _buildActiveCallouts(),
         const SizedBox(height: 16),
-        VesselStatusCard(organizationId: organizationId),
-        const SizedBox(height: 16),
-        _SectionTitle(title: 'Varustuse hoiatused', onOpen: onOpenEquipment),
+        _SectionTitle(title: 'Alused ja varustus', onOpen: onOpenEquipment),
         const SizedBox(height: 8),
         _buildEquipmentAlerts(),
         const SizedBox(height: 16),
@@ -79,11 +76,11 @@ class AdminHomeDashboard extends StatelessWidget {
           return const _PreviewLoadingCard();
         }
 
-        if (snapshot.hasError) return const AppSectionCard(child: Text('Varustuse hoiatusi ei õnnestunud laadida.'));
+        if (snapshot.hasError) return const AppSectionCard(child: Text('Aluste ja varustuse seisundit ei õnnestunud laadida.'));
         final alerts = (snapshot.data ?? const <EquipmentModel>[])
             .where(
               (item) =>
-                  !item.isPersonal && item.status != EquipmentStatus.ok,
+                  !item.isPersonal && (item.category == EquipmentCategory.vessel || item.status != EquipmentStatus.ok),
             )
             .toList();
 
@@ -96,17 +93,18 @@ class AdminHomeDashboard extends StatelessWidget {
 
         return AppSectionCard(
           padding: EdgeInsets.zero,
-          accentColor: AppColors.equipmentWarning,
+          accentColor: alerts.any((item) => item.status != EquipmentStatus.ok)
+              ? AppColors.equipmentWarning : null,
           child: Column(
             children: [
               for (var index = 0;
-                  index < alerts.length && index < 2;
+                  index < alerts.length;
                   index++) ...[
                 _EquipmentAlertTile(
                   item: alerts[index],
                   onTap: onOpenEquipment,
                 ),
-                if (index < alerts.length - 1 && index < 1)
+                if (index < alerts.length - 1)
                   const Divider(height: 1),
               ],
             ],
@@ -318,12 +316,19 @@ class _EquipmentAlertTile extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 12),
-            StatusBadge(
-              label: isCritical ? 'KRIITILINE' : 'VAJAB HOOLDUST',
+            Flexible(child: StatusBadge(
+              label: switch (item.status) {
+                EquipmentStatus.ok => 'Korras',
+                EquipmentStatus.needsMaintenance => 'Vajab hooldust',
+                EquipmentStatus.broken => 'Rikkis',
+                EquipmentStatus.outOfService => 'Kasutusest väljas',
+                _ => 'Seisund teadmata',
+              },
               type: isCritical
                   ? StatusBadgeType.critical
-                  : StatusBadgeType.equipmentWarning,
-            ),
+                  : item.status == EquipmentStatus.ok
+                      ? StatusBadgeType.ready : StatusBadgeType.equipmentWarning,
+            )),
           ],
         ),
       ),
