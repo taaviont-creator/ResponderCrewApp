@@ -1138,6 +1138,7 @@ service cloud.firestore {
         data.note is string &&
         data.createdBy is string &&
         hasValidOrganizationReference(data) &&
+        (!data.keys().hasAny(['storage']) || data.storage in ['shared', 'warehouse']) &&
         hasValidEquipmentOwnership(data) &&
         hasValidEquipmentAssignment(data) &&
         isValidEquipmentCategory(data.category) &&
@@ -1985,10 +1986,11 @@ service cloud.firestore {
     }
 
     function notificationOrganizationMatches(notificationId, data) {
-      return notificationExists(notificationId) &&
-        organizationIdFromData(
-          get(/databases/$(database)/documents/notifications/$(notificationId)).data
-        ) == organizationIdFromData(data);
+      let reminderPath = /databases/$(database)/documents/certificateReminders/$(notificationId);
+      return (notificationExists(notificationId) &&
+        organizationIdFromData(get(/databases/$(database)/documents/notifications/$(notificationId)).data) == organizationIdFromData(data)) ||
+        (exists(reminderPath) && get(reminderPath).data.recipientUserId == request.auth.uid &&
+          get(reminderPath).data.organizationId == organizationIdFromData(data));
     }
 
     function isValidNotificationReadData(data) {
@@ -2625,6 +2627,32 @@ service cloud.firestore {
         isActivityParticipationConfirmationCreate(participantId);
       allow update: if isOwnActivityParticipationUpdate(participantId) ||
         isActivityParticipationConfirmationUpdate(participantId);
+    }
+
+    // Organization permits: private to administrators; no member qualification ownership.
+    function validOrganizationPermit(data, id) {
+      return data.keys().hasAll(['id', 'organizationId', 'title', 'number', 'issuer', 'issuedAt', 'expiresAt', 'note', 'createdBy', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'organizationId', 'title', 'number', 'issuer', 'issuedAt', 'expiresAt', 'note', 'createdBy', 'createdAt', 'updatedAt']) &&
+        data.id == id && data.organizationId is string &&
+        data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+        data.number is string && data.number.size() <= 200 && data.issuer is string && data.issuer.size() <= 200 &&
+        data.issuedAt is string && (data.issuedAt == '' || data.issuedAt.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')) &&
+        data.expiresAt is string && (data.expiresAt == '' || data.expiresAt.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')) &&
+        data.note is string && data.note.size() <= 2000 && data.createdBy is string &&
+        data.createdAt is timestamp && data.updatedAt == request.time;
+    }
+    match /organizationPermits/{permitId} {
+      allow read: if signedIn() && isActiveOrgAdmin(resource.data.organizationId);
+      allow create: if signedIn() && isActiveOrgAdmin(request.resource.data.organizationId) &&
+        validOrganizationPermit(request.resource.data, permitId) && request.resource.data.createdBy == request.auth.uid && request.resource.data.createdAt == request.time;
+      allow update: if signedIn() && isActiveOrgAdmin(resource.data.organizationId) &&
+        validOrganizationPermit(request.resource.data, permitId) &&
+        request.resource.data.organizationId == resource.data.organizationId &&
+        request.resource.data.createdBy == resource.data.createdBy && request.resource.data.createdAt == resource.data.createdAt;
+    }
+    // Only the scheduled server job writes member-specific certificate reminders.
+    match /certificateReminders/{reminderId} {
+      allow read: if signedIn() && resource.data.recipientUserId == request.auth.uid && isActiveMember(resource.data.organizationId);
     }
 
     match /certificates/{certificateId} {

@@ -52,6 +52,7 @@ class NotificationModel {
     required this.priority,
     this.relatedType,
     this.relatedId,
+    this.memberUserId,
     required this.createdBy,
     this.createdAt,
     this.updatedAt,
@@ -66,6 +67,7 @@ class NotificationModel {
   final String priority;
   final String? relatedType;
   final String? relatedId;
+  final String? memberUserId;
   final String createdBy;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -88,6 +90,7 @@ class NotificationModel {
       ),
       relatedType: _nullableStringValue(data['relatedType']),
       relatedId: _nullableStringValue(data['relatedId']),
+      memberUserId: _nullableStringValue(data['memberUserId']),
       createdBy: _stringValue(data['createdBy']),
       createdAt: _dateTimeValue(data['createdAt']),
       updatedAt: _dateTimeValue(data['updatedAt']),
@@ -105,6 +108,7 @@ class NotificationModel {
       'priority': priority,
       'relatedType': relatedType,
       'relatedId': relatedId,
+      'memberUserId': memberUserId,
       'createdBy': createdBy,
       'createdAt': createdAt == null ? null : Timestamp.fromDate(createdAt!),
       'updatedAt': updatedAt == null ? null : Timestamp.fromDate(updatedAt!),

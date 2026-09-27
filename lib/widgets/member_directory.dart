@@ -43,14 +43,12 @@ class MemberDirectory extends StatefulWidget {
     required this.members,
     required this.onOpen,
     required this.onContact,
-    required this.onCertificates,
     this.adminSections = const [],
     this.busyUserId,
   });
   final List<DirectoryMember> members;
   final ValueChanged<String> onOpen;
   final void Function(String, bool) onContact;
-  final VoidCallback onCertificates;
   final List<Widget> adminSections;
   final String? busyUserId;
   @override
@@ -104,11 +102,6 @@ class _MemberDirectoryState extends State<MemberDirectory> {
               },
               icon: const Icon(Icons.copy_outlined),
               label: const Text('Liikmed CSV'),
-            ),
-            OutlinedButton.icon(
-              onPressed: widget.onCertificates,
-              icon: const Icon(Icons.badge_outlined),
-              label: const Text('Tunnistused'),
             ),
           ],
         ),

@@ -28,7 +28,9 @@ import 'activities_screen.dart';
 import 'admin_home_dashboard.dart';
 import 'availability_screen.dart';
 import 'callouts_screen.dart';
+import 'organization_permits_screen.dart';
 import 'certificates_screen.dart';
+import '../models/certificate_reminder_open.dart';
 import 'equipment_screen.dart';
 import 'main_navigation_shell.dart';
 import 'members_screen.dart';
@@ -91,6 +93,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final _plannedUnavailabilityService = PlannedUnavailabilityService();
   StreamSubscription<CalloutNotificationOpenEvent>? _calloutOpenSubscription;
   StreamSubscription<MemberRequestNotification>? _memberRequestSubscription;
+  StreamSubscription<CertificateReminderOpen>? _certificateSubscription;
   String? _pendingCalloutId;
   var _selectedNavigationIndex = 0;
   bool _savingAvailability = false;
@@ -100,6 +103,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
 
     final notificationService = CalloutAlarmNotificationService.instance;
+    _certificateSubscription = notificationService.certificateOpenEvents.listen((event) => unawaited(_handleCertificateOpen(event)));
     _memberRequestSubscription = notificationService.memberRequestOpenEvents.listen((event) {
       unawaited(_handleMemberRequestOpen(event));
     });
@@ -109,6 +113,8 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      final certificate = notificationService.takePendingCertificate();
+      if (certificate != null) unawaited(_handleCertificateOpen(certificate));
       final memberRequest = notificationService.takePendingMemberRequest();
       if (memberRequest != null) unawaited(_handleMemberRequestOpen(memberRequest));
       final pendingEvent =
@@ -121,6 +127,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    unawaited(_certificateSubscription?.cancel());
     unawaited(_memberRequestSubscription?.cancel());
     final subscription = _calloutOpenSubscription;
     if (subscription != null) {
@@ -153,6 +160,24 @@ class _HomeScreenState extends State<HomeScreen> {
       _pendingCalloutId = event.calloutId;
       _selectedNavigationIndex = 1;
     });
+  }
+
+  Future<void> _handleCertificateOpen(CertificateReminderOpen event) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || !mounted) return;
+    try {
+      final snapshot = await FirebaseFirestore.instance.collection('memberships').doc(
+        _membershipService.membershipId(userId: user.uid, organizationId: event.organizationId)).get();
+      final membership = snapshot.data() ?? {};
+      final admin = _membershipService.isOrgAdmin(membership);
+      if (!_membershipService.isActiveMembership(membership) || (user.uid != event.memberUserId && !admin)) throw StateError('Access denied');
+      await _setActiveCommand(event.organizationId);
+      if (!mounted) return;
+      await Navigator.push(context, MaterialPageRoute<void>(builder: (_) => CertificatesScreen(
+        organizationId: event.organizationId, currentUid: user.uid, targetUserId: event.memberUserId, canManageCertificates: admin)));
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selle liikme tunnistusi ei saa praegu avada.')));
+    }
   }
 
   Future<void> _handleMemberRequestOpen(MemberRequestNotification event) async {
@@ -1042,23 +1067,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ),
-                _buildModuleButton(
-                  icon: Icons.card_membership,
-                  label: permissions.canManageCertificates
-                      ? 'Tunnistused'
-                      : 'Minu tunnistused',
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => CertificatesScreen(
-                        organizationId: commandId,
-                        currentUid: user.uid,
-                        canManageCertificates:
-                            permissions.canManageCertificates,
-                      ),
-                    ),
-                  ),
-                ),
                 if (permissions.canViewStatistics)
                   _buildModuleButton(
                     icon: Icons.insights,
@@ -1178,6 +1186,14 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         if (permissions.canManageOrganizationSettings && hasOrganization) ...[
+          Card(child: ListTile(
+            leading: const Icon(Icons.description_outlined),
+            title: const Text('Ühingu load ja tunnistused'),
+            subtitle: const Text('Raadioside- ja muud ühingule väljastatud load'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => OrganizationPermitsScreen(
+              organizationId: organizationId, currentUid: user.uid))),
+          )),
           if (permissions.canManageOrganization) ...[
             const SizedBox(height: 16),
             Text(

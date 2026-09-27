@@ -2,7 +2,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../widgets/member_directory.dart';
 import '../services/member_contact_service.dart';
 import 'self_profile_screen.dart';
-import 'certificates_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -183,8 +182,6 @@ class _MembersScreenState extends State<MembersScreen> {
       ],
       onOpen: (uid) { final doc = byId[uid]; if (doc != null) _openMemberProfile(membershipDoc: doc, membership: doc.data()); },
       onContact: _contact,
-      onCertificates: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => CertificatesScreen(
-        organizationId: widget.organizationId, currentUid: widget.currentUid, canManageCertificates: widget.canManageRoles))),
       adminSections: widget.canManageRoles ? [
         _PendingMemberRequestsSection(key: ValueKey(widget.organizationId), organizationId: widget.organizationId, membershipService: _membershipService),
         _PendingOrganizationInvitesSection(organizationId: widget.organizationId, inviteService: _inviteService),

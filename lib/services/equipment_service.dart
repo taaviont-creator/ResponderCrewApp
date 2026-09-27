@@ -204,6 +204,7 @@ class EquipmentService {
     required String note,
     required String createdBy,
     required bool canManageOrganizationEquipment,
+    String? storage,
   }) async {
     final trimmedOrganizationId = organizationId.trim();
     final trimmedOwnerUserId = ownerUserId.trim();
@@ -242,6 +243,7 @@ class EquipmentService {
       'scope': scope,
       if (scope == EquipmentScope.personal) 'ownerUserId': trimmedOwnerUserId,
       'name': trimmedName,
+      'storage': ?storage,
       'category': trimmedCategory,
       'status': trimmedStatus,
       'location': location.trim(),
@@ -278,6 +280,7 @@ class EquipmentService {
     required String note,
     required String updatedBy,
     required bool canManageOrganizationEquipment,
+    String? storage,
   }) async {
     final trimmedOrganizationId = organizationId.trim();
     final trimmedEquipmentId = equipmentId.trim();
@@ -335,6 +338,7 @@ class EquipmentService {
       'scope': scope,
       if (scope == EquipmentScope.personal) 'ownerUserId': ownerUserId,
       'name': trimmedName,
+      'storage': ?storage,
       'category': trimmedCategory,
       'status': trimmedStatus,
       'location': location.trim(),
@@ -450,6 +454,9 @@ class EquipmentService {
         organizationId: trimmedOrganizationId,
       );
 
+      if ((equipment['assignedToUserId'] ?? '').toString().isNotEmpty) {
+        throw Exception('Varustus on juba väljastatud. Tagasta see enne uut väljastamist.');
+      }
       final membershipSnapshot = await transaction.get(membershipDoc);
       final membership = membershipSnapshot.data();
       if (membership == null ||
@@ -513,6 +520,7 @@ class EquipmentService {
 
       transaction.set(equipmentDoc, {
         'assignedToUserId': '',
+        'storage': 'warehouse',
         'assignedToName': '',
         'returnedAt': FieldValue.serverTimestamp(),
         'returnedBy': trimmedReturnedBy,

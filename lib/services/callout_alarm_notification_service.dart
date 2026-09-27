@@ -9,6 +9,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../firebase_options.dart';
 import '../models/member_request_notification.dart';
+import '../models/certificate_reminder_open.dart';
 import 'device_token_service.dart';
 
 const _calloutAlarmChannel = AndroidNotificationChannel(
@@ -47,7 +48,7 @@ class CalloutNotificationOpenEvent {
   static CalloutNotificationOpenEvent? fromData(
     Map<String, dynamic> data,
   ) {
-    if (data['type'] == 'member_request') return null;
+    if (data['type'] == 'member_request' || data['type'] == 'certificate_reminder') return null;
     final organizationId =
         (data['organizationId'] ?? data['commandId'] ?? '').toString().trim();
     final calloutId =
@@ -126,6 +127,15 @@ class CalloutAlarmNotificationService {
     return event;
   }
 
+  final _certificateController = StreamController<CertificateReminderOpen>.broadcast();
+  CertificateReminderOpen? _pendingCertificate;
+  Stream<CertificateReminderOpen> get certificateOpenEvents => _certificateController.stream;
+  CertificateReminderOpen? takePendingCertificate() {
+    final event = _pendingCertificate; _pendingCertificate = null; return event;
+  }
+  void _emitCertificate(CertificateReminderOpen event) {
+    if (_certificateController.hasListener) { _certificateController.add(event); } else { _pendingCertificate = event; }
+  }
   bool _initialized = false;
   Future<void>? _initialization;
 
@@ -312,6 +322,8 @@ class CalloutAlarmNotificationService {
     await _localNotifications
         .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(_memberRequestChannel);
+    await _localNotifications.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+      ?.createNotificationChannel(const AndroidNotificationChannel('certificate_reminders', 'Tunnistuste aegumine', importance: Importance.defaultImportance));
     final launch = await _localNotifications.getNotificationAppLaunchDetails();
     if (launch?.didNotificationLaunchApp == true && launch?.notificationResponse != null) {
       _handleLocalNotificationResponse(launch!.notificationResponse!);
@@ -344,6 +356,12 @@ class CalloutAlarmNotificationService {
   Future<void> _showForegroundCalloutNotification(
     RemoteMessage message,
   ) async {
+    if (message.data['type'] == 'certificate_reminder') {
+      await _localNotifications.show(id: message.hashCode, title: message.notification?.title, body: message.notification?.body,
+        notificationDetails: const NotificationDetails(android: AndroidNotificationDetails('certificate_reminders', 'Tunnistuste aegumine'),
+          iOS: DarwinNotificationDetails(presentAlert: true, presentSound: true)), payload: jsonEncode(message.data));
+      return;
+    }
     final memberRequest = MemberRequestNotification.fromData(message.data);
     if (memberRequest != null) {
       await _localNotifications.show(
@@ -395,6 +413,8 @@ class CalloutAlarmNotificationService {
   }
 
   void _handleOpenedRemoteMessage(RemoteMessage message) {
+    final certificate = CertificateReminderOpen.fromData(message.data);
+    if (certificate != null) { _emitCertificate(certificate); return; }
     final memberRequest = MemberRequestNotification.fromData(message.data);
     if (memberRequest != null) {
       _emitMemberRequest(memberRequest);
@@ -408,6 +428,8 @@ class CalloutAlarmNotificationService {
   }
 
   void _handleLocalNotificationResponse(NotificationResponse response) {
+    final certificate = CertificateReminderOpen.fromPayload(response.payload);
+    if (certificate != null) { _emitCertificate(certificate); return; }
     final memberRequest = MemberRequestNotification.fromPayload(response.payload);
     if (memberRequest != null) {
       _emitMemberRequest(memberRequest);
