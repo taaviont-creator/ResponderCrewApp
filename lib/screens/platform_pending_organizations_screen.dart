@@ -117,8 +117,6 @@ class _PlatformPendingOrganizationsScreenState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Looja: ${createdBy.isEmpty ? 'teadmata' : createdBy}'),
-                    const SizedBox(height: 4),
                     Text('Loodud: ${createdAt ?? 'teadmata'}'),
                     const SizedBox(height: 12),
                     Row(
