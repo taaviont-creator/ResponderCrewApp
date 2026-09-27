@@ -23,7 +23,7 @@ class StatisticsService {
     required bool canViewOrganizationCertificates,
   }) async {
     _requireOrganizationId(organizationId);
-    final canViewConfirmedParticipationStatistics =
+    final isOrganizationAdminViewer =
         await _ensureCanViewStatistics(
       organizationId: organizationId,
       currentUid: currentUid,
@@ -35,58 +35,62 @@ class StatisticsService {
         .where((userId) => userId.isNotEmpty)
         .toSet();
 
-    final availabilitySnapshot = await _firestore
-        .collection('availability')
-        .where(_organizationFilter(organizationId))
-        .get();
-    final availabilityByUserId = <String, String>{};
-    for (final doc in availabilitySnapshot.docs) {
-      final data = doc.data();
-      final userId = (data['userId'] ?? '').toString();
-      final status = (data['status'] ?? AvailabilityStatus.offDuty).toString();
-      if (activeMemberIds.contains(userId)) {
-        availabilityByUserId[userId] = status;
-      }
-    }
-
-    final plannedPeriodsSnapshot = await _firestore
-        .collection('plannedUnavailability')
-        .where(_organizationFilter(organizationId))
-        .get();
-    final plannedPeriods = plannedPeriodsSnapshot.docs
-        .map(PlannedUnavailabilityModel.fromFirestore)
-        .where((period) => period.isActive)
-        .toList(growable: false);
-
-    final plannedRulesSnapshot = await _firestore
-        .collection('plannedUnavailabilityRules')
-        .where(_organizationFilter(organizationId))
-        .get();
-    final plannedRules = plannedRulesSnapshot.docs
-        .map(PlannedUnavailabilityRuleModel.fromFirestore)
-        .where((rule) => rule.isActive)
-        .toList(growable: false);
-
-    final now = DateTime.now();
     var onDutyCount = 0;
     var delayedCount = 0;
     var offDutyCount = 0;
-    for (final userId in activeMemberIds) {
-      final manualStatus =
-          availabilityByUserId[userId] ?? AvailabilityStatus.offDuty;
-      final status = EffectiveAvailability.resolve(
-        userId: userId,
-        manualStatus: manualStatus,
-        periods: plannedPeriods,
-        rules: plannedRules,
-        now: now,
-      );
-      if (status == AvailabilityStatus.onDuty) {
-        onDutyCount++;
-      } else if (status == AvailabilityStatus.delayed) {
-        delayedCount++;
-      } else {
-        offDutyCount++;
+
+    if (isOrganizationAdminViewer) {
+      final availabilitySnapshot = await _firestore
+          .collection('availability')
+          .where(_organizationFilter(organizationId))
+          .get();
+      final availabilityByUserId = <String, String>{};
+      for (final doc in availabilitySnapshot.docs) {
+        final data = doc.data();
+        final userId = (data['userId'] ?? '').toString();
+        final status =
+            (data['status'] ?? AvailabilityStatus.offDuty).toString();
+        if (activeMemberIds.contains(userId)) {
+          availabilityByUserId[userId] = status;
+        }
+      }
+
+      final plannedPeriodsSnapshot = await _firestore
+          .collection('plannedUnavailability')
+          .where(_organizationFilter(organizationId))
+          .get();
+      final plannedPeriods = plannedPeriodsSnapshot.docs
+          .map(PlannedUnavailabilityModel.fromFirestore)
+          .where((period) => period.isActive)
+          .toList(growable: false);
+
+      final plannedRulesSnapshot = await _firestore
+          .collection('plannedUnavailabilityRules')
+          .where(_organizationFilter(organizationId))
+          .get();
+      final plannedRules = plannedRulesSnapshot.docs
+          .map(PlannedUnavailabilityRuleModel.fromFirestore)
+          .where((rule) => rule.isActive)
+          .toList(growable: false);
+
+      final now = DateTime.now();
+      for (final userId in activeMemberIds) {
+        final manualStatus =
+            availabilityByUserId[userId] ?? AvailabilityStatus.offDuty;
+        final status = EffectiveAvailability.resolve(
+          userId: userId,
+          manualStatus: manualStatus,
+          periods: plannedPeriods,
+          rules: plannedRules,
+          now: now,
+        );
+        if (status == AvailabilityStatus.onDuty) {
+          onDutyCount++;
+        } else if (status == AvailabilityStatus.delayed) {
+          delayedCount++;
+        } else {
+          offDutyCount++;
+        }
       }
     }
 
@@ -134,7 +138,7 @@ class StatisticsService {
     int? confirmedParticipationCount;
     double? confirmedParticipationHours;
     List<MemberContributionSummary>? memberContributions;
-    if (canViewConfirmedParticipationStatistics) {
+    if (isOrganizationAdminViewer) {
       var confirmedCount = 0;
       var confirmedHours = 0.0;
       final contributionsByUserId = <String, _MemberContributionAccumulator>{};
@@ -197,6 +201,7 @@ class StatisticsService {
 
     return StatisticsSummary(
       memberCount: activeMemberIds.length,
+      hasAvailabilityStatistics: isOrganizationAdminViewer,
       onDutyCount: onDutyCount,
       delayedCount: delayedCount,
       offDutyCount: offDutyCount,
