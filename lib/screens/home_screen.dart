@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../models/availability_model.dart';
 import '../models/membership_model.dart';
 import '../models/platform_readiness_model.dart';
+import '../models/response_readiness.dart';
 import '../models/planned_unavailability_model.dart';
 import '../models/planned_unavailability_rule_model.dart';
 import '../services/availability_service.dart';
@@ -1553,12 +1554,14 @@ class _HomeScreenState extends State<HomeScreen> {
                             summaries.isEmpty ? null : summaries.first;
                         final minimumCrewRequired =
                             summary?.minimumCrewRequired ?? 0;
-                        final minimumCrewMet = minimumCrewRequired > 0 &&
-                            onDutyCount >= minimumCrewRequired;
-                        final secondLevelMet =
-                            effectiveOnDutySecondLevelCount >= 1;
-                        final responseReady =
-                            minimumCrewMet && secondLevelMet;
+                        final readiness = ResponseReadiness.evaluate(
+                          minimumCrewRequired: minimumCrewRequired,
+                          onDutyCount: onDutyCount,
+                          secondLevelOnDutyCount:
+                              effectiveOnDutySecondLevelCount,
+                        );
+                        final secondLevelMet = readiness.secondLevelMet;
+                        final responseReady = readiness.isReady;
                         final readinessColor = responseReady
                             ? Colors.green.shade700
                             : Colors.red.shade700;
