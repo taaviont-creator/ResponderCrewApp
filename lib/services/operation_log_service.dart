@@ -49,6 +49,10 @@ class OperationLogService {
     return _operationLogs
         .doc(operationLogId)
         .collection('events')
+        .where(Filter.or(
+          Filter('organizationId', isEqualTo: organizationId),
+          Filter('commandId', isEqualTo: organizationId),
+        ))
         .snapshots()
         .map((snapshot) {
       final events = snapshot.docs
@@ -422,7 +426,8 @@ class OperationLogService {
       }
 
       final status = OperationLogStatus.normalize(data['status']);
-      if (status != OperationLogStatus.completed) {
+      if (status != OperationLogStatus.completed &&
+          status != OperationLogStatus.returnedToBase) {
         throw Exception('Only a completed operation can have a final summary');
       }
 
@@ -446,7 +451,7 @@ class OperationLogService {
         'commandId': organizationId,
         'operationLogId': operationLogId,
         'type': OperationLogEventType.summarySaved,
-        'status': OperationLogStatus.completed,
+        'status': status,
         'title': 'Lõppkokkuvõte salvestatud',
         'description': trimmedOutcome,
         'createdBy': completedBy,

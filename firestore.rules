@@ -1403,7 +1403,7 @@ service cloud.firestore {
       return signedIn() &&
         request.resource.data.id == resource.data.id &&
         request.resource.data.id == logId &&
-        resource.data.status == 'completed' &&
+        resource.data.status in ['completed', 'returnedToBase'] &&
         request.resource.data.status == resource.data.status &&
         request.resource.data.summary is string &&
         request.resource.data.outcome is string &&
@@ -1489,7 +1489,7 @@ service cloud.firestore {
           (
             request.resource.data.type == 'summarySaved' &&
             exists(logPath) &&
-            getAfter(logPath).data.status == 'completed' &&
+            getAfter(logPath).data.status in ['completed', 'returnedToBase'] &&
             getAfter(logPath).data.completedBy == request.auth.uid &&
             getAfter(logPath).data.completedAt == request.time &&
             getAfter(logPath).data.updatedAt == request.time &&

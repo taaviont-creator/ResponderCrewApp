@@ -9,6 +9,7 @@ import '../services/callout_service.dart';
 import '../services/operation_log_service.dart';
 import '../services/wakelock_service.dart';
 import '../widgets/operation_log_timeline_view.dart';
+import 'operation_log_report_screen.dart';
 
 class _EventLocation {
   const _EventLocation({
@@ -639,10 +640,16 @@ class _OperationLogCardState extends State<_OperationLogCard> {
                 ? subtitleParts.join(' - ')
                 : '${subtitleParts.join(' - ')}\n${log.description}',
           ),
-          trailing: Chip(
-            label: Text(_operationLogStatusLabel(log.status)),
-            visualDensity: VisualDensity.compact,
-            backgroundColor: isEmphasized ? colorScheme.primaryContainer : null,
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Chip(
+                label: Text(_operationLogStatusLabel(log.status)),
+                visualDensity: VisualDensity.compact,
+                backgroundColor: isEmphasized ? colorScheme.primaryContainer : null,
+              ),
+              Icon(_expanded ? Icons.expand_less : Icons.expand_more),
+            ],
           ),
           onExpansionChanged: (expanded) {
             setState(() => _expanded = expanded);
@@ -658,6 +665,18 @@ class _OperationLogCardState extends State<_OperationLogCard> {
     final isActiveLog = _isActiveOperationLog(log.status);
 
     return [
+      Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton.icon(
+          icon: const Icon(Icons.receipt_long),
+          label: const Text('Vaata väljavõtet'),
+          onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => OperationLogReportScreen(
+              log: log, organizationId: widget.organizationId,
+            ),
+          )),
+        ),
+      ),
       _buildStatusSummary(log),
       if (widget.canViewCalloutResponseSummary && log.calloutId != null)
         _buildCalloutResponseSummary(log.calloutId!),
@@ -759,7 +778,8 @@ class _OperationLogCardState extends State<_OperationLogCard> {
           log.outcome.isEmpty ? 'Tulemus puudub' : log.outcome,
         ),
       ),
-      if (log.status == OperationLogStatus.completed &&
+      if ((log.status == OperationLogStatus.completed ||
+              log.status == OperationLogStatus.returnedToBase) &&
           widget.canStartOperationLog)
         Align(
           alignment: Alignment.centerRight,
