@@ -24,15 +24,15 @@ The original main commit `f0972e34163c253dead820e8ebc97955cc6034c6` creates an i
 
 The rules were deployed before the matching app change reached GitHub. The user reproduced the incompatibility using a fresh checkout of the original main. The fix must reach main and a new app build must be installed; re-installing the unchanged original main does not help. Do not weaken the admin approval rules to accommodate the old app.
 
-The branch `fix/require-member-approval` contains the correction. Relevant local commits: `94cadb0` (approval), `e6a9ef6` (Node 22), `fe2f38c` (complete code-join regression test and clearer errors). GitHub publication is still pending authentication; the local Windows credential helper cannot authenticate in this environment. A bundle of the commits is available in the parent workspace as `RespondCrew-admin-approval.bundle`.
+The branch `fix/require-member-approval` contains the correction. Relevant local commits: `94cadb0` (approval), `e6a9ef6` (Node 22), `fe2f38c` (complete code-join regression test and clearer errors). The correction is published in PR #11: https://github.com/taaviont-creator/ResponderCrewApp/pull/11. Its Checks tab records validation of the final branch version; merge is permitted only after those checks pass. A bundle of the commits is available in the parent workspace as `RespondCrew-admin-approval.bundle`.
 
 ## Validation and remaining release steps
 
 - 38 Firestore emulator tests pass, including code lookup → request transaction → admin listing and approval, and reproduction of the original main's denied activation batch.
 - Flutter analyze passes; 29 Flutter tests pass.
 - Functions dependencies install, JavaScript syntax passes and the module loads under Node 22. The lint script is a placeholder. Dependency installation reports 12 moderate findings; no automatic dependency upgrades were applied.
-- Existing main PR CI #47 was green, including Android build. The corrected branch has not yet run GitHub CI. A local Android APK build could not be completed in this environment, so no new APK is claimed as verified.
-- Publish the branch, obtain successful CI and merge the corrected app into main. Build/install that version and run `android-final-device-checklist.md`, including approval, organization switching, readiness/absence, foreground/background/locked-screen alarm, exact callout navigation, response, GPS/wakelock, dialer and persistent login.
+- Existing main PR CI #47 was green, including Android build. GitHub CI for the corrected branch is tracked in PR #11; consult its final Checks results for Android build verification. A local Android APK build could not be completed in this environment, so no new APK is claimed as verified.
+- Release gate: successful PR #11 CI and merge of the corrected app into main. Build/install that version and run `android-final-device-checklist.md`, including approval, organization switching, readiness/absence, foreground/background/locked-screen alarm, exact callout navigation, response, GPS/wakelock, dialer and persistent login.
 
 ## Known major missing feature
 
