@@ -5,7 +5,10 @@ import '../models/activity_model.dart';
 import '../models/availability_model.dart';
 import '../models/certificate_model.dart';
 import '../models/equipment_model.dart';
+import '../models/effective_availability.dart';
 import '../models/membership_model.dart';
+import '../models/planned_unavailability_model.dart';
+import '../models/planned_unavailability_rule_model.dart';
 import '../models/statistics_model.dart';
 import 'membership_service.dart';
 
@@ -46,11 +49,38 @@ class StatisticsService {
       }
     }
 
+    final plannedPeriodsSnapshot = await _firestore
+        .collection('plannedUnavailability')
+        .where(_organizationFilter(organizationId))
+        .get();
+    final plannedPeriods = plannedPeriodsSnapshot.docs
+        .map(PlannedUnavailabilityModel.fromFirestore)
+        .where((period) => period.isActive)
+        .toList(growable: false);
+
+    final plannedRulesSnapshot = await _firestore
+        .collection('plannedUnavailabilityRules')
+        .where(_organizationFilter(organizationId))
+        .get();
+    final plannedRules = plannedRulesSnapshot.docs
+        .map(PlannedUnavailabilityRuleModel.fromFirestore)
+        .where((rule) => rule.isActive)
+        .toList(growable: false);
+
+    final now = DateTime.now();
     var onDutyCount = 0;
     var delayedCount = 0;
     var offDutyCount = 0;
     for (final userId in activeMemberIds) {
-      final status = availabilityByUserId[userId] ?? AvailabilityStatus.offDuty;
+      final manualStatus =
+          availabilityByUserId[userId] ?? AvailabilityStatus.offDuty;
+      final status = EffectiveAvailability.resolve(
+        userId: userId,
+        manualStatus: manualStatus,
+        periods: plannedPeriods,
+        rules: plannedRules,
+        now: now,
+      );
       if (status == AvailabilityStatus.onDuty) {
         onDutyCount++;
       } else if (status == AvailabilityStatus.delayed) {
