@@ -181,14 +181,14 @@ class CalloutAlarmNotificationService {
 
   Future<bool> _saveCurrentDeviceToken() async {
     try {
-      return _deviceTokenService.saveCurrentToken(_messaging);
+      return await _deviceTokenService.saveCurrentToken(_messaging);
     } catch (_) {}
     return false;
   }
 
   Future<bool> _saveDeviceToken(String token) async {
     try {
-      return _deviceTokenService.saveTokenForCurrentUser(token);
+      return await _deviceTokenService.saveTokenForCurrentUser(token);
     } catch (_) {}
     return false;
   }
