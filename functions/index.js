@@ -1,5 +1,6 @@
 const logger = require("firebase-functions/logger");
-const { onDocumentCreated } = require("firebase-functions/v2/firestore");
+const { onDocumentCreated, onDocumentWritten } = require("firebase-functions/v2/firestore");
+const { createMemberRequestHandler } = require('./member-request-notification');
 const admin = require("firebase-admin");
 
 admin.initializeApp();
@@ -11,6 +12,11 @@ const APP_ID = "respondcrew";
 const CALLOUT_ALARM_CHANNEL_ID = "callout_alarm";
 const MAX_MULTICAST_TOKENS = 500;
 const USER_QUERY_CHUNK_SIZE = 10;
+
+exports.sendMemberRequestNotification = onDocumentWritten(
+  {document: 'memberships/{membershipId}', region: 'europe-north1', retry: false},
+  createMemberRequestHandler({db, messaging, logger, loadTokens: loadEnabledDeviceTokens}),
+);
 
 exports.sendCalloutAlarmNotification = onDocumentCreated(
   "callouts/{calloutId}",

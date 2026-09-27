@@ -7,6 +7,7 @@ import '../services/notification_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_section_card.dart';
 import '../widgets/status_badge.dart';
+import '../widgets/pending_member_requests_notice.dart';
 import 'activities_screen.dart';
 import 'availability_screen.dart';
 import 'callout_detail_screen.dart';
@@ -418,7 +419,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
           final notifications = snapshot.data ?? const <NotificationModel>[];
           if (notifications.isEmpty) {
-            return _buildEmptyState('Teavitusi ei ole.');
+            return _buildEmptyState('Ühingu üldteavitusi ei ole.');
           }
 
           return StreamBuilder<Set<String>>(
@@ -474,6 +475,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   96,
                 ),
                 children: [
+                  if (widget.canManageNotifications)
+                    PendingMemberRequestsNotice(
+                      organizationId: widget.organizationId,
+                      currentUid: widget.currentUid,
+                    ),
                   _buildNotificationSummary(
                     totalCount: notifications.length,
                     unreadCount: unreadCount,
@@ -871,6 +877,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         96,
       ),
       children: [
+        if (widget.canManageNotifications)
+          PendingMemberRequestsNotice(
+            organizationId: widget.organizationId,
+            currentUid: widget.currentUid,
+          ),
         _buildEmptyCard(message),
         const SizedBox(height: AppTheme.itemSpacing),
         _buildAlarmReadinessCard(),

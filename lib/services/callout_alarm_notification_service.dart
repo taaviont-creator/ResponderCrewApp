@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../firebase_options.dart';
+import '../models/member_request_notification.dart';
 import 'device_token_service.dart';
 
 const _calloutAlarmChannel = AndroidNotificationChannel(
@@ -17,6 +18,12 @@ const _calloutAlarmChannel = AndroidNotificationChannel(
   importance: Importance.max,
   playSound: true,
   enableVibration: true,
+);
+
+const _memberRequestChannel = AndroidNotificationChannel(
+  'member_requests', 'Liitumistaotlused',
+  description: 'Admini kinnitust ootavad liikmed',
+  importance: Importance.defaultImportance,
 );
 
 class CalloutNotificationOpenEvent {
@@ -40,6 +47,7 @@ class CalloutNotificationOpenEvent {
   static CalloutNotificationOpenEvent? fromData(
     Map<String, dynamic> data,
   ) {
+    if (data['type'] == 'member_request') return null;
     final organizationId =
         (data['organizationId'] ?? data['commandId'] ?? '').toString().trim();
     final calloutId =
@@ -108,6 +116,15 @@ class CalloutAlarmNotificationService {
   final _calloutOpenController =
       StreamController<CalloutNotificationOpenEvent>.broadcast();
   CalloutNotificationOpenEvent? _pendingCalloutOpenEvent;
+
+  final _memberRequestController = StreamController<MemberRequestNotification>.broadcast();
+  MemberRequestNotification? _pendingMemberRequest;
+  Stream<MemberRequestNotification> get memberRequestOpenEvents => _memberRequestController.stream;
+  MemberRequestNotification? takePendingMemberRequest() {
+    final event = _pendingMemberRequest;
+    _pendingMemberRequest = null;
+    return event;
+  }
 
   bool _initialized = false;
   Future<void>? _initialization;
@@ -292,6 +309,13 @@ class CalloutAlarmNotificationService {
         .resolvePlatformSpecificImplementation<
             AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(_calloutAlarmChannel);
+    await _localNotifications
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(_memberRequestChannel);
+    final launch = await _localNotifications.getNotificationAppLaunchDetails();
+    if (launch?.didNotificationLaunchApp == true && launch?.notificationResponse != null) {
+      _handleLocalNotificationResponse(launch!.notificationResponse!);
+    }
   }
 
   Future<void> _requestNotificationPermissions() async {
@@ -320,6 +344,20 @@ class CalloutAlarmNotificationService {
   Future<void> _showForegroundCalloutNotification(
     RemoteMessage message,
   ) async {
+    final memberRequest = MemberRequestNotification.fromData(message.data);
+    if (memberRequest != null) {
+      await _localNotifications.show(
+        id: message.hashCode,
+        title: 'Liitumistaotlus',
+        body: 'Liige ootab sinu ühingus kinnitamist.',
+        notificationDetails: const NotificationDetails(
+          android: AndroidNotificationDetails('member_requests', 'Liitumistaotlused'),
+          iOS: DarwinNotificationDetails(presentAlert: true, presentSound: true),
+        ),
+        payload: memberRequest.toPayload(),
+      );
+      return;
+    }
     if (!_isCalloutMessage(message)) return;
 
     final notification = message.notification;
@@ -357,6 +395,11 @@ class CalloutAlarmNotificationService {
   }
 
   void _handleOpenedRemoteMessage(RemoteMessage message) {
+    final memberRequest = MemberRequestNotification.fromData(message.data);
+    if (memberRequest != null) {
+      _emitMemberRequest(memberRequest);
+      return;
+    }
     if (!_isCalloutMessage(message)) return;
     final event = CalloutNotificationOpenEvent.fromData(message.data);
     if (event != null) {
@@ -365,6 +408,11 @@ class CalloutAlarmNotificationService {
   }
 
   void _handleLocalNotificationResponse(NotificationResponse response) {
+    final memberRequest = MemberRequestNotification.fromPayload(response.payload);
+    if (memberRequest != null) {
+      _emitMemberRequest(memberRequest);
+      return;
+    }
     final event =
         CalloutNotificationOpenEvent.fromPayload(response.payload);
     if (event != null) {
@@ -377,6 +425,14 @@ class CalloutAlarmNotificationService {
       _calloutOpenController.add(event);
     } else {
       _pendingCalloutOpenEvent = event;
+    }
+  }
+
+  void _emitMemberRequest(MemberRequestNotification event) {
+    if (_memberRequestController.hasListener) {
+      _memberRequestController.add(event);
+    } else {
+      _pendingMemberRequest = event;
     }
   }
 

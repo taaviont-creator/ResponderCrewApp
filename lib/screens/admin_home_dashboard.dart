@@ -16,6 +16,7 @@ import '../services/equipment_service.dart';
 import '../services/membership_service.dart';
 import '../services/planned_unavailability_service.dart';
 import '../widgets/latest_notifications_card.dart';
+import '../widgets/pending_member_requests_notice.dart';
 import '../services/platform_readiness_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_section_card.dart';
@@ -61,6 +62,10 @@ class AdminHomeDashboard extends StatelessWidget {
       padding: const EdgeInsets.all(AppTheme.screenPadding),
       children: [
         topHeader,
+        PendingMemberRequestsNotice(
+          organizationId: organizationId,
+          currentUid: currentUid,
+        ),
         const SizedBox(height: AppTheme.sectionSpacing),
         Text(
           'Ühingu valmisolek',

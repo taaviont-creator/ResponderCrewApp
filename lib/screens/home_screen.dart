@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import '../models/availability_model.dart';
 import '../models/effective_availability.dart';
 import '../models/membership_model.dart';
+import '../models/member_request_notification.dart';
 import '../models/platform_readiness_model.dart';
 import '../models/response_readiness.dart';
 import '../models/planned_unavailability_model.dart';
@@ -85,6 +86,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final _platformReadinessService = PlatformReadinessService();
   final _plannedUnavailabilityService = PlannedUnavailabilityService();
   StreamSubscription<CalloutNotificationOpenEvent>? _calloutOpenSubscription;
+  StreamSubscription<MemberRequestNotification>? _memberRequestSubscription;
   String? _pendingCalloutId;
   var _selectedNavigationIndex = 0;
 
@@ -93,12 +95,17 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
 
     final notificationService = CalloutAlarmNotificationService.instance;
+    _memberRequestSubscription = notificationService.memberRequestOpenEvents.listen((event) {
+      unawaited(_handleMemberRequestOpen(event));
+    });
     _calloutOpenSubscription =
         notificationService.calloutOpenEvents.listen((event) {
       unawaited(_handleCalloutNotificationOpen(event));
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      final memberRequest = notificationService.takePendingMemberRequest();
+      if (memberRequest != null) unawaited(_handleMemberRequestOpen(memberRequest));
       final pendingEvent =
           notificationService.takePendingCalloutOpenEvent();
       if (pendingEvent != null) {
@@ -109,6 +116,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    unawaited(_memberRequestSubscription?.cancel());
     final subscription = _calloutOpenSubscription;
     if (subscription != null) {
       unawaited(subscription.cancel());
@@ -140,6 +148,30 @@ class _HomeScreenState extends State<HomeScreen> {
       _pendingCalloutId = event.calloutId;
       _selectedNavigationIndex = 2;
     });
+  }
+
+  Future<void> _handleMemberRequestOpen(MemberRequestNotification event) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || !mounted) return;
+    try {
+      final membership = await FirebaseFirestore.instance.collection('memberships')
+          .doc(_membershipService.membershipId(userId: user.uid,
+            organizationId: event.organizationId)).get();
+      if (!_membershipService.isOrgAdmin(membership.data() ?? {}) ||
+          _membershipService.organizationIdFromMembership(membership.data() ?? {}) != event.organizationId) {
+        throw StateError('Not an organization admin');
+      }
+      await _setActiveCommand(event.organizationId);
+      if (!mounted) return;
+      await Navigator.of(context).push(MaterialPageRoute(builder: (_) => MembersScreen(
+        organizationId: event.organizationId, currentUid: user.uid, canManageRoles: true,
+      )));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Selle ühingu liitumistaotlusi ei saa praegu avada.'),
+      ));
+    }
   }
 
   Future<void> _signOut() async {
