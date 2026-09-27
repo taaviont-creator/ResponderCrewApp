@@ -431,7 +431,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
       case AvailabilityStatus.delayed:
         return 'Hilinen';
       default:
-        return 'Valvest väljas';
+        return 'Ei ole valves';
     }
   }
 
