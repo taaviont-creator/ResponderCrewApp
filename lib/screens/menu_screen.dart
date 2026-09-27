@@ -196,8 +196,8 @@ class MenuScreen extends StatelessWidget {
           if (canOpenReadinessOverview)
             _MenuEntry(
               icon: Icons.health_and_safety_outlined,
-              title: 'Juhtimiskeskuse koondvaade',
-              subtitle: 'Ühingute valmisoleku ülevaade',
+              title: 'Valmisoleku seaded',
+              subtitle: 'Miinimumkoosseis ja varustuse info',
               onTap: () => _open(
                 context,
                 PlatformReadinessScreen(
