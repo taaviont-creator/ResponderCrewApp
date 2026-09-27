@@ -168,32 +168,6 @@ class PlatformReadinessService {
     }, SetOptions(merge: true));
   }
 
-  int _nonNegativeInt(Object? value) {
-    final number = value is num ? value.toInt() : 0;
-    return number < 0 ? 0 : number;
-  }
-
-  String _stringValue(Object? value, {String fallback = ''}) {
-    return value is String && value.isNotEmpty ? value : fallback;
-  }
-
-  String _readinessStatusValue(Object? value) {
-    final status = _stringValue(value, fallback: ReadinessStatus.unknown);
-    return ReadinessStatus.values.contains(status)
-        ? status
-        : ReadinessStatus.unknown;
-  }
-
-  String _equipmentStatusValue(Object? value) {
-    final status = _stringValue(
-      value,
-      fallback: ReadinessEquipmentStatus.unknown,
-    );
-    return ReadinessEquipmentStatus.values.contains(status)
-        ? status
-        : ReadinessEquipmentStatus.unknown;
-  }
-
   void _requireOrganizationId(String organizationId) {
     if (organizationId.trim().isEmpty) {
       throw Exception('Selle toimingu jaoks puudub aktiivne organisatsioon');
