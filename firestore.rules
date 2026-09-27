@@ -2430,65 +2430,6 @@ service cloud.firestore {
         isActiveOrgAdmin(summaryId);
     }
 
-    function isOwnAvailabilityReadinessSummaryUpdate(summaryId) {
-      let availabilityId = request.auth.uid + '_' + summaryId;
-      let availabilityPath =
-        /databases/$(database)/documents/availability/$(availabilityId);
-      return signedIn() &&
-        isActiveMember(summaryId) &&
-        request.resource.data.id == summaryId &&
-        request.resource.data.organizationId == summaryId &&
-        request.resource.data.commandId == summaryId &&
-        request.resource.data.lastUpdatedBy == request.auth.uid &&
-        request.resource.data.lastUpdatedAt == request.time &&
-        request.resource.data.updatedAt == request.time &&
-        request.resource.data.minimumCrewRequired > 0 &&
-        request.resource.data.minimumCrewMet ==
-          (
-            request.resource.data.onDutyCount >=
-              request.resource.data.minimumCrewRequired
-          ) &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'onDutyCount',
-          'minimumCrewMet',
-          'lastUpdatedBy',
-          'lastUpdatedAt',
-          'updatedAt'
-        ]) &&
-        isValidReadinessSummaryData(request.resource.data) &&
-        existsAfter(availabilityPath) &&
-        getAfter(availabilityPath).data.userId == request.auth.uid &&
-        organizationIdFromData(getAfter(availabilityPath).data) == summaryId &&
-        getAfter(availabilityPath).data.updatedAt == request.time &&
-        (
-          (
-            (
-              !exists(availabilityPath) ||
-              get(availabilityPath).data.status != 'onDuty'
-            ) &&
-            getAfter(availabilityPath).data.status == 'onDuty' &&
-            request.resource.data.onDutyCount ==
-              resource.data.onDutyCount + 1
-          ) ||
-          (
-            exists(availabilityPath) &&
-            get(availabilityPath).data.status == 'onDuty' &&
-            getAfter(availabilityPath).data.status != 'onDuty' &&
-            (
-              (
-                resource.data.onDutyCount > 0 &&
-                request.resource.data.onDutyCount ==
-                  resource.data.onDutyCount - 1
-              ) ||
-              (
-                resource.data.onDutyCount == 0 &&
-                request.resource.data.onDutyCount == 0
-              )
-            )
-          )
-        );
-    }
-
     match /users/{userId} {
       allow read: if canReadUser(userId);
       allow create: if isSafeUserCreate(userId);
@@ -2661,8 +2602,7 @@ service cloud.firestore {
           )
         );
       allow create: if isReadinessSummaryWrite(summaryId);
-      allow update: if isReadinessSummaryWrite(summaryId) ||
-        isOwnAvailabilityReadinessSummaryUpdate(summaryId);
+      allow update: if isReadinessSummaryWrite(summaryId);
     }
   }
 }
