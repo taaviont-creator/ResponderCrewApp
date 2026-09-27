@@ -54,7 +54,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         const SnackBar(content: Text('Konto loodud')),
       );
       Navigator.pop(context);
-    } on Exception catch (e) {
+    } on Exception catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Konto loomine ebaõnnestus.')),
