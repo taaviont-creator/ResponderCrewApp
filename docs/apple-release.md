@@ -8,11 +8,11 @@ Apple'i tõuketeavituste registreerimine ootab APNs-i võtit enne FCM-i võtme k
 
 CI-s on eraldi Maci töö, mis kontrollib Swift/Xcode'i olemasolu ja ehitab iOS-i simulaatori rakenduse. Sõltuvused lisab Flutter Swift Package Manageri kaudu. Simulaatori ehitus ei ole allkirjastatud iPhone'i paigaldusfail ega kinnita tõuketeavituste saabumist pärisseadmes.
 
+Apple'i käivitus kasutab Flutteri UIScene elutsüklit. Lisatud on kohalike teavituste delegate, taustateavituste deklaratsioon ja APNs entitlement (Debug: development, Release/Profile: production). Operatsioonilogi olemasoleval respondcrew/wakelock kanalil on iOS-i teostus; see hoiab nähtava rakenduse ekraani ärkvel, mitte ei käivita logi taustal. Nimi seadmes on RespondCrew.
+
 ## Enne iOS-i kasutusvalmiduse kinnitamist
 
 - Kontrollida Maci CI tegelikku tulemust ja lahendada ehitusvead.
-- Lisada ning kontrollida iOS-i teavituste delegate'i seadistus, Push Notifications võimekus ja Background Modes / Remote notifications.
-- Lisada iOS-i ekraani ärkvel hoidmise teostus respondcrew/wakelock kanalile.
 - Kontrollida tel/sms avamist iPhone'il ning puuduvat helistamisvõimalust iPadil.
 - Kontrollida Firebase'i Apple'i konfiguratsiooni vastavust allkirjastatava rakenduse bundle ID-le. Praegune registreeritud ID on com.example.respondcrewApp; lõplikku Apple'i rakenduse identiteeti ei ole selles töös muudetud.
 - Seadistada Apple Developer meeskond, allkirjastamine ja Firebase'i APNs authentication key. Privaatseid võtmeid ei lisata repositooriumisse.

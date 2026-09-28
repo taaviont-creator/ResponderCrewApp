@@ -7,7 +7,7 @@ class WakelockService {
     try {
       await _channel.invokeMethod<void>('toggle', {'enable': enable});
     } on MissingPluginException {
-      // Wakelock is currently implemented only by the Android host app.
+      // Other hosts may not implement the Android/iOS wakelock channel.
     } on PlatformException {
       // Keep wakelock failures non-blocking for operation log workflows.
     }
