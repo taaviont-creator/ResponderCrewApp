@@ -89,6 +89,17 @@ class PersonalStatusChoices extends StatelessWidget {
             (plannedUnavailable
                 ? value == AvailabilityStatus.offDuty
                 : status == value);
+        final (foreground, background) = switch (value) {
+          AvailabilityStatus.onDuty => (
+            AppColors.ready,
+            AppColors.readySurface,
+          ),
+          AvailabilityStatus.delayed => (
+            AppColors.delayed,
+            AppColors.delayedSurface,
+          ),
+          _ => (AppColors.offDuty, AppColors.offDutySurface),
+        };
         return SizedBox(
           width: columns
               ? (constraints.maxWidth - 16) / 3
@@ -102,15 +113,9 @@ class PersonalStatusChoices extends StatelessWidget {
             style: OutlinedButton.styleFrom(
               minimumSize: const Size(48, 76),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-              backgroundColor: selected
-                  ? AppColors.readySurface
-                  : AppColors.surfaceBlueStrong,
-              foregroundColor: selected
-                  ? AppColors.ready
-                  : AppColors.textPrimary,
-              side: BorderSide(
-                color: selected ? AppColors.ready : AppColors.border,
-              ),
+              backgroundColor: selected ? background : AppColors.surface,
+              foregroundColor: selected ? foreground : AppColors.textPrimary,
+              side: BorderSide(color: selected ? foreground : AppColors.border),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,

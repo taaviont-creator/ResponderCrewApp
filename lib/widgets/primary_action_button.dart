@@ -2,11 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 
-enum PrimaryActionButtonStyle {
-  primary,
-  danger,
-  secondary,
-}
+enum PrimaryActionButtonStyle { primary, danger, secondary }
 
 class PrimaryActionButton extends StatelessWidget {
   const PrimaryActionButton({
@@ -31,7 +27,9 @@ class PrimaryActionButton extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      constraints: const BoxConstraints(minHeight: AppTheme.primaryActionHeight),
+      constraints: const BoxConstraints(
+        minHeight: AppTheme.primaryActionHeight,
+      ),
       child: ElevatedButton(
         onPressed: effectiveOnPressed,
         style: ElevatedButton.styleFrom(
@@ -47,9 +45,9 @@ class PrimaryActionButton extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppTheme.cardRadius),
           ),
-          textStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+          textStyle: Theme.of(
+            context,
+          ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
         ),
         child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 150),
@@ -101,8 +99,8 @@ class PrimaryActionButton extends StatelessWidget {
         );
       case PrimaryActionButtonStyle.primary:
         return const _ActionColors(
-          background: AppColors.deepSeaBlue,
-          foreground: AppColors.background,
+          background: AppColors.orange,
+          foreground: AppColors.navy,
         );
     }
   }
