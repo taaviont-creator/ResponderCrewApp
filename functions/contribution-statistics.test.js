@@ -1,0 +1,80 @@
+const {test}=require('node:test');const assert=require('node:assert/strict');
+const {DateTime}=require('luxon');
+const {aggregate,period,dateMillis,versionTimelines,dutyForMember}=require('./contribution-statistics');
+const {project,createHistoryHandler}=require('./statistics-history');
+const time=s=>Date.parse(s), start=time('2026-09-01T00:00:00Z');
+const member={userId:'u',organizationId:'org',status:'active',isActive:true,displayName:'Liige U',joinedAt:start-100};
+const manual=status=>({userId:'u',organizationId:'org',status});
+const rec=(source,id,data,version=start-1)=>({source,id,data,version});
+const change=(source,sourceId,at,before,after)=>({organizationId:'org',userId:'u',source,sourceId,at,before,after});
+const base={organizationId:'org',from:'2026-09-01',to:'2026-09-01',now:start+12*3600000,trackingStart:start,current:[rec('memberships','u_org',member),rec('availability','u_org',manual('onDuty'))],history:[],memberships:[member],activities:[],participants:[],callouts:[],responses:[],attendance:[]};
+const hours=(options={})=>aggregate({...base,...options}).members[0];
+test('unchanged duty starts at tracking activation, never fabricates older hours',()=>{assert.equal(hours().dutyHours,12);assert.equal(hours({trackingStart:null}).dutyHours,null);assert.equal(hours({to:'2026-08-31',from:'2026-08-01'}).dutyHours,null);});
+test('manual changes replay in commit order; delayed duty remains separate',()=>{
+ const at=start+4*3600000,end=start+8*3600000;
+ const history=[change('availability','u_org',end,manual('delayed'),manual('offDuty')),change('availability','u_org',at,manual('onDuty'),manual('delayed'))];
+ const row=hours({history,current:[base.current[0],rec('availability','u_org',manual('offDuty'),end)]});assert.equal(row.dutyHours,4);assert.equal(row.delayedHours,4);
+});
+test('new availability starts at creation; pending trigger cannot backfill current state',()=>{
+ const at=start+5*3600000,current=[base.current[0],rec('availability','u_org',manual('onDuty'),at)];
+ assert.equal(hours({current}).dutyHours,null);
+ assert.equal(hours({current,history:[change('availability','u_org',at,null,manual('onDuty'))]}).dutyHours,7);
+});
+test('absence overlaps subtract once and cancellation preserves earlier absence',()=>{
+ const one={...manual('active'),startAt:start+3600000,endAt:start+6*3600000};
+ const two={...manual('active'),startAt:start+3*3600000,endAt:start+8*3600000};
+ const at=start+4*3600000, cancelled={...two,status:'cancelled'};
+ assert.equal(hours({current:[...base.current,rec('plannedUnavailability','one',one),rec('plannedUnavailability','two',two)]}).dutyHours,5);
+ assert.equal(hours({current:[...base.current,rec('plannedUnavailability','one',one),rec('plannedUnavailability','two',cancelled,at)],history:[change('plannedUnavailability','two',at,two,cancelled)]}).dutyHours,7);
+});
+test('recurring absence obeys Tallinn weekday and date limits',()=>{
+ const rule={...manual('active'),daysOfWeek:[2],startMinute:240,endMinute:360};
+ assert.equal(hours({current:[...base.current,rec('plannedUnavailabilityRules','r',rule)]}).dutyHours,10);
+});
+test('DST fall-back counts both repeated hours, spring-forward only actual elapsed time',()=>{
+ for(const [day,expected,total] of [['2026-10-25',23,25],['2026-03-29',23,23]]) {
+  const range=period(day,day), m={...member,joinedAt:range.start-1};
+  const current=[rec('memberships','u_org',m,range.start-1),rec('availability','u_org',manual('onDuty'),range.start-1)];
+  const lines=versionTimelines(current,[],range.start,range.end).lines;
+  assert.equal(dutyForMember('u',lines,range.start,range.end).dutyHours,total);
+  const rule=rec('plannedUnavailabilityRules','r',{...manual('active'),daysOfWeek:[7],startMinute:180,endMinute:240},range.start-1);
+  assert.equal(dutyForMember('u',versionTimelines([...current,rule],[],range.start,range.end).lines,range.start,range.end).dutyHours,expected);
+ }
+});
+test('member removal stops duty, and canonical inactive membership overrides legacy active',()=>{
+ const at=start+3*3600000,removed={...member,status:'removed',isActive:false};
+ const current=[rec('memberships','u_org',removed,at),base.current[1],rec('memberships','legacy',member)];
+ assert.equal(hours({current,history:[change('memberships','u_org',at,member,removed)]}).dutyHours,3);
+});
+test('confirmed activities use activity date, categories and known hours; intent is pending',()=>{
+ const a={id:'a',organizationId:'org',title:'Repair',type:'repair',startTime:'2026-09-01 10:00'};
+ const b={...a,id:'b',type:'training'},p={organizationId:'org',activityId:'a',userId:'u',attendanceStatus:'confirmed',hours:2};
+ const row=hours({activities:[a,b],participants:[p,{...p},{...p,activityId:'b',attendanceStatus:'notConfirmed',status:'registered',hours:4}]});
+ assert.equal(row.activityCount,1);assert.equal(row.contributionHours,2);assert.equal(row.pendingCount,1);assert.deepEqual(row.categories,{repair:{count:1,hours:2}});
+});
+test('missing hours stay unknown and invalid/foreign/future records cannot inflate stats',()=>{
+ const a={id:'a',organizationId:'org',title:'Work',type:'maintenance',startTime:'2026-09-01'};
+ const p={organizationId:'org',activityId:'a',userId:'u',attendanceStatus:'confirmed'};
+ const row=hours({activities:[a,{...a,id:'future',startTime:'2026-09-02'},{...a,id:'bad',startTime:'n/a'}],participants:[p,{...p,organizationId:'other',hours:100},{...p,activityId:'future',hours:3},{...p,activityId:'bad'}]});
+ assert.equal(row.unknownHoursCount,1);assert.equal(row.activityCount,1);assert.equal(row.contributionHours,0);
+});
+test('callout response is distinct from actual attendance; cancellations excluded',()=>{
+ const c={id:'c',organizationId:'org',createdAt:start,title:'Callout',status:'closed'};
+ const r={calloutId:'c',organizationId:'org',userId:'u',response:'responding'};
+ assert.equal(hours({callouts:[c],responses:[r]}).calloutCount,0);
+ const row=hours({callouts:[c],responses:[r],attendance:[{...r,status:'confirmed',hours:3}]});
+ assert.equal(row.calloutCount,1);assert.equal(row.responseCount,1);assert.equal(row.contributionHours,3);
+ assert.equal(hours({callouts:[{...c,status:'cancelled'}],responses:[r],attendance:[{...r,status:'confirmed'}]}).calloutCount,0);
+});
+test('period validation rejects malformed, inverted and oversized ranges; dates inclusive in Tallinn',()=>{
+ for(const pair of [[{},'2026-01-01'],['invalid','invalid'],['2026-02-30','2026-03-01'],['2026-09-02','2026-09-01'],['2025-01-01','2026-02-01']]) assert.equal(period(...pair),null);
+ assert.equal(dateMillis('2026-09-01 18:00'),time('2026-09-01T15:00:00Z'));
+ assert.equal(period('2026-09-01','2026-09-01').end,time('2026-09-01T21:00:00Z'));
+});
+test('history projection excludes personal fields and preserves commit timestamp; retries idempotent',async()=>{
+ assert.deepEqual(project('availability',{...manual('onDuty'),email:'private',phone:'secret'}),manual('onDuty'));
+ const writes=new Map();const handler=createHistoryHandler({source:'availability',db:{collection:()=>({doc:id=>({create:async data=>{if(writes.has(id)){throw {code:6};}writes.set(id,data);}})})}});
+ const event={id:'event',params:{documentId:'u_org'},time:new Date(start+20).toISOString(),data:{before:{data:()=>manual('offDuty')},after:{data:()=>manual('onDuty'),updateTime:{toMillis:()=>start}}}};
+ await handler(event);await handler(event);assert.equal(writes.size,1);assert.equal([...writes.values()][0].at,start);
+ await handler({...event,id:'deleted',data:{before:{data:()=>manual('onDuty')},after:{data:()=>undefined}}});assert.equal(writes.size,2);assert.equal([...writes.values()][1].after,null);
+});

@@ -859,3 +859,26 @@ test('warehouse assignment keeps condition and requires active same-org recipien
   await assertSucceeds(updateDoc(ref,{assignedToUserId:'',assignedToName:'',storage:'warehouse',returnedAt:serverTimestamp(),returnedBy:orgAdminId}));
   await assertFails(updateDoc(ref,{storage:'invalid'}));
 });
+
+
+test('statistics history and activation settings cannot be read or forged by clients', async () => {
+  for (const uid of [orgAdminId, activeMemberId]) {
+    const db = testEnv.authenticatedContext(uid).firestore();
+    for (const path of ['statisticsHistory/entry', 'statisticsSettings/tracking']) {
+      await assertFails(setDoc(doc(db, path), {organizationId, userId: uid, startedAt: serverTimestamp()}));
+      await assertFails(getDoc(doc(db, path)));
+    }
+  }
+});
+test('callout attendance is server-written, admin-readable and private to the participant', async () => {
+  await testEnv.withSecurityRulesDisabled(async context => {
+    await setDoc(doc(context.firestore(), 'calloutAttendance/c_user'), {organizationId, calloutId: 'c', userId: activeMemberId, status: 'confirmed', hours: 2});
+  });
+  const adminDb = testEnv.authenticatedContext(orgAdminId).firestore();
+  const selfDb = testEnv.authenticatedContext(activeMemberId).firestore();
+  const peerDb = testEnv.authenticatedContext(targetMemberId).firestore();
+  await assertSucceeds(getDocs(query(collection(adminDb, 'calloutAttendance'), where('organizationId', '==', organizationId), where('calloutId', '==', 'c'))));
+  await assertSucceeds(getDoc(doc(selfDb, 'calloutAttendance/c_user')));
+  await assertFails(getDoc(doc(peerDb, 'calloutAttendance/c_user')));
+  for (const db of [adminDb, selfDb]) await assertFails(setDoc(doc(db, 'calloutAttendance/forged'), {organizationId, userId: activeMemberId, calloutId: 'c', status: 'confirmed'}));
+});

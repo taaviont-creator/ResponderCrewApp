@@ -4,6 +4,8 @@ class ActivityType {
   static const training = 'training';
   static const meeting = 'meeting';
   static const maintenance = 'maintenance';
+  static const repair = 'repair';
+  static const groundskeeping = 'groundskeeping';
   static const exercise = 'exercise';
   static const event = 'event';
   static const other = 'other';
@@ -12,6 +14,8 @@ class ActivityType {
     training,
     meeting,
     maintenance,
+    repair,
+    groundskeeping,
     exercise,
     event,
     other,

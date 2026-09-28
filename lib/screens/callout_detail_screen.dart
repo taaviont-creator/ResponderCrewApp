@@ -12,6 +12,8 @@ import '../widgets/app_section_card.dart';
 import '../widgets/primary_action_button.dart';
 import '../widgets/status_badge.dart';
 import 'operation_log_screen.dart';
+import 'callout_attendance_screen.dart';
+import '../services/activity_service.dart';
 
 class CalloutDetailScreen extends StatefulWidget {
   const CalloutDetailScreen({
@@ -44,6 +46,7 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
   CalloutModel? _liveCallout;
   bool _calloutReadFailed = false;
   late final Stream<OperationLogModel?> _logStream;
+  late final Stream<bool> _canConfirmAttendance;
   final _eventStreams = <String, Stream<List<OperationLogEventModel>>>{};
   bool _isSavingResponse = false;
   bool _isUpdatingStatus = false;
@@ -56,6 +59,7 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
   @override
   void initState() {
     super.initState();
+    _canConfirmAttendance = ActivityService().streamCanConfirmParticipation(organizationId: widget.organizationId, userId: widget.currentUid);
     _logStream = _operationLogService.streamLogForCallout(calloutId: widget.callout.id, organizationId: widget.organizationId);
     _calloutSubscription = _calloutService
         .streamCallout(
@@ -318,6 +322,11 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
             _buildResponseSummary(),
             const SizedBox(height: AppTheme.sectionSpacing),
           ],
+          if (_callout.status != CalloutStatus.cancelled)
+            StreamBuilder<bool>(stream: _canConfirmAttendance, builder: (context, snapshot) {
+              if (snapshot.data != true) return const SizedBox.shrink();
+              return OutlinedButton.icon(icon: const Icon(Icons.fact_check_outlined), label: const Text('Kinnita osalemised'), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CalloutAttendanceScreen(organizationId: widget.organizationId, calloutId: _callout.id))));
+            }),
           _buildResponseActions(),
           if (widget.canCloseCallouts && _isActive) ...[
             const SizedBox(height: AppTheme.sectionSpacing),

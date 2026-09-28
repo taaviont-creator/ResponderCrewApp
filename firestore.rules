@@ -1516,7 +1516,7 @@ service cloud.firestore {
     }
 
     function isValidActivityType(type) {
-      return type == 'training' ||
+      return type == 'repair' || type == 'groundskeeping' || type == 'training' ||
         type == 'meeting' ||
         type == 'maintenance' ||
         type == 'exercise' ||
@@ -2683,6 +2683,13 @@ service cloud.firestore {
       allow create: if isCalloutCreate(calloutId);
       allow update: if isCalloutStatusUpdate(calloutId);
     }
+
+    // Attendance is written through an authenticated admin-only callable.
+    match /calloutAttendance/{attendanceId} {
+      allow read: if signedIn() && isActiveMember(resource.data.organizationId) &&
+        (isActiveOrgAdmin(resource.data.organizationId) || resource.data.userId == request.auth.uid);
+    }
+    // statisticsHistory and statisticsSettings intentionally have no client access.
 
     match /calloutResponses/{responseId} {
       allow read: if signedIn() &&
