@@ -47,7 +47,7 @@ void main() {
         find.widgetWithText(TextFormField, 'Kirjeldus ja lisainfo'),
         'Oma info',
       );
-      await tester.tap(find.text('Kadunud isik.'));
+      await tester.tap(find.text('Inimene vees.'));
       await tester.pump();
       await tester.tap(find.text('TROSSI mereabi'));
       await tester.pump();
@@ -62,7 +62,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(saved!.type, 'tross');
       expect(saved!.title, 'Minu sündmus');
-      expect(saved!.description, 'Oma info\nKadunud isik.\nMootoririke.');
+      expect(saved!.description, 'Oma info\nInimene vees.\nMootoririke.');
       expect(saved!.responseTargetMinutes, 60);
       expect(find.textContaining('Sisestatud tekst säilib'), findsOneWidget);
       expect(find.text('Minu sündmus'), findsOneWidget);
