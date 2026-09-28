@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../models/notification_model.dart';
@@ -616,6 +617,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 const SizedBox(height: 10),
               ],
               Text(message),
+              if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) ...[
+                const SizedBox(height: AppTheme.itemSpacing),
+                const Text(
+                  'Heli kuulmiseks luba RespondCrew teavituste heli ning kontrolli '
+                  'hääletu režiimi ja Fookuse seadeid. Tavaline teavitus ei eira neid seadeid.',
+                ),
+              ],
               if (!isLoading && supported && !allowed) ...[
                 const SizedBox(height: AppTheme.itemSpacing),
                 FilledButton.icon(
