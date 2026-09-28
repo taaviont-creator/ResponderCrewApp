@@ -28,9 +28,11 @@ class AvailabilityScreen extends StatefulWidget {
     this.organizationName,
     this.membershipRole,
     this.openPlanningOnStart = false,
+    this.planningOnly = false,
   });
 
   final bool openPlanningOnStart;
+  final bool planningOnly;
   final String organizationId;
   final String? organizationName;
   final String? membershipRole;
@@ -95,7 +97,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     final organizationName = widget.organizationName?.trim();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Valmisolek')),
+      appBar: AppBar(title: Text(widget.planningOnly ? 'Planeerimine' : 'Valmisolek')),
       body: ListView(
         padding: const EdgeInsets.all(AppTheme.screenPadding),
         children: [
@@ -140,6 +142,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
             ),
           ),
           const SizedBox(height: AppTheme.sectionSpacing),
+          if (!widget.planningOnly) ...[
           Text(
             'Minu valmisolek',
             style: Theme.of(context).textTheme.headlineSmall,
@@ -154,6 +157,8 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
           const SizedBox(height: AppTheme.itemSpacing),
           _buildAvailabilityControl(),
           const SizedBox(height: AppTheme.sectionSpacing),
+          ],
+          if (widget.planningOnly) ...[
           _buildPlannedUnavailabilitySection(),
           const SizedBox(height: AppTheme.sectionSpacing),
           _buildRecurringPlannedUnavailabilitySection(),
@@ -164,6 +169,8 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
             _buildOrganizationRecurringPlannedUnavailabilitySection(),
             const SizedBox(height: AppTheme.sectionSpacing),
           ],
+          ],
+          if (!widget.planningOnly) ...[
           Text(
             'Meeskonna ülevaade',
             style: Theme.of(context).textTheme.headlineSmall,
@@ -173,6 +180,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
           const SizedBox(height: AppTheme.sectionSpacing),
           _buildAvailabilityReminderSettings(),
           const SizedBox(height: AppTheme.sectionSpacing),
+          ],
         ],
       ),
     );
