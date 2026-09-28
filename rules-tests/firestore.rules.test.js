@@ -93,6 +93,19 @@ beforeEach(async () => {
       );
     }
 
+    await updateDocOrCreate(firestore, `users/${orgAdminId}`, {
+      name: 'Org Admin',
+      activeOrganizationId: organizationId,
+      activeCommandId: organizationId,
+      commandId: organizationId,
+    });
+    await updateDocOrCreate(firestore, `users/${targetMemberId}`, {
+      name: 'Target Member',
+    });
+    await updateDocOrCreate(firestore, `users/${activeMemberId}`, {
+      name: 'Active Member',
+    });
+
     await updateDocOrCreate(
       firestore,
       `commands/${otherOrganizationId}`,
@@ -440,6 +453,13 @@ test('ordinary member cannot change another member role or sea rescue level', as
       updatedAt: serverTimestamp(),
     }),
   );
+
+  await assertFails(
+    updateDoc(targetRef, {
+      membershipStartedAt: new Date('2015-01-01T00:00:00.000Z'),
+      updatedAt: serverTimestamp(),
+    }),
+  );
 });
 
 test('org admin can change own sea rescue level but not own role', async () => {
@@ -463,6 +483,62 @@ test('org admin can change own sea rescue level but not own role', async () => {
       updatedAt: serverTimestamp(),
     }),
   );
+});
+
+test('member and org admin can set membership start date within their scope', async () => {
+  const selfDb = testEnv.authenticatedContext(activeMemberId).firestore();
+  const ownRef = doc(
+    selfDb,
+    'memberships',
+    `${activeMemberId}_${organizationId}`,
+  );
+  await assertSucceeds(updateDoc(ownRef, {
+    membershipStartedAt: new Date('2018-05-12T00:00:00.000Z'),
+    updatedAt: serverTimestamp(),
+  }));
+
+  const adminDb = testEnv.authenticatedContext(orgAdminId).firestore();
+  const targetRef = doc(
+    adminDb,
+    'memberships',
+    `${targetMemberId}_${organizationId}`,
+  );
+  await assertSucceeds(updateDoc(targetRef, {
+    membershipStartedAt: new Date('2012-03-04T00:00:00.000Z'),
+    updatedAt: serverTimestamp(),
+  }));
+
+  await assertFails(updateDoc(ownRef, {
+    membershipStartedAt: new Date('2100-01-01T00:00:00.000Z'),
+    updatedAt: serverTimestamp(),
+  }));
+  await assertFails(updateDoc(targetRef, {
+    joinedAt: new Date('2012-03-04T00:00:00.000Z'),
+    updatedAt: serverTimestamp(),
+  }));
+});
+
+test('only the same organization admin can update a member phone', async () => {
+  const adminDb = testEnv.authenticatedContext(orgAdminId).firestore();
+  const targetRef = doc(adminDb, 'users', targetMemberId);
+  await assertSucceeds(updateDoc(targetRef, {
+    phone: '+372 555 1234',
+    updatedAt: serverTimestamp(),
+  }));
+  await assertFails(updateDoc(targetRef, {
+    name: 'Changed by admin',
+    updatedAt: serverTimestamp(),
+  }));
+  await assertFails(updateDoc(targetRef, {
+    phone: '1'.repeat(41),
+    updatedAt: serverTimestamp(),
+  }));
+
+  const memberDb = testEnv.authenticatedContext(activeMemberId).firestore();
+  await assertFails(updateDoc(doc(memberDb, 'users', targetMemberId), {
+    phone: '+372 555 9999',
+    updatedAt: serverTimestamp(),
+  }));
 });
 
 test('ordinary member can create own personal equipment but not organization equipment', async () => {

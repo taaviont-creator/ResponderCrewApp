@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/membership_model.dart';
+import 'member_contact_service.dart';
 
 class UserService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -60,6 +61,31 @@ class UserService {
       uid: uid,
       displayName: trimmedName,
     );
+  }
+
+  Future<void> updateMemberPhone({
+    required String targetUid,
+    required String phone,
+  }) async {
+    if (_auth.currentUser == null || targetUid.trim().isEmpty) {
+      throw StateError('A signed-in administrator and member are required.');
+    }
+
+    final trimmedPhone = phone.trim();
+    if (trimmedPhone.isNotEmpty &&
+        phoneContactUri(trimmedPhone, sms: false) == null) {
+      throw ArgumentError('Invalid phone number.');
+    }
+    final data = <String, dynamic>{'updatedAt': FieldValue.serverTimestamp()};
+    if (trimmedPhone.isEmpty) {
+      data['phone'] = FieldValue.delete();
+    } else {
+      data['phone'] = trimmedPhone;
+    }
+    await _firestore
+        .collection('users')
+        .doc(targetUid)
+        .set(data, SetOptions(merge: true));
   }
 
   Future<void> _syncOwnActiveMembershipDisplayNames({

@@ -257,6 +257,34 @@ class MembershipService {
     }, SetOptions(merge: true));
   }
 
+  Future<void> updateMembershipStartDate({
+    required String membershipId,
+    required String targetUserId,
+    required String organizationId,
+    required DateTime startedAt,
+  }) async {
+    _requireOrganizationId(organizationId);
+    final expectedMembershipId = this.membershipId(
+      userId: targetUserId,
+      organizationId: organizationId,
+    );
+    if (membershipId != expectedMembershipId) {
+      throw Exception('Membership belongs to another organization');
+    }
+
+    final date = DateTime.utc(startedAt.year, startedAt.month, startedAt.day);
+    final today = DateTime.now();
+    final todayUtc = DateTime.utc(today.year, today.month, today.day);
+    if (date.isAfter(todayUtc)) {
+      throw ArgumentError('Membership start date cannot be in the future.');
+    }
+
+    await _memberships.doc(membershipId).set({
+      'membershipStartedAt': Timestamp.fromDate(date),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
   Query<Map<String, dynamic>> _organizationMembershipQuery(
     String organizationId,
   ) {
