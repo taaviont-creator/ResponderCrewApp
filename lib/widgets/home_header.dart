@@ -132,15 +132,15 @@ class PersonalStatusChoices extends StatelessWidget {
         spacing: 8,
         runSpacing: 8,
         children: [
-          button(AvailabilityStatus.onDuty, 'Valmis', Icons.verified_outlined),
+          button(AvailabilityStatus.onDuty, 'Valves', Icons.verified_outlined),
           button(
             AvailabilityStatus.delayed,
-            'Saabun $minutes min',
+            'Hilinemisega\n+$minutes min',
             Icons.schedule,
           ),
           button(
             AvailabilityStatus.offDuty,
-            'Pole saadaval',
+            'Mitte valves',
             Icons.nights_stay_outlined,
           ),
         ],

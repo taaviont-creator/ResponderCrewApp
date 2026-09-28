@@ -280,8 +280,8 @@ class CrewReadinessView extends StatelessWidget {
         .toUpperCase();
     final status = delayed
         ? (member.arrivalMinutes == null
-              ? 'Saabumisaeg täpsustamata'
-              : 'Saabub ${member.arrivalMinutes} min pärast')
+              ? 'Hilinemise aeg täpsustamata'
+              : 'Hilinemisega (+${member.arrivalMinutes} min)')
         : 'Valves';
     final level = member.level == SeaRescueLevel.level2
         ? 'II aste'

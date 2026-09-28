@@ -201,7 +201,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Planeeritud mittevalves aeg on aktiivne. '
+              'Planeeritud valveväline aeg on aktiivne. '
               'Tühista see enne valvesse märkimist.',
             ),
           ),
@@ -256,7 +256,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
               _buildScheduledStatusPreview(status),
               const SizedBox(height: 20),
               _StatusActionButton(
-                label: 'VALVES',
+                label: 'Valves',
                 icon: Icons.check_circle_outline,
                 selected: status == AvailabilityStatus.onDuty,
                 backgroundColor: AppColors.ready,
@@ -270,7 +270,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
               ),
               const SizedBox(height: AppTheme.itemSpacing),
               _StatusActionButton(
-                label: 'HILINEN',
+                label: 'Hilinemisega',
                 icon: Icons.schedule,
                 selected: status == AvailabilityStatus.delayed,
                 backgroundColor: AppColors.delayedSurface,
@@ -288,7 +288,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
               ),
               const SizedBox(height: AppTheme.itemSpacing),
               _StatusActionButton(
-                label: 'EI OLE VALVES',
+                label: 'Mitte valves',
                 icon: Icons.cancel_outlined,
                 selected: status == AvailabilityStatus.offDuty,
                 backgroundColor: Colors.transparent,
@@ -397,9 +397,9 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
       case AvailabilityStatus.onDuty:
         return 'Valves';
       case AvailabilityStatus.delayed:
-        return 'Hilinen';
+        return 'Hilinemisega';
       default:
-        return 'Ei ole valves';
+        return 'Mitte valves';
     }
   }
 
@@ -418,7 +418,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
           child = const Center(child: CircularProgressIndicator());
         } else if (periods.isEmpty) {
           child = Text(
-            'Planeeritud mittevalves aegu ei ole.',
+            'Planeeritud valveväliseid aegu ei ole.',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: AppColors.textSecondary,
                 ),
@@ -435,7 +435,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
         }
 
         return AppSectionCard(
-          title: 'Minu planeeritud mittevalves ajad',
+          title: 'Minu planeeritud valvevälised ajad',
           leading: const Icon(Icons.event_busy_outlined),
           trailing: TextButton.icon(
             onPressed: _showAddPlannedUnavailabilityDialog,
@@ -464,7 +464,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
           child = const Center(child: CircularProgressIndicator());
         } else if (rules.isEmpty) {
           child = Text(
-            'Korduvaid mittevalves aegu ei ole.',
+            'Korduvaid valveväliseid aegu ei ole.',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: AppColors.textSecondary,
                 ),
@@ -481,7 +481,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
         }
 
         return AppSectionCard(
-          title: 'Minu korduvad mittevalves ajad',
+          title: 'Minu korduvad valvevälised ajad',
           leading: const Icon(Icons.event_repeat_outlined),
           trailing: TextButton.icon(
             onPressed: _showAddRecurringPlannedUnavailabilityDialog,
@@ -513,7 +513,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
           child = const Center(child: CircularProgressIndicator());
         } else if (periods.isEmpty) {
           child = Text(
-            'Ühingus ei ole planeeritud mittevalves aegu.',
+            'Ühingus ei ole planeeritud valveväliseid aegu.',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: AppColors.textSecondary,
                 ),
@@ -534,7 +534,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
         }
 
         return AppSectionCard(
-          title: 'Ühingu planeeritud mittevalves ajad',
+          title: 'Ühingu planeeritud valvevälised ajad',
           leading: const Icon(Icons.groups_2_outlined),
           child: child,
         );
@@ -558,7 +558,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
           child = const Center(child: CircularProgressIndicator());
         } else if (rules.isEmpty) {
           child = Text(
-            'Ühingus ei ole korduvaid mittevalves aegu.',
+            'Ühingus ei ole korduvaid valveväliseid aegu.',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: AppColors.textSecondary,
                 ),
@@ -578,7 +578,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
         }
 
         return AppSectionCard(
-          title: 'Ühingu korduvad mittevalves ajad',
+          title: 'Ühingu korduvad valvevälised ajad',
           leading: const Icon(Icons.event_repeat_outlined),
           child: child,
         );
@@ -746,7 +746,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     final organizationId = widget.organizationId.trim();
     if (organizationId.isEmpty) {
       _showSnackBar(
-        'Planeeritud mittevalves aega ei saa lisada ilma aktiivse ühinguta.',
+        'Planeeritud valvevälist aega ei saa lisada ilma aktiivse ühinguta.',
       );
       return;
     }
@@ -777,18 +777,18 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                 );
                 if (!mounted || !dialogContext.mounted) return;
                 Navigator.of(dialogContext).pop();
-                _showSnackBar('Planeeritud mittevalves aeg lisatud.');
+                _showSnackBar('Planeeritud valveväline aeg lisatud.');
               } catch (e) {
                 if (!mounted || !dialogContext.mounted) return;
                 setDialogState(() => isSaving = false);
                 _showSnackBar(
-                  'Planeeritud mittevalves aega ei saanud salvestada.',
+                  'Planeeritud valvevälist aega ei saanud salvestada.',
                 );
               }
             }
 
             return AlertDialog(
-              title: const Text('Lisa planeeritud mittevalves aeg'),
+              title: const Text('Lisa planeeritud valveväline aeg'),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -874,7 +874,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
   Future<void> _showAddRecurringPlannedUnavailabilityDialog() async {
     final organizationId = widget.organizationId.trim();
     if (organizationId.isEmpty) {
-      _showSnackBar('Korduvat mittevalves aega ei saanud salvestada.');
+      _showSnackBar('Korduvat valvevälist aega ei saanud salvestada.');
       return;
     }
 
@@ -913,18 +913,18 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                 );
                 if (!mounted || !dialogContext.mounted) return;
                 Navigator.of(dialogContext).pop();
-                _showSnackBar('Korduv mittevalves aeg lisatud.');
+                _showSnackBar('Korduv valveväline aeg lisatud.');
               } catch (e) {
                 if (!mounted || !dialogContext.mounted) return;
                 setDialogState(() => isSaving = false);
                 _showSnackBar(
-                  'Korduvat mittevalves aega ei saanud salvestada.',
+                  'Korduvat valvevälist aega ei saanud salvestada.',
                 );
               }
             }
 
             return AlertDialog(
-              title: const Text('Lisa korduv mittevalves aeg'),
+              title: const Text('Lisa korduv valveväline aeg'),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -1076,7 +1076,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     try {
       await _plannedUnavailabilityService.cancelMyPeriod(periodId: period.id);
       if (!mounted) return;
-      _showSnackBar('Planeeritud mittevalves aeg tühistatud.');
+      _showSnackBar('Planeeritud valveväline aeg tühistatud.');
     } catch (e) {
       if (!mounted) return;
       _showSnackBar('Sul puudub õigus seda kirjet muuta.');
@@ -1096,7 +1096,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     try {
       await _plannedUnavailabilityService.cancelMyRule(ruleId: rule.id);
       if (!mounted) return;
-      _showSnackBar('Korduv mittevalves aeg tühistatud.');
+      _showSnackBar('Korduv valveväline aeg tühistatud.');
     } catch (e) {
       if (!mounted) return;
       _showSnackBar('Sul puudub õigus seda kirjet muuta.');
@@ -1111,17 +1111,17 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     switch (status) {
       case AvailabilityStatus.onDuty:
         return const StatusBadge(
-          label: 'VALVES',
+          label: 'Valves',
           type: StatusBadgeType.ready,
         );
       case AvailabilityStatus.delayed:
         return const StatusBadge(
-          label: 'HILINEN',
+          label: 'Hilinemisega',
           type: StatusBadgeType.delayed,
         );
       default:
         return const StatusBadge(
-          label: 'EI OLE VALVES',
+          label: 'Mitte valves',
           type: StatusBadgeType.offDuty,
         );
     }
@@ -1234,7 +1234,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                             const SizedBox(width: AppTheme.itemSpacing),
                             Expanded(
                               child: _CountCard(
-                                label: 'Hilinen',
+                                label: 'Hilinemisega',
                                 count: delayed.length,
                                 color: AppColors.delayed,
                                 icon: Icons.schedule,
@@ -1244,7 +1244,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                         ),
                         const SizedBox(height: AppTheme.itemSpacing),
                         _CountCard(
-                          label: 'Ei ole valves',
+                          label: 'Mitte valves',
                           count: offDuty.length,
                           color: AppColors.offDuty,
                           icon: Icons.cancel_outlined,
@@ -1262,13 +1262,13 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                         ),
                         const SizedBox(height: AppTheme.itemSpacing),
                         _MemberGroupCard(
-                          title: 'Hilinen',
+                          title: 'Hilinemisega',
                           type: StatusBadgeType.delayed,
                           members: delayed,
                         ),
                         const SizedBox(height: AppTheme.itemSpacing),
                         _MemberGroupCard(
-                          title: 'Ei ole valves',
+                          title: 'Mitte valves',
                           type: StatusBadgeType.offDuty,
                           members: offDuty,
                         ),
@@ -1990,9 +1990,9 @@ class _ScheduledStatusPreview extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             hasActiveSchedule
-                ? 'Planeeritud mittevalves aeg on aktiivne ja sind ei '
-                    'arvestata valmisolekus valves liikmena.'
-                : 'Planeeritud mittevalves aeg ei ole hetkel aktiivne.',
+                ? 'Planeeritud valveväline aeg on aktiivne ja sind ei '
+                    'arvestata valves olevate liikmete hulka.'
+                : 'Planeeritud valveväline aeg ei ole hetkel aktiivne.',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: color,
                   fontWeight:

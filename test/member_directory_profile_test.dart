@@ -17,7 +17,7 @@ const members = [
     name: 'Mari',
     role: 'orgAdmin',
     level: 'level2',
-    status: 'Hilinen',
+    status: 'Hilinemisega',
   ),
 ];
 void main() {

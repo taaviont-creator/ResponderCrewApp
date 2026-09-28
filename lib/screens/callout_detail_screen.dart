@@ -550,7 +550,7 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
                 const SizedBox(height: 16),
                 _buildMemberGroup('Reageerivad', details.responding),
                 _buildMemberGroup(
-                  'Hilinenud',
+                  'Hilinemisega reageerijad',
                   details.delayed,
                   showDelay: true,
                 ),

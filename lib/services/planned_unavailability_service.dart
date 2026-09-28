@@ -263,7 +263,7 @@ class PlannedUnavailabilityService {
     final trimmed = organizationId.trim();
     if (trimmed.isEmpty) {
       throw Exception(
-        'Planeeritud mittevalves aega ei saa lisada ilma aktiivse ühinguta.',
+        'Planeeritud valvevälist aega ei saa lisada ilma aktiivse ühinguta.',
       );
     }
     return trimmed;

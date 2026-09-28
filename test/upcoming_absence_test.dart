@@ -89,9 +89,9 @@ void main() {
           ),
         ),
       );
-      expect(find.text('Järgmised mittevalves ajad'), findsOneWidget);
+      expect(find.text('Järgmised valvevälised ajad'), findsOneWidget);
       expect(find.textContaining(' – '), findsNWidgets(2));
-      await tester.tap(find.text('Planeeri mittevalves aeg'));
+      await tester.tap(find.text('Planeeri valvevälist aega'));
       expect(opened, isTrue);
       await tester.pumpWidget(const SizedBox());
     },

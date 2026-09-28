@@ -1437,8 +1437,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               runSpacing: 8,
                               children: [
                                 Text('Valves: $onDutyCount'),
-                                Text('Hilinen: $delayedCount'),
-                                Text('Ei ole valves: $offDutyCount'),
+                                Text('Hilinemisega: $delayedCount'),
+                                Text('Mitte valves: $offDutyCount'),
                                 Text(
                                   'II aste valves: '
                                   '$effectiveOnDutySecondLevelCount',
@@ -1471,7 +1471,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             const SizedBox(height: 8),
                             Text(
                               'Valves liikmete arv arvestab aktiivseid '
-                              'planeeritud mittevalves aegu.',
+                              'planeeritud valveväliseid aegu.',
                               style: Theme.of(context)
                                   .textTheme
                                   .bodySmall
@@ -1557,7 +1557,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 organizationId: organizationId,
               ),
               builder: (context, rulesSnapshot) {
-                if (periodsSnapshot.hasError || rulesSnapshot.hasError) return const Text('Planeeritud puudumisi ei õnnestunud laadida. Valmisolekut ei saa kinnitada.');
+                if (periodsSnapshot.hasError || rulesSnapshot.hasError) return const Text('Planeeritud valveväliseid aegu ei õnnestunud laadida. Valmisolekut ei saa kinnitada.');
                 if (!periodsSnapshot.hasData || !rulesSnapshot.hasData) return const LinearProgressIndicator();
                 final now = DateTime.now();
                 final periods = periodsSnapshot.data ??
@@ -1582,9 +1582,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     if (hasActiveSchedule) ...[
                       const SizedBox(height: 6),
                       const Text(
-                        'Planeeritud mittevalves aeg on aktiivne',
+                        'Planeeritud valveväline aeg on aktiivne',
                       ),
-                      const Text('Nähtav staatus: Ei ole valves'),
+                      const Text('Nähtav staatus: Mitte valves'),
                       Text(
                         'Käsitsi valitud staatus: '
                         '${_availabilityStatusLabel(status)}',
@@ -1652,9 +1652,9 @@ class _HomeScreenState extends State<HomeScreen> {
       case AvailabilityStatus.onDuty:
         return 'Valves';
       case AvailabilityStatus.delayed:
-        return 'Hilinen';
+        return 'Hilinemisega';
       default:
-        return 'Ei ole valves';
+        return 'Mitte valves';
     }
   }
 

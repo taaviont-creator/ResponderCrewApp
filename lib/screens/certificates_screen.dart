@@ -112,7 +112,7 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
                   Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      'Merepääste aste määratakse liikmelisuse all eraldi.',
+                      'Merepäästja aste määratakse liikme profiilis eraldi.',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ),
@@ -302,7 +302,7 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
             padding: const EdgeInsets.all(16),
             children: [
               Text(
-                'Merepääste aste määratakse liikmelisuse all eraldi.',
+                'Merepäästja aste määratakse liikme profiilis eraldi.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               const SizedBox(height: 12),
