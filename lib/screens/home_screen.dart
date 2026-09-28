@@ -1759,6 +1759,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
             String? activeCommandId;
             String? myMembershipRole;
+            String? mySeaRescueLevel;
 
             if (membershipDocs.isNotEmpty) {
               final requestedOrganizationId =
@@ -1776,6 +1777,7 @@ class _HomeScreenState extends State<HomeScreen> {
               activeCommandId = activeMembership == null
                   ? null
                   : requestedOrganizationId;
+              mySeaRescueLevel = activeMembership?['seaRescueLevel'] as String?;
               myMembershipRole = activeMembership == null
                   ? null
                   : _membershipRoleFromData(activeMembership);
@@ -1885,7 +1887,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 final allowMembersToViewStatistics =
                     commandData?['allowMembersToViewStatistics'] == true;
                 final allowMembersToStartOperationLog =
-                    commandData?['allowMembersToStartOperationLog'] == true;
+                    commandData?['allowMembersToStartOperationLog'] == true || SeaRescueLevel.isLevel2(mySeaRescueLevel);
 
                 final permissions = _HomePermissions(
                   isPlatformAdmin: isPlatformAdmin,

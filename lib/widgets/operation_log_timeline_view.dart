@@ -134,7 +134,9 @@ class _OperationLogTimelineViewState extends State<OperationLogTimelineView> {
       if (otherDescription == null && event.description.isNotEmpty)
         event.description,
       operationLogEventLocation(event),
-      operationLogEventTime(event.createdAt),
+      operationLogEventTime(event.eventTime),
+      if (event.occurredAt != null) 'Lisatud: ${operationLogEventTime(event.createdAt)}',
+      if (event.summarySnapshot.isNotEmpty) 'Kokkuvõte: ${event.summarySnapshot}',
       'Autor: ${event.createdByName.isNotEmpty ? event.createdByName : event.createdBy.isNotEmpty ? event.createdBy : 'Teadmata'}',
     ];
 

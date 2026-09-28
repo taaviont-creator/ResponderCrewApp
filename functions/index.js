@@ -298,3 +298,16 @@ exports.sendCertificateExpiryReminders = onSchedule({
   schedule: '0 9 * * *', timeZone: 'Europe/Tallinn', region: 'europe-west1',
   maxInstances: 1, concurrency: 1, timeoutSeconds: 540, memory: '256MiB', retryCount: 0,
 }, createCertificateReminderJob({db, messaging, logger, loadTokens: loadEnabledDeviceTokens}));
+
+const {createHistoryHandler} = require('./statistics-history');
+const {createStatisticsHandler, createRecordContributionHandler, createCalloutAttendanceHandler} = require('./statistics-handlers');
+const statisticsCallableOptions = {region:'europe-north1', maxInstances:5, timeoutSeconds:60, memory:'512MiB'};
+exports.getContributionStatistics = onCall(statisticsCallableOptions, createStatisticsHandler({db}));
+exports.recordMemberContribution = onCall(statisticsCallableOptions, createRecordContributionHandler({db, timestamp:admin.firestore.FieldValue.serverTimestamp}));
+exports.saveCalloutAttendance = onCall(statisticsCallableOptions, createCalloutAttendanceHandler({db, timestamp:admin.firestore.FieldValue.serverTimestamp}));
+for (const [name, source] of Object.entries({
+  recordAvailabilityHistory:'availability', recordMembershipHistory:'memberships',
+  recordAbsenceHistory:'plannedUnavailability', recordAbsenceRuleHistory:'plannedUnavailabilityRules',
+})) {
+  exports[name] = onDocumentWritten({document:`${source}/{documentId}`, region:'europe-north1', retry:true, maxInstances:5}, createHistoryHandler({db, source}));
+}

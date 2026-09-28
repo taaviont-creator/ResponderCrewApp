@@ -139,8 +139,14 @@ service cloud.firestore {
         get(commandPath).data.allowMembersToStartOperationLog == true;
     }
 
+    function isActiveCrewLeader(commandId) {
+      let data = get(/databases/$(database)/documents/memberships/$(activeMembershipId(commandId))).data;
+      return isActiveMember(commandId) && data.get('seaRescueLevel', '') == 'level2' &&
+        data.userId == request.auth.uid && organizationIdFromData(data) == commandId && hasValidOrganizationReference(data);
+    }
+
     function canManageOperationLog(commandId) {
-      return isPlatformAdmin() ||
+      return isPlatformAdmin() || isActiveCrewLeader(commandId) ||
         isActiveOrgAdmin(commandId) ||
         (
           isActiveMember(commandId) &&
@@ -1478,6 +1484,10 @@ service cloud.firestore {
           request.resource.data.type == 'summarySaved'
         ) &&
         request.resource.data.createdAt == request.time &&
+        (!request.resource.data.keys().hasAny(['occurredAt']) ||
+          (request.resource.data.type == 'manualNote' && request.resource.data.occurredAt is timestamp && request.resource.data.occurredAt <= request.time)) &&
+        (!request.resource.data.keys().hasAny(['summarySnapshot']) ||
+          (request.resource.data.type == 'summarySaved' && request.resource.data.summarySnapshot == getAfter(logPath).data.summary)) &&
         hasValidOrganizationReference(request.resource.data) &&
         hasValidOperationLogEventLocation(request.resource.data) &&
         isValidOperationLogStatus(request.resource.data.status) &&
@@ -1516,7 +1526,7 @@ service cloud.firestore {
     }
 
     function isValidActivityType(type) {
-      return type == 'training' ||
+      return type == 'repair' || type == 'groundskeeping' || type == 'training' ||
         type == 'meeting' ||
         type == 'maintenance' ||
         type == 'exercise' ||
@@ -2683,6 +2693,15 @@ service cloud.firestore {
       allow create: if isCalloutCreate(calloutId);
       allow update: if isCalloutStatusUpdate(calloutId);
     }
+
+    // Attendance is written through a callable restricted to active admins and II-level members.
+    match /calloutAttendance/{attendanceId} {
+      allow read: if signedIn() && isActiveMember(resource.data.organizationId);
+    }
+    match /callouts/{calloutId}/attendanceHistory/{entryId} {
+      allow read: if signedIn() && resource.data.calloutId == calloutId && isActiveMember(resource.data.organizationId);
+    }
+    // statisticsHistory and statisticsSettings intentionally have no client access.
 
     match /calloutResponses/{responseId} {
       allow read: if signedIn() &&

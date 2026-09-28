@@ -10,6 +10,8 @@ import '../services/operation_log_service.dart';
 import '../services/wakelock_service.dart';
 import '../widgets/operation_log_timeline_view.dart';
 import 'operation_log_report_screen.dart';
+import '../widgets/callout_participants_section.dart';
+import '../widgets/operation_note_dialog.dart';
 
 class _EventLocation {
   const _EventLocation({
@@ -115,45 +117,9 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
       return;
     }
 
-    final noteController = TextEditingController();
-    final shouldCreate = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Lisa märge'),
-        content: TextField(
-          controller: noteController,
-          decoration: const InputDecoration(labelText: 'Märkus'),
-          maxLines: 3,
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Tühista'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Salvesta märge'),
-          ),
-        ],
-      ),
-    );
-
-    if (shouldCreate != true) return;
-
-    try {
-      await _operationLogService.addManualEvent(
-        operationLogId: log.id,
-        organizationId: widget.organizationId,
-        title: noteController.text,
-        createdBy: widget.currentUid,
-      );
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Märke lisamine ebaõnnestus.')),
-      );
-    }
+    await showDialog<void>(context: context, builder: (_) => OperationNoteDialog(onSave: (text, occurredAt) => _operationLogService.addManualEvent(
+      operationLogId: log.id, organizationId: widget.organizationId, title: text, createdBy: widget.currentUid, occurredAt: occurredAt,
+    )));
   }
 
   Future<void> _addQuickAction(
@@ -290,59 +256,9 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
   }
 
   Future<void> _showFinalSummaryDialog(OperationLogModel log) async {
-    final summaryController = TextEditingController(text: log.summary);
-    final outcomeController = TextEditingController(text: log.outcome);
-    final shouldSave = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Lõppkokkuvõte'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: summaryController,
-                decoration: const InputDecoration(labelText: 'Lõppkokkuvõte'),
-                maxLines: 4,
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: outcomeController,
-                decoration: const InputDecoration(labelText: 'Tulemus'),
-                maxLines: 2,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Tühista'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Salvesta kokkuvõte'),
-          ),
-        ],
-      ),
-    );
-
-    if (shouldSave != true) return;
-
-    try {
-      await _operationLogService.updateFinalSummary(
-        operationLogId: log.id,
-        organizationId: widget.organizationId,
-        summary: summaryController.text,
-        outcome: outcomeController.text,
-        completedBy: widget.currentUid,
-      );
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Lõppkokkuvõtte salvestamine ebaõnnestus.')),
-      );
-    }
+    await showDialog<void>(context: context, builder: (_) => OperationSummaryDialog(summary: log.summary, outcome: log.outcome,
+      onSave: (summary, outcome) => _operationLogService.updateFinalSummary(operationLogId: log.id, organizationId: widget.organizationId, summary: summary, outcome: outcome, completedBy: widget.currentUid),
+    ));
   }
 
   Future<void> _showAddOperationLogDialog() async {
@@ -468,6 +384,7 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
             itemBuilder: (context, index) {
               final log = logs[index];
               return _OperationLogCard(
+                currentUid: widget.currentUid,
                 key: ValueKey(log.id),
                 log: log,
                 organizationId: widget.organizationId,
@@ -503,6 +420,7 @@ class _OperationLogCard extends StatefulWidget {
     super.key,
     required this.log,
     required this.organizationId,
+    required this.currentUid,
     required this.canStartOperationLog,
     required this.canViewCalloutResponseSummary,
     required this.onUpdateStatus,
@@ -516,6 +434,7 @@ class _OperationLogCard extends StatefulWidget {
 
   final OperationLogModel log;
   final String organizationId;
+  final String currentUid;
   final bool canStartOperationLog;
   final bool canViewCalloutResponseSummary;
   final bool isFocusedOperationLog;
@@ -687,11 +606,13 @@ class _OperationLogCardState extends State<_OperationLogCard> {
           onPressed: () => Navigator.of(context).push(MaterialPageRoute(
             builder: (_) => OperationLogReportScreen(
               log: log, organizationId: widget.organizationId,
+              logStream: OperationLogService().streamLog(organizationId: widget.organizationId, logId: log.id),
             ),
           )),
         ),
       ),
       _buildStatusSummary(log),
+      if (log.calloutId != null) CalloutParticipantsSection(key: ValueKey('${widget.organizationId}-${log.calloutId}'), organizationId: widget.organizationId, calloutId: log.calloutId!, currentUid: widget.currentUid),
       if (widget.canViewCalloutResponseSummary && log.calloutId != null)
         _buildCalloutResponseSummary(log.calloutId!),
       if (!isActiveLog) ..._buildFinalSummaryChildren(log),

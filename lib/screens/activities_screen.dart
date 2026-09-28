@@ -304,7 +304,7 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
     );
     String? hoursError;
 
-    final result = await showDialog<_HoursInputResult>(
+    final route = DialogRoute<_HoursInputResult>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) {
@@ -332,7 +332,7 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
                   final hours = rawValue.isEmpty
                       ? null
                       : double.tryParse(normalizedValue);
-                  if (rawValue.isNotEmpty && (hours == null || hours < 0)) {
+                  if (rawValue.isNotEmpty && (hours == null || !hours.isFinite || hours < 0)) {
                     setDialogState(() {
                       hoursError = 'Sisesta korrektne tundide arv.';
                     });
@@ -349,6 +349,8 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
       ),
     );
 
+    final result = await Navigator.of(context).push(route);
+    await route.completed;
     hoursController.dispose();
     return result;
   }
@@ -687,6 +689,10 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
         return 'Koolitus';
       case ActivityType.meeting:
         return 'Koosolek';
+      case ActivityType.repair:
+        return 'Remont';
+      case ActivityType.groundskeeping:
+        return 'Heakord / niitmine';
       case ActivityType.maintenance:
         return 'Hooldus';
       case ActivityType.exercise:
