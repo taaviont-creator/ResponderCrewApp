@@ -601,11 +601,11 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
             TextField(decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Otsi varustust või saajat'),
               onChanged: (value) => setState(() => _search = value.trim().toLowerCase())),
             const SizedBox(height: 12),
-            SingleChildScrollView(scrollDirection: Axis.horizontal, child: Row(children: [
+            Wrap(spacing: 8, runSpacing: 8, children: [
               for (final entry in const {'shared': 'Ühingu varustus', 'warehouse': 'Ladu', 'mine': 'Minu varustus', 'members': 'Liikmete varustus'}.entries)
-                Padding(padding: const EdgeInsets.only(right: 8), child: ChoiceChip(label: Text(entry.value), selected: _view == entry.key,
-                  onSelected: (_) => setState(() => _view = entry.key))),
-            ])),
+                ChoiceChip(label: Text(entry.value), selected: _view == entry.key,
+                  onSelected: (_) => setState(() => _view = entry.key)),
+            ]),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(initialValue: _category ?? '', decoration: const InputDecoration(labelText: 'Kategooria'),
               items: [const DropdownMenuItem(value: '', child: Text('Kõik kategooriad')),
