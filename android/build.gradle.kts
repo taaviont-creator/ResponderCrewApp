@@ -24,6 +24,17 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
+gradle.taskGraph.whenReady {
+    if (System.getProperty("os.name").startsWith("Windows") && newBuildDir.asFile.exists()) {
+        rootProject.exec {
+            commandLine("attrib.exe", "-R", newBuildDir.asFile.absolutePath, "/D")
+        }
+        rootProject.exec {
+            commandLine("attrib.exe", "-R", "${newBuildDir.asFile.absolutePath}\\*", "/S", "/D")
+        }
+    }
+}
+
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
