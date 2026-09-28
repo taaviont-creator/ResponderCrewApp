@@ -12,6 +12,13 @@ class OperationLogService {
   CollectionReference<Map<String, dynamic>> get _operationLogs =>
       _firestore.collection('operationLogs');
 
+  Stream<OperationLogModel?> streamLog({required String organizationId, required String logId}) => _operationLogs.doc(logId).snapshots().map((doc) {
+    if (!doc.exists) return null;
+    final log = OperationLogModel.fromFirestore(doc);
+    if ((log.organizationId.isNotEmpty ? log.organizationId : log.commandId) != organizationId) throw StateError('Logi kuulub teise ühingusse');
+    return log;
+  });
+
   Stream<List<OperationLogModel>> streamOrganizationLogs({
     required String organizationId,
   }) {
@@ -67,9 +74,9 @@ class OperationLogService {
 
       events.sort((a, b) {
         final aTime =
-            a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+            a.eventTime ?? DateTime.fromMillisecondsSinceEpoch(0);
         final bTime =
-            b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+            b.eventTime ?? DateTime.fromMillisecondsSinceEpoch(0);
         return aTime.compareTo(bTime);
       });
       return events;
@@ -336,6 +343,7 @@ class OperationLogService {
     required String title,
     required String createdBy,
     String type = OperationLogEventType.manualNote,
+    DateTime? occurredAt,
     double? latitude,
     double? longitude,
     double? accuracyMeters,
@@ -345,6 +353,7 @@ class OperationLogService {
       organizationId: organizationId,
       createdBy: createdBy,
     );
+    if (occurredAt != null && (type != OperationLogEventType.manualNote || occurredAt.isAfter(DateTime.now()))) throw Exception('Vigane sündmuse aeg');
     final trimmedTitle = title.trim();
     if (trimmedTitle.isEmpty) {
       throw Exception('Operation log event title is required');
@@ -393,6 +402,7 @@ class OperationLogService {
         if (hasValidLocation) 'latitude': latitude,
         if (hasValidLocation) 'longitude': longitude,
         if (shouldSaveAccuracy) 'accuracyMeters': accuracyMeters,
+        if (occurredAt != null) 'occurredAt': Timestamp.fromDate(occurredAt),
         'createdAt': FieldValue.serverTimestamp(),
       });
     });
@@ -458,6 +468,7 @@ class OperationLogService {
         'status': status,
         'title': 'Lõppkokkuvõte salvestatud',
         'description': trimmedOutcome,
+        'summarySnapshot': trimmedSummary,
         'createdBy': completedBy,
         'createdByName': _auth.currentUser?.displayName ?? '',
         'createdAt': FieldValue.serverTimestamp(),
@@ -539,7 +550,7 @@ class OperationLogService {
       throw Exception('Sul puudub õigus seda toimingut teha');
     }
 
-    if (MembershipRole.isOrgAdmin(membership['role'])) return;
+    if (MembershipRole.isOrgAdmin(membership['role']) || SeaRescueLevel.isLevel2(membership['seaRescueLevel'])) return;
 
     final commandSnapshot =
         await _firestore.collection('commands').doc(organizationId).get();

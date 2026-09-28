@@ -33,10 +33,28 @@ test('invalid contribution fields and cross-org idempotency collisions are rejec
  for(const invalid of [{hours:0},{hours:NaN},{hours:25},{date:'2027-01-01'},{date:{}},{type:'__proto__'},{title:''},{memberIds:[]},{requestId:'../bad'}]) await assert.rejects(fixture().record(req({...contribution,...invalid})),{code:'invalid-argument'});
  await assert.rejects(fixture({'activities/contribution_unique':{organizationId:'other',createdBy:'a'}}).record(req(contribution)),{code:'already-exists'});
 });
-test('only admin confirms actual callout attendance; confirmation and hours can be corrected',async()=>{
+test('admin confirms actual callout attendance; confirmation and hours can be corrected',async()=>{
  const data={calloutId:'c',userId:'b',status:'confirmed',hours:3};
  await assert.rejects(fixture().attendance(req(data)),{code:'permission-denied'});
  const f=fixture({'memberships/a_org':member('a',{role:'orgAdmin'})});await f.attendance(req(data));assert.equal(f.records['calloutAttendance/c_b'].hours,3);
  await f.attendance(req({...data,status:'absent'}));assert.equal(f.records['calloutAttendance/c_b'].hours,null);
  for(const changes of [{'callouts/c':{organizationId:'other'}},{'callouts/c':{organizationId:'org',status:'cancelled'}},{'memberships/b_org':member('b',{status:'pending'})}]) await assert.rejects(fixture({'memberships/a_org':member('a',{role:'orgAdmin'}),...changes}).attendance(req(data)),{code:'failed-precondition'});
+});
+
+test('active II-level member can maintain attendance during and after callout; change history is immutable and retries do not duplicate', async()=>{
+ for(const status of ['active','closed']) {
+  const f=fixture({'memberships/a_org':member('a',{seaRescueLevel:'level2'}),'callouts/c':{organizationId:'org',status}});
+  const data={calloutId:'c',userId:'b',status:'confirmed',hours:2};
+  await f.attendance(req(data));await f.attendance(req(data));
+  let history=Object.entries(f.records).filter(([key])=>key.startsWith('callouts/c/attendanceHistory/')).map(([,v])=>v);
+  assert.equal(history.length,1);assert.equal(history[0].before,null);assert.equal(history[0].createdBy,'a');assert.deepEqual(history[0].after,{status:'confirmed',hours:2});
+  await f.attendance(req({...data,status:'absent'}));history=Object.entries(f.records).filter(([key])=>key.startsWith('callouts/c/attendanceHistory/')).map(([,v])=>v);
+  assert.equal(history.length,2);assert.deepEqual(history[1].before,{status:'confirmed',hours:2});assert.deepEqual(history[1].after,{status:'absent',hours:null});
+ }
+});
+test('first-level, removed, pending, conflicting and cross-org leaders cannot change attendance',async()=>{
+ for(const extra of [{seaRescueLevel:'level1'},{seaRescueLevel:'level2',status:'removed'},{seaRescueLevel:'level2',isActive:false},{seaRescueLevel:'level2',status:'pending'},{seaRescueLevel:'level2',commandId:'other'}]) {
+  const f=fixture({'memberships/a_org':member('a',extra)});
+  await assert.rejects(f.attendance(req({calloutId:'c',userId:'b',status:'confirmed'})),{code:'permission-denied'});assert.equal(f.writes.length,0);
+ }
 });

@@ -117,7 +117,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             builder: (context) => AlertDialog(
               title: const Text('Arvestuse alused'),
               content: const Text(
-                'Panusesse ja osalemistesse lähevad admini kinnitatud kirjed. Valvetunnid on eraldi; hilinemisega valmisolek on liikme detailides. Planeeritud eemalolekud on valveajast maha arvatud.\n\nVäljakutsele reageerimise vastus ei kinnita osalemist. Puuduv ajalugu või märkimata tunnid ei tähenda nullpanust.',
+                'Panusesse ja osalemistesse lähevad kinnitatud kirjed. Valvetunnid on eraldi; hilinemisega valmisolek on liikme detailides. Planeeritud eemalolekud on valveajast maha arvatud.\n\nVäljakutsele reageerimise vastus ei kinnita osalemist. Puuduv ajalugu või märkimata tunnid ei tähenda nullpanust.',
               ),
               actions: [
                 TextButton(

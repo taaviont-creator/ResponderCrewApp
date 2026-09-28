@@ -31,21 +31,13 @@ class _CalloutAttendanceScreenState extends State<CalloutAttendanceScreen> {
           )
           .get(),
       db
-          .collection('calloutResponses')
-          .where('organizationId', isEqualTo: widget.organizationId)
-          .where('calloutId', isEqualTo: widget.calloutId)
-          .get(),
-      db
           .collection('calloutAttendance')
           .where('organizationId', isEqualTo: widget.organizationId)
           .where('calloutId', isEqualTo: widget.calloutId)
           .get(),
     ]);
-    final responses = {
-      for (final d in result[1].docs) d.data()['userId']: d.data(),
-    };
     final attendance = {
-      for (final d in result[2].docs) d.data()['userId']: d.data(),
+      for (final d in result[1].docs) d.data()['userId']: d.data(),
     };
     final members = <String, Map<String, dynamic>>{};
     for (final d in result[0].docs) {
@@ -59,7 +51,6 @@ class _CalloutAttendanceScreenState extends State<CalloutAttendanceScreen> {
       if (d.id != '${uid}_${widget.organizationId}') continue;
       members[uid] = {
         ...m,
-        'response': responses[uid]?['response'],
         'attendance': attendance[uid],
       };
     }
@@ -72,7 +63,7 @@ class _CalloutAttendanceScreenState extends State<CalloutAttendanceScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Kinnita osalemised')),
+    appBar: AppBar(title: const Text('Väljakutse osalejad')),
     body: FutureBuilder<List<Map<String, dynamic>>>(
       future: _future,
       builder: (context, snapshot) {
@@ -153,7 +144,7 @@ class _AttendanceRowState extends State<_AttendanceRow> {
         'calloutId': widget.calloutId,
         'userId': widget.member['userId'],
         'status': status,
-        'hours': hours,
+        'hours': status == 'confirmed' ? hours : null,
       });
       if (mounted) setState(() => _status = status);
     } on FirebaseFunctionsException catch (e) {
@@ -171,13 +162,6 @@ class _AttendanceRowState extends State<_AttendanceRow> {
 
   @override
   Widget build(BuildContext context) {
-    final response =
-        {
-          'responding': 'Reageerin',
-          'delayed': 'Hilinen',
-          'unavailable': 'Ei saa osaleda',
-        }[widget.member['response']] ??
-        'Vastus puudub';
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -189,11 +173,11 @@ class _AttendanceRowState extends State<_AttendanceRow> {
               style: Theme.of(context).textTheme.titleMedium,
             ),
             Text(
-              '$response · ${_status == 'confirmed'
+              _status == 'confirmed'
                   ? 'Osales'
                   : _status == 'absent'
                   ? 'Ei osalenud'
-                  : 'Kinnitamata'}',
+                  : 'Kinnitamata',
             ),
             TextField(
               controller: _hours,

@@ -7,7 +7,7 @@ Statistika kasutab valitud kuupäevavahemikku (mõlemad kuupäevad kaasa arvatud
 - Nelja lähtekollektsiooni muutused salvestatakse serveris: availability, memberships, plannedUnavailability, plannedUnavailabilityRules. Ajalookirje tunnus sõltub sündmuse ID-st, kordustarne ei tekita duplikaati. Kasutajad ei saa ajalugu ega algusaega lugeda või muuta.
 - Tegevuste panus kasutab tegevuse kuupäeva, admini kinnitatud osalemist ja kinnitatud tunde. Hooldus, remont, heakord/niitmine, koolitus, harjutus jm on eraldi kategooriad. Puuduvaid tunde näidatakse eraldi.
 - „Lisa panus” loob tavalise tegevuse ja selle osalemised. Admin võib valida mitu aktiivset liiget; liige saab esitada ainult enda panuse, mis vajab admini kinnitust. Sama salvestuse kordus ei loo uut tegevust. Olemasolevat tegevust ei ole vaja uuesti sisestada.
-- Väljakutse „reageerin”/„hilinen” vastus on kavatsus, mitte kinnitatud osalemine. Admin kinnitab tegelikud osalejad väljakutse detailis nupuga „Kinnita osalemised”. Tunde võib lisada hiljem; osalemist saab parandada. Tühistatud väljakutsed ei lähe statistikasse.
+- Väljakutse „reageerin”/„hilinen” vastus on kavatsus, mitte kinnitatud osalemine. Admin või sama ühingu aktiivne II astme liige kinnitab tegelikud osalejad väljakutse detailis nupuga „Kinnita osalemised”. Tunde võib lisada hiljem; osalemist saab parandada. Tühistatud väljakutsed ei lähe statistikasse.
 - Valvetunnid ei liitu panuse tundidega. Panuse tunnid on kinnitatud tegevuste ja väljakutsete osalemistunnid; mitu liiget samal tegevusel tähendab mitut osalemist.
 - CSV sisaldab perioodi, valveajaloo algust, liikmete koondit ja kuupäevadega alusandmeid.
 
@@ -25,3 +25,13 @@ Alles seejärel loo serveri ajatempli abil `statisticsSettings/tracking.startedA
 4. Vaheta perioodi ja ühingut; koond ja CSV peavad näitama valitud perioodi/ühingut. Teise ühingu andmeid ei tohi kaasa tulla.
 
 Telefonis tehtud katset ei asenda automaattestid. Varasemad väljakutsed vajavad tegeliku osalemise tagantjärele kinnitamist; varasemad kinnitatud tegevused on kuupäeva järgi arvestuses olemas.
+
+## Osalejad operatsioonilogis
+
+Väljakutsega seotud logis on osalejate nimekiri ja „Muuda osalejaid”. See kasutab sama calloutAttendance kirjet nagu väljakutse detail ja statistika; teist nimekirja ei teki. Admin ja aktiivne II astme liige saavad osalemist ning tunde muuta aktiivsel või lõppenud väljakutsel. Osalejad on sama ühingu aktiivsetele liikmetele logis nähtavad.
+
+Iga tegelik muudatus salvestub serveris callouts/{calloutId}/attendanceHistory alla koos eelmise/uue väärtuse, muutja ja serveriajaga. Sama väärtuse kordussalvestus auditit ei dubleeri. Klient ei saa auditikirjeid kirjutada ega üle kirjutada. Logi väljavõte sisaldab osalejaid ning muudatuste ajalugu.
+
+II astme liikme logi alustamise/täiendamise õigus ei sõltu üldisest tavaliikmete logiõiguse lülitist. Tavalistele liikmetele varem antud lülitiõigus säilib. See ei anna tavaliikmele osalemiskinnitamise õigust.
+
+„Lisa märge või täiendus” võimaldab „Lisa tagantjärele” valikuga määrata tegeliku sündmuse kuupäeva ja kellaaja. Ajajoon järjestab selle tegeliku aja järgi ning näitab eraldi salvestamise aega ja autorit. Algseid sündmusi ei kirjutata ümber. Lõppkokkuvõtet saab pärast lõpetamist muuta; iga salvestus säilitab kokkuvõtte teksti ajalookandes. Võrguvea korral jäävad märkus ja kokkuvõte avatud vormi alles. Väljavõte saab värskendatud kokkuvõtte reaalajas.

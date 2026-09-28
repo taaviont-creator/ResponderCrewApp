@@ -870,7 +870,7 @@ test('statistics history and activation settings cannot be read or forged by cli
     }
   }
 });
-test('callout attendance is server-written, admin-readable and private to the participant', async () => {
+test('callout crew is readable by active peers but only server-written', async () => {
   await testEnv.withSecurityRulesDisabled(async context => {
     await setDoc(doc(context.firestore(), 'calloutAttendance/c_user'), {organizationId, calloutId: 'c', userId: activeMemberId, status: 'confirmed', hours: 2});
   });
@@ -879,6 +879,45 @@ test('callout attendance is server-written, admin-readable and private to the pa
   const peerDb = testEnv.authenticatedContext(targetMemberId).firestore();
   await assertSucceeds(getDocs(query(collection(adminDb, 'calloutAttendance'), where('organizationId', '==', organizationId), where('calloutId', '==', 'c'))));
   await assertSucceeds(getDoc(doc(selfDb, 'calloutAttendance/c_user')));
-  await assertFails(getDoc(doc(peerDb, 'calloutAttendance/c_user')));
+  await assertSucceeds(getDoc(doc(peerDb, 'calloutAttendance/c_user')));
+  await assertFails(getDoc(doc(testEnv.authenticatedContext(otherUserId).firestore(), 'calloutAttendance/c_user')));
   for (const db of [adminDb, selfDb]) await assertFails(setDoc(doc(db, 'calloutAttendance/forged'), {organizationId, userId: activeMemberId, calloutId: 'c', status: 'confirmed'}));
+});
+
+test('II-level member can append a retrospective note and edit final summary after return; original events stay immutable', async()=>{
+ const id='leader-log';await seedOperationLog(id,'returnedToBase');
+ await testEnv.withSecurityRulesDisabled(async ctx=>updateDoc(doc(ctx.firestore(),`memberships/${activeMemberId}_${organizationId}`),{seaRescueLevel:'level2'}));
+ const db=testEnv.authenticatedContext(activeMemberId).firestore();
+ const note={id:'note',operationLogId:id,organizationId,commandId:organizationId,type:'manualNote',status:'returnedToBase',title:'Täiendus',text:'Täiendus',description:'',createdBy:activeMemberId,createdAt:serverTimestamp(),occurredAt:new Date('2026-09-01T10:00:00Z')};
+ await assertSucceeds(setDoc(doc(db,`operationLogs/${id}/events/note`),note));
+ await assertFails(updateDoc(doc(db,`operationLogs/${id}/events/note`),{text:'Rewrite'}));
+ await assertFails(setDoc(doc(db,`operationLogs/${id}/events/future`),{...note,id:'future',occurredAt:new Date('2099-01-01')}));
+ const batch=writeBatch(db);batch.update(doc(db,`operationLogs/${id}`),{summary:'Täiendatud kokkuvõte',outcome:'Valmis',completedBy:activeMemberId,completedAt:serverTimestamp(),updatedAt:serverTimestamp()});
+ batch.set(doc(db,`operationLogs/${id}/events/summary`),{id:'summary',operationLogId:id,organizationId,commandId:organizationId,type:'summarySaved',status:'returnedToBase',title:'Lõppkokkuvõte salvestatud',description:'Valmis',summarySnapshot:'Täiendatud kokkuvõte',createdBy:activeMemberId,createdAt:serverTimestamp()});
+ await assertSucceeds(batch.commit());
+});
+test('log access does not follow II-level qualification into other organizations or survive removal',async()=>{
+ await seedOperationLog('leader-denied','open');
+ for(const extra of [{seaRescueLevel:'level1'},{seaRescueLevel:'level2',status:'removed',isActive:false},{seaRescueLevel:'level2',organizationId:otherOrganizationId,commandId:otherOrganizationId}]) {
+  await testEnv.withSecurityRulesDisabled(async ctx=>setDoc(doc(ctx.firestore(),`memberships/${activeMemberId}_${organizationId}`),{...activeMembership(activeMemberId,organizationId),...extra}));
+  const db=testEnv.authenticatedContext(activeMemberId).firestore();
+  await assertFails(updateDoc(doc(db,'operationLogs/leader-denied'),{status:'enRoute',updatedAt:serverTimestamp()}));
+ }
+});
+test('crew audit can be read with scoped queries and cannot be forged',async()=>{
+ const path='callouts/c/attendanceHistory/change';
+ await testEnv.withSecurityRulesDisabled(async ctx=>setDoc(doc(ctx.firestore(),path),{organizationId,calloutId:'c',userId:activeMemberId,createdBy:orgAdminId,createdAt:serverTimestamp()}));
+ const db=testEnv.authenticatedContext(activeMemberId).firestore();
+ await assertSucceeds(getDocs(query(collection(db,'callouts/c/attendanceHistory'),where('organizationId','==',organizationId),where('calloutId','==','c'))));
+ await assertFails(setDoc(doc(db,path),{organizationId,calloutId:'c',userId:activeMemberId}));
+ await assertFails(getDoc(doc(testEnv.authenticatedContext(otherUserId).firestore(),path)));
+});
+
+test('II-level member can register a live status event with general member log permission disabled',async()=>{
+ await seedOperationLog('live-leader','open');
+ await testEnv.withSecurityRulesDisabled(async ctx=>updateDoc(doc(ctx.firestore(),`memberships/${activeMemberId}_${organizationId}`),{seaRescueLevel:'level2'}));
+ const db=testEnv.authenticatedContext(activeMemberId).firestore(),batch=writeBatch(db);
+ batch.update(doc(db,'operationLogs/live-leader'),{status:'enRoute',updatedAt:serverTimestamp()});
+ batch.set(doc(db,'operationLogs/live-leader/events/departure'),{id:'departure',operationLogId:'live-leader',organizationId,commandId:organizationId,type:'statusChange',status:'enRoute',title:'Teel',description:'',createdBy:activeMemberId,createdAt:serverTimestamp()});
+ await assertSucceeds(batch.commit());
 });

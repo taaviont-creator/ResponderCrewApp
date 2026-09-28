@@ -13,7 +13,7 @@ import '../widgets/primary_action_button.dart';
 import '../widgets/status_badge.dart';
 import 'operation_log_screen.dart';
 import 'callout_attendance_screen.dart';
-import '../services/activity_service.dart';
+import '../services/callout_attendance_service.dart';
 
 class CalloutDetailScreen extends StatefulWidget {
   const CalloutDetailScreen({
@@ -59,7 +59,7 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _canConfirmAttendance = ActivityService().streamCanConfirmParticipation(organizationId: widget.organizationId, userId: widget.currentUid);
+    _canConfirmAttendance = CalloutAttendanceService().canManage(organizationId: widget.organizationId, userId: widget.currentUid);
     _logStream = _operationLogService.streamLogForCallout(calloutId: widget.callout.id, organizationId: widget.organizationId);
     _calloutSubscription = _calloutService
         .streamCallout(

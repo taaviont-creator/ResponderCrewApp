@@ -1,16 +1,17 @@
+const {randomUUID} = require('node:crypto');
 const {HttpsError} = require('firebase-functions/v2/https');
 const {DateTime} = require('luxon');
 const {SOURCES,orgId,millis,project} = require('./statistics-history');
 const {aggregate,period,TYPES,ZONE,active} = require('./contribution-statistics');
 const validId = v => typeof v==='string' && v.length>0 && v.length<=128 && !v.includes('/');
-async function access(db, request, {adminOnly=false, statistics=false}={}) {
+async function access(db, request, {adminOnly=false, crewOnly=false, statistics=false}={}) {
   if(!request.auth?.uid) throw new HttpsError('unauthenticated','Logi sisse.');
   const org=request.data?.organizationId;
   if(!validId(org)) throw new HttpsError('invalid-argument','Ühing puudub.');
   const [organization,membership]=await Promise.all([db.doc(`commands/${org}`).get(),db.doc(`memberships/${request.auth.uid}_${org}`).get()]);
   const m=membership.data(),o=organization.data();
   const admin=['orgAdmin','admin'].includes(m?.role);
-  if(o?.status!=='approved' || orgId(m)!==org || m?.userId!==request.auth.uid || !active(m) || (adminOnly&&!admin) || (statistics&&!admin&&o.allowMembersToViewStatistics!==true)) {
+  if(o?.status!=='approved' || orgId(m)!==org || m?.userId!==request.auth.uid || !active(m) || (adminOnly&&!admin) || (crewOnly&&!admin&&m?.seaRescueLevel!=='level2') || (statistics&&!admin&&o.allowMembersToViewStatistics!==true)) {
     throw new HttpsError('permission-denied','Sul puudub selle toimingu õigus.');
   }
   return {org,admin,organization:o,membership:m};
@@ -69,15 +70,24 @@ function createRecordContributionHandler({db,timestamp,now=()=>Date.now()}) {
 }
 function createCalloutAttendanceHandler({db,timestamp}) {
   return async request => {
-    const {org}=await access(db,request,{adminOnly:true});
+    const {org}=await access(db,request,{crewOnly:true});
     const {calloutId,userId,status,hours}=request.data||{};
     if(!validId(calloutId)||!validId(userId)||!['confirmed','absent'].includes(status)|| (hours!==null&&hours!==undefined&&(typeof hours!=='number'||!Number.isFinite(hours)||hours<0||hours>744))) throw new HttpsError('invalid-argument','Kontrolli osalemise andmeid.');
+    const auditId=randomUUID();
     return db.runTransaction(async tx=>{
-      await access({doc:path=>({get:()=>tx.get(db.doc(path))})},request,{adminOnly:true});
+      const actor=await access({doc:path=>({get:()=>tx.get(db.doc(path))})},request,{crewOnly:true});
       const [callout,member]=await tx.getAll(db.doc(`callouts/${calloutId}`),db.doc(`memberships/${userId}_${org}`));
       if(orgId(callout.data())!==org || callout.data()?.status==='cancelled' || orgId(member.data())!==org || member.data()?.userId!==userId || (!active(member.data()) && !['removed','inactive'].includes(member.data()?.status))) throw new HttpsError('failed-precondition','Väljakutset või selle ühingu liiget ei leitud.');
       const id=`${calloutId}_${userId}`;
-      tx.set(db.doc(`calloutAttendance/${id}`),{id,organizationId:org,calloutId,userId,userName:member.data().displayName||'Liige',status,hours:status==='confirmed'?(hours??null):null,confirmedBy:request.auth.uid,updatedAt:timestamp()});
+      const ref=db.doc(`calloutAttendance/${id}`), previous=(await tx.get(ref)).data();
+      const nextHours=status==='confirmed'?(hours??null):null;
+      if(previous?.status===status && (previous.hours??null)===nextHours) return {saved:true};
+      tx.create(db.doc(`callouts/${calloutId}/attendanceHistory/${auditId}`), {
+        organizationId:org,calloutId,userId,userName:member.data().displayName||'Liige',
+        before:previous?{status:previous.status,hours:previous.hours??null}:null,
+        after:{status,hours:nextHours},createdBy:request.auth.uid,createdByName:actor.membership.displayName||'Liige',createdAt:timestamp(),
+      });
+      tx.set(ref,{id,organizationId:org,calloutId,userId,userName:member.data().displayName||'Liige',status,hours:status==='confirmed'?(hours??null):null,confirmedBy:request.auth.uid,updatedAt:timestamp()});
       return {saved:true};
     });
   };

@@ -212,6 +212,8 @@ class OperationLogEventModel {
     this.longitude,
     this.accuracyMeters,
     this.createdAt,
+    this.occurredAt,
+    this.summarySnapshot = '',
   });
 
   final String id;
@@ -229,6 +231,9 @@ class OperationLogEventModel {
   final double? longitude;
   final double? accuracyMeters;
   final DateTime? createdAt;
+  final DateTime? occurredAt;
+  final String summarySnapshot;
+  DateTime? get eventTime => occurredAt ?? createdAt;
 
   factory OperationLogEventModel.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> document,
@@ -254,6 +259,8 @@ class OperationLogEventModel {
       longitude: _numberValue(data['longitude']),
       accuracyMeters: _numberValue(data['accuracyMeters']),
       createdAt: _dateTimeValue(data['createdAt']),
+      occurredAt: _dateTimeValue(data['occurredAt']),
+      summarySnapshot: _stringValue(data['summarySnapshot']),
     );
   }
 }
