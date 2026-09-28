@@ -126,13 +126,13 @@ class OrganizationHeader extends StatelessWidget {
                         child: CircleAvatar(
                           radius: 20,
                           backgroundColor: AppColors.surfaceBlueStrong,
-                          foregroundColor: Colors.white,
+                          foregroundColor: AppColors.navy,
                           child: Text(
                             userInitials!.trim().toUpperCase(),
                             maxLines: 1,
                             style:
                                 Theme.of(context).textTheme.labelLarge?.copyWith(
-                                      color: Colors.white,
+                                      color: AppColors.navy,
                                     ),
                           ),
                         ),

@@ -96,3 +96,43 @@ jobs:
 
       - name: Test Functions
         run: node --test functions/*.test.js
+
+  ios-build:
+    name: iPhone and iPad build
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Verify Apple toolchain
+        run: |
+          swift --version
+          xcodebuild -version
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Enable Flutter Swift Package Manager
+        run: flutter config --enable-swift-package-manager
+      - name: Install Flutter dependencies
+        run: flutter pub get
+      - name: Build iOS simulator app
+        run: flutter build ios --simulator --debug
+      - name: Package simulator app
+        run: ditto -c -k --sequesterRsrc --keepParent build/ios/iphonesimulator/Runner.app build/ios/RespondCrew-simulator.zip
+      - name: Save simulator app
+        uses: actions/upload-artifact@v4
+        with:
+          name: RespondCrew-iOS-simulator
+          path: build/ios/RespondCrew-simulator.zip
+          retention-days: 7
+      - name: Save iOS build diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-diagnostics
+          path: |
+            ios/Runner.xcodeproj/project.pbxproj
+            ios/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme
+          retention-days: 7

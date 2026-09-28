@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../firebase_options.dart';
@@ -99,7 +100,7 @@ Future<void> calloutAlarmMessagingBackgroundHandler(
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 }
 
-class CalloutAlarmNotificationService {
+class CalloutAlarmNotificationService with WidgetsBindingObserver {
   CalloutAlarmNotificationService._();
 
   static final CalloutAlarmNotificationService instance =
@@ -189,6 +190,7 @@ class CalloutAlarmNotificationService {
       }
 
       _initialized = true;
+      WidgetsBinding.instance.addObserver(this);
     } catch (_) {
       _initialization = null;
       rethrow;
@@ -282,6 +284,13 @@ class CalloutAlarmNotificationService {
     });
 
     if (_auth.currentUser != null) {
+      unawaited(_saveCurrentDeviceToken());
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _auth.currentUser != null) {
       unawaited(_saveCurrentDeviceToken());
     }
   }
