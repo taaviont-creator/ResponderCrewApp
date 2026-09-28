@@ -5,7 +5,7 @@ class CalloutType {
   static const tross = 'tross';
   static const values = {sar, tross};
   static String label(String type) => type == tross ? 'TROSSI mereabi' : 'SAR sündmus';
-  static const sarChoices = ['Kadunud isik.', 'Punase raketi vaatlus.', 'Uppumisohus alus.', 'Eksinud alus.', 'Terviserikkega inimene alusel.', 'Muu sündmus.'];
+  static const sarChoices = ['Inimene vees.', 'Punane rakett.', 'Uppumisohus alus.', 'Alus madalikul kinni.', 'Eksinud alus.', 'Terviserikkega inimene alusel.', 'Muu sündmus.'];
   static const trossChoices = ['Tehniline rike.', 'Mootoririke.', 'Vajab pukseerimist.', 'Kütus otsas.', 'Käivitusabi.', 'Muu mereabi.'];
   static List<String> choices(String type) => type == tross ? trossChoices : sarChoices;
   static bool validTarget(String type, int? minutes) =>
