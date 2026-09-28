@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'messaging_token_registration.dart';
 
 class DeviceTokenService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -13,7 +14,11 @@ class DeviceTokenService {
       _firestore.collection('userDeviceTokens');
 
   Future<bool> saveCurrentToken(FirebaseMessaging messaging) async {
-    final token = await messaging.getToken();
+    final token = await messagingTokenWhenReady(
+      requiresApns: !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS,
+      getApnsToken: messaging.getAPNSToken,
+      getFcmToken: () => messaging.getToken(),
+    );
     if (token == null || token.trim().isEmpty) return false;
     return saveTokenForCurrentUser(token);
   }
