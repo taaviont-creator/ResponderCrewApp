@@ -3,6 +3,7 @@ import '../services/member_contact_service.dart';
 import 'equipment_screen.dart';
 import 'certificates_screen.dart';
 import 'activities_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -12,6 +13,7 @@ import '../models/certificate_model.dart';
 import '../models/equipment_model.dart';
 import '../models/effective_availability.dart';
 import '../models/membership_model.dart';
+import '../models/membership_tenure.dart';
 import '../models/planned_unavailability_model.dart';
 import '../models/planned_unavailability_rule_model.dart';
 import '../services/activity_service.dart';
@@ -57,6 +59,7 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
   late String? _phone;
   late String _membershipRole;
   late String _seaRescueLevel;
+  late DateTime? _membershipStartedAt;
 
   @override
   void initState() {
@@ -67,6 +70,7 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
     _seaRescueLevel = SeaRescueLevel.normalize(
       widget.membershipData['seaRescueLevel'],
     );
+    _membershipStartedAt = _dateValue(widget.membershipData['membershipStartedAt']);
   }
 
   @override
@@ -76,6 +80,7 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
     _phone = _optionalString(widget.userData['phone']);
     _membershipRole = MembershipRole.normalize(widget.membershipData['role']);
     _seaRescueLevel = SeaRescueLevel.normalize(widget.membershipData['seaRescueLevel']);
+    _membershipStartedAt = _dateValue(widget.membershipData['membershipStartedAt']);
   }
 
   String _stringValue(Object? value, String fallback) {
@@ -89,6 +94,12 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
     if (value is String && value.trim().isNotEmpty) {
       return value.trim();
     }
+    return null;
+  }
+
+  DateTime? _dateValue(Object? value) {
+    if (value is Timestamp) return value.toDate().toUtc();
+    if (value is DateTime) return value.toUtc();
     return null;
   }
 
@@ -108,6 +119,8 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
   }
 
   bool get _canEditRole => _canManageProfileMembership && !_isOwnProfile;
+
+  bool get _canEditMembershipStartDate => _isOwnProfile || _canManageProfileMembership;
 
   Future<void> _contact(bool sms) async {
     try {
@@ -563,7 +576,7 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
 
             final confirmedHours = confirmedParticipations.fold<double>(
               0,
-              (sum, participant) => sum + (participant.hours ?? 0),
+              (total, participant) => total + (participant.hours ?? 0),
             );
             final latestParticipations =
                 confirmedParticipations.take(3).toList(growable: false);
@@ -620,6 +633,70 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
         if (mounted) setState(() { _name = name; _phone = _optionalString(phone); });
       }));
     if (saved == true && mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Andmed salvestatud.')));
+  }
+
+  Future<void> _editMembershipStartDate() async {
+    if (!_canEditMembershipStartDate || _targetUid.isEmpty) return;
+    final now = DateTime.now();
+    final fallback = _dateValue(widget.membershipData['joinedAt']) ?? now;
+    final initial = _membershipStartedAt ?? fallback;
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: initial.isAfter(now) ? now : initial,
+      firstDate: DateTime(1900),
+      lastDate: now,
+      helpText: 'Ühinguga liitumise kuupäev',
+      cancelText: 'Katkesta',
+      confirmText: 'Salvesta',
+    );
+    if (selected == null) return;
+
+    try {
+      await _membershipService.updateMembershipStartDate(
+        membershipId: widget.membershipId,
+        targetUserId: _targetUid,
+        organizationId: widget.organizationId,
+        startedAt: selected,
+      );
+      if (!mounted) return;
+      setState(() => _membershipStartedAt = membershipDateOnly(selected));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Liitumise kuupäev salvestatud.')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Liitumise kuupäeva ei saanud salvestada.'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _editMemberPhone() async {
+    if (!_canManageProfileMembership || _isOwnProfile || _targetUid.isEmpty) {
+      return;
+    }
+    final phone = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _PhoneEditorDialog(phone: _phone ?? ''),
+    );
+    if (phone == null) return;
+
+    try {
+      await _userService.updateMemberPhone(targetUid: _targetUid, phone: phone);
+      if (!mounted) return;
+      setState(() => _phone = _optionalString(phone));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Telefoninumber salvestatud.')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Telefoninumbrit ei saanud salvestada.')),
+      );
+    }
   }
 
   Future<String?> _showSeaRescueLevelDialog() {
@@ -758,6 +835,9 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
     final role = _roleLabel(_membershipRole);
     final seaRescueLevel = _seaRescueLevelLabel(_seaRescueLevel);
     final status = _membershipStatusLabel(widget.membershipData);
+    final membershipStartDetails = _membershipStartedAt == null
+        ? 'Kuupäev lisamata'
+        : '${membershipDateLabel(_membershipStartedAt!)}\nStaaž: ${membershipTenureLabel(_membershipStartedAt!)}';
 
     return Scaffold(
       appBar: AppBar(
@@ -783,6 +863,8 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
             _ProfileRow(label: 'Telefon', value: _phone ?? 'Telefoni pole lisatud.'),
           ])),
           _ProfileRow(label: 'Liikmesus', value: status),
+          _ProfileRow(label: 'Ühingu liikmeks alates', value: membershipStartDetails,
+            onTap: _canEditMembershipStartDate ? _editMembershipStartDate : null),
           _buildAvailabilitySection(),
           if (_canManageProfileMembership) ...[
             const SizedBox(height: 8),
@@ -798,6 +880,8 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                     trailing: const Icon(Icons.chevron_right),
                     onTap: _changeSeaRescueLevel,
                   ),
+                  if (!_isOwnProfile) ListTile(title: const Text('Muuda telefoninumbrit'),
+                    trailing: const Icon(Icons.chevron_right), onTap: _editMemberPhone),
                   if (_canEditRole)
                     ListTile(
                       title: const Text('Muuda rolli'),
@@ -972,13 +1056,11 @@ class _ActivityContributionTile extends StatelessWidget {
 }
 
 class _ProfileRow extends StatelessWidget {
-  const _ProfileRow({
-    required this.label,
-    required this.value,
-  });
+  const _ProfileRow({required this.label, required this.value, this.onTap});
 
   final String label;
   final String value;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -986,7 +1068,70 @@ class _ProfileRow extends StatelessWidget {
       child: ListTile(
         title: Text(label),
         subtitle: Text(value),
+        trailing: onTap == null ? null : const Icon(Icons.edit_outlined),
+        onTap: onTap,
       ),
+    );
+  }
+}
+
+class _PhoneEditorDialog extends StatefulWidget {
+  const _PhoneEditorDialog({required this.phone});
+
+  final String phone;
+
+  @override
+  State<_PhoneEditorDialog> createState() => _PhoneEditorDialogState();
+}
+
+class _PhoneEditorDialogState extends State<_PhoneEditorDialog> {
+  final _form = GlobalKey<FormState>();
+  late final TextEditingController _phone = TextEditingController(
+    text: widget.phone,
+  );
+
+  @override
+  void dispose() {
+    _phone.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Muuda telefoninumbrit'),
+      content: Form(
+        key: _form,
+        child: TextFormField(
+          controller: _phone,
+          autofocus: true,
+          keyboardType: TextInputType.phone,
+          decoration: const InputDecoration(
+            labelText: 'Telefon',
+            hintText: '+372 555 1234',
+          ),
+          validator: (value) =>
+              value != null &&
+                  value.trim().isNotEmpty &&
+                  phoneContactUri(value, sms: false) == null
+              ? 'Sisesta korrektne telefoninumber.'
+              : null,
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Katkesta'),
+        ),
+        FilledButton(
+          onPressed: () {
+            if (_form.currentState!.validate()) {
+              Navigator.pop(context, _phone.text.trim());
+            }
+          },
+          child: const Text('Salvesta'),
+        ),
+      ],
     );
   }
 }

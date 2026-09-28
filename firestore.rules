@@ -69,6 +69,14 @@ service cloud.firestore {
         );
     }
 
+    function hasValidMembershipStartedAt(data) {
+      return !data.keys().hasAny(['membershipStartedAt']) ||
+        (
+          data.membershipStartedAt is timestamp &&
+          data.membershipStartedAt <= request.time
+        );
+    }
+
     function commandExistsAfter(commandId) {
       return existsAfter(/databases/$(database)/documents/commands/$(commandId)) &&
         getAfter(/databases/$(database)/documents/commands/$(commandId)).data.createdBy is string;
@@ -423,6 +431,24 @@ service cloud.firestore {
           'updatedAt'
         ]) &&
         isActiveMembershipData(resource.data);
+    }
+
+    function isMembershipStartDateUpdate(membershipId) {
+      let organizationId = organizationIdFromData(resource.data);
+      return signedIn() &&
+        membershipId == membershipIdForUser(resource.data.userId, organizationId) &&
+        keepsMembershipIdentityAndRole() &&
+        isActiveMembershipData(resource.data) &&
+        hasValidMembershipStartedAt(request.resource.data) &&
+        request.resource.data.updatedAt == request.time &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'membershipStartedAt',
+          'updatedAt'
+        ]) &&
+        (
+          resource.data.userId == request.auth.uid ||
+          isActiveOrgAdmin(organizationId)
+        );
     }
 
     function isPlatformApprovalMembershipUpdate() {
@@ -2303,7 +2329,10 @@ service cloud.firestore {
         (
           !changed.hasAny(['phone']) ||
           !request.resource.data.keys().hasAny(['phone']) ||
-          request.resource.data.phone is string
+          (
+            request.resource.data.phone is string &&
+            request.resource.data.phone.size() <= 40
+          )
         ) &&
         (
           !changed.hasAny(['updatedAt']) ||
@@ -2369,6 +2398,27 @@ service cloud.firestore {
           isOwnActiveOrganizationSet() ||
           isOwnActiveOrganizationClear()
         );
+    }
+
+    function isOrgAdminMemberPhoneUpdate(userId) {
+      let organizationId = currentUserActiveOrganizationId();
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return signedIn() &&
+        userId != request.auth.uid &&
+        organizationId is string &&
+        organizationId.size() > 0 &&
+        isActiveOrgAdmin(organizationId) &&
+        isActiveMemberOf(userId, organizationId) &&
+        changed.hasOnly(['phone', 'updatedAt']) &&
+        (
+          !changed.hasAny(['phone']) ||
+          !request.resource.data.keys().hasAny(['phone']) ||
+          (
+            request.resource.data.phone is string &&
+            request.resource.data.phone.size() <= 40
+          )
+        ) &&
+        request.resource.data.updatedAt == request.time;
     }
 
     function isOwnDeviceTokenId(tokenId) {
@@ -2515,7 +2565,8 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if canReadUser(userId);
       allow create: if isSafeUserCreate(userId);
-      allow update: if isSafeUserUpdate(userId);
+      allow update: if isSafeUserUpdate(userId) ||
+        isOrgAdminMemberPhoneUpdate(userId);
     }
 
     match /userDeviceTokens/{tokenId} {
@@ -2550,6 +2601,9 @@ service cloud.firestore {
 
       allow update: if signedIn() &&
         (
+          (request.resource.data.diff(resource.data).affectedKeys().hasAny([
+              'membershipStartedAt'
+            ]) && isMembershipStartDateUpdate(membershipId)) ||
           (request.resource.data.keys().hasAny(['acceptedInviteId']) &&
             isInviteMembershipUpdate(membershipId)) ||
           isOwnMemberRejoinRequest(membershipId) ||
