@@ -26,11 +26,9 @@ class MenuScreen extends StatelessWidget {
     required this.canStartOperationLog,
     required this.onOpenOrganizationSettings,
     this.onSwitchOrganization,
-    this.onOpenAvailability,
     this.onOpenNotifications,
   });
 
-  final VoidCallback? onOpenAvailability;
   final VoidCallback? onOpenNotifications;
   final String organizationId;
   final String? organizationName;
@@ -58,7 +56,7 @@ class MenuScreen extends StatelessWidget {
     final canManageEquipment = isPlatformAdmin || isOrganizationAdmin;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Veel')),
+      appBar: AppBar(title: const Text('Menüü')),
       body: ListView(
         padding: const EdgeInsets.all(AppTheme.screenPadding),
         children: [
@@ -76,8 +74,6 @@ class MenuScreen extends StatelessWidget {
                 ),
           ),
           const PendingInvitesSection(),
-          if (onOpenAvailability != null) _MenuEntry(icon: Icons.health_and_safety_outlined,
-            title: 'Valmisolek ja planeerimine', subtitle: 'Valvesolek ja valvevälised ajad', onTap: onOpenAvailability!),
           if (onOpenNotifications != null) _MenuEntry(icon: Icons.notifications_outlined,
             title: 'Teavitused', subtitle: 'Ühingu teated', onTap: onOpenNotifications!),
           const SizedBox(height: AppTheme.sectionSpacing),
@@ -94,7 +90,6 @@ class MenuScreen extends StatelessWidget {
               ),
             ),
           ),
-          if (isOrganizationAdmin)
             _MenuEntry(
               icon: Icons.group_outlined,
               title: 'Liikmed',
@@ -104,7 +99,7 @@ class MenuScreen extends StatelessWidget {
                 MembersScreen(
                   organizationId: organizationId,
                   currentUid: currentUid,
-                  canManageRoles: true,
+                  canManageRoles: isPlatformAdmin || isOrganizationAdmin,
                 ),
               ),
             ),

@@ -85,6 +85,13 @@ class _HomePermissions {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  var _contentNavigatorKey = GlobalKey<NavigatorState>();
+  String? _navigatorOrganizationId;
+  (String, Widget)? _pendingNotificationPage;
+
+  Future<T?> _pushPage<T>(BuildContext context, Route<T> route) =>
+      (_contentNavigatorKey.currentState ?? Navigator.of(context)).push(route);
+
   final _availabilityService = AvailabilityService();
   final _commandService = CommandService();
   final _membershipService = MembershipService();
@@ -156,8 +163,10 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     if (!mounted) return;
+    _contentNavigatorKey.currentState?.popUntil((route) => route.isFirst);
     setState(() {
       _pendingCalloutId = event.calloutId;
+      _pendingNotificationPage = null;
       _selectedNavigationIndex = 1;
     });
   }
@@ -173,8 +182,12 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!_membershipService.isActiveMembership(membership) || (user.uid != event.memberUserId && !admin)) throw StateError('Access denied');
       await _setActiveCommand(event.organizationId);
       if (!mounted) return;
-      await Navigator.push(context, MaterialPageRoute<void>(builder: (_) => CertificatesScreen(
-        organizationId: event.organizationId, currentUid: user.uid, targetUserId: event.memberUserId, canManageCertificates: admin)));
+      setState(() {
+        _selectedNavigationIndex = 4;
+        _pendingNotificationPage = (event.organizationId, CertificatesScreen(
+          organizationId: event.organizationId, currentUid: user.uid,
+          targetUserId: event.memberUserId, canManageCertificates: admin));
+      });
     } catch (_) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selle liikme tunnistusi ei saa praegu avada.')));
     }
@@ -193,9 +206,11 @@ class _HomeScreenState extends State<HomeScreen> {
       }
       await _setActiveCommand(event.organizationId);
       if (!mounted) return;
-      await Navigator.of(context).push(MaterialPageRoute(builder: (_) => MembersScreen(
-        organizationId: event.organizationId, currentUid: user.uid, canManageRoles: true,
-      )));
+      setState(() {
+        _selectedNavigationIndex = 4;
+        _pendingNotificationPage = (event.organizationId, MembersScreen(
+          organizationId: event.organizationId, currentUid: user.uid, canManageRoles: true));
+      });
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -741,7 +756,7 @@ class _HomeScreenState extends State<HomeScreen> {
               icon: const Icon(Icons.apartment_outlined),
               label: const Text('Ootel ühingud'),
               onPressed: () {
-                Navigator.push(
+                _pushPage(
                   context,
                   MaterialPageRoute(
                     builder: (_) => const PlatformPendingOrganizationsScreen(
@@ -924,7 +939,7 @@ class _HomeScreenState extends State<HomeScreen> {
               icon: const Icon(Icons.health_and_safety),
               label: const Text('Valmisoleku seaded'),
               onPressed: () {
-                Navigator.push(
+                _pushPage(
                   context,
                   MaterialPageRoute(
                     builder: (_) => PlatformReadinessScreen(
@@ -945,7 +960,7 @@ class _HomeScreenState extends State<HomeScreen> {
               icon: const Icon(Icons.apartment_outlined),
               label: const Text('Ootel ühingud'),
               onPressed: () {
-                Navigator.push(
+                _pushPage(
                   context,
                   MaterialPageRoute(
                     builder: (_) => const PlatformPendingOrganizationsScreen(
@@ -971,7 +986,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   _buildModuleButton(
                     icon: Icons.group,
                     label: 'Liikmed',
-                    onPressed: () => Navigator.push(
+                    onPressed: () => _pushPage(
                       context,
                       MaterialPageRoute(
                         builder: (_) => MembersScreen(
@@ -985,7 +1000,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 _buildModuleButton(
                   icon: Icons.campaign,
                   label: 'Väljakutsed',
-                  onPressed: () => Navigator.push(
+                  onPressed: () => _pushPage(
                     context,
                     MaterialPageRoute(
                       builder: (_) => CalloutsScreen(
@@ -1003,7 +1018,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 _buildModuleButton(
                   icon: Icons.check_circle,
                   label: 'Valmisolek',
-                  onPressed: () => Navigator.push(
+                  onPressed: () => _pushPage(
                     context,
                     MaterialPageRoute(
                       builder: (_) => AvailabilityScreen(
@@ -1023,7 +1038,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   label: permissions.canManageOrganizationEquipment
                       ? 'Varustus'
                       : 'Minu varustus',
-                  onPressed: () => Navigator.push(
+                  onPressed: () => _pushPage(
                     context,
                     MaterialPageRoute(
                       builder: (_) => EquipmentScreen(
@@ -1038,7 +1053,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 _buildModuleButton(
                   icon: Icons.assignment,
                   label: 'Operatsioonilogi',
-                  onPressed: () => Navigator.push(
+                  onPressed: () => _pushPage(
                     context,
                     MaterialPageRoute(
                       builder: (_) => OperationLogScreen(
@@ -1056,7 +1071,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 _buildModuleButton(
                   icon: Icons.event,
                   label: 'Tegevused ja koolitused',
-                  onPressed: () => Navigator.push(
+                  onPressed: () => _pushPage(
                     context,
                     MaterialPageRoute(
                       builder: (_) => ActivitiesScreen(
@@ -1072,7 +1087,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     icon: Icons.insights,
                     label: 'Statistika',
                     onPressed: () {
-                      Navigator.push(
+                      _pushPage(
                         context,
                         MaterialPageRoute(
                           builder: (_) => StatisticsScreen(
@@ -1098,7 +1113,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       label: unreadCount > 0
                           ? 'Teavitused ($unreadCount)'
                           : 'Teavitused',
-                      onPressed: () => Navigator.push(
+                      onPressed: () => _pushPage(
                         context,
                         MaterialPageRoute(
                           builder: (_) => NotificationsScreen(
@@ -1191,7 +1206,7 @@ class _HomeScreenState extends State<HomeScreen> {
             title: const Text('Ühingu load ja tunnistused'),
             subtitle: const Text('Raadioside- ja muud ühingule väljastatud load'),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => OrganizationPermitsScreen(
+            onTap: () => _pushPage(context, MaterialPageRoute<void>(builder: (_) => OrganizationPermitsScreen(
               organizationId: organizationId, currentUid: user.uid))),
           )),
           if (permissions.canManageOrganization) ...[
@@ -1625,10 +1640,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                     const SizedBox(height: 8),
                     HomeAbsencePreview(userId: user.uid, periods: periods, rules: rules,
-                      onPlan: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                      onPlan: () => _pushPage(context, MaterialPageRoute<void>(
                         builder: (_) => AvailabilityScreen(organizationId: organizationId,
                           currentUid: user.uid, currentUserName: memberName,
-                          canViewOrganizationReadiness: false, openPlanningOnStart: true)))),
+                          canViewOrganizationReadiness: false, planningOnly: true, openPlanningOnStart: true)))),
                   ],
                 );
                 if (compact) return content;
@@ -1923,22 +1938,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   );
                 }
 
-                void openNotifications() => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => NotificationsScreen(
+                void openNotifications() => _pushPage(context, MaterialPageRoute<void>(builder: (_) => NotificationsScreen(
                     organizationId: selectedOrganizationId,
                     currentUid: user.uid,
                     currentUserName: displayName,
                     canManageNotifications: permissions.canManageNotifications,
                     canCreateActivities: permissions.canCreateActivity,
                     canStartOperationLog: permissions.canStartOperationLog,
-                  )));
-                void openAvailability() => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => AvailabilityScreen(
-                    organizationId: selectedOrganizationId,
-                    organizationName: commandName,
-                    membershipRole: myMembershipRole,
-                    currentUid: user.uid,
-                    currentUserName: displayName,
-                    canViewOrganizationReadiness:
-                        permissions.canViewOrganizationReadiness,
                   )));
                 final homeContent = Scaffold(
                   appBar: AppBar(
@@ -1971,7 +1977,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                           onCreateCallout: () {
-                            Navigator.push(
+                            _pushPage(
                               context,
                               MaterialPageRoute(
                                 builder: (_) => CalloutsScreen(
@@ -1990,7 +1996,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             );
                           },
                           onCreateActivity: () {
-                            Navigator.push(
+                            _pushPage(
                               context,
                               MaterialPageRoute(
                                 builder: (_) => ActivitiesScreen(
@@ -2004,7 +2010,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             );
                           },
                           onCreateEquipment: () {
-                            Navigator.push(
+                            _pushPage(
                               context,
                               MaterialPageRoute(
                                 builder: (_) => EquipmentScreen(
@@ -2017,13 +2023,15 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             );
                           },
-                          onOpenMembers: () => setState(() => _selectedNavigationIndex = 2),
+                          onOpenMembers: () => _pushPage(context, MaterialPageRoute<void>(builder: (_) => MembersScreen(
+                            organizationId: selectedOrganizationId, currentUid: user.uid,
+                            canManageRoles: permissions.canManageMembers))),
                           onOpenCallout: (id) => setState(() { _pendingCalloutId = id; _selectedNavigationIndex = 1; }),
                           onOpenCallouts: () {
                             setState(() => _selectedNavigationIndex = 1);
                           },
                           onOpenEquipment: () {
-                            Navigator.push(
+                            _pushPage(
                               context,
                               MaterialPageRoute(
                                 builder: (_) => EquipmentScreen(
@@ -2056,7 +2064,9 @@ class _HomeScreenState extends State<HomeScreen> {
                               compact: true,
                             ),
                           ),
-                          onOpenMembers: () => setState(() => _selectedNavigationIndex = 2),
+                          onOpenMembers: () => _pushPage(context, MaterialPageRoute<void>(builder: (_) => MembersScreen(
+                            organizationId: selectedOrganizationId, currentUid: user.uid,
+                            canManageRoles: permissions.canManageMembers))),
                           onOpenCallout: (id) => setState(() { _pendingCalloutId = id; _selectedNavigationIndex = 1; }),
                           onOpenCallouts: () {
                             setState(() => _selectedNavigationIndex = 1);
@@ -2065,7 +2075,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             openNotifications();
                           },
                           onOpenActivities: () {
-                            Navigator.push(
+                            _pushPage(
                               context,
                               MaterialPageRoute(
                                 builder: (_) => ActivitiesScreen(
@@ -2095,12 +2105,18 @@ class _HomeScreenState extends State<HomeScreen> {
                       setState(() => _pendingCalloutId = null);
                     },
                   ),
-                  MembersScreen(organizationId: selectedOrganizationId,
-                    currentUid: user.uid, canManageRoles: permissions.canManageMembers),
-                  EquipmentScreen(organizationId: selectedOrganizationId,
-                    currentUid: user.uid, canManageEquipment: permissions.canManageOrganizationEquipment),
+                  for (final planningOnly in [false, true])
+                    AvailabilityScreen(
+                      key: ValueKey(planningOnly),
+                      organizationId: selectedOrganizationId,
+                      organizationName: commandName,
+                      membershipRole: myMembershipRole,
+                      currentUid: user.uid,
+                      currentUserName: displayName,
+                      canViewOrganizationReadiness: permissions.canViewOrganizationReadiness,
+                      planningOnly: planningOnly,
+                    ),
                   MenuScreen(
-                    onOpenAvailability: openAvailability,
                     onOpenNotifications: openNotifications,
                     organizationId: selectedOrganizationId,
                     organizationName: commandName,
@@ -2112,7 +2128,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     canViewStatistics: permissions.canViewStatistics,
                     canStartOperationLog: permissions.canStartOperationLog,
                     onOpenOrganizationSettings: () {
-                      Navigator.push(
+                      _pushPage(
                         context,
                         MaterialPageRoute(
                           builder: (_) => Scaffold(
@@ -2149,7 +2165,24 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ];
 
+                if (_navigatorOrganizationId != selectedOrganizationId) {
+                  _navigatorOrganizationId = selectedOrganizationId;
+                  _contentNavigatorKey = GlobalKey<NavigatorState>();
+                }
+                final pendingPage = _pendingNotificationPage;
+                if (pendingPage != null && pendingPage.$1 == selectedOrganizationId) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (!mounted || _pendingNotificationPage != pendingPage) return;
+                    final navigator = _contentNavigatorKey.currentState;
+                    if (navigator == null) return;
+                    _pendingNotificationPage = null;
+                    navigator.popUntil((route) => route.isFirst);
+                    navigator.push(MaterialPageRoute<void>(builder: (_) => pendingPage.$2));
+                  });
+                }
                 return MainNavigationShell(
+                  key: ValueKey('${user.uid}:$selectedOrganizationId'),
+                  navigatorKey: _contentNavigatorKey,
                   currentIndex: _selectedNavigationIndex,
                   onDestinationSelected: (index) {
                     setState(() => _selectedNavigationIndex = index);
