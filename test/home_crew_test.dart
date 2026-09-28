@@ -138,7 +138,7 @@ void main() {
         ),
       );
       expect(find.textContaining('Miinimumkoosseis puudu'), findsOneWidget);
-      expect(find.textContaining('Saabub 30 min pärast'), findsOneWidget);
+      expect(find.textContaining('Hilinemisega (+30 min)'), findsOneWidget);
       await tester.tap(find.byTooltip('Helista: Jaan'));
       await tester.tap(find.byTooltip('SMS: Jaan'));
       expect(calls, ['b:false', 'b:true']);
@@ -211,18 +211,18 @@ void main() {
       expect(
         tester
             .widget<OutlinedButton>(
-              find.widgetWithText(OutlinedButton, 'Valmis'),
+              find.widgetWithText(OutlinedButton, 'Valves'),
             )
             .onPressed,
         isNull,
       );
-      await tester.tap(find.text('Pole saadaval'));
+      await tester.tap(find.text('Mitte valves'));
       expect(selected, 'offDuty');
       await show(true);
       expect(
         tester
             .widget<OutlinedButton>(
-              find.widgetWithText(OutlinedButton, 'Pole saadaval'),
+              find.widgetWithText(OutlinedButton, 'Mitte valves'),
             )
             .onPressed,
         isNull,

@@ -177,7 +177,7 @@ class _MembersScreenState extends State<MembersScreen> {
           status: switch (EffectiveAvailability.resolve(userId: doc.data()['userId'].toString(),
             manualStatus: availabilityByUserId[doc.data()['userId']]?.status ?? AvailabilityStatus.offDuty,
             periods: periods, rules: rules, now: now)) {
-              AvailabilityStatus.onDuty => 'Valves', AvailabilityStatus.delayed => 'Hilinen', _ => 'Ei ole valves',
+              AvailabilityStatus.onDuty => 'Valves', AvailabilityStatus.delayed => 'Hilinemisega', _ => 'Mitte valves',
             }),
       ],
       onOpen: (uid) { final doc = byId[uid]; if (doc != null) _openMemberProfile(membershipDoc: doc, membership: doc.data()); },

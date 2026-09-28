@@ -22,7 +22,7 @@ String memberDirectoryCsv(List<DirectoryMember> members) {
   }
 
   return [
-    ['Nimi', 'Roll', 'Merepääste aste', 'Valmisolek'],
+    ['Nimi', 'Roll', 'Merepäästja aste', 'Valmisolek'],
     for (final member in members)
       [
         member.name,

@@ -162,9 +162,9 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
       case AvailabilityStatus.onDuty:
         return 'Valves';
       case AvailabilityStatus.delayed:
-        return 'Hilinen';
+        return 'Hilinemisega';
       case AvailabilityStatus.offDuty:
-        return 'Ei ole valves';
+        return 'Mitte valves';
       default:
         return 'Valmisolek märkimata';
     }
@@ -174,7 +174,7 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
     if (_targetUid.isEmpty || widget.organizationId.trim().isEmpty) {
       return const _ProfileRow(
         label: 'Valmisolek',
-        value: 'Ei ole valves',
+        value: 'Mitte valves',
       );
     }
 
@@ -628,7 +628,7 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
       context: context,
       builder: (context) {
         return SimpleDialog(
-          title: const Text('Merepääste aste'),
+          title: const Text('Merepäästja aste'),
           children: [
             RadioGroup<String>(
               groupValue: selectedLevel,
@@ -678,13 +678,13 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
       if (!mounted) return;
       setState(() => _seaRescueLevel = level);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Merepääste aste salvestatud.')),
+        const SnackBar(content: Text('Merepäästja aste salvestatud.')),
       );
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Merepääste astet ei saanud salvestada.'),
+          content: Text('Merepäästja astet ei saanud salvestada.'),
         ),
       );
     }

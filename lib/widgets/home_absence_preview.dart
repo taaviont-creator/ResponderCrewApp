@@ -56,11 +56,11 @@ class _HomeAbsencePreviewState extends State<HomeAbsencePreview> {
         TextButton.icon(
           onPressed: widget.onPlan,
           icon: const Icon(Icons.event_busy_outlined),
-          label: const Text('Planeeri mittevalves aeg'),
+          label: const Text('Planeeri valvevälist aega'),
         ),
         if (upcoming.isNotEmpty) ...[
           Text(
-            'Järgmised mittevalves ajad',
+            'Järgmised valvevälised ajad',
             style: Theme.of(context).textTheme.labelMedium,
           ),
           for (final item in upcoming)

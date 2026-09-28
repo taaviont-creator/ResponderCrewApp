@@ -77,7 +77,7 @@ class MenuScreen extends StatelessWidget {
           ),
           const PendingInvitesSection(),
           if (onOpenAvailability != null) _MenuEntry(icon: Icons.health_and_safety_outlined,
-            title: 'Valmisolek ja planeerimine', subtitle: 'Valvesolek ja planeeritud puudumised', onTap: onOpenAvailability!),
+            title: 'Valmisolek ja planeerimine', subtitle: 'Valvesolek ja valvevälised ajad', onTap: onOpenAvailability!),
           if (onOpenNotifications != null) _MenuEntry(icon: Icons.notifications_outlined,
             title: 'Teavitused', subtitle: 'Ühingu teated', onTap: onOpenNotifications!),
           const SizedBox(height: AppTheme.sectionSpacing),
