@@ -41,6 +41,14 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
   String? _openedInitialCalloutId;
 
   @override
+  void didUpdateWidget(covariant CalloutsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialCalloutId == null) {
+      _openedInitialCalloutId = null;
+    }
+  }
+
+  @override
   void initState() {
     super.initState();
     if (widget.canManageCallouts && widget.openCreateOnLoad) {
