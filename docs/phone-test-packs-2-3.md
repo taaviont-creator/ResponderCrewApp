@@ -90,7 +90,9 @@ muutmisõigusi ei laiendatud. Kvalifikatsiooni muutmise ja ainsa admini kaitsed 
 teavitust. Seis loetakse ja võrreldakse tehingus, vältides korduvate või vales
 järjekorras Firestore'i sündmuste põhjustatud tagasipöördeid. Andmete muutused
 käivitavad arvutuse ning minutiline ajastatud kontroll arvestab planeeringute
-ajalist algust/lõppu. Esmane seis loob vaikse algpunkti, mitte tagantjärele häiret.
+ajalist algust/lõppu. Ajastatud funktsioon on `europe-west1`, nagu olemasolev
+tunnistuste meeldetuletus: projekti Cloud Scheduler ei toeta `europe-north1`
+asukohta ([Google Cloudi piirkonnad](https://docs.cloud.google.com/scheduler/docs/locations)). Firestore ja muud uued funktsioonid jäävad `europe-north1`. Esmane seis loob vaikse algpunkti, mitte tagantjärele häiret.
 
 Uued serveriliidesed: `getOrganizationReadinessPlanning`, `setCalloutTestStatus`,
 `setNotificationPreference`. Uued käivitajad: `sendMemberApplicationEmail`,

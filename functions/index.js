@@ -297,7 +297,7 @@ for (const collection of ['availability','memberships','plannedUnavailability','
 }
 exports.updateReadiness_organization = onDocumentWritten({document:'commands/{organizationId}',region:'europe-north1',
   maxInstances:3,timeoutSeconds:60,retry:true},readinessEngine.changed);
-exports.refreshScheduledReadiness = onSchedule({schedule:'every 1 minutes',timeZone:'Europe/Tallinn',region:'europe-north1',
+exports.refreshScheduledReadiness = onSchedule({schedule:'every 1 minutes',timeZone:'Europe/Tallinn',region:'europe-west1',
   maxInstances:1,concurrency:1,timeoutSeconds:120,retryCount:0},readinessEngine.scheduled);
 exports.sendReadinessChangeNotification = onDocumentCreated({document:'readinessNotificationEvents/{eventId}',region:'europe-north1',
   maxInstances:3,timeoutSeconds:120,retry:true},createReadinessDelivery({db,deliver:personalDelivery,preferencesFor:async(org,uid)=>{
