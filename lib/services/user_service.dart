@@ -30,7 +30,11 @@ class UserService {
     required String uid,
     required String name,
     required String phone,
+    String? field,
   }) async {
+    if (field != null && !{'name', 'phone'}.contains(field)) {
+      throw ArgumentError('Unsupported profile field');
+    }
     final currentUid = _auth.currentUser?.uid;
     if (currentUid == null || currentUid != uid) {
       throw StateError('Only the current user can update their profile.');
@@ -43,24 +47,28 @@ class UserService {
 
     final trimmedPhone = phone.trim();
     final data = <String, dynamic>{
-      'name': trimmedName,
+      if (field != 'phone') 'name': trimmedName,
       'updatedAt': FieldValue.serverTimestamp(),
     };
 
-    if (trimmedPhone.isEmpty) {
-      data['phone'] = FieldValue.delete();
-    } else {
-      data['phone'] = trimmedPhone;
+    if (field != 'name') {
+      if (trimmedPhone.isEmpty) {
+        data['phone'] = FieldValue.delete();
+      } else {
+        data['phone'] = trimmedPhone;
+      }
     }
 
-    await _firestore.collection('users').doc(uid).set(
-          data,
-          SetOptions(merge: true),
-        );
-    await _syncOwnActiveMembershipDisplayNames(
-      uid: uid,
-      displayName: trimmedName,
-    );
+    await _firestore
+        .collection('users')
+        .doc(uid)
+        .set(data, SetOptions(merge: true));
+    if (field != 'phone') {
+      await _syncOwnActiveMembershipDisplayNames(
+        uid: uid,
+        displayName: trimmedName,
+      );
+    }
   }
 
   Future<void> updateMemberPhone({

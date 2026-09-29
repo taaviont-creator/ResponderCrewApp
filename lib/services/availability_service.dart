@@ -1,16 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/availability_model.dart';
-import '../models/notification_model.dart';
 
 class AvailabilityService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   CollectionReference<Map<String, dynamic>> get _availability =>
       _firestore.collection('availability');
-
-  CollectionReference<Map<String, dynamic>> get _notifications =>
-      _firestore.collection('notifications');
 
   String availabilityId({
     required String userId,
@@ -76,19 +72,7 @@ class AvailabilityService {
       organizationId: organizationId,
     );
     final availabilityDoc = _availability.doc(id);
-    final notificationDoc = _notifications.doc();
-    final trimmedMemberName =
-        memberName.trim().isEmpty ? 'Liige' : memberName.trim();
-
-    await _firestore.runTransaction((transaction) async {
-      final availabilitySnapshot = await transaction.get(availabilityDoc);
-      final previousStatus = availabilitySnapshot.exists
-          ? (availabilitySnapshot.data()?['status'] ??
-                  AvailabilityStatus.offDuty)
-              .toString()
-          : AvailabilityStatus.offDuty;
-
-      transaction.set(availabilityDoc, {
+    await availabilityDoc.set({
         'id': id,
         'userId': userId,
         'organizationId': organizationId,
@@ -103,42 +87,6 @@ class AvailabilityService {
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
-      if (previousStatus == status) return;
-
-      transaction.set(notificationDoc, {
-        'id': notificationDoc.id,
-        'organizationId': organizationId,
-        // TODO: Remove commandId after all notification reads use
-        // organizationId.
-        'commandId': organizationId,
-        'title': 'Valvesoleku muudatus',
-        'message': _availabilityNotificationMessage(
-          memberName: trimmedMemberName,
-          status: status,
-        ),
-        'type': NotificationType.availability,
-        'priority': NotificationPriority.normal,
-        'relatedType': 'availability',
-        'relatedId': id,
-        'createdBy': userId,
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-    });
-  }
-
-  String _availabilityNotificationMessage({
-    required String memberName,
-    required String status,
-  }) {
-    switch (status) {
-      case AvailabilityStatus.onDuty:
-        return '$memberName märkis ennast valvesse.';
-      case AvailabilityStatus.delayed:
-        return '$memberName märkis, et hilineb reageerimisega.';
-      default:
-        return '$memberName märkis ennast mitte valvesse.';
-    }
   }
 
   void _requireOrganizationId(String organizationId) {

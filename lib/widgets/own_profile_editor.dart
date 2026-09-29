@@ -7,8 +7,10 @@ class OwnProfileEditor extends StatefulWidget {
     required this.name,
     required this.phone,
     required this.save,
+    this.field,
   });
   final String name, phone;
+  final String? field;
   final Future<void> Function(String name, String phone) save;
   @override
   State<OwnProfileEditor> createState() => _OwnProfileEditorState();
@@ -50,14 +52,14 @@ class _OwnProfileEditorState extends State<OwnProfileEditor> {
   Widget build(BuildContext context) => PopScope(
     canPop: !_saving,
     child: AlertDialog(
-      title: const Text('Muuda minu andmeid'),
+      title: Text(widget.field == 'name' ? 'Muuda nime' : widget.field == 'phone' ? 'Muuda telefoninumbrit' : 'Muuda profiili'),
       content: SingleChildScrollView(
         child: Form(
           key: _form,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextFormField(
+              if (widget.field != 'phone') TextFormField(
                 controller: _name,
                 enabled: !_saving,
                 textInputAction: TextInputAction.next,
@@ -65,7 +67,7 @@ class _OwnProfileEditorState extends State<OwnProfileEditor> {
                 validator: (v) =>
                     v == null || v.trim().isEmpty ? 'Sisesta nimi.' : null,
               ),
-              TextFormField(
+              if (widget.field != 'name') TextFormField(
                 controller: _phone,
                 enabled: !_saving,
                 keyboardType: TextInputType.phone,

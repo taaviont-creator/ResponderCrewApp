@@ -6,42 +6,78 @@ class EquipmentStatus {
   static const broken = 'broken';
   static const outOfService = 'outOfService';
 
-  static const values = {
-    ok,
-    needsMaintenance,
-    broken,
-    outOfService,
-  };
+  static const values = {ok, needsMaintenance, broken, outOfService};
 }
 
 class EquipmentCategory {
-  static const vessel = 'vessel';
-  static const engine = 'engine';
-  static const rescue = 'rescue';
-  static const medical = 'medical';
-  static const radio = 'radio';
-  static const safety = 'safety';
-  static const other = 'other';
-
+  static const vessel = 'vessel',
+      engine = 'engine',
+      trailer = 'trailer',
+      vehicle = 'vehicle',
+      machinery = 'machinery';
+  static const rescue = 'rescue',
+      medical = 'medical',
+      radio = 'radio',
+      safety = 'safety',
+      other = 'other';
   static const values = {
     vessel,
     engine,
+    trailer,
+    vehicle,
+    machinery,
     rescue,
+    safety,
     medical,
     radio,
-    safety,
     other,
   };
+  static String normalize(Object? value) =>
+      values.contains(value) ? value as String : other;
+  static String label(String value) => switch (normalize(value)) {
+    vessel => 'Alus',
+    engine => 'Mootor',
+    trailer => 'Haagis',
+    vehicle => 'Sõiduk',
+    machinery => 'Muu tehnika',
+    rescue => 'Päästevarustus',
+    safety => 'Isikukaitsevarustus',
+    medical => 'Meditsiinivarustus',
+    radio => 'Side- ja navigatsioonivarustus',
+    _ => 'Muu',
+  };
+  static String group(Object? value) => switch (normalize(value)) {
+    vessel ||
+    engine ||
+    trailer ||
+    vehicle ||
+    machinery => 'Kasutatud alused ja tehnika',
+    rescue => 'Päästevarustus',
+    safety => 'Isikukaitsevarustus',
+    medical => 'Meditsiinivarustus',
+    radio => 'Side- ja navigatsioonivarustus',
+    _ => 'Muu varustus',
+  };
+  static Map<String, List<Map<String, dynamic>>> groupEquipment(
+    Iterable<Map<String, dynamic>> items,
+  ) {
+    final groups = <String, List<Map<String, dynamic>>>{};
+    for (final category in values) {
+      final title = group(category);
+      final rows = items
+          .where((item) => group(item['category']) == title)
+          .toList();
+      if (rows.isNotEmpty) groups[title] = rows;
+    }
+    return groups;
+  }
 }
 
 class EquipmentScope {
   static const organization = 'organization';
   static const personal = 'personal';
 
-  static const values = {
-    organization,
-    personal,
-  };
+  static const values = {organization, personal};
 }
 
 class EquipmentModel {
@@ -100,20 +136,11 @@ class EquipmentModel {
       id: document.id,
       organizationId: _stringValue(data['organizationId']),
       commandId: _stringValue(data['commandId']),
-      scope: _stringValue(
-        data['scope'],
-        fallback: EquipmentScope.organization,
-      ),
+      scope: _stringValue(data['scope'], fallback: EquipmentScope.organization),
       ownerUserId: _stringValue(data['ownerUserId']),
       name: _stringValue(data['name']),
-      category: _stringValue(
-        data['category'],
-        fallback: EquipmentCategory.other,
-      ),
-      status: _stringValue(
-        data['status'],
-        fallback: EquipmentStatus.ok,
-      ),
+      category: EquipmentCategory.normalize(data['category']),
+      status: _stringValue(data['status'], fallback: EquipmentStatus.ok),
       location: _stringValue(data['location']),
       nextMaintenanceDate: _stringValue(data['nextMaintenanceDate']),
       note: _stringValue(data['note']),

@@ -1317,7 +1317,10 @@ test('member readiness returns only current unavailability while private schedul
   await db.doc('plannedUnavailability/private-other-org').set({organizationId:otherOrganizationId,
     userId:otherUserId,status:'active',startAt:Timestamp.fromMillis(now),endAt:Timestamp.fromMillis(now+10000)});
   const handler = createReadinessAvailabilityHandler({db,now:()=>now});
-  assert.deepEqual(await handler({auth:{uid:activeMemberId},data:{organizationId}}),{unavailableUserIds:[targetMemberId]});
+  const readiness = await handler({auth:{uid:activeMemberId},data:{organizationId}});
+  assert.deepEqual(readiness.unavailableUserIds,[targetMemberId]);
+  assert.equal(readiness.paused,true);
+  assert.doesNotMatch(JSON.stringify(readiness),/PRIVATE MEDICAL NOTE/);
   const client=testEnv.authenticatedContext(activeMemberId).firestore();
   await assertFails(getDoc(doc(client,'plannedUnavailability/private-peer')));
   await assertFails(getDocs(query(collection(client,'plannedUnavailability'),where('organizationId','==',organizationId))));
@@ -1404,4 +1407,123 @@ test('phone response and attendance subscription queries work before first respo
   for(const name of ['calloutResponses','calloutAttendance']) await assertSucceeds(getDocs(query(collection(db,name),where('organizationId','==',organizationId),where('calloutId','==','phone-callout'),where('userId','==',activeMemberId))));
   await assertSucceeds(getDocs(query(collection(db,'calloutResponses'),and(where('userId','==',activeMemberId),where('calloutId','==','phone-callout'),or(where('organizationId','==',organizationId),where('commandId','==',organizationId))))));
   await assertFails(getDocs(query(collection(db,'calloutResponses'),where('organizationId','==',organizationId),where('calloutId','==','phone-callout'),where('userId','==',orgAdminId))));
+});
+
+
+test('pack23 shared planning projects times and names without private notes and rejects outsiders',async()=>{
+ const {createReadinessPlanningHandler}=serverRequire('./readiness-planning');const db=serverDb(),now=Date.parse('2026-09-29T09:00:00Z');
+ await db.doc('plannedUnavailability/shared-plan').set({organizationId,userId:targetMemberId,status:'active',startAt:new Date(now),endAt:new Date(now+3600000),note:'SECRET REASON'});
+ await db.doc('plannedUnavailability/cancelled-plan').set({organizationId,userId:targetMemberId,status:'cancelled',startAt:new Date(now),endAt:new Date(now+3600000),note:'SECRET CANCEL'});
+ const handler=createReadinessPlanningHandler({db,now:()=>now});
+ const result=await handler({auth:{uid:activeMemberId},data:{organizationId}});
+ assert.equal(result.rows.length,1);assert.equal(result.rows[0].userId,targetMemberId);assert.doesNotMatch(JSON.stringify(result),/SECRET|note/);
+ assert.equal((await handler({auth:{uid:activeMemberId},data:{organizationId,includeCancelled:true}})).rows.length,2);
+ await assert.rejects(handler({auth:{uid:otherUserId},data:{organizationId}}),e=>e.code==='permission-denied');
+ await assert.rejects(handler({auth:{uid:memberId},data:{organizationId}}),e=>e.code==='permission-denied');
+});
+
+test('pack23 test marker is admin-only, cross-org safe, version checked and audited without deletion',async()=>{
+ const {createSetCalloutTestStatusHandler}=serverRequire('./callout-test-status');const db=serverDb();
+ const handler=createSetCalloutTestStatusHandler({db,timestamp:()=>new Date()});
+ await db.doc('callouts/keep-test').set({organizationId,status:'closed',title:'Exercise'});
+ await db.doc(`memberships/${activeMemberId}_${organizationId}`).update({seaRescueLevel:'level2'});
+ const request={calloutId:'keep-test',organizationId,isTest:true,expectedIsTest:false};
+ for(const uid of [activeMemberId,targetMemberId,otherUserId,'platform-only']) {
+  await assert.rejects(handler({auth:{uid},data:request}),e=>e.code==='permission-denied');
+ }
+ await assertFails(updateDoc(doc(testEnv.authenticatedContext(orgAdminId).firestore(),'callouts/keep-test'),{isTest:true,updatedAt:serverTimestamp()}));
+ await handler({auth:{uid:orgAdminId},data:request});
+ assert.equal((await db.doc('callouts/keep-test').get()).data().isTest,true);
+ assert.equal((await db.collection('callouts/keep-test/changeHistory').get()).size,1);
+ assert.equal((await db.collection('platformAudit').where('action','==','callout.testStatusChanged').get()).size,1);
+ await assert.rejects(handler({auth:{uid:orgAdminId},data:request}),e=>e.code==='aborted');
+ await handler({auth:{uid:orgAdminId},data:{...request,isTest:false,expectedIsTest:true}});
+ assert.equal((await db.doc('callouts/keep-test').get()).data().isTest,false);
+});
+
+test('pack23 notification preferences are self-owned and cannot grant any membership rights',async()=>{
+ const {createSetNotificationPreferenceHandler}=serverRequire('./notification-preferences');const db=serverDb();
+ const handler=createSetNotificationPreferenceHandler({db,timestamp:()=>new Date()});
+ const request={organizationId,key:'readinessLost',enabled:true,userId:orgAdminId};
+ await handler({auth:{uid:activeMemberId},data:request});
+ assert.equal((await db.doc(`notificationPreferences/${activeMemberId}_${organizationId}`).get()).data().preferences.readinessLost,true);
+ assert.equal((await db.doc(`notificationPreferences/${orgAdminId}_${organizationId}`).get()).exists,false);
+ const client=testEnv.authenticatedContext(activeMemberId).firestore();
+ await assertSucceeds(getDoc(doc(client,`notificationPreferences/${activeMemberId}_${organizationId}`)));
+ await assertFails(getDoc(doc(testEnv.authenticatedContext(targetMemberId).firestore(),`notificationPreferences/${activeMemberId}_${organizationId}`)));
+ await assertFails(setDoc(doc(client,`notificationPreferences/${activeMemberId}_${organizationId}`),{role:'orgAdmin'}));
+ await assert.rejects(handler({auth:{uid:activeMemberId},data:{...request,key:'role'}}),e=>e.code==='invalid-argument');
+ await assert.rejects(handler({auth:{uid:memberId},data:request}),e=>e.code==='permission-denied');
+ await assert.rejects(handler({auth:{uid:activeMemberId},data:{...request,organizationId:otherOrganizationId}}),e=>e.code==='permission-denied');
+});
+
+test('pack23 private inbox supports recipient-scoped query/read receipt but blocks other members and client writes',async()=>{
+ const db=serverDb(),client=testEnv.authenticatedContext(activeMemberId).firestore();
+ await db.doc('userNotifications/n').set({id:'n',organizationId,commandId:organizationId,recipientUserId:activeMemberId,title:'Ready',message:'Changed'});
+ await assertSucceeds(getDocs(query(collection(client,'userNotifications'),where('organizationId','==',organizationId),where('recipientUserId','==',activeMemberId))));
+ await assertFails(getDoc(doc(testEnv.authenticatedContext(targetMemberId).firestore(),'userNotifications/n')));
+ await assertFails(updateDoc(doc(client,'userNotifications/n'),{message:'spoofed'}));
+ await assertSucceeds(setDoc(doc(client,`notificationReads/n_${activeMemberId}`),{id:`n_${activeMemberId}`,notificationId:'n',userId:activeMemberId,organizationId,commandId:organizationId,readAt:serverTimestamp()}));
+ await db.doc(`memberships/${activeMemberId}_${organizationId}`).update({status:'removed',isActive:false});
+ await assertFails(getDoc(doc(client,'userNotifications/n')));
+});
+
+test('pack23 public login help is a single read-only document; no public collection enumeration',async()=>{
+ const db=serverDb();await db.doc('publicAppInfo/login').set({guideText:'Guide'});
+ const anonymous=testEnv.unauthenticatedContext().firestore();
+ await assertSucceeds(getDoc(doc(anonymous,'publicAppInfo/login')));
+ await assertFails(getDocs(collection(anonymous,'publicAppInfo')));
+ await assertFails(setDoc(doc(anonymous,'publicAppInfo/login'),{guideUrl:'https://untrusted.example'}));
+ await assertFails(getDoc(doc(anonymous,'commands/'+organizationId)));
+});
+
+test('pack23 readiness engine coalesces duplicate triggers and plan-boundary scheduler uses the same SAR calculation',async()=>{
+ const {createReadinessEngine}=serverRequire('./organization-readiness');const {loadReadiness}=serverRequire('./organization-readiness');
+ const db=serverDb();let now=Date.parse('2026-09-29T09:00:00Z');
+ await db.doc(`organizationReadinessSummaries/${organizationId}`).set({organizationId,minimumCrewRequired:2});
+ for(const uid of [orgAdminId,activeMemberId])await db.doc(`availability/${uid}_${organizationId}`).set({organizationId,userId:uid,status:'onDuty'});
+ const engine=createReadinessEngine({db,now:()=>now});await engine.recompute(organizationId);
+ assert.equal((await db.collection('readinessNotificationEvents').get()).size,0);
+ assert.equal((await loadReadiness(db,organizationId,now)).ready,true);
+ await db.doc('plannedUnavailability/boundary').set({organizationId,userId:orgAdminId,status:'active',startAt:new Date(now+1000),endAt:new Date(now+5000)});
+ now+=1000;
+ await Promise.all([engine.recompute(organizationId),engine.recompute(organizationId)]);
+ let events=await db.collection('readinessNotificationEvents').get();assert.equal(events.size,1);
+ assert.deepEqual(events.docs[0].data().keys,['readinessLost','belowMinimum','missingLevel2','memberOffDuty']);
+ assert.equal((await loadReadiness(db,organizationId,now)).ready,false);
+ await engine.recompute(organizationId);assert.equal((await db.collection('readinessNotificationEvents').get()).size,1);
+ now+=4000;await engine.recompute(organizationId);events=await db.collection('readinessNotificationEvents').get();assert.equal(events.size,2);
+ assert.equal((await loadReadiness(db,organizationId,now)).ready,true);
+});
+
+
+test('pack23 Tross member can respond with no II level and below SAR minimum',async()=>{
+ const db=serverDb();
+ for(const uid of [orgAdminId,activeMemberId,targetMemberId]) await db.doc(`memberships/${uid}_${organizationId}`).update({seaRescueLevel:'none'});
+ await db.doc(`organizationReadinessSummaries/${organizationId}`).set({organizationId,minimumCrewRequired:3});
+ await db.doc(`availability/${activeMemberId}_${organizationId}`).set({organizationId,userId:activeMemberId,status:'onDuty'});
+ const readiness=await serverRequire('./organization-readiness').loadReadiness(db,organizationId,Date.now());
+ assert.equal(readiness.ready,false);assert.equal(readiness.secondLevelMet,false);assert.equal(readiness.onDutyCount,1);
+ const admin=testEnv.authenticatedContext(orgAdminId).firestore();
+ await assertSucceeds(setDoc(doc(admin,'callouts/tross-ready'),calloutData('tross-ready',{calloutType:'tross',responseTargetMinutes:60})));
+ const member=testEnv.authenticatedContext(activeMemberId).firestore(),id=`tross-ready_${activeMemberId}`;
+ await assertSucceeds(setDoc(doc(member,`calloutResponses/${id}`),{id,calloutId:'tross-ready',userId:activeMemberId,userName:'Liige',organizationId,commandId:organizationId,response:'responding',responseMinutes:null,note:'',createdAt:serverTimestamp(),updatedAt:serverTimestamp()}));
+ assert.equal((await db.doc(`calloutResponses/${id}`).get()).data().response,'responding');
+});
+
+test('pack23 readiness invalidation is active-org scoped and platform inbox is platform-only',async()=>{
+ const db=serverDb();
+ await db.doc(`readinessNotificationState/${organizationId}`).set({operational:{ready:true}});
+ const member=testEnv.authenticatedContext(activeMemberId).firestore();
+ await assertSucceeds(getDoc(doc(member,`readinessNotificationState/${organizationId}`)));
+ await assertFails(getDoc(doc(testEnv.authenticatedContext(otherUserId).firestore(),`readinessNotificationState/${organizationId}`)));
+ await assertFails(setDoc(doc(member,`readinessNotificationState/${organizationId}`),{operational:{ready:true}}));
+ await db.doc('users/platform-only').set({systemRole:'platformAdmin'});
+ await db.doc('userNotifications/platform-note').set({organizationId:'platform',recipientUserId:'platform-only',title:'New application'});
+ const platform=testEnv.authenticatedContext('platform-only').firestore();
+ await assertSucceeds(getDocs(query(collection(platform,'userNotifications'),where('organizationId','==','platform'),where('recipientUserId','==','platform-only'))));
+ await assertFails(getDoc(doc(member,'userNotifications/platform-note')));
+ await assertFails(getDoc(doc(platform,`readinessNotificationState/${organizationId}`)));
+ await db.doc('users/platform-only').update({systemRole:'user'});
+ await assertFails(getDoc(doc(platform,'userNotifications/platform-note')));
 });

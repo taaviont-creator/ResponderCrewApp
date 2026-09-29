@@ -8,9 +8,7 @@ import '../models/availability_model.dart';
 import '../models/duty_crew.dart';
 import '../models/membership_model.dart';
 import '../models/response_readiness.dart';
-import '../services/availability_service.dart';
 import '../services/membership_service.dart';
-import '../services/platform_readiness_service.dart';
 import '../services/readiness_availability_service.dart';
 import '../services/member_contact_service.dart';
 import '../theme/app_theme.dart';
@@ -23,9 +21,11 @@ class CrewReadinessCard extends StatefulWidget {
     required this.currentUid,
     this.streamsForOrganization,
     this.showOffDuty = false,
+    this.compact = false,
   });
   final String organizationId, currentUid;
   final bool showOffDuty;
+  final bool compact;
   final CrewReadinessStreams Function(String)? streamsForOrganization;
   @override
   State<CrewReadinessCard> createState() => _CrewReadinessCardState();
@@ -34,6 +34,7 @@ class CrewReadinessCard extends StatefulWidget {
 class _CrewReadinessCardState extends State<CrewReadinessCard> {
   final _subscriptions = <StreamSubscription<dynamic>>[];
   List<Map<String, dynamic>>? _members;
+  Map<String, dynamic>? _serverState;
   List<AvailabilityModel>? _availability;
   Set<String>? _unavailable;
   final _errors = <Object>{};
@@ -72,6 +73,7 @@ class _CrewReadinessCardState extends State<CrewReadinessCard> {
     }
     _subscriptions.clear();
     _members = null;
+    _serverState = null;
     _availability = null;
     _unavailable = null;
     _minimum = null;
@@ -87,9 +89,18 @@ class _CrewReadinessCardState extends State<CrewReadinessCard> {
       _pauseReason = data['dutyPauseReason'] as String? ?? '';
     });
     _listen(streams.members, (data) => _members = data);
-    _listen(streams.availability, (data) => _availability = data);
-    _listen(streams.unavailable, (data) => _unavailable = data);
-    _listen(streams.minimum, (data) => _minimum = data);
+    if (streams.readiness != null) {
+      _listen(streams.readiness!, (data) {
+        _serverState = data;
+        _availability = const [];
+        _unavailable = (data['unavailableUserIds'] as List).cast<String>().toSet();
+        _minimum = data['minimum'] as int;
+      });
+    } else {
+      _listen(streams.availability, (data) => _availability = data);
+      _listen(streams.unavailable, (data) => _unavailable = data);
+      _listen(streams.minimum, (data) => _minimum = data);
+    }
   }
 
   @override
@@ -183,7 +194,7 @@ class _CrewReadinessCardState extends State<CrewReadinessCard> {
     }
     if (_errors.isNotEmpty) {
       return AppSectionCard(
-        title: 'Ühingu reageerimisvalmidus',
+        title: 'Ühingu valmidus',
         child: Column(
           children: [
             const Text(
@@ -203,12 +214,16 @@ class _CrewReadinessCardState extends State<CrewReadinessCard> {
         _unavailable == null ||
         _minimum == null) {
       return const AppSectionCard(
-        title: 'Ühingu reageerimisvalmidus',
+        title: 'Ühingu valmidus',
         child: LinearProgressIndicator(),
       );
     }
     return CrewReadinessView(
-      members: dutyCrew(
+      authoritative: _serverState,
+      members: _serverState != null ? (_serverState!['crew'] as List).map((raw) {
+        final m = Map<String, dynamic>.from(raw as Map);
+        return DutyCrewMember(userId:m['userId'],name:m['name'],status:m['status'],level:m['level'],arrivalMinutes:m['arrivalMinutes']);
+      }).where((m) => widget.showOffDuty || m.status != AvailabilityStatus.offDuty).toList() : dutyCrew(
         memberships: _members!,
         availability: _availability!,
         periods: const [],
@@ -221,6 +236,7 @@ class _CrewReadinessCardState extends State<CrewReadinessCard> {
       currentUid: widget.currentUid,
       busyUserId: _busy,
       showOffDuty: widget.showOffDuty,
+      compact: widget.compact,
       onContact: _contact,
       onOpenMember: _openProfile,
     );
@@ -235,14 +251,18 @@ class CrewReadinessView extends StatelessWidget {
     required this.currentUid,
     required this.onContact,
     this.onOpenMember,
+    this.authoritative,
     this.busyUserId,
     this.showOffDuty = false,
+    this.compact = false,
   });
   final List<DutyCrewMember> members;
+  final Map<String, dynamic>? authoritative;
   final int minimumCrew;
   final String currentUid;
   final String? busyUserId;
   final bool showOffDuty;
+  final bool compact;
   final void Function(String, bool) onContact;
   final ValueChanged<String>? onOpenMember;
   @override
@@ -263,21 +283,23 @@ class CrewReadinessView extends StatelessWidget {
           .where((m) => m.level == SeaRescueLevel.level2)
           .length,
     );
+    final ready = authoritative?['ready'] as bool? ?? readiness.isReady;
+    final missing = (authoritative?['missing'] as List?)?.cast<String>() ?? readiness.missingRequirements;
     return AppSectionCard(
-      title: 'Ühingu reageerimisvalmidus',
+      title: 'Ühingu valmidus',
       leading: Icon(
         Icons.shield_outlined,
-        color: readiness.isReady ? AppColors.ready : AppColors.delayed,
+        color: ready ? AppColors.ready : AppColors.delayed,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            readiness.isReady
+            ready
                 ? 'SAR: reageerimisvalmis'
-                : 'SAR: ${readiness.missingRequirements.join(' · ')}',
+                : 'SAR: ${missing.join(' · ')}',
             style: TextStyle(
-              color: readiness.isReady ? AppColors.ready : AppColors.delayed,
+              color: ready ? AppColors.ready : AppColors.delayed,
             ),
           ),
           const SizedBox(height: 4),
@@ -290,7 +312,7 @@ class CrewReadinessView extends StatelessWidget {
               padding: EdgeInsets.only(top: 12),
               child: Text('Valves ega hilinemisega liikmeid praegu ei ole.'),
             ),
-          for (final group in [onDuty, delayed, if (showOffDuty) offDuty])
+          if (!compact) for (final group in [onDuty, delayed, if (showOffDuty) offDuty])
             if (group.isNotEmpty) ...[
               const SizedBox(height: 16),
               Text(
@@ -423,12 +445,14 @@ class CrewReadinessStreams {
     required this.availability,
     required this.unavailable,
     required this.minimum,
+    this.readiness,
   });
   final Stream<Map<String, dynamic>> organization;
   final Stream<List<Map<String, dynamic>>> members;
   final Stream<List<AvailabilityModel>> availability;
   final Stream<Set<String>> unavailable;
   final Stream<int> minimum;
+  final Stream<Map<String, dynamic>>? readiness;
 
   factory CrewReadinessStreams.live(String org) => CrewReadinessStreams(
     organization: FirebaseFirestore.instance
@@ -439,12 +463,9 @@ class CrewReadinessStreams {
     members: MembershipService()
         .streamActiveMembershipsForOrganization(org)
         .map((docs) => docs.map((doc) => doc.data()).toList()),
-    availability: AvailabilityService().streamOrganizationAvailability(
-      organizationId: org,
-    ),
-    unavailable: ReadinessAvailabilityService().streamUnavailableMembers(org),
-    minimum: PlatformReadinessService()
-        .streamOrganizationSummary(organizationId: org)
-        .map((data) => data.isEmpty ? 0 : data.first.minimumCrewRequired),
+    availability: const Stream.empty(),
+    unavailable: const Stream.empty(),
+    minimum: const Stream.empty(),
+    readiness: ReadinessAvailabilityService().streamReadiness(org),
   );
 }

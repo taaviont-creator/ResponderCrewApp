@@ -83,7 +83,7 @@ void main() {
       expect(calls.length, 2);
       await tester.tap(find.text('Tagasi baasis'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Lõpeta op-logi'));
+      await tester.tap(find.text('Lõpeta operatiivlogi'));
       await tester.pumpAndSettle();
       expect(calls.last, 'Tagasi baasis');
     },
@@ -102,7 +102,7 @@ void main() {
       },
     );
     expect(find.text('Kiirtegevused'), findsNothing);
-    await tester.tap(find.text('Lisa op-logisse kommentaar'));
+    await tester.tap(find.text('Lisa operatiivlogisse kommentaar'));
     await tester.pumpAndSettle();
     expect(comments, 1);
     expect(find.byType(AlertDialog), findsNothing);
@@ -123,7 +123,7 @@ void main() {
       expect(size.height, greaterThanOrEqualTo(56));
       expect(size.width, lessThanOrEqualTo(320));
     }
-    await tester.ensureVisible(find.text('Lisa op-logisse kommentaar'));
+    await tester.ensureVisible(find.text('Lisa operatiivlogisse kommentaar'));
     expect(tester.takeException(), isNull);
   });
 }

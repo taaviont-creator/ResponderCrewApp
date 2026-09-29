@@ -27,7 +27,7 @@ test('renewal date, recipient and expired stage get distinct delivery identities
 test('daily job creates private inbox and sends once; renewal alerts again', async () => {
   const stored = new Map(), sent = [];
   const cert = {organizationId:'org', userId:'owner', userName:'Owner', title:'Radio', expiresAt:'2026-10-28'};
-  const db = {collection(name) {
+  const db = {doc:()=>({get:async()=>({data:()=>undefined})}),collection(name) {
     if (name === 'commands') return {doc: () => ({get: async () => ({data: () => ({status:'approved'})})})};
     if (name === 'certificateReminders') return {doc: id => ({create: async data => { if(stored.has(id)) throw {code:6}; stored.set(id,data); }})};
     const query = {orderBy: () => query, limit: () => query, where: () => query,

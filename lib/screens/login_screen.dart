@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import '../widgets/login_information.dart';
 
 import 'package:respondcrew_app/services/auth_service.dart';
 import 'register_screen.dart';
@@ -43,11 +43,6 @@ class _LoginScreenState extends State<LoginScreen> {
         _emailController.text.trim(),
         _passwordController.text,
       );
-
-      // 3.3 Debug kontroll: kas currentUser tekkis
-      final user = FirebaseAuth.instance.currentUser;
-      // ignore: avoid_print
-      print('AFTER SIGNIN currentUser = ${user?.uid} ${user?.email}');
 
       // 3.4 UI tagasiside (SnackBar)
       if (!mounted) return;
@@ -128,13 +123,15 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       // 9.1 AppBar (ekraani pealkiri)
-      appBar: AppBar(title: const Text('RespondCrew – Logi sisse')),
+      appBar: AppBar(title: const Text('RespondCrew')),
 
       // 9.2 Body (form)
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
+            const Text('Mõeldud vabatahtlikele merepäästeühingutele.'),
+            const SizedBox(height: 24),
             // Ülemine osa: sisestused
             _buildEmailField(),
             const SizedBox(height: 12),
@@ -146,6 +143,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
             // Alumine osa: register link
             _buildCreateAccountButton(),
+            const SizedBox(height: 24),
+            const LoginInformation(),
           ],
         ),
       ),

@@ -80,7 +80,7 @@ function createPlatformOverviewHandler({db}) {
       const roster=members.filter(m=>m.id===`${m.data().userId}_${doc.id}` && active(m.data()));
       const d=doc.data();
       const times=[d.createdAt,d.reviewedAt,...callouts.map(c=>c.data().updatedAt),...members.map(m=>m.data().updatedAt)].filter(v=>v?.toMillis);
-      organizations.push({id:doc.id,name:d.name || '',status:d.status || 'approved',memberCount:roster.length,adminCount:roster.filter(m=>isAdmin(m.data())).length,calloutCount:callouts.length,
+      organizations.push({id:doc.id,name:d.name || '',status:d.status || 'approved',memberCount:roster.length,adminCount:roster.filter(m=>isAdmin(m.data())).length,calloutCount:callouts.filter(c=>c.data().isTest!==true).length,
         createdAt:d.createdAt || null,reviewedAt:d.reviewedAt || null,lastActivity:times.sort((a,b)=>b.toMillis()-a.toMillis())[0] || null,
         profile:profile.data() || {},createdBy:d.createdBy});
     }

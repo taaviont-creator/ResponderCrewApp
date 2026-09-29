@@ -1,3 +1,4 @@
+import '../models/information_notification_open.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -14,9 +15,10 @@ import '../models/certificate_reminder_open.dart';
 import 'device_token_service.dart';
 
 const _calloutAlarmChannel = AndroidNotificationChannel(
-  'callout_alarm',
-  'Väljakutse alarm',
-  description: 'Heliline alarm väljakutsete jaoks',
+  'sar_alarm_v2',
+  'SAR-väljakutse häire',
+  description: 'Kiire reageerimist vajav SAR-väljakutse',
+  sound: RawResourceAndroidNotificationSound('sar_alarm'),
   importance: Importance.max,
   playSound: true,
   enableVibration: true,
@@ -49,7 +51,7 @@ class CalloutNotificationOpenEvent {
   static CalloutNotificationOpenEvent? fromData(
     Map<String, dynamic> data,
   ) {
-    if (data['type'] == 'member_request' || data['type'] == 'certificate_reminder') return null;
+    if (data['type'] != null && !{'callout', 'callout_alarm', 'tross_callout'}.contains(data['type'])) return null;
     final organizationId =
         (data['organizationId'] ?? data['commandId'] ?? '').toString().trim();
     final calloutId =
@@ -118,6 +120,14 @@ class CalloutAlarmNotificationService with WidgetsBindingObserver {
   final _calloutOpenController =
       StreamController<CalloutNotificationOpenEvent>.broadcast();
   CalloutNotificationOpenEvent? _pendingCalloutOpenEvent;
+
+  final _informationController = StreamController<InformationNotificationOpen>.broadcast();
+  InformationNotificationOpen? _pendingInformation;
+  Stream<InformationNotificationOpen> get informationOpenEvents => _informationController.stream;
+  InformationNotificationOpen? takePendingInformation() { final event = _pendingInformation; _pendingInformation = null; return event; }
+  void _emitInformation(InformationNotificationOpen event) {
+    if (_informationController.hasListener) { _informationController.add(event); } else { _pendingInformation = event; }
+  }
 
   final _memberRequestController = StreamController<MemberRequestNotification>.broadcast();
   MemberRequestNotification? _pendingMemberRequest;
@@ -247,12 +257,13 @@ class CalloutAlarmNotificationService with WidgetsBindingObserver {
 
     const details = NotificationDetails(
       android: AndroidNotificationDetails(
-        'callout_alarm',
+        'sar_alarm_v2',
         'V\u00e4ljakutse alarm',
         channelDescription: 'Heliline alarm v\u00e4ljakutsete jaoks',
         importance: Importance.max,
         priority: Priority.high,
         playSound: true,
+        sound: RawResourceAndroidNotificationSound('sar_alarm'),
         enableVibration: true,
         category: AndroidNotificationCategory.alarm,
       ),
@@ -333,6 +344,12 @@ class CalloutAlarmNotificationService with WidgetsBindingObserver {
         ?.createNotificationChannel(_memberRequestChannel);
     await _localNotifications.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
       ?.createNotificationChannel(const AndroidNotificationChannel('certificate_reminders', 'Tunnistuste aegumine', importance: Importance.defaultImportance));
+    final android = _localNotifications.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    for (final channel in const [
+      AndroidNotificationChannel('tross_callouts','Trossi mereabi',importance:Importance.defaultImportance),
+      AndroidNotificationChannel('readiness_changes','Ühingu valmiduse muutused',importance:Importance.defaultImportance),
+      AndroidNotificationChannel('respondcrew_info','RespondCrew teated',importance:Importance.defaultImportance),
+    ]) { await android?.createNotificationChannel(channel); }
     final launch = await _localNotifications.getNotificationAppLaunchDetails();
     if (launch?.didNotificationLaunchApp == true && launch?.notificationResponse != null) {
       _handleLocalNotificationResponse(launch!.notificationResponse!);
@@ -365,6 +382,13 @@ class CalloutAlarmNotificationService with WidgetsBindingObserver {
   Future<void> _showForegroundCalloutNotification(
     RemoteMessage message,
   ) async {
+    if (InformationNotificationOpen.fromData(message.data) != null) {
+      final readiness = message.data['type'] != 'platformApplication';
+      await _localNotifications.show(id:message.hashCode,title:message.notification?.title,body:message.notification?.body,
+        notificationDetails:NotificationDetails(android:AndroidNotificationDetails(readiness ? 'readiness_changes' : 'respondcrew_info',readiness ? 'Ühingu valmiduse muutused' : 'RespondCrew teated'),
+          iOS:const DarwinNotificationDetails(presentAlert:true,presentSound:true)),payload:jsonEncode(message.data));
+      return;
+    }
     if (message.data['type'] == 'certificate_reminder') {
       await _localNotifications.show(id: message.hashCode, title: message.notification?.title, body: message.notification?.body,
         notificationDetails: const NotificationDetails(android: AndroidNotificationDetails('certificate_reminders', 'Tunnistuste aegumine'),
@@ -376,7 +400,7 @@ class CalloutAlarmNotificationService with WidgetsBindingObserver {
       await _localNotifications.show(
         id: message.hashCode,
         title: 'Liitumistaotlus',
-        body: 'Liige ootab sinu ühingus kinnitamist.',
+        body: message.notification?.body ?? 'Liige ootab sinu ühingus kinnitamist.',
         notificationDetails: const NotificationDetails(
           android: AndroidNotificationDetails('member_requests', 'Liitumistaotlused'),
           iOS: DarwinNotificationDetails(presentAlert: true, presentSound: true),
@@ -391,16 +415,18 @@ class CalloutAlarmNotificationService with WidgetsBindingObserver {
     final title = notification?.title ?? 'Väljakutse';
     final body = notification?.body ?? 'Uus väljakutse';
 
-    const details = NotificationDetails(
+    final tross = message.data['calloutType'] == 'tross';
+    final details = NotificationDetails(
       android: AndroidNotificationDetails(
-        'callout_alarm',
-        'Väljakutse alarm',
+        tross ? 'tross_callouts' : 'sar_alarm_v2',
+        tross ? 'Trossi mereabi' : 'SAR-väljakutse häire',
         channelDescription: 'Heliline alarm väljakutsete jaoks',
-        importance: Importance.max,
-        priority: Priority.high,
+        importance: tross ? Importance.defaultImportance : Importance.max,
+        priority: tross ? Priority.defaultPriority : Priority.high,
         playSound: true,
+        sound: tross ? null : const RawResourceAndroidNotificationSound('sar_alarm'),
         enableVibration: true,
-        category: AndroidNotificationCategory.alarm,
+        category: tross ? AndroidNotificationCategory.event : AndroidNotificationCategory.alarm,
       ),
       iOS: DarwinNotificationDetails(
         presentAlert: true,
@@ -422,6 +448,8 @@ class CalloutAlarmNotificationService with WidgetsBindingObserver {
   }
 
   void _handleOpenedRemoteMessage(RemoteMessage message) {
+    final information = InformationNotificationOpen.fromData(message.data);
+    if (information != null) { _emitInformation(information); return; }
     final certificate = CertificateReminderOpen.fromData(message.data);
     if (certificate != null) { _emitCertificate(certificate); return; }
     final memberRequest = MemberRequestNotification.fromData(message.data);
@@ -437,6 +465,8 @@ class CalloutAlarmNotificationService with WidgetsBindingObserver {
   }
 
   void _handleLocalNotificationResponse(NotificationResponse response) {
+    final information = InformationNotificationOpen.fromPayload(response.payload);
+    if (information != null) { _emitInformation(information); return; }
     final certificate = CertificateReminderOpen.fromPayload(response.payload);
     if (certificate != null) { _emitCertificate(certificate); return; }
     final memberRequest = MemberRequestNotification.fromPayload(response.payload);

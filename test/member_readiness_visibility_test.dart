@@ -114,7 +114,7 @@ void main() {
     expect(find.text('Vana ühing'), findsOneWidget);
     await show('new');
     expect(find.text('Vana ühing'), findsNothing);
-    expect(find.text('Ühingu reageerimisvalmidus'), findsOneWidget);
+    expect(find.text('Ühingu valmidus'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
 }

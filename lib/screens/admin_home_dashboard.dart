@@ -51,7 +51,7 @@ class AdminHomeDashboard extends StatelessWidget {
         ActiveCalloutsCard(key: ValueKey(organizationId), organizationId: organizationId, userId: currentUid, userName: currentUserName, onOpen: onOpenCallout),
         topHeader,
         const SizedBox(height: 16),
-        CrewReadinessCard(organizationId: organizationId, currentUid: currentUid),
+        CrewReadinessCard(compact: true, organizationId: organizationId, currentUid: currentUid),
         const SizedBox(height: 16),
         PendingMemberRequestsNotice(organizationId: organizationId, currentUid: currentUid),
         Text('Kiirtegevused', style: Theme.of(context).textTheme.titleLarge),

@@ -75,7 +75,7 @@ class _OperationNoteDialogState extends State<OperationNoteDialog> {
   Widget build(BuildContext context) => PopScope(
     canPop: !_saving,
     child: AlertDialog(
-      title: const Text('Lisa op-logisse kommentaar'),
+      title: const Text('Lisa operatiivlogisse kommentaar'),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,

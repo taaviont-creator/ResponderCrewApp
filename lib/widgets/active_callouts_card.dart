@@ -60,7 +60,7 @@ class _ActiveCalloutsCardState extends State<ActiveCalloutsCard> {
       if (!snapshot.hasData) return const LinearProgressIndicator();
       final active = snapshot.data!.where(
         (c) =>
-            c.status == CalloutStatus.active &&
+            c.status == CalloutStatus.active && !c.isTest &&
             (c.organizationId.isNotEmpty ? c.organizationId : c.commandId) ==
                 widget.organizationId,
       );

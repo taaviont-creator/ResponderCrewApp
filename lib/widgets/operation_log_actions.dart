@@ -36,7 +36,7 @@ class _OperationLogActionsState extends State<OperationLogActions> {
         final confirmed = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('Lõpeta op-logi?'),
+            title: const Text('Lõpeta operatiivlogi?'),
             content: const Text(
               'Kinnitad baasi jõudmise. Kommentaare, kokkuvõtet ja osalejaid saad täiendada ka hiljem.',
             ),
@@ -47,7 +47,7 @@ class _OperationLogActionsState extends State<OperationLogActions> {
               ),
               FilledButton(
                 onPressed: () => Navigator.pop(context, true),
-                child: const Text('Lõpeta op-logi'),
+                child: const Text('Lõpeta operatiivlogi'),
               ),
             ],
           ),
@@ -160,7 +160,7 @@ class _OperationLogActionsState extends State<OperationLogActions> {
           ),
           onPressed: _saving ? null : () => _run('Kommentaar', comment: true),
           icon: const Icon(Icons.add_comment_outlined, size: 28),
-          label: const Text('Lisa op-logisse kommentaar'),
+          label: const Text('Lisa operatiivlogisse kommentaar'),
         ),
         if (_saving)
           const Padding(

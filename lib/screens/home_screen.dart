@@ -1,8 +1,10 @@
+import '../widgets/platform_pending_badge.dart';
+import '../models/information_notification_open.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import '../widgets/organization_create_dialog.dart';
 import '../widgets/organization_duty_control.dart';
 import '../widgets/home_absence_preview.dart';
-import '../widgets/minimum_crew_dialog.dart';
+import '../widgets/minimum_crew_control.dart';
 import '../widgets/member_permission_settings.dart';
 import 'dart:async';
 
@@ -104,6 +106,7 @@ class _HomeScreenState extends State<HomeScreen> {
   StreamSubscription<CalloutNotificationOpenEvent>? _calloutOpenSubscription;
   StreamSubscription<MemberRequestNotification>? _memberRequestSubscription;
   StreamSubscription<CertificateReminderOpen>? _certificateSubscription;
+  StreamSubscription<InformationNotificationOpen>? _informationSubscription;
   // Keep root subscriptions stable: acknowledging a deep link must not replace
   // the navigator with a loading scaffold and discard its just-opened detail.
   final _userStreams = <String, Stream<DocumentSnapshot<Map<String, dynamic>>>>{};
@@ -118,6 +121,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
 
     final notificationService = CalloutAlarmNotificationService.instance;
+    _informationSubscription = notificationService.informationOpenEvents.listen((event) => unawaited(_handleInformationOpen(event)));
     _certificateSubscription = notificationService.certificateOpenEvents.listen((event) => unawaited(_handleCertificateOpen(event)));
     _memberRequestSubscription = notificationService.memberRequestOpenEvents.listen((event) {
       unawaited(_handleMemberRequestOpen(event));
@@ -128,6 +132,8 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      final information = notificationService.takePendingInformation();
+      if (information != null) unawaited(_handleInformationOpen(information));
       final certificate = notificationService.takePendingCertificate();
       if (certificate != null) unawaited(_handleCertificateOpen(certificate));
       final memberRequest = notificationService.takePendingMemberRequest();
@@ -142,6 +148,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    unawaited(_informationSubscription?.cancel());
     unawaited(_certificateSubscription?.cancel());
     unawaited(_memberRequestSubscription?.cancel());
     final subscription = _calloutOpenSubscription;
@@ -177,6 +184,24 @@ class _HomeScreenState extends State<HomeScreen> {
       _pendingNotificationPage = null;
       _selectedNavigationIndex = 1;
     });
+  }
+
+  Future<void> _handleInformationOpen(InformationNotificationOpen event) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || !mounted) return;
+    try {
+      if (event.type == 'platformApplication') {
+        final profile = await FirebaseFirestore.instance.doc('users/${user.uid}').get();
+        if (!PlatformRole.isPlatformAdmin(profile.data()?['systemRole'])) throw StateError('No platform access');
+        if (mounted) await Navigator.of(context,rootNavigator:true).push(MaterialPageRoute<void>(builder:(_) => const PlatformManagementScreen()));
+        return;
+      }
+      await _setActiveCommand(event.organizationId);
+      if (!mounted) return;
+      _contentNavigatorKey.currentState?.popUntil((route) => route.isFirst);
+      setState(() { _pendingNotificationPage = null; _pendingCalloutId = null;
+        _selectedNavigationIndex = event.type == 'personalAvailability' ? 2 : 3; });
+    } catch (_) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Selle teavituse vaadet ei saa praegu avada.'))); }
   }
 
   Future<void> _handleCertificateOpen(CertificateReminderOpen event) async {
@@ -400,6 +425,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     return ListTile(
                       title: Text(commandName),
+                      leading: commandId == '__platform_context__' ? const PlatformPendingBadge() : null,
                       subtitle: item['available'] == 'yes' ? null : Text(item['status']!),
                       trailing:
                           isSelected ? const Icon(Icons.check_circle) : null,
@@ -1005,7 +1031,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 _buildModuleButton(
                   icon: Icons.assignment,
-                  label: 'Operatsioonilogi',
+                  label: 'Operatiivlogi',
                   onPressed: () => _pushPage(
                     context,
                     MaterialPageRoute(
@@ -1234,72 +1260,8 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Widget _buildMinimumCrewSettingsCard({
-    required String organizationId,
-    required String? organizationName,
-    required String currentUid,
-  }) {
-    return StreamBuilder<List<PlatformReadinessSummary>>(
-      stream: _platformReadinessService.streamOrganizationSummary(
-        organizationId: organizationId,
-      ),
-      builder: (context, snapshot) {
-        final summaries =
-            snapshot.data ?? const <PlatformReadinessSummary>[];
-        final summary = summaries.isEmpty ? null : summaries.first;
-        final minimumCrewRequired = summary?.minimumCrewRequired ?? 0;
-
-        return Card(
-          child: ListTile(
-            title: const Text('Miinimumkoosseis'),
-            subtitle: Text(
-              'Miinimum valves liikmete arv: $minimumCrewRequired',
-            ),
-            trailing: const Icon(Icons.edit_outlined),
-            onTap: () => _showMinimumCrewDialog(
-              organizationId: organizationId,
-              organizationName: organizationName,
-              currentUid: currentUid,
-              minimumCrewRequired: minimumCrewRequired,
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> _showMinimumCrewDialog({
-    required String organizationId,
-    required String? organizationName,
-    required String currentUid,
-    required int minimumCrewRequired,
-  }) async {
-    final value = await showDialog<int>(
-      context: context,
-      builder: (_) => MinimumCrewDialog(initialValue: minimumCrewRequired),
-    );
-
-    if (value == null) return;
-
-    try {
-      await _platformReadinessService.saveMinimumCrewRequired(
-        organizationId: organizationId,
-        organizationName: organizationName ?? organizationId,
-        minimumCrewRequired: value,
-        lastUpdatedBy: currentUid,
-      );
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Miinimumkoosseis salvestatud.')),
-      );
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Seadete muutmine ebaõnnestus.')),
-      );
-    }
-  }
+  Widget _buildMinimumCrewSettingsCard({required String organizationId, required String? organizationName, required String currentUid}) =>
+    MinimumCrewControl(key: ValueKey(organizationId), organizationId: organizationId, organizationName: organizationName, currentUid: currentUid);
 
   Widget _buildReadinessSummary({
     required String organizationId,
@@ -1601,7 +1563,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       onPlan: () => _pushPage(context, MaterialPageRoute<void>(
                         builder: (_) => AvailabilityScreen(organizationId: organizationId,
                           currentUid: user.uid, currentUserName: memberName,
-                          canViewOrganizationReadiness: false, planningOnly: true, openPlanningOnStart: true)))),
+                          canViewOrganizationReadiness: false, openPlanningOnStart: true)))),
                   ],
                 );
                 if (compact) return content;
@@ -2071,16 +2033,16 @@ class _HomeScreenState extends State<HomeScreen> {
                       setState(() => _pendingCalloutId = null);
                     },
                   ),
-                  for (final planningOnly in [false, true])
+                  for (final organizationView in [false, true])
                     AvailabilityScreen(
-                      key: ValueKey(planningOnly),
+                      key: ValueKey(organizationView),
                       organizationId: selectedOrganizationId,
                       organizationName: commandName,
                       membershipRole: myMembershipRole,
                       currentUid: user.uid,
                       currentUserName: displayName,
                       canViewOrganizationReadiness: permissions.canViewOrganizationReadiness,
-                      planningOnly: planningOnly,
+                      organizationView: organizationView,
                     ),
                   MenuScreen(
                     onOpenNotifications: openNotifications,

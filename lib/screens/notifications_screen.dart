@@ -1,3 +1,4 @@
+import 'members_screen.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -275,6 +276,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     if (!mounted) return;
 
     const supportedRelatedTypes = {
+      'member_request', 'personalAvailability',
       'callout',
       'equipment',
       'activity',
@@ -307,6 +309,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           canManageActivities: widget.canCreateActivities,
         );
         break;
+      case 'member_request':
+        if (widget.canManageNotifications) targetScreen = MembersScreen(organizationId:widget.organizationId,currentUid:widget.currentUid,canManageRoles:true);
+        break;
+      case 'personalAvailability':
+        targetScreen = AvailabilityScreen(organizationId:widget.organizationId,currentUid:widget.currentUid,currentUserName:widget.currentUserName,canViewOrganizationReadiness:widget.canManageNotifications);
+        break;
       case 'availability':
       case 'organizationReadiness':
       case NotificationType.minimumCrew:
@@ -316,6 +324,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           currentUid: widget.currentUid,
           currentUserName: widget.currentUserName,
           canViewOrganizationReadiness: widget.canManageNotifications,
+          organizationView: true,
         );
         break;
       case NotificationType.certificate:
@@ -982,6 +991,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   String _notificationDestinationLabel(NotificationModel notification) {
     const supportedRelatedTypes = {
+      'member_request', 'personalAvailability',
       'callout',
       'equipment',
       'activity',

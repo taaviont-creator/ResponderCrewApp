@@ -219,12 +219,12 @@ class OperationLogService {
           ? deterministicLog.organizationId
           : deterministicLog.commandId;
       if (logOrganizationId == organizationId) return deterministicLog;
-      throw Exception('Op-logi kuulub teise organisatsiooni');
+      throw Exception('Operatiivlogi kuulub teise organisatsiooni');
     }
 
     final createdEvent = doc.collection('events').doc('created');
     final title = callout.title.trim().isEmpty
-        ? 'Väljakutse põhjal loodud op-logi'
+        ? 'Väljakutse põhjal loodud operatiivlogi'
         : 'Väljakutse: ${callout.title.trim()}';
     final descriptionParts = [
       if (callout.location.trim().isNotEmpty) callout.location.trim(),
@@ -312,7 +312,7 @@ class OperationLogService {
       final currentStatus = OperationLogStatus.normalize(data['status']);
       if (currentStatus == status) return;
       if (!OperationLogStatus.canTransition(currentStatus, status)) {
-        throw Exception('Seda operatsioonilogi staatuse muutust ei saa teha');
+        throw Exception('Seda operatiivlogi staatuse muutust ei saa teha');
       }
 
       transaction.update(doc, {
@@ -567,7 +567,7 @@ class OperationLogService {
 
     if (MembershipRole.isOrgAdmin(membership['role']) || SeaRescueLevel.isLevel2(membership['seaRescueLevel'])) return;
 
-    throw Exception('Operatsioonilogi saab muuta admin või II astme merepäästja.');
+    throw Exception('Operatiivlogi saab muuta admin või II astme merepäästja.');
   }
 }
 
