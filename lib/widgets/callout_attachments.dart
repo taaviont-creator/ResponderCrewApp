@@ -65,7 +65,7 @@ class _CalloutAttachmentsState extends State<CalloutAttachments> {
         );
         if (file == null) return;
         if (await file.length() > 8 * 1024 * 1024) {
-          throw StateError('Fail vĆµib olla kuni 8 MB.');
+          throw StateError('Fail võib olla kuni 8 MB.');
         }
         final bytes = await file.readAsBytes();
         _pending = {
@@ -91,7 +91,7 @@ class _CalloutAttachmentsState extends State<CalloutAttachments> {
       if (mounted) {
         setState(
           () => _error =
-              e.message ?? 'Manuse lisamine ebaĆµnnestus. Proovi uuesti.',
+              e.message ?? 'Manuse lisamine ebaõnnestus. Proovi uuesti.',
         );
       }
     } catch (e) {
@@ -99,7 +99,7 @@ class _CalloutAttachmentsState extends State<CalloutAttachments> {
         setState(
           () => _error = e is StateError
               ? e.message
-              : 'Manuse lisamine ebaĆµnnestus. Proovi uuesti.',
+              : 'Manuse lisamine ebaõnnestus. Proovi uuesti.',
         );
       }
     } finally {
@@ -139,7 +139,7 @@ class _CalloutAttachmentsState extends State<CalloutAttachments> {
       );
     } catch (_) {
       if (mounted) {
-        setState(() => _error = 'Manuse avamine ebaĆµnnestus. Proovi uuesti.');
+        setState(() => _error = 'Manuse avamine ebaõnnestus. Proovi uuesti.');
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -151,11 +151,11 @@ class _CalloutAttachmentsState extends State<CalloutAttachments> {
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       const Text(
-        'Manused Ā· piiratud ligipĆ¤Ć¤s',
+        'Manused · piiratud ligipääs',
         style: TextStyle(fontWeight: FontWeight.bold),
       ),
       const Text(
-        'NĆ¤htavad Ć¼hingu adminile ja II astme merepĆ¤Ć¤stjale. Kuni 30 faili, igaĆ¼ks kuni 8 MB.',
+        'Nähtavad ühingu adminile ja II astme merepäästjale. Kuni 30 faili, igaüks kuni 8 MB.',
       ),
       for (final item in widget.items)
         ListTile(
@@ -175,7 +175,7 @@ class _CalloutAttachmentsState extends State<CalloutAttachments> {
         onPressed: _busy || !widget.enabled ? null : _upload,
         icon: const Icon(Icons.upload_file),
         label: Text(
-          _pending == null ? 'Lisa foto vĆµi fail' : 'Proovi sama faili uuesti',
+          _pending == null ? 'Lisa foto või fail' : 'Proovi sama faili uuesti',
         ),
       ),
       if (_busy) const LinearProgressIndicator(),
