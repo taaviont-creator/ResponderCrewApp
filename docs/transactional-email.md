@@ -5,7 +5,7 @@ Saatja on RespondCrew <respondercrew@purtsesar.ee>. Saatmine kasutab Zone'i smtp
 ## Käivitajad
 
 - `sendOrganizationInviteEmail`: uue `organizationInvites/{inviteId}` dokumendi loomine. Kontrollib uuesti kutse kehtivust, pending-olekut, liikmerolli, kinnitatud ühingut ja kutsuja aktiivset sama ühingu admini liikmelisust. Kutse olemasolev vastuvõtmise protsess ei muutu. Aegunud kutse ei takista uue kutse loomist. Platvormiroll üksi ei anna kutsumisõigust.
-- `sendOrganizationApplicationEmail`: uue pending `commands/{organizationId}` dokumendi loomine. Saajad tulevad users.systemRole väärtustest platformAdmin/platformOwner. Aadress võetakse lubatud ja kinnitatud e-postiga Firebase Auth kontost, mitte taotleja kontaktprofiilist. Juba üle vaadatud taotlust ei saadeta.
+- `sendOrganizationApplicationEmail`: uue pending `commands/{organizationId}` dokumendi loomine. Saajad tulevad users.systemRole väärtustest platformAdmin/platformOwner. Aadress võetakse lubatud Firebase Auth kontost, mitte taotleja kontaktprofiilist. Teade ei anna haldusõigust ega kinnita aadressi omandit; otsustamine nõuab endiselt platvormihaldurina äppi sisselogimist. Juba üle vaadatud taotlust ei saadeta.
 
 Varasemaid kutseid ja taotlusi ei saadeta automaatselt tagantjärele. E-kirjad ei sisalda liitumise kinnitamise otseteed: otsus tehakse endiselt äpis olemasolevate õigustega.
 

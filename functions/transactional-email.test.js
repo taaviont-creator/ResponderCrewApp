@@ -95,7 +95,7 @@ test('SMTP rejection and unknown outcomes are visible and never blindly resent',
   assert.equal(f.records.get('organizationInvites/invite/emailDelivery/status').status, 'failed');
 });
 
-test('new organization notifies only platform admins at verified enabled Auth addresses', async () => {
+test('new organization notifies only platform admins at enabled Auth account addresses', async () => {
   const f = fixture({org: {...organization, status: 'pending', email: 'applicant@example.ee'},
     users: {owner: {systemRole: 'platformOwner', email: 'spoof@example.ee'},
       platform: {systemRole: 'platformAdmin'}, disabled: {systemRole: 'platformAdmin'},
@@ -107,7 +107,7 @@ test('new organization notifies only platform admins at verified enabled Auth ad
   });
   await f.sendOrganizationApplicationEmail(f.orgEvent);
   await f.sendOrganizationApplicationEmail(f.orgEvent);
-  assert.deepEqual(f.sends.map(m => m.to.address), ['owner@example.ee', 'platform@example.ee']);
+  assert.deepEqual(f.sends.map(m => m.to.address), ['owner@example.ee', 'platform@example.ee', 'unverified@example.ee']);
 });
 
 test('reviewed or replaced organization application is not emailed', async () => {

@@ -101,7 +101,7 @@ function createEmailHandlers({db, auth, sendMail, logger, now = Date.now}) {
       let account;
       try { account = await auth.getUser(user.id); }
       catch (error) { if (error.code === 'auth/user-not-found') continue; throw error; }
-      if (account.disabled || !account.emailVerified || !validEmail(account.email)) continue;
+      if (account.disabled || !validEmail(account.email)) continue;
       await deliverOnce({
         ref: db.doc(`organizationApplicationEmailDeliveries/${event.params.organizationId}/recipients/${user.id}`),
         sendMail, logger, now, to: account.email,
