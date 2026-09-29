@@ -61,12 +61,15 @@ function createGetReportHandler({db}) {
     });
     const allEquipment = equipment.filter(e => e.data().scope !== 'personal').map(e => ({id:e.id,name:e.data().name || e.data().title || 'Varustus',category:e.data().category || '',registrationNumber:e.data().registrationNumber || metadata.equipmentRegistration?.[e.id] || ''}));
     const privateData = canEdit ? (await db.doc(`calloutPrivate/${calloutId}`).get()).data() : null;
+    const attachments = canEdit ? (await db.collection('calloutAttachments').where('calloutId','==',calloutId).get()).docs
+      .filter(d => d.data().organizationId===actor.org && d.data().status==='ready')
+      .map(d => ({id:d.id,name:d.data().name,size:d.data().size,createdAt:d.data().createdAt})) : [];
     // Private persons never enter the member response, even as empty placeholders.
     return serial({callout:{id:calloutId,...callout},organizationName:actor.organization.name || '',canEdit,
       report:metadata,operationLogId:primary?.id || null,summary:primary?.data().summary || '',outcome:primary?.data().outcome || '',
       authorName:members.find(m=>m.userId===metadata.authorUserId)?.name || 'Määramata',leaderName:members.find(m=>m.userId===metadata.leaderUserId)?.name || 'Määramata',
       crew,timeline,members:canEdit?members:[],equipment:allEquipment.filter(e => canEdit || metadata.equipmentIds?.includes(e.id)),
-      ...(canEdit ? {persons:privateData?.persons || []} : {})});
+      ...(canEdit ? {persons:privateData?.persons || [],attachments} : {})});
   };
 }
 function createSaveReportHandler({db,timestamp}) {
@@ -112,7 +115,7 @@ function createSaveReportHandler({db,timestamp}) {
     });
   };
 }
-function createAmendCalloutHandler({db,timestamp}) {
+function createAmendCalloutHandler({db,timestamp,now=Date.now}) {
   return async request => {
     const d=request.data || {};
     if (!id(d.calloutId) || !text(d.title,200) || !d.title.trim() || !text(d.description) || !text(d.location,500)) fail('Kontrolli sündmuse pealkirja, kirjeldust ja asukohta.');
@@ -123,9 +126,26 @@ function createAmendCalloutHandler({db,timestamp}) {
       if (orgId(old)!==actor.org) throw new HttpsError('permission-denied','Sündmus kuulub teisele ühingule.');
       if (Math.trunc(millis(old.updatedAt) || 0)!==d.version) throw new HttpsError('aborted','Sündmust muudeti vahepeal. Ava see uuesti.');
       const before={title:old.title,description:old.description,location:old.location},after={title:d.title.trim(),description:d.description.trim(),location:d.location.trim()};
+      if (d.startedAt !== undefined || d.endedAt !== undefined || d.calloutType !== undefined) {
+        const parse = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value) ? Date.parse(value) : NaN;
+        const start = parse(d.startedAt), end = d.endedAt === null ? null : parse(d.endedAt);
+        const target = d.responseTargetMinutes;
+        if (!Number.isFinite(start) || start > now() + 60000 || start < 0 ||
+            (end !== null && (!Number.isFinite(end) || end < start || end > now() + 60000)) ||
+            (old.status === 'active' && end !== null) ||
+            (old.status === 'closed' && end === null) ||
+            !['sar','tross'].includes(d.calloutType) ||
+            (d.calloutType === 'sar' ? target !== null : !Number.isInteger(target) || target < 1 || target > 60)) {
+          fail('Kontrolli sündmuse algust, lõppu, tüüpi ja väljasõidu sihtaega.');
+        }
+        Object.assign(before,{startedAt:old.startedAt || old.createdAt || null,endedAt:old.endedAt || old.closedAt || null,
+          calloutType:old.calloutType || 'sar',responseTargetMinutes:old.responseTargetMinutes ?? null});
+        Object.assign(after,{startedAt:new Date(start),endedAt:end === null ? null : new Date(end),
+          calloutType:d.calloutType,responseTargetMinutes:target});
+      }
       tx.update(ref,{...after,updatedAt:timestamp(),updatedBy:request.auth.uid});
       tx.create(db.doc(`callouts/${d.calloutId}/changeHistory/${auditId}`),{organizationId:actor.org,before,after,createdBy:request.auth.uid,createdAt:timestamp()});
-      tx.create(db.doc(`platformAudit/${auditId}`),{organizationId:actor.org,action:'callout.amended',targetId:d.calloutId,changedFields:Object.keys(after).filter(k=>before[k]!==after[k]),createdBy:request.auth.uid,createdAt:timestamp()});
+      tx.create(db.doc(`platformAudit/${auditId}`),{organizationId:actor.org,action:'callout.amended',targetId:d.calloutId,changedFields:Object.keys(after).filter(k=>JSON.stringify(serial(before[k]))!==JSON.stringify(serial(after[k]))),createdBy:request.auth.uid,createdAt:timestamp()});
       return {saved:true};
     });
   };

@@ -2572,6 +2572,10 @@ service cloud.firestore {
         data.description is string && data.description.size() <= 2500 && data.logoUrl is string && data.logoUrl.size() <= 300;
     }
     match /organizationProfiles/{organizationId} {
+      allow get: if isActiveOrgAdmin(organizationId);
+      match /history/{historyId} {
+        allow read: if isActiveOrgAdmin(organizationId) || isPlatformAdmin();
+      }
       allow read: if signedIn() && (resource.data.createdBy == request.auth.uid || isPlatformAdmin() || isActiveOrgAdmin(organizationId));
       allow create: if signedIn() && validOrganizationProfile(request.resource.data, organizationId) &&
         request.resource.data.createdBy == request.auth.uid && request.resource.data.createdAt == request.time &&

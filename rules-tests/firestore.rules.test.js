@@ -49,6 +49,7 @@ after(async () => { if (serverApp) await serverRequire('firebase-admin/app').del
 before(async () => {
   testEnv = await initializeTestEnvironment({
     projectId,
+    storage: { rules: fs.readFileSync(path.resolve(__dirname, '..', 'storage.rules'), 'utf8') },
     firestore: {
       rules: fs.readFileSync(
         path.resolve(__dirname, '..', 'firestore.rules'),
@@ -1209,4 +1210,81 @@ test('ordinary member response cannot grant operational editing even with legacy
  await assertFails(updateDoc(doc(member,'callouts/scoped-response'),{status:'closed',updatedAt:serverTimestamp()}));
  await seedOperationLog('legacy-setting-log','onScene');
  await assertFails(updateDoc(doc(member,'operationLogs/legacy-setting-log'),{status:'returning',updatedAt:serverTimestamp()}));
+});
+const assert = require('node:assert/strict');
+test('organization profile changes are admin-only, versioned and audited including legacy organizations',async()=>{
+ const {createSaveOrganizationProfileHandler}=require('../functions/organization-profile');const db=serverDb();
+ const handler=createSaveOrganizationProfileHandler({db,timestamp:()=>new Date()});
+ const profile=Object.fromEntries(['registrationCode','organizationType','region','address','contactName','contactPhone','contactEmail','organizationEmail','description','logoUrl'].map(k=>[k,'']));
+ Object.assign(profile,{contactName:'Kontakt',contactEmail:'contact@example.test'});
+ const data={organizationId,name:'Uuendatud ühing',revision:0,profile};
+ const admin=testEnv.authenticatedContext(orgAdminId).firestore();
+ await assertSucceeds(getDoc(doc(admin,'organizationProfiles',organizationId)));
+ await assert.rejects(handler({auth:{uid:activeMemberId},data}),e=>e.code==='permission-denied');
+ await db.doc('users/platform-only').set({systemRole:'platformAdmin'});
+ await assert.rejects(handler({auth:{uid:'platform-only'},data}),e=>e.code==='permission-denied');
+ await handler({auth:{uid:orgAdminId},data});
+ assert.equal((await db.doc(`commands/${organizationId}`).get()).data().name,data.name);
+ assert.equal((await db.doc(`organizationProfiles/${organizationId}`).get()).data().revision,1);
+ assert.equal((await db.collection(`organizationProfiles/${organizationId}/history`).get()).size,1);
+ await assert.rejects(handler({auth:{uid:orgAdminId},data}),e=>e.code==='aborted');
+ await assertFails(updateDoc(doc(admin,'organizationProfiles',organizationId),{contactEmail:'bypass@example.test'}));
+ await assertFails(getDocs(collection(testEnv.authenticatedContext(activeMemberId).firestore(),`organizationProfiles/${organizationId}/history`)));
+ await assert.rejects(handler({auth:{uid:orgAdminId},data:{...data,revision:1,profile:{...profile,logoUrl:'javascript:alert(1)'}}}),e=>e.code==='invalid-argument');
+});
+
+test('retrospective event date and type amendment preserves original chronology and enforces operational rights',async()=>{
+ const {createAmendCalloutHandler}=require('../functions/callout-report');const db=serverDb();
+ const original=new Date('2026-09-01T10:00:00Z'),end=new Date('2026-09-01T12:00:00Z');
+ await db.doc('callouts/amend-date').set({organizationId,commandId:organizationId,status:'closed',title:'Vana',description:'',location:'Sadam',createdAt:original,closedAt:end,calloutType:'sar'});
+ const handler=createAmendCalloutHandler({db,timestamp:()=>new Date('2026-09-03T12:00:00Z'),now:()=>Date.parse('2026-09-04T12:00:00Z')});
+ const data={organizationId,calloutId:'amend-date',title:'Parandatud',description:'',location:'Sadam',version:0,startedAt:'2026-08-31T10:00:00Z',endedAt:'2026-08-31T12:00:00Z',calloutType:'tross',responseTargetMinutes:45};
+ await assert.rejects(handler({auth:{uid:activeMemberId},data}),e=>e.code==='permission-denied');
+ await assert.rejects(handler({auth:{uid:orgAdminId},data:{...data,endedAt:'2026-08-30T12:00:00Z'}}),e=>e.code==='invalid-argument');
+ await handler({auth:{uid:orgAdminId},data});
+ const saved=(await db.doc('callouts/amend-date').get()).data();
+ assert.equal(saved.startedAt.toDate().toISOString(),data.startedAt.replace('Z','.000Z'));
+ assert.equal(saved.createdAt.toMillis(),+original);assert.equal(saved.closedAt.toMillis(),+end);assert.equal(saved.calloutType,'tross');
+ assert.equal((await db.collection('callouts/amend-date/changeHistory').get()).size,1);
+ await assert.rejects(handler({auth:{uid:orgAdminId},data}),e=>e.code==='aborted');
+ await assertFails(updateDoc(doc(testEnv.authenticatedContext(activeMemberId).firestore(),'callouts/amend-date'),{startedAt:new Date()}));
+ await db.doc(`memberships/${activeMemberId}_${organizationId}`).update({seaRescueLevel:'level2'});
+ await handler({auth:{uid:activeMemberId},data:{...data,version:saved.updatedAt.toMillis(),calloutType:'sar',responseTargetMinutes:null}});
+});
+
+test('attachments are private, scoped, idempotent and audited with no direct client access',async()=>{
+ const {createAttachmentHandlers}=require('../functions/callout-attachments');const db=serverDb();
+ await db.doc('callouts/attachment-event').set({organizationId,commandId:organizationId,status:'closed'});
+ const objects=new Map();let writes=0;
+ const bucket={file:p=>({save:async(bytes,options)=>{if(objects.has(p))throw {code:412};writes++;objects.set(p,{bytes,metadata:options.metadata});},getMetadata:async()=>[objects.get(p).metadata],download:async()=>[objects.get(p).bytes]})};
+ const handlers=createAttachmentHandlers({db,bucket,timestamp:()=>new Date()});
+ const data={organizationId,calloutId:'attachment-event',requestId:'unique-file',name:'test.txt',base64:Buffer.from('Õppuse fail').toString('base64')};
+ await assert.rejects(handlers.upload({auth:{uid:activeMemberId},data}),e=>e.code==='permission-denied');
+ await assert.rejects(handlers.upload({auth:{uid:orgAdminId},data:{...data,name:'../path.txt'}}),e=>e.code==='invalid-argument');
+ const result=await handlers.upload({auth:{uid:orgAdminId},data});
+ await handlers.upload({auth:{uid:orgAdminId},data});assert.equal(writes,1);
+ assert.equal((await db.collection('platformAudit').where('action','==','callout.attachmentAdded').get()).size,1);
+ const download={organizationId,calloutId:data.calloutId,attachmentId:result.attachmentId};
+ await assert.rejects(handlers.download({auth:{uid:activeMemberId},data:download}),e=>e.code==='permission-denied');
+ assert.equal((await handlers.download({auth:{uid:orgAdminId},data:download})).base64,data.base64);
+ await assert.rejects(handlers.upload({auth:{uid:orgAdminId},data:{...data,base64:Buffer.from('Changed').toString('base64')}}),e=>e.code==='already-exists');
+ await assert.rejects(handlers.upload({auth:{uid:orgAdminId},data:{...data,organizationId:otherOrganizationId}}),e=>e.code==='permission-denied');
+ for(const uid of [activeMemberId,orgAdminId]){
+  const client=testEnv.authenticatedContext(uid).firestore();
+  await assertFails(getDoc(doc(client,'calloutAttachments',result.attachmentId)));
+  await assertFails(setDoc(doc(client,'calloutAttachments','bypass'),{organizationId}));
+  await assertFails(getDoc(doc(client,'calloutPushDeliveries','alarm')));
+ }
+});
+
+
+test('Storage denies direct reads, writes and listing even to an organization admin',async()=>{
+ const {ref,uploadBytes,getMetadata,listAll}=require('firebase/storage');
+ for(const context of [testEnv.unauthenticatedContext(),testEnv.authenticatedContext(activeMemberId),testEnv.authenticatedContext(orgAdminId)]) {
+  const storage=context.storage('gs://demo-respondcrew.firebasestorage.app');
+  const target=ref(storage,`calloutAttachments/${organizationId}/event/file`);
+  await assertFails(uploadBytes(target,Buffer.from('private'),{contentType:'text/plain'}));
+  await assertFails(getMetadata(target));
+  await assertFails(listAll(ref(storage,'calloutAttachments')));
+ }
 });

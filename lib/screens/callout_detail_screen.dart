@@ -440,9 +440,9 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
           const SizedBox(height: 12),
           _InfoLine(
             icon: Icons.schedule,
-            text: _callout.createdAt == null
+            text: _callout.effectiveStartedAt == null
                 ? 'Loomise aeg puudub'
-                : 'Loodud ${_dateTime(_callout.createdAt!)}',
+                : 'Algus ${_dateTime(_callout.effectiveStartedAt!)}',
           ),
           if (_callout.createdByName.isNotEmpty) ...[
             const SizedBox(height: 8),

@@ -279,9 +279,9 @@ class _CalloutCard extends StatelessWidget {
                     label: _statusLabel(callout.status),
                     type: _statusBadgeType(callout.status),
                   ),
-                  if (callout.createdAt != null)
+                  if (callout.effectiveStartedAt != null)
                     Text(
-                      _shortDateTime(callout.createdAt!),
+                      _shortDateTime(callout.effectiveStartedAt!),
                       style: Theme.of(context).textTheme.labelMedium?.copyWith(
                             color: AppColors.textSecondary,
                           ),

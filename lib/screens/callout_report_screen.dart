@@ -1,5 +1,9 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:printing/printing.dart';
+import '../services/callout_report_pdf.dart';
+import '../widgets/callout_attachments.dart';
 import '../models/callout_model.dart';
 import '../models/operation_log_report.dart';
 import 'callout_attendance_screen.dart';
@@ -153,6 +157,77 @@ class _CalloutReportScreenState extends State<CalloutReportScreen> {
     }
   }
 
+  Future<void> _exportPdf() async {
+    setState(() => _saving = true);
+    try {
+      final fresh = widget.loadReport != null
+          ? await widget.loadReport!()
+          : _map(
+              (await _functions.httpsCallable('getCalloutReport').call({
+                'organizationId': widget.organizationId,
+                'calloutId': widget.calloutId,
+              })).data,
+            );
+      if (!mounted) return;
+      var includePrivate = false;
+      if (fresh['canEdit'] == true && _maps(fresh['persons']).isNotEmpty) {
+        final choice = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Aruande PDF'),
+            content: const Text(
+              'Kas lisada faili ka seotud isikute piiratud ligipääsuga andmed?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Ilma isikuandmeteta'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Lisa isikuandmed'),
+              ),
+            ],
+          ),
+        );
+        if (choice == null) return;
+        includePrivate = choice;
+      }
+      final fonts = await Future.wait([
+        rootBundle.load('assets/fonts/NotoSans-Regular.ttf'),
+        rootBundle.load('assets/fonts/NotoSans-Bold.ttf'),
+      ]);
+      final bytes = await buildCalloutReportPdf(
+        fresh,
+        regularFont: fonts[0],
+        boldFont: fonts[1],
+        includePrivate: includePrivate,
+      );
+      if (!mounted) return;
+      await Navigator.push(
+        context,
+        MaterialPageRoute<void>(
+          builder: (_) => Scaffold(
+            appBar: AppBar(title: const Text('Aruande PDF')),
+            body: PdfPreview(
+              build: (_) async => bytes,
+              pdfFileName: 'RespondCrew-${widget.calloutId}.pdf',
+              canChangePageFormat: false,
+              canChangeOrientation: false,
+              canDebug: false,
+            ),
+          ),
+        ),
+      );
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error = 'PDF-i koostamine ebaõnnestus. Proovi uuesti.');
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   Future<void> _person({int? index}) async {
     final value = await showDialog<Map<String, dynamic>>(
       context: context,
@@ -258,6 +333,15 @@ class _CalloutReportScreenState extends State<CalloutReportScreen> {
         appBar: AppBar(
           title: const Text('Sündmuse aruanne'),
           actions: [
+            IconButton(
+              tooltip: _dirty
+                  ? 'Salvesta enne PDF-i koostamist'
+                  : 'Ekspordi aruanne PDF-ina',
+              onPressed: _dirty || _saving || _loading || _data == null
+                  ? null
+                  : _exportPdf,
+              icon: const Icon(Icons.picture_as_pdf_outlined),
+            ),
             if (!_dirty)
               IconButton(
                 tooltip: 'Värskenda',
@@ -294,8 +378,12 @@ class _CalloutReportScreenState extends State<CalloutReportScreen> {
                       Text(
                         'Tüüp: ${CalloutType.label(callout['calloutType'] ?? 'sar')}',
                       ),
-                      Text('Algus: ${_date(callout['createdAt'])}'),
-                      Text('Lõpp: ${_date(callout['closedAt'])}'),
+                      Text(
+                        'Algus: ${_date(callout['startedAt'] ?? callout['createdAt'])}',
+                      ),
+                      Text(
+                        'Lõpp: ${_date(callout['endedAt'] ?? callout['closedAt'])}',
+                      ),
                       Text('Asukoht: ${callout['location'] ?? ''}'),
                       if (callout['latitude'] != null &&
                           callout['longitude'] != null)
@@ -499,6 +587,20 @@ class _CalloutReportScreenState extends State<CalloutReportScreen> {
                           icon: const Icon(Icons.person_add_outlined),
                           label: const Text('Lisa seotud isik'),
                         ),
+                      ]),
+                    if (edit)
+                      _section('Sündmuse manused', [
+                        CalloutAttachments(
+                          organizationId: widget.organizationId,
+                          calloutId: widget.calloutId,
+                          items: _maps(data['attachments']),
+                          enabled: !_dirty && !_saving,
+                          onChanged: _load,
+                        ),
+                        if (_dirty)
+                          const Text(
+                            'Salvesta aruande muudatused enne manuse lisamist.',
+                          ),
                       ]),
                     _section('Ettepanekud ja tähelepanekud', [
                       _field('Ettepanekud / tähelepanekud', _suggestions, edit),

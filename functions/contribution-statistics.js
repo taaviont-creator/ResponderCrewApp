@@ -129,7 +129,7 @@ function aggregate({organizationId, from, to, now, trackingStart, current, histo
     const category=row.categories[type] ||= {count:0,hours:0}; category.count++; category.hours+=hours||0;
   }
   for(const p of scoped(attendance)) {
-    const c=byCallout.get(p.calloutId); const at=dateMillis(c?.createdAt);
+    const c=byCallout.get(p.calloutId); const at=dateMillis(c?.startedAt || c?.createdAt);
     if(!c || !p.userId || p.status!=='confirmed' || c.status==='cancelled' || at===null || at<start || at>=end) continue;
     const key=`callout:${c.id}:${p.userId}`;if(seen.has(key))continue;seen.add(key);
     const row=member(p.userId,p.userName); const hours=typeof p.hours==='number' && Number.isFinite(p.hours) && p.hours>=0?p.hours:null;
@@ -137,7 +137,7 @@ function aggregate({organizationId, from, to, now, trackingStart, current, histo
     row.entries.push({id:c.id,kind:'callout',title:c.title||'Väljakutse',category:'callout',date:new Date(at).toISOString(),hours,confirmed:true});
   }
   for(const r of scoped(responses)) {
-    const c=byCallout.get(r.calloutId),at=dateMillis(c?.createdAt);
+    const c=byCallout.get(r.calloutId),at=dateMillis(c?.startedAt || c?.createdAt);
     if(!c || !r.userId || c.status==='cancelled' || !['responding','delayed'].includes(r.response) || at===null || at<start || at>=end)continue;
     const key=`response:${c.id}:${r.userId}`;if(seen.has(key))continue;seen.add(key);member(r.userId,r.userName).responseCount++;
   }
@@ -148,13 +148,13 @@ function aggregate({organizationId, from, to, now, trackingStart, current, histo
     row.entries.sort((a,b)=>b.date.localeCompare(a.date));
   }
   const members=[...rows.values()].filter(r=>r.active || r.entries.length || r.responseCount || r.dutyHours>0 || r.delayedHours>0).sort((a,b)=>a.name.localeCompare(b.name,'et'));
-  const periodCallouts=[...byCallout.values()].filter(c=>{const at=dateMillis(c.createdAt);return at!==null && at>=start && at<end;});
+  const periodCallouts=[...byCallout.values()].filter(c=>{const at=dateMillis(c.startedAt || c.createdAt);return at!==null && at>=start && at<end;});
   const events={total:byCallout.size,period:periodCallouts.length,
     sar:periodCallouts.filter(c=>(c.calloutType || 'sar')==='sar').length,
     tross:periodCallouts.filter(c=>c.calloutType==='tross').length,
     closed:periodCallouts.filter(c=>c.status==='closed').length,
     cancelled:periodCallouts.filter(c=>c.status==='cancelled').length,
-    undated:[...byCallout.values()].filter(c=>dateMillis(c.createdAt)===null).length};
+    undated:[...byCallout.values()].filter(c=>dateMillis(c.startedAt || c.createdAt)===null).length};
   return {events,from,to,generatedAt:new Date(now).toISOString(),trackingStartedAt:Number.isFinite(trackingStart)?new Date(trackingStart).toISOString():null,
     dutyHistoryPending:timeline.pending,undatedCount,members};
 }

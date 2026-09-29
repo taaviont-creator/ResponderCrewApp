@@ -1,0 +1,5 @@
+{
+  "score": 5,
+  "summary": "Piiratud audit selle muudatuse uutele õigustele: ühingu profiili ajalugu on admini/platvormihalduri loetav, kliendi kirjutamine keelatud. Aruande manused ja alarmi saatmiskanded on serveri hallata. Storage keelab kõik otsesed klienditoimingud; manuste teenus kontrollib iga laadimise ja salvestamise puhul aktiivset sama ühingu admini või II astme liikmelisust. Tegemist ei ole kogu rakenduse turvasertifikaadiga.",
+  "findings": []
+}

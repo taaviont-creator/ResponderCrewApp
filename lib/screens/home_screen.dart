@@ -1149,6 +1149,10 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         if (permissions.canManageOrganizationSettings && hasOrganization) ...[
+          Card(child:ListTile(
+            leading:const Icon(Icons.business_outlined), title:const Text('Ühingu andmed ja kontaktid'),
+            trailing:const Icon(Icons.edit_outlined), onTap:()=>editOrganizationProfile(context,organizationId),
+          )),
           OrganizationDutyControl(key: ValueKey(organizationId), organizationId: organizationId),
           Card(child: ListTile(
             leading: const Icon(Icons.description_outlined),
