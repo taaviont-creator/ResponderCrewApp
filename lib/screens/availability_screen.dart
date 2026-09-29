@@ -1,3 +1,4 @@
+import 'dart:async';
 import '../widgets/organization_planning.dart';
 import '../widgets/organization_duty_control.dart';
 import '../widgets/minimum_crew_control.dart';
@@ -49,6 +50,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
       AvailabilityReminderSettingsService();
   final _plannedUnavailabilityService = PlannedUnavailabilityService();
   var _isUpdating = false;
+  Timer? _clock;
   bool _showCancelled = false;
   String? _cancellingPlannedUnavailabilityId;
   String? _cancellingPlannedUnavailabilityRuleId;
@@ -56,11 +58,22 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
   @override
   void initState() {
     super.initState();
+    // Time boundaries do not create Firestore writes. Refresh the personal
+    // preview even when this page stays open without user interaction.
+    _clock = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted && !widget.organizationView) setState(() {});
+    });
     if (widget.openPlanningOnStart) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _showAddPlannedUnavailabilityDialog();
       });
     }
+  }
+
+  @override
+  void dispose() {
+    _clock?.cancel();
+    super.dispose();
   }
 
   Future<void> _updateAvailability(
@@ -1271,7 +1284,7 @@ class _ScheduledStatusPreview extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'See ei muuda veel automaatselt sinu käsitsi valitud staatust.',
+            'Sinu käsitsi valitud staatus säilib.',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: AppColors.textSecondary,
                 ),

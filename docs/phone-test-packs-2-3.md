@@ -46,7 +46,7 @@ juhend/üldinfo seadistus; kõigile aktiivsetele liikmetele ohutu planeeringute
 | 1 | Kompaktne sisselogimine, juhendi/üldinfo nupud ja kontakt. Avaliku juhendi sisu/HTTPS-aadress on muudetav Firestore'is. |
 | 2 | Üheksa organisatsioonipõhist isiklikku teavituseelistust, admini valmiduse teated vaikimisi sees. Ühe muutuse põhjused ja enda planeeringu muutus koondatakse üheks teateks. |
 | 3 | Liikmetaotluse serveripoolne personaalne rakendusesisene teade, push ja e-post ühingu aktiivsetele adminidele. Kasutatakse olemasolevat SMTP-d. |
-| 4–7 | Isiklik Valmisolek ning Ühingu valmidus eraldi. Kompaktne töölaua kokkuvõte. Admini miinimum ja valve peatamine muudavad samu olemasolevaid väärtusi. Kõigi liikmete planeeringute ajad ja nimed on nähtavad; privaatsed märkused ei ole. Tühistamine säilitab ajaloo. |
+| 4–7 | Isiklik Valmisolek ning Ühingu valmidus eraldi. Kompaktne töölaua kokkuvõte. Admini miinimum ja valve peatamine muudavad samu olemasolevaid väärtusi. Kõigi liikmete planeeringute ajad ja nimed on nähtavad; privaatsed märkused ei ole. Tühistamine säilitab ajaloo. Avatuks jäetud isikliku vaate aeg värskeneb 30 sekundi järel. |
 | 8–9 | Nime ja telefoni juures eraldi muutmisikoon; merepäästeaste selgelt nähtav ja seniste adminiõigustega muudetav. E-post on autentimiskonto info, mitte eraldi muudetav koopia. |
 | 10–11 | Platvormi ühingud on oleku järgi rühmitatud. Ootel taotluste arv uueneb reaalajas; lisatud push ja platvormi personaalsete taotluseteadete loend. |
 | 12–14 | Struktureeritud varustuse kategooriad, ohutu Muu-varuvariant. Aruanne ja PDF näitavad ainult tegelikult kasutatud kategooriaid. Kuivülikonna kategooria on Isikukaitsevarustus, mitte tehnika. |
