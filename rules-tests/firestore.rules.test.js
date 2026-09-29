@@ -1304,3 +1304,28 @@ test('attachment maximum size works and concurrent uploads cannot exceed the eve
  assert.equal(writes,1);assert.equal((await db.collection('calloutAttachments').where('calloutId','==',data.calloutId).get()).size,30);
  await assert.rejects(handlers.upload({auth:{uid:orgAdminId},data:{...data,requestId:'bad',base64:'****'}}),e=>e.code==='invalid-argument');
 });
+
+
+test('member readiness returns only current unavailability while private schedules and duty controls remain protected', async () => {
+  const assert = require('node:assert/strict');
+  const {createReadinessAvailabilityHandler} = serverRequire('./readiness-availability');
+  const db = serverDb(), now = Date.parse('2026-09-29T09:00:00Z');
+  const {Timestamp} = serverRequire('firebase-admin/firestore');
+  await db.doc(`commands/${organizationId}`).update({dutyPaused:true,dutyPauseReason:'Season ended'});
+  await db.doc('plannedUnavailability/private-peer').set({organizationId,commandId:organizationId,
+    userId:targetMemberId,status:'active',startAt:Timestamp.fromMillis(now),endAt:Timestamp.fromMillis(now+10000),note:'PRIVATE MEDICAL NOTE'});
+  await db.doc('plannedUnavailability/private-other-org').set({organizationId:otherOrganizationId,
+    userId:otherUserId,status:'active',startAt:Timestamp.fromMillis(now),endAt:Timestamp.fromMillis(now+10000)});
+  const handler = createReadinessAvailabilityHandler({db,now:()=>now});
+  assert.deepEqual(await handler({auth:{uid:activeMemberId},data:{organizationId}}),{unavailableUserIds:[targetMemberId]});
+  const client=testEnv.authenticatedContext(activeMemberId).firestore();
+  await assertFails(getDoc(doc(client,'plannedUnavailability/private-peer')));
+  await assertFails(getDocs(query(collection(client,'plannedUnavailability'),where('organizationId','==',organizationId))));
+  assert.equal((await assertSucceeds(getDoc(doc(client,`commands/${organizationId}`)))).data().dutyPauseReason,'Season ended');
+  await assertFails(updateDoc(doc(client,`commands/${organizationId}`),{dutyPaused:false}));
+  for(const uid of [memberId,otherUserId,'platform-only']) {
+    await assert.rejects(handler({auth:{uid},data:{organizationId}}),e=>e.code==='permission-denied');
+  }
+  await assert.rejects(handler({data:{organizationId}}),e=>e.code==='unauthenticated');
+  await assert.rejects(handler({auth:{uid:activeMemberId},data:{organizationId:otherOrganizationId}}),e=>e.code==='permission-denied');
+});

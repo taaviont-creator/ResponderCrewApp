@@ -301,3 +301,9 @@ const attachmentHandlers = createAttachmentHandlers({db, bucket:admin.storage().
 const attachmentOptions = {region:'europe-north1', maxInstances:3, concurrency:2, timeoutSeconds:120, memory:'512MiB'};
 exports.uploadCalloutAttachment = onCall(attachmentOptions, attachmentHandlers.upload);
 exports.downloadCalloutAttachment = onCall(attachmentOptions, attachmentHandlers.download);
+
+const {createReadinessAvailabilityHandler} = require('./readiness-availability');
+exports.getOrganizationReadinessAvailability = onCall(
+  {region: 'europe-north1', maxInstances: 5, timeoutSeconds: 30},
+  createReadinessAvailabilityHandler({db}),
+);
