@@ -7,7 +7,7 @@ function calloutNotificationPayload({calloutId,organizationId,calloutType = 'sar
   return {tokens,notification:{title,body},data:{type:sar?'callout_alarm':'tross_callout',relatedType:'callout',
     calloutId,relatedId:calloutId,organizationId,calloutType:sar?'sar':'tross',channelId},
     android:{priority:'high',notification:{channelId,tag:calloutId,title,body,sound:sar?'sar_alarm':'default',
-      notificationPriority:sar?'max':'default',defaultVibrateTimings:true,visibility:'private'}},
+      priority:sar?'max':'default',defaultVibrateTimings:true,visibility:'private'}},
     apns:{headers:{'apns-collapse-id':createHash('sha256').update(calloutId).digest('hex')},payload:{aps:{sound:'default'}}}};
 }
 module.exports = {calloutNotificationPayload};

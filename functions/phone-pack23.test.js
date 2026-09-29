@@ -65,7 +65,7 @@ test('SAR and Tross share exact callout routing but use distinct sound/importanc
   const tross=calloutNotificationPayload({calloutId:'exact',organizationId:'o',calloutType:'tross',tokens:['t']});
   assert.equal(sar.android.priority,'high');assert.equal(sar.android.notification.sound,'sar_alarm');
   assert.equal(sar.android.notification.channelId,'sar_alarm_v2');assert.equal(tross.android.notification.channelId,'tross_callouts');
-  assert.equal(tross.android.notification.notificationPriority,'default');assert.equal(tross.data.calloutId,'exact');
+  assert.equal(tross.android.notification.priority,'default');assert.equal(tross.data.calloutId,'exact');
   assert.equal(sar.data.calloutId,'exact');assert.equal(sar.data.organizationId,'o');
 });
 test('personal delivery respects off, membership boundaries, and keeps inbox without a device',async()=>{
@@ -97,4 +97,20 @@ test('platform application selects platform roles only and ignores already revie
   const event={params:{organizationId:'new'},data:await db.doc('commands/new').get()};
   await handler(event);assert.deepEqual(sent.map(d=>d.uid),['p']);assert.equal(sent[0].platform,true);
   records.set('commands/new',{status:'approved'});await handler(event);assert.equal(sent.length,1);
+});
+
+
+test('callout payload passes Firebase Admin wire conversion with valid Android priority fields',()=>{
+ const path=require('node:path');
+ const {validateMessage}=require(path.join(path.dirname(require.resolve('firebase-admin')),'messaging/messaging-internal.js'));
+ for(const calloutType of ['sar','tross']) {
+  const {tokens,...payload}=calloutNotificationPayload({calloutId:'c',organizationId:'o',calloutType,tokens:['test-token']});
+  const message={...payload,token:tokens[0]};
+  validateMessage(message);
+  assert.equal(message.android.notification.notification_priority,calloutType==='sar'?'PRIORITY_MAX':'PRIORITY_DEFAULT');
+  assert.equal(message.android.notification.channel_id,calloutType==='sar'?'sar_alarm_v2':'tross_callouts');
+  assert.equal(Object.hasOwn(message.android.notification,'notificationPriority'),false);
+  assert.equal(Object.hasOwn(message.android.notification,'priority'),false);
+  assert.equal(message.android.notification.visibility,'PRIVATE');
+ }
 });

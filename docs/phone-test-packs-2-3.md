@@ -136,14 +136,14 @@ Kohalikud tulemused 2026-09-29:
 - `flutter analyze --no-pub`: vigadeta.
 - Kõik Flutteri testid: **106/106**.
 - Firestore'i/Storage'i emulatori ja serveri põhivoogude testid: **86/86**.
-- Cloud Functions Node-testid: **62/62**; `node --check functions/index.js` läbib.
+- Cloud Functions Node-testid: **63/63**; `node --check functions/index.js` läbib.
 - `npm run lint --prefix functions` käivitatud; projektis on see teadlikult
   olemasolev „No lint configured” käsk, seega eraldi lintimise katvust ei väideta.
 - Androidi debug-APK ehitus õnnestus.
 
 Testitud: SAR miinimum/II aste/planeering/paus; Trossi loomine ja liikme vastus
 ilma SAR-valmiduseta; teavituste koondamine/eelistused/idempotentsus;
-liikmetaotluse minimaalse sisuga e-post; platvormi adressaadid; vanade andmete
+liikmetaotluse minimaalse sisuga e-post; Firebase Admin SDK tegelik SAR/Trossi sõnumi teisendus; platvormi adressaadid; vanade andmete
 varuvariandid; kategooriate rühmitus; testväljakutse välistamine panusest;
 admini testtunnuse audit; võõra ühingu, eemaldatud liikme ja platvormi õiguste
 piirid; telefoni 320-piksline sisselogimine ja aruande komponendid.
