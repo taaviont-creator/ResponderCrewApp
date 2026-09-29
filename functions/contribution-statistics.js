@@ -41,11 +41,12 @@ function stateAt(line, at) {
   for (const event of line.events) { if(event.at > at) break; state = event.after; }
   return state;
 }
-function dutyForMember(uid, lines, start, end) {
+function dutyForMember(uid, lines, start, end, pauses=[]) {
   if (!(end > start)) return {dutyHours:0, delayedHours:0};
   const own = lines.filter(line => [line.initial,line.data,...line.events.flatMap(e=>[e.before,e.after])].some(d=>d?.userId === uid));
   const cuts = new Set([start,end]);
   const add = t => { if(Number.isFinite(t) && t>start && t<end) cuts.add(t); };
+  for (const pause of pauses) { add(dateMillis(pause.startAt)); add(dateMillis(pause.endAt)); }
   const ruleVersions = [];
   for (const line of own) {
     line.events.forEach(e=>add(e.at));
@@ -72,6 +73,7 @@ function dutyForMember(uid, lines, start, end) {
   let duty=0, delayed=0;
   for(let i=1;i<times.length;i++) {
     const at=(times[i-1]+times[i])/2;
+    if (pauses.some(p => dateMillis(p.startAt)!==null && at>=dateMillis(p.startAt) && (p.endAt==null || at<dateMillis(p.endAt)))) continue;
     const states=own.map(line=>({source:line.source,id:line.id,data:stateAt(line,at)})).filter(r=>r.data?.userId===uid);
     // Canonical membership takes precedence over any legacy duplicate.
     const memberships=states.filter(r=>r.source==='memberships');
@@ -91,7 +93,7 @@ function dutyForMember(uid, lines, start, end) {
   }
   return {dutyHours:duty/3600000, delayedHours:delayed/3600000};
 }
-function aggregate({organizationId, from, to, now, trackingStart, current, history, memberships, activities, participants, callouts, responses, attendance}) {
+function aggregate({organizationId, from, to, now, trackingStart, current, history, memberships, activities, participants, callouts, responses, attendance, dutyPauses=[]}) {
   const range=period(from,to);
   if(!range) throw Error('Invalid period');
   const end=Math.min(range.end,now), start=range.start;
@@ -141,12 +143,19 @@ function aggregate({organizationId, from, to, now, trackingStart, current, histo
   }
   const covered=Number.isFinite(trackingStart) && end>Math.max(start,trackingStart) && !timeline.pending;
   for(const row of rows.values()) {
-    if(covered) Object.assign(row,dutyForMember(row.userId,timeline.lines,Math.max(start,trackingStart),end));
+    if(covered) Object.assign(row,dutyForMember(row.userId,timeline.lines,Math.max(start,trackingStart),end,scoped(dutyPauses)));
     else {row.dutyHours=null;row.delayedHours=null;}
     row.entries.sort((a,b)=>b.date.localeCompare(a.date));
   }
   const members=[...rows.values()].filter(r=>r.active || r.entries.length || r.responseCount || r.dutyHours>0 || r.delayedHours>0).sort((a,b)=>a.name.localeCompare(b.name,'et'));
-  return {from,to,generatedAt:new Date(now).toISOString(),trackingStartedAt:Number.isFinite(trackingStart)?new Date(trackingStart).toISOString():null,
+  const periodCallouts=[...byCallout.values()].filter(c=>{const at=dateMillis(c.createdAt);return at!==null && at>=start && at<end;});
+  const events={total:byCallout.size,period:periodCallouts.length,
+    sar:periodCallouts.filter(c=>(c.calloutType || 'sar')==='sar').length,
+    tross:periodCallouts.filter(c=>c.calloutType==='tross').length,
+    closed:periodCallouts.filter(c=>c.status==='closed').length,
+    cancelled:periodCallouts.filter(c=>c.status==='cancelled').length,
+    undated:[...byCallout.values()].filter(c=>dateMillis(c.createdAt)===null).length};
+  return {events,from,to,generatedAt:new Date(now).toISOString(),trackingStartedAt:Number.isFinite(trackingStart)?new Date(trackingStart).toISOString():null,
     dutyHistoryPending:timeline.pending,undatedCount,members};
 }
 module.exports={ZONE,TYPES,active,dateMillis,period,dutyForMember,versionTimelines,aggregate};

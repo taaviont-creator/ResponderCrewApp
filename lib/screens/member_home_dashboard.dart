@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../models/activity_model.dart';
+import '../widgets/upcoming_activities.dart';
 import '../models/callout_model.dart';
 import '../widgets/vessel_status_card.dart';
 import '../widgets/crew_readiness_card.dart';
-import '../services/activity_service.dart';
 import '../services/callout_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_section_card.dart';
@@ -21,6 +20,8 @@ class MemberHomeDashboard extends StatefulWidget {
     required this.onOpenMembers,
     required this.onOpenNotifications,
     required this.onOpenActivities,
+    this.onCreateCallout,
+    this.onCreateActivity,
   });
 
   final String organizationId;
@@ -31,13 +32,14 @@ class MemberHomeDashboard extends StatefulWidget {
   final VoidCallback onOpenMembers;
   final VoidCallback onOpenNotifications;
   final VoidCallback onOpenActivities;
+  final VoidCallback? onCreateCallout;
+  final VoidCallback? onCreateActivity;
 
   @override
   State<MemberHomeDashboard> createState() => _MemberHomeDashboardState();
 }
 
 class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
-  final _activityService = ActivityService();
   final _calloutService = CalloutService();
 
   @override
@@ -47,6 +49,13 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
       children: [
         widget.topHeader,
         const SizedBox(height: 16),
+        if (widget.onCreateCallout != null || widget.onCreateActivity != null)
+          AppSectionCard(title: 'Kiirtegevused', child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            if (widget.onCreateCallout != null) FilledButton.icon(
+              style: FilledButton.styleFrom(backgroundColor: AppColors.activeCallout, foregroundColor: Colors.white, minimumSize: const Size.fromHeight(56)),
+              onPressed: widget.onCreateCallout, icon: const Icon(Icons.campaign), label: const Text('Loo väljakutse')),
+            if (widget.onCreateActivity != null) OutlinedButton.icon(onPressed: widget.onCreateActivity, icon: const Icon(Icons.event_available), label: const Text('Lisa tegevus / koolitus')),
+          ])),
         CrewReadinessCard(organizationId: widget.organizationId, currentUid: widget.currentUid),
         const SizedBox(height: 16),
 
@@ -54,9 +63,9 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
         const SizedBox(height: 16),
         VesselStatusCard(organizationId: widget.organizationId),
         const SizedBox(height: 16),
-        _SectionTitle(title: 'Tulev tegevus/koolitus', onOpen: widget.onOpenActivities),
+        _SectionTitle(title: 'Lähiaja tegevused ja koolitused', onOpen: widget.onOpenActivities),
         const SizedBox(height: 8),
-        _buildUpcomingActivity(),
+        UpcomingActivities(key: ValueKey(widget.organizationId), organizationId: widget.organizationId, userId: widget.currentUid),
         const SizedBox(height: 16),
       ],
     );
@@ -188,124 +197,6 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
     };
   }
 
-  Widget _buildUpcomingActivity() {
-    return StreamBuilder<List<ActivityModel>>(
-      stream: _activityService.streamOrganizationActivities(
-        organizationId: widget.organizationId,
-      ),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting &&
-            !snapshot.hasData) {
-          return const _PreviewLoadingCard();
-        }
-
-        final activity = _nextActivity(
-          snapshot.data ?? const <ActivityModel>[],
-        );
-        if (activity == null) {
-          return const _EmptyPreviewCard(
-            icon: Icons.event_outlined,
-            message: 'Tulevasi tegevusi ega koolitusi ei ole.',
-          );
-        }
-
-        return AppSectionCard(
-          child: InkWell(
-            onTap: widget.onOpenActivities,
-            borderRadius: BorderRadius.circular(AppTheme.cardRadius),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    color: AppColors.deepSeaBlue,
-                    borderRadius:
-                        BorderRadius.circular(AppTheme.controlRadius),
-                  ),
-                  child: Icon(
-                    activity.type == ActivityType.training
-                        ? Icons.school_outlined
-                        : Icons.event_outlined,
-                    color: AppColors.background,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        activity.title,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      if (activity.location.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          activity.location,
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: AppColors.textSecondary,
-                                  ),
-                        ),
-                      ],
-                      if (activity.startTime.isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.calendar_today_outlined,
-                              size: 18,
-                              color: AppColors.textSecondary,
-                            ),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                activity.startTime,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .labelMedium
-                                    ?.copyWith(
-                                      color: AppColors.textSecondary,
-                                    ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                const Icon(
-                  Icons.chevron_right,
-                  color: AppColors.textSecondary,
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-
-
-  ActivityModel? _nextActivity(List<ActivityModel> activities) {
-    final now = DateTime.now();
-    final upcoming = activities.where((activity) {
-      final startTime = DateTime.tryParse(activity.startTime);
-      return startTime != null && !startTime.isBefore(now);
-    }).toList()
-      ..sort((a, b) {
-        final aTime = DateTime.tryParse(a.startTime)!;
-        final bTime = DateTime.tryParse(b.startTime)!;
-        return aTime.compareTo(bTime);
-      });
-
-    return upcoming.isEmpty ? null : upcoming.first;
-  }
-
   String _relativeTime(DateTime value) {
     final difference = DateTime.now().difference(value);
     if (difference.inMinutes < 1) return 'Praegu';
@@ -353,36 +244,6 @@ class _SectionTitle extends StatelessWidget {
           tooltip: 'Ava kõik',
         ),
       ],
-    );
-  }
-}
-
-class _EmptyPreviewCard extends StatelessWidget {
-  const _EmptyPreviewCard({
-    required this.icon,
-    required this.message,
-  });
-
-  final IconData icon;
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return AppSectionCard(
-      child: Row(
-        children: [
-          Icon(icon, color: AppColors.textSecondary),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              message,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

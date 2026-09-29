@@ -31,6 +31,7 @@ class ReadinessEquipmentStatus {
 class PlatformReadinessSummary {
   const PlatformReadinessSummary({
     required this.id,
+    this.dutyPaused = false,
     required this.organizationId,
     required this.commandId,
     required this.organizationName,
@@ -51,6 +52,7 @@ class PlatformReadinessSummary {
     this.updatedAt,
   });
 
+  final bool dutyPaused;
   final String id;
   final String organizationId;
   final String commandId;
@@ -78,6 +80,7 @@ class PlatformReadinessSummary {
 
     return PlatformReadinessSummary(
       id: document.id,
+      dutyPaused: data['dutyPaused'] == true,
       organizationId: _stringValue(data['organizationId']),
       commandId: _stringValue(data['commandId']),
       organizationName: _stringValue(data['organizationName']),
@@ -85,7 +88,7 @@ class PlatformReadinessSummary {
       contactName: _stringValue(data['contactName']),
       contactPhone: _stringValue(data['contactPhone']),
       readinessStatus: _stringValue(
-        data['readinessStatus'],
+        data['dutyPaused'] == true ? ReadinessStatus.notReady : data['readinessStatus'],
         fallback: ReadinessStatus.unknown,
       ),
       onDutyCount: _intValue(data['onDutyCount']),

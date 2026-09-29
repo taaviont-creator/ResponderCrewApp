@@ -114,7 +114,13 @@ class CalloutService {
   }) {
     _requireOrganizationId(organizationId);
     return _responses
-        .where('calloutId', isEqualTo: calloutId)
+        .where(Filter.and(
+          Filter('calloutId', isEqualTo: calloutId),
+          Filter.or(
+            Filter('organizationId', isEqualTo: organizationId),
+            Filter('commandId', isEqualTo: organizationId),
+          ),
+        ))
         .snapshots()
         .map((snapshot) {
       return snapshot.docs

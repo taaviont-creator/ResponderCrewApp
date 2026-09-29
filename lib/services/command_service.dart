@@ -1,3 +1,4 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -54,7 +55,7 @@ class CommandService {
     throw Exception('Unikaalse liitumiskoodi genereerimine ebaõnnestus');
   }
 
-  Future<String> createCommand({required String name}) async {
+  Future<String> createCommand({required String name, required Map<String, String> profile}) async {
     final user = _auth.currentUser;
     if (user == null) throw Exception('Not authenticated');
 
@@ -82,6 +83,10 @@ class CommandService {
       'allowMembersToStartOperationLog': false,
       'createdAt': FieldValue.serverTimestamp(),
       'isOnDuty': false,
+    });
+
+    batch.set(_db.collection('organizationProfiles').doc(commandRef.id), {
+      ...profile, 'organizationId':commandRef.id, 'createdBy':user.uid, 'createdAt':FieldValue.serverTimestamp(),
     });
 
     final membershipData = <String, dynamic>{
@@ -367,10 +372,7 @@ class CommandService {
       }).length;
 
       if (otherActiveAdmins == 0) {
-        throw Exception(
-          'Sa oled selle organisatsiooni viimane administraator. '
-          'Määra enne kellelegi teisele orgAdmin roll.',
-        );
+        throw FirebaseFunctionsException(code:'failed-precondition', message:'Sa oled organisatsiooni ainus administraator. Enne enda administraatorirolli eemaldamist määra vähemalt üks teine aktiivne liige administraatoriks.');
       }
     }
 
@@ -399,11 +401,9 @@ class CommandService {
 
     final batch = _db.batch();
 
-    batch.set(membershipRef, {
-      'status': 'removed',
-      'isActive': false,
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    await FirebaseFunctions.instanceFor(region: 'europe-north1').httpsCallable('manageOrganizationMembership').call({
+      'organizationId': commandId, 'userId': uid, 'action': 'remove',
+    });
 
     if (activeCommandId == commandId) {
       if (nextActiveCommandId != null) {

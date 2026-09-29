@@ -168,11 +168,11 @@ void main() {
       await tester.enterText(find.byType(TextField), 'Täiendus');
       await tester.tap(find.text('Lisa tagantjärele'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Salvesta märge'));
+      await tester.tap(find.text('Salvesta kommentaar'));
       await tester.pumpAndSettle();
       expect(find.text('Täiendus'), findsOneWidget);
       expect(find.textContaining('Salvestamine ebaõnnestus'), findsOneWidget);
-      await tester.tap(find.text('Salvesta märge'));
+      await tester.tap(find.text('Salvesta kommentaar'));
       await tester.pumpAndSettle();
       expect(submitted, isNotNull);
       expect(find.byType(OperationNoteDialog), findsNothing);

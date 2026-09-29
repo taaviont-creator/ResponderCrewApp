@@ -65,6 +65,15 @@ class OperationLogStatus {
     return value is String && values.contains(value) ? value : open;
   }
 
+  static String label(Object? status) => switch (normalize(status)) {
+    enRoute => 'Väljasõit',
+    onScene => 'Sündmuskohal',
+    inProgress => 'Tegevuses',
+    completed => 'Sündmuskohal tegevused tehtud',
+    returnedToBase => 'Tagasi baasis · op-logi lõpetatud',
+    _ => 'Avatud',
+  };
+
   static bool canTransition(Object? from, Object? to) {
     final current = normalize(from);
     final next = normalize(to);

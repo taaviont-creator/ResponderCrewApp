@@ -1,3 +1,4 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/membership_model.dart';
@@ -88,13 +89,9 @@ class MembershipService {
     if (targetUserId.trim().isEmpty) {
       throw Exception('Liitumistaotluse kasutaja puudub.');
     }
-    await _memberships
-        .doc(membershipId(userId: targetUserId, organizationId: organizationId))
-        .update({
-          'status': approve ? 'active' : 'rejected',
-          'isActive': approve,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
+    await FirebaseFunctions.instanceFor(region: 'europe-north1').httpsCallable('manageOrganizationMembership').call({
+      'organizationId': organizationId, 'userId': targetUserId, 'action': approve ? 'approve' : 'reject',
+    });
   }
 
   String? organizationIdFromMembership(Map<String, dynamic> membership) {
@@ -221,16 +218,16 @@ class MembershipService {
       throw Exception('Unsupported membership role: $role');
     }
 
-    await _memberships.doc(membershipId).set({
-      'userId': targetUserId,
-      'organizationId': organizationId,
-      // TODO: Remove commandId after all membership reads use organizationId.
-      'commandId': organizationId,
-      'role': role,
-      'status': 'active',
-      'isActive': true,
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    if (role == MembershipRole.member) {
+      final members = await loadActiveMembershipsForOrganization(organizationId);
+      final admins = members.where((m) => isOrgAdmin(m.data())).toList();
+      if (admins.length == 1 && admins.first.data()['userId'] == targetUserId) {
+        throw FirebaseFunctionsException(code: 'failed-precondition', message: 'Sa oled organisatsiooni ainus administraator. Enne enda administraatorirolli eemaldamist määra vähemalt üks teine aktiivne liige administraatoriks.');
+      }
+    }
+    await FirebaseFunctions.instanceFor(region: 'europe-north1').httpsCallable('manageOrganizationMembership').call({
+      'organizationId': organizationId, 'userId': targetUserId, 'action': 'role', 'role': role,
+    });
   }
 
   Future<void> updateSeaRescueLevel({

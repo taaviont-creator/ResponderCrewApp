@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'callout_report_screen.dart';
+import '../widgets/callout_edit_dialog.dart';
 
 import '../models/callout_model.dart';
 import '../widgets/callout_departure_timing.dart';
@@ -232,7 +234,7 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
           ),
         ),
       );
-      Navigator.pop(context);
+      if (!isClosing) Navigator.pop(context);
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -316,7 +318,10 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
           const SizedBox(height: AppTheme.itemSpacing),
           _buildDescriptionCard(),
           const SizedBox(height: AppTheme.itemSpacing),
+          if (_callout.status == CalloutStatus.closed) const AppSectionCard(child: Text('Väljakutse on lõpetatud. Lisa või täienda nüüd op-logi kokkuvõtet ja kinnita osalejad. Neid saab muuta ka hiljem.')),
           _buildOperationLogAction(),
+          FilledButton.icon(icon: const Icon(Icons.description_outlined), label: const Text('Sündmuse aruanne'), onPressed: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => CalloutReportScreen(organizationId: widget.organizationId, calloutId: _callout.id)))),
+          if (widget.canManageCallouts) OutlinedButton.icon(icon: const Icon(Icons.edit_outlined), label: const Text('Täienda sündmuse andmeid'), onPressed: () => showDialog<void>(context: context, builder: (_) => CalloutEditDialog(callout: _callout, organizationId: widget.organizationId))),
           const SizedBox(height: AppTheme.itemSpacing),
           if (widget.canManageCallouts) ...[
             _buildResponseSummary(),
@@ -325,7 +330,7 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
           if (_callout.status != CalloutStatus.cancelled)
             StreamBuilder<bool>(stream: _canConfirmAttendance, builder: (context, snapshot) {
               if (snapshot.data != true) return const SizedBox.shrink();
-              return OutlinedButton.icon(icon: const Icon(Icons.fact_check_outlined), label: const Text('Kinnita osalemised'), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CalloutAttendanceScreen(organizationId: widget.organizationId, calloutId: _callout.id))));
+              return OutlinedButton.icon(icon: const Icon(Icons.fact_check_outlined), label: const Text('Lisa / muuda ja kinnita osalejad'), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CalloutAttendanceScreen(organizationId: widget.organizationId, calloutId: _callout.id))));
             }),
           _buildResponseActions(),
           if (widget.canCloseCallouts && _isActive) ...[

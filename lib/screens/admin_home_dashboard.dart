@@ -1,3 +1,4 @@
+import '../widgets/upcoming_activities.dart';
 import 'package:flutter/material.dart';
 
 import '../models/callout_model.dart';
@@ -52,10 +53,16 @@ class AdminHomeDashboard extends StatelessWidget {
         CrewReadinessCard(organizationId: organizationId, currentUid: currentUid),
         const SizedBox(height: 16),
         PendingMemberRequestsNotice(organizationId: organizationId, currentUid: currentUid),
-        PrimaryActionButton(label: 'Lisa väljakutse', icon: Icons.campaign_outlined,
+        Text('Kiirtegevused', style: Theme.of(context).textTheme.titleLarge),
+        PrimaryActionButton(label: 'Loo väljakutse', icon: Icons.campaign_outlined,
           style: PrimaryActionButtonStyle.danger, onPressed: onCreateCallout),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(onPressed: onCreateActivity, icon: const Icon(Icons.event_available), label: const Text('Lisa tegevus / koolitus')),
         const SizedBox(height: 16),
         _buildActiveCallouts(),
+        const SizedBox(height: 16),
+        Text('Lähiaja tegevused ja koolitused', style: Theme.of(context).textTheme.titleLarge),
+        UpcomingActivities(key: ValueKey(organizationId), organizationId: organizationId, userId: currentUid),
         const SizedBox(height: 16),
         _SectionTitle(title: 'Alused ja varustus', onOpen: onOpenEquipment),
         const SizedBox(height: 8),

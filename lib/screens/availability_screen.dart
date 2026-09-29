@@ -1310,6 +1310,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
           );
         }
 
+        if (summaries.first.dutyPaused) return const AppSectionCard(title: 'Ühing on valvest maas', child: Text('Ühingu valveaja arvestus on peatatud.'));
         final readiness = ResponseReadiness.evaluate(
           minimumCrewRequired: summaries.first.minimumCrewRequired,
           onDutyCount: onDutyCount,

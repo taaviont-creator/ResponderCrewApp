@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -33,6 +34,8 @@ class _CrewReadinessCardState extends State<CrewReadinessCard> {
   List<PlannedUnavailabilityModel>? _periods;
   List<PlannedUnavailabilityRuleModel>? _rules;
   int? _minimum;
+  bool? _dutyPaused;
+  String _pauseReason = '';
   String? _error, _busy;
   Timer? _timer;
   int _generation = 0;
@@ -68,8 +71,13 @@ class _CrewReadinessCardState extends State<CrewReadinessCard> {
     _periods = null;
     _rules = null;
     _minimum = null;
+    _dutyPaused = null;
     _error = null;
     final org = widget.organizationId;
+    _listen(FirebaseFirestore.instance.collection('commands').doc(org).snapshots(), (doc) {
+      _dutyPaused = doc.data()?['dutyPaused'] == true;
+      _pauseReason = doc.data()?['dutyPauseReason'] as String? ?? '';
+    });
     _listen(
       MembershipService().streamActiveMembershipsForOrganization(org),
       (docs) => _members = docs.map((d) => d.data()).toList(),
@@ -170,7 +178,12 @@ class _CrewReadinessCardState extends State<CrewReadinessCard> {
         ),
       );
     }
-    if (_members == null ||
+    if (_dutyPaused == true) { return AppSectionCard(
+      title: 'Ühing on valvest maas', leading: const Icon(Icons.pause_circle_outline),
+      child: Text(_pauseReason.isEmpty ? 'Ühingu valveaja arvestus on peatatud.' : _pauseReason),
+    );
+    }
+    if (_dutyPaused == null || _members == null ||
         _availability == null ||
         _periods == null ||
         _rules == null ||

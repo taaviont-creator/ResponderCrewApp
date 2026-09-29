@@ -34,12 +34,8 @@ service cloud.firestore {
     }
 
     function isActiveMembershipData(data) {
-      return (
-          (data.keys().hasAny(['status']) && data.status == 'active') ||
-          (data.keys().hasAny(['isActive']) && data.isActive == true)
-        ) &&
-        (!data.keys().hasAny(['status']) || data.status == 'active') &&
-        (!data.keys().hasAny(['isActive']) || data.isActive == true);
+      return (data.get('status', '') == 'active' || data.get('isActive', false) == true) &&
+        data.get('status', 'active') == 'active' && data.get('isActive', true) == true;
     }
 
     function isValidMembershipRole(role) {
@@ -102,29 +98,23 @@ service cloud.firestore {
     }
 
     function isActiveMember(commandId) {
-      return signedIn() &&
-        exists(/databases/$(database)/documents/memberships/$(activeMembershipId(commandId))) &&
-        isActiveMembershipData(
-          get(/databases/$(database)/documents/memberships/$(activeMembershipId(commandId))).data
-        );
+      let data = get(/databases/$(database)/documents/memberships/$(activeMembershipId(commandId))).data;
+      return signedIn() && data.userId == request.auth.uid &&
+        data.get('organizationId', data.get('commandId', '')) == commandId && data.get('commandId', commandId) == commandId &&
+        isActiveMembershipData(data) &&
+        get(/databases/$(database)/documents/commands/$(commandId)).data.get('status', 'approved') == 'approved';
     }
 
     function isActiveMemberOf(userId, commandId) {
-      return signedIn() &&
-        exists(/databases/$(database)/documents/memberships/$(membershipIdForUser(userId, commandId))) &&
-        isActiveMembershipData(
-          get(/databases/$(database)/documents/memberships/$(membershipIdForUser(userId, commandId))).data
-        );
+      let data = get(/databases/$(database)/documents/memberships/$(membershipIdForUser(userId, commandId))).data;
+      return signedIn() && data.userId == userId &&
+        data.get('organizationId', data.get('commandId', '')) == commandId && data.get('commandId', commandId) == commandId &&
+        isActiveMembershipData(data);
     }
 
     function isActiveOrgAdmin(commandId) {
       return isActiveMember(commandId) &&
-        (
-          get(/databases/$(database)/documents/memberships/$(activeMembershipId(commandId))).data.role ==
-            'orgAdmin' ||
-          get(/databases/$(database)/documents/memberships/$(activeMembershipId(commandId))).data.role ==
-            'admin'
-        );
+        get(/databases/$(database)/documents/memberships/$(activeMembershipId(commandId))).data.role in ['orgAdmin', 'admin'];
     }
 
     function commandAllowsMemberActivityCreate(commandId) {
@@ -137,29 +127,9 @@ service cloud.firestore {
         get(commandPath).data.allowMembersToCreateActivities == true;
     }
 
-    function commandAllowsMemberOperationLogStart(commandId) {
-      let commandPath =
-        /databases/$(database)/documents/commands/$(commandId);
-      return exists(commandPath) &&
-        get(commandPath).data.keys().hasAny([
-          'allowMembersToStartOperationLog'
-        ]) &&
-        get(commandPath).data.allowMembersToStartOperationLog == true;
-    }
-
-    function isActiveCrewLeader(commandId) {
-      let data = get(/databases/$(database)/documents/memberships/$(activeMembershipId(commandId))).data;
-      return isActiveMember(commandId) && data.get('seaRescueLevel', '') == 'level2' &&
-        data.userId == request.auth.uid && organizationIdFromData(data) == commandId && hasValidOrganizationReference(data);
-    }
-
     function canManageOperationLog(commandId) {
-      return isPlatformAdmin() || isActiveCrewLeader(commandId) ||
-        isActiveOrgAdmin(commandId) ||
-        (
-          isActiveMember(commandId) &&
-          commandAllowsMemberOperationLogStart(commandId)
-        );
+      let data = get(/databases/$(database)/documents/memberships/$(activeMembershipId(commandId))).data;
+      return isActiveMember(commandId) && (data.role in ['orgAdmin', 'admin'] || data.get('seaRescueLevel', '') == 'level2');
     }
 
     function hasValidCommandMemberPermissions(data) {
@@ -178,7 +148,8 @@ service cloud.firestore {
     }
 
     function isCommandCreateData(data) {
-      return data.keys().hasAny(['status']) &&
+      return data.keys().hasOnly(['name', 'joinCode', 'createdBy', 'status', 'allowMembersToCreateActivities', 'allowMembersToViewStatistics', 'allowMembersToStartOperationLog', 'createdAt', 'isOnDuty']) &&
+        data.keys().hasAny(['status']) &&
         data.status == 'pending' &&
         hasValidCommandMemberPermissions(data);
     }
@@ -213,7 +184,7 @@ service cloud.firestore {
 
     function isCommandMemberPermissionUpdate(commandId) {
       return signedIn() &&
-        (isPlatformAdmin() || isActiveOrgAdmin(commandId)) &&
+        isActiveOrgAdmin(commandId) &&
         request.resource.data.allowMembersToCreateActivities is bool &&
         request.resource.data.allowMembersToViewStatistics is bool &&
         request.resource.data.allowMembersToStartOperationLog is bool &&
@@ -532,7 +503,6 @@ service cloud.firestore {
         data.invitedBy == request.auth.uid &&
         commandIsApproved(organizationId) &&
         (
-          isPlatformAdmin() ||
           isActiveOrgAdmin(organizationId)
         ) &&
         isValidOrganizationInviteData(data);
@@ -672,7 +642,6 @@ service cloud.firestore {
       return signedIn() &&
         commandIsApproved(organizationId) &&
         (
-          isPlatformAdmin() ||
           isActiveOrgAdmin(organizationId)
         ) &&
         hasValidOrganizationReference(resource.data) &&
@@ -710,7 +679,6 @@ service cloud.firestore {
           signedIn() &&
           commandIsApproved(organizationId) &&
           (
-            isPlatformAdmin() ||
             isActiveOrgAdmin(organizationId)
           )
         );
@@ -1182,7 +1150,6 @@ service cloud.firestore {
         organizationIdFromData(data);
       return signedIn() &&
         (
-          isPlatformAdmin() ||
           (
             equipmentScope(data) == 'organization' &&
             isActiveMember(organizationId)
@@ -1206,7 +1173,6 @@ service cloud.firestore {
         request.resource.data.createdBy == request.auth.uid &&
         isValidEquipmentData(request.resource.data) &&
         (
-          isPlatformAdmin() ||
           (
             isActiveMember(organizationId) &&
             (
@@ -1240,7 +1206,6 @@ service cloud.firestore {
         ) &&
         isValidEquipmentData(request.resource.data) &&
         (
-          isPlatformAdmin() ||
           (
             isActiveMember(organizationId) &&
             (
@@ -1445,11 +1410,20 @@ service cloud.firestore {
         canManageOperationLog(organizationIdFromData(resource.data));
     }
 
+    // Operational milestones may be incomplete when the linked callout is closed.
+    function operationLogCanHaveSummary(data) {
+      return data.status in ['completed', 'returnedToBase'] ||
+        (data.get('calloutId', null) is string && data.calloutId.size() > 0 &&
+          exists(/databases/$(database)/documents/callouts/$(data.calloutId)) &&
+          get(/databases/$(database)/documents/callouts/$(data.calloutId)).data.status == 'closed' &&
+          organizationIdFromData(get(/databases/$(database)/documents/callouts/$(data.calloutId)).data) == organizationIdFromData(data));
+    }
+
     function isOperationLogSummaryUpdate(logId) {
       return signedIn() &&
         request.resource.data.id == resource.data.id &&
         request.resource.data.id == logId &&
-        resource.data.status in ['completed', 'returnedToBase'] &&
+        operationLogCanHaveSummary(resource.data) &&
         request.resource.data.status == resource.data.status &&
         request.resource.data.summary is string &&
         request.resource.data.outcome is string &&
@@ -1539,7 +1513,7 @@ service cloud.firestore {
           (
             request.resource.data.type == 'summarySaved' &&
             exists(logPath) &&
-            getAfter(logPath).data.status in ['completed', 'returnedToBase'] &&
+            operationLogCanHaveSummary(getAfter(logPath).data) &&
             getAfter(logPath).data.completedBy == request.auth.uid &&
             getAfter(logPath).data.completedAt == request.time &&
             getAfter(logPath).data.updatedAt == request.time &&
@@ -1926,7 +1900,7 @@ service cloud.firestore {
           isOwnAvailabilityNotificationCreate() ||
           isOwnMinimumCrewNotificationCreate() ||
           isOwnActivityNotificationCreate() ||
-          isPlatformAdmin() ||
+          (request.resource.data.type == 'callout' && canManageOperationLog(organizationIdFromData(request.resource.data))) ||
           isActiveOrgAdmin(organizationIdFromData(request.resource.data))
         );
     }
@@ -2108,7 +2082,7 @@ service cloud.firestore {
         request.resource.data.createdAt == request.time &&
         request.resource.data.updatedAt == request.time &&
         isValidCalloutData(request.resource.data) &&
-        isActiveOrgAdmin(organizationIdFromData(request.resource.data));
+        canManageOperationLog(organizationIdFromData(request.resource.data));
     }
 
     function isCalloutStatusUpdate(calloutId) {
@@ -2135,8 +2109,7 @@ service cloud.firestore {
         ]) &&
         isValidCalloutData(request.resource.data) &&
         (
-          isPlatformAdmin() ||
-          isActiveOrgAdmin(organizationIdFromData(resource.data))
+          canManageOperationLog(organizationIdFromData(resource.data))
         );
     }
 
@@ -2559,6 +2532,7 @@ service cloud.firestore {
         request.resource.data.commandId == summaryId &&
         request.resource.data.lastUpdatedBy == request.auth.uid &&
         isValidReadinessSummaryData(request.resource.data) &&
+        request.resource.data.get('dutyPaused', false) == get(/databases/$(database)/documents/commands/$(summaryId)).data.get('dutyPaused', false) &&
         isActiveOrgAdmin(summaryId);
     }
 
@@ -2586,6 +2560,24 @@ service cloud.firestore {
         isCommandApprovalUpdate(commandId);
     }
 
+    function validOrganizationProfile(data, organizationId) {
+      return data.keys().hasOnly(['organizationId', 'createdBy', 'createdAt', 'registrationCode', 'organizationType', 'region', 'address', 'contactName', 'contactPhone', 'contactEmail', 'organizationEmail', 'description', 'logoUrl']) &&
+        data.organizationId == organizationId && data.createdBy is string && data.createdAt is timestamp &&
+        data.contactName is string && data.contactName.size() > 0 && data.contactName.size() <= 300 &&
+        data.contactEmail is string && data.contactEmail.size() <= 300 && data.contactEmail.matches('^[^ ]+@[^ ]+[.][^ ]+$') &&
+        data.registrationCode is string && data.registrationCode.size() <= 300 &&
+        data.organizationType is string && data.organizationType.size() <= 300 &&
+        data.region is string && data.region.size() <= 300 && data.address is string && data.address.size() <= 300 &&
+        data.contactPhone is string && data.contactPhone.size() <= 300 && data.organizationEmail is string && data.organizationEmail.size() <= 300 &&
+        data.description is string && data.description.size() <= 2500 && data.logoUrl is string && data.logoUrl.size() <= 300;
+    }
+    match /organizationProfiles/{organizationId} {
+      allow read: if signedIn() && (resource.data.createdBy == request.auth.uid || isPlatformAdmin() || isActiveOrgAdmin(organizationId));
+      allow create: if signedIn() && validOrganizationProfile(request.resource.data, organizationId) &&
+        request.resource.data.createdBy == request.auth.uid && request.resource.data.createdAt == request.time &&
+        commandIsPendingAfter(organizationId) && isCommandCreator(organizationId);
+    }
+
     match /memberships/{membershipId} {
       allow get: if isOwnMembershipGet(membershipId);
       allow read: if signedIn() &&
@@ -2600,6 +2592,9 @@ service cloud.firestore {
         isInviteMembershipCreate(membershipId);
 
       allow update: if signedIn() &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']) &&
+        (!(isActiveMembershipData(resource.data) && resource.data.role in ['orgAdmin', 'admin']) ||
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'isActive'])) &&
         (
           (request.resource.data.diff(resource.data).affectedKeys().hasAny([
               'membershipStartedAt'
@@ -2657,7 +2652,6 @@ service cloud.firestore {
     match /operationLogs/{logId} {
       allow read: if signedIn() &&
         (
-          isPlatformAdmin() ||
           isActiveMember(organizationIdFromData(resource.data))
         );
       allow create: if isOperationLogCreate(logId);
@@ -2667,7 +2661,6 @@ service cloud.firestore {
       match /events/{eventId} {
         allow read: if signedIn() &&
           (
-            isPlatformAdmin() ||
             isActiveMember(organizationIdFromData(resource.data))
           );
         allow create: if isOperationLogEventCreate(logId, eventId);
@@ -2682,6 +2675,7 @@ service cloud.firestore {
     }
 
     match /activityParticipants/{participantId} {
+      allow get: if signedIn() && !exists(/databases/$(database)/documents/activityParticipants/$(participantId)) && participantId.matches('.*_' + request.auth.uid);
       allow read: if signedIn() &&
         (
           resource.data.userId == request.auth.uid ||
@@ -2741,12 +2735,31 @@ service cloud.firestore {
     match /callouts/{calloutId} {
       allow read: if signedIn() &&
         (
-          isPlatformAdmin() ||
           isActiveMember(organizationIdFromData(resource.data))
         );
       allow create: if isCalloutCreate(calloutId);
       allow update: if isCalloutStatusUpdate(calloutId);
     }
+
+    match /calloutReports/{calloutId} {
+      allow read: if signedIn() && isActiveMember(resource.data.organizationId);
+    }
+    match /calloutPrivate/{calloutId} {
+      allow read: if signedIn() && canManageOperationLog(resource.data.organizationId);
+      match /history/{entryId} {
+        allow read: if signedIn() && canManageOperationLog(resource.data.organizationId);
+      }
+    }
+    match /callouts/{calloutId}/reportHistory/{entryId} {
+      allow read: if signedIn() && isActiveMember(resource.data.organizationId);
+    }
+    match /callouts/{calloutId}/changeHistory/{entryId} {
+      allow read: if signedIn() && isActiveMember(resource.data.organizationId);
+    }
+    match /platformAudit/{entryId} {
+      allow read: if isPlatformAdmin();
+    }
+    // organizationDutyPauses is read and written only by authenticated server workflows.
 
     // Attendance is written through a callable restricted to active admins and II-level members.
     match /calloutAttendance/{attendanceId} {
@@ -2762,7 +2775,7 @@ service cloud.firestore {
         isActiveMember(organizationIdFromData(resource.data)) &&
         (
           resource.data.userId == request.auth.uid ||
-          isActiveOrgAdmin(organizationIdFromData(resource.data))
+          canManageOperationLog(organizationIdFromData(resource.data))
         );
       allow create, update: if isOwnCalloutResponseWrite(responseId);
     }

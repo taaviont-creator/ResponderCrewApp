@@ -62,9 +62,10 @@ class _CalloutParticipantsSectionState
         stream: _permission,
         builder: (context, snapshot) => snapshot.data != true
             ? const SizedBox.shrink()
-            : TextButton.icon(
+            : OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(60)),
                 icon: const Icon(Icons.people_outline),
-                label: const Text('Muuda osalejaid'),
+                label: const Text('Lisa / muuda ja kinnita osalejad'),
                 onPressed: () => Navigator.push(
                   context,
                   MaterialPageRoute(

@@ -16,6 +16,7 @@ const {
   where,
   limit,
   or,
+  and,
   runTransaction,
   writeBatch,
   serverTimestamp,
@@ -34,6 +35,15 @@ const otherOrganizationId = 'other-org';
 const membershipId = `${memberId}_${organizationId}`;
 
 let testEnv;
+const serverRequire = require('node:module').createRequire(path.resolve(__dirname, '../functions/package.json'));
+let serverApp;
+function serverDb() {
+  const {initializeApp} = serverRequire('firebase-admin/app');
+  const {getFirestore} = serverRequire('firebase-admin/firestore');
+  serverApp ||= initializeApp({projectId}, 'workflow-integration');
+  return getFirestore(serverApp);
+}
+after(async () => { if (serverApp) await serverRequire('firebase-admin/app').deleteApp(serverApp); });
 
 before(async () => {
   testEnv = await initializeTestEnvironment({
@@ -810,6 +820,136 @@ function calloutData(id, extra = {}) {
     updatedAt: serverTimestamp(), closedAt: null, ...extra };
 }
 
+test('last admin cannot bypass client rules and concurrent server removals retain one admin', async () => {
+  const db = serverDb();
+  await db.doc(`memberships/${activeMemberId}_${organizationId}`).update({role:'orgAdmin'});
+  const client = testEnv.authenticatedContext(orgAdminId).firestore();
+  await assertFails(updateDoc(doc(client, 'memberships', `${orgAdminId}_${organizationId}`), {status:'removed',isActive:false,updatedAt:serverTimestamp()}));
+  await assertFails(updateDoc(doc(client, 'memberships', `${activeMemberId}_${organizationId}`), {role:'member',updatedAt:serverTimestamp()}));
+  const {createMembershipManagementHandler} = require('../functions/organization-management');
+  const {FieldValue} = serverRequire('firebase-admin/firestore');
+  const handler=createMembershipManagementHandler({db,timestamp:()=>FieldValue.serverTimestamp()});
+  const results=await Promise.allSettled([orgAdminId,activeMemberId].map(uid=>handler({auth:{uid},data:{organizationId,userId:uid,action:'remove'}})));
+  const assert=require('node:assert/strict');
+  assert.equal(results.filter(r=>r.status==='fulfilled').length,1);
+  assert.match(results.find(r=>r.status==='rejected').reason.message,/ainus administraator/);
+  const members=await db.collection('memberships').where('organizationId','==',organizationId).get();
+  assert.equal(members.docs.filter(m=>m.data().role==='orgAdmin'&&m.data().status==='active').length,1);
+});
+
+test('report reuses log and attendance, restricts private persons, rejects stale edits and platform-only role', async () => {
+  const db=serverDb(), assert=require('node:assert/strict');
+  const {FieldValue}=serverRequire('firebase-admin/firestore');
+  const {createSaveReportHandler,createGetReportHandler}=require('../functions/callout-report');
+  const save=createSaveReportHandler({db,timestamp:()=>FieldValue.serverTimestamp()}),read=createGetReportHandler({db});
+  await seedOperationLog('report-log','onScene');
+  await db.doc('operationLogs/report-log').update({calloutId:'report-callout'});
+  await db.doc('callouts/report-callout').set({organizationId,commandId:organizationId,status:'active',title:'Pääste',createdAt:new Date('2026-09-01T10:00:00Z')});
+  await db.doc(`commands/${organizationId}`).update({allowMembersToStartOperationLog:true});
+  const data={organizationId,calloutId:'report-callout',operationLogId:'report-log',revision:0,expectedSummary:'',expectedOutcome:'',authorUserId:orgAdminId,leaderUserId:'',equipmentIds:[],status:'draft',summary:'Lühikokkuvõte',outcome:'Abi osutatud',suggestions:'Õppuse vajadus',persons:[{name:'Abivajaja',contact:'5555555',identifier:'TEST',role:'Abivajaja',notes:''}]};
+  const req=(uid,d=data)=>({auth:{uid},data:d});
+  await assert.rejects(save(req(activeMemberId)),{code:'permission-denied'});
+  await db.doc('users/platform-only').set({systemRole:'platformAdmin'});
+  await assert.rejects(save(req('platform-only')),{code:'permission-denied'});
+  await save(req(orgAdminId));
+  assert.equal((await db.doc('operationLogs/report-log').get()).data().summary,data.summary);
+  data.expectedSummary=data.summary;data.expectedOutcome=data.outcome;
+  const report=(await db.doc('calloutReports/report-callout').get()).data();
+  assert.equal(report.summary,undefined);assert.equal(report.reportLog,undefined);
+  const memberReport=await read(req(activeMemberId));
+  assert.equal(memberReport.summary,data.summary);assert.equal(memberReport.canEdit,false);assert.equal(Object.hasOwn(memberReport,'persons'),false);
+  const adminReport=await read(req(orgAdminId));assert.equal(adminReport.persons[0].identifier,'TEST');
+  await assert.rejects(save(req(orgAdminId)),{code:'aborted'});
+  await assert.rejects(save(req(orgAdminId,{...data,revision:1,status:'completed'})),{code:'failed-precondition'});
+  await db.doc('callouts/report-callout').update({status:'closed',closedAt:new Date('2026-09-01T12:00:00Z')});
+  await save(req(orgAdminId,{...data,revision:1,status:'completed'}));
+  assert.equal((await db.collection('callouts/report-callout/reportHistory').get()).size,2);
+  const memberClient=testEnv.authenticatedContext(activeMemberId).firestore();
+  await assertSucceeds(getDoc(doc(memberClient,'calloutReports','report-callout')));
+  await assertFails(getDoc(doc(memberClient,'calloutPrivate','report-callout')));
+  await assertFails(updateDoc(doc(memberClient,'operationLogs','report-log'),{summary:'Bypass',updatedAt:serverTimestamp()}));
+  await assertFails(updateDoc(doc(memberClient,'calloutReports','report-callout'),{status:'draft'}));
+  await db.doc(`memberships/${activeMemberId}_${organizationId}`).update({seaRescueLevel:'level2'});
+  await save(req(activeMemberId,{...data,revision:2,status:'completed',summary:'Juhi parandus'}));
+  assert.equal((await read(req(activeMemberId))).summary,'Juhi parandus');
+});
+
+test('organization duty pause is admin-only, persistent, idempotent and cannot be forged by client', async () => {
+  const db=serverDb(),assert=require('node:assert/strict');
+  const {FieldValue}=serverRequire('firebase-admin/firestore');
+  const {createDutyHandler}=require('../functions/organization-management');
+  const handler=createDutyHandler({db,timestamp:()=>FieldValue.serverTimestamp()});
+  const request=(uid,paused)=>({auth:{uid},data:{organizationId,paused,reason:'Hooaeg lõppenud'}});
+  await assert.rejects(handler(request(activeMemberId,true)),{code:'permission-denied'});
+  await handler(request(orgAdminId,true));await handler(request(orgAdminId,true));
+  let pauses=await db.collection('organizationDutyPauses').where('organizationId','==',organizationId).get();
+  assert.equal(pauses.size,1);assert.equal(pauses.docs[0].data().endAt,null);
+  const client=testEnv.authenticatedContext(orgAdminId).firestore();
+  await assertFails(updateDoc(doc(client,'commands',organizationId),{dutyPaused:false}));
+  await handler(request(orgAdminId,false));
+  pauses=await db.collection('organizationDutyPauses').where('organizationId','==',organizationId).get();
+  assert.ok(pauses.docs[0].data().endAt.toMillis()>=pauses.docs[0].data().startAt.toMillis());
+  assert.equal((await db.doc(`commands/${organizationId}`).get()).data().dutyPaused,false);
+});
+
+test('closed callout permits admin summary amendments with audit even when log milestones are incomplete', async () => {
+  const id = 'closed-incomplete-log', calloutId = 'closed-summary-callout';
+  await seedOperationLog(id, 'enRoute');
+  await testEnv.withSecurityRulesDisabled(async ctx => {
+    const db = ctx.firestore();
+    await updateDoc(doc(db, 'memberships', `${orgAdminId}_${organizationId}`), {seaRescueLevel: 'none'});
+    await setDoc(doc(db, 'callouts', calloutId), calloutData(calloutId, {status: 'closed'}));
+    await updateDoc(doc(db, 'operationLogs', id), {calloutId});
+  });
+  const db = testEnv.authenticatedContext(orgAdminId).firestore();
+  for (const summary of ['Esimene kokkuvõte', 'Täiendatud kokkuvõte']) {
+    const batch = writeBatch(db), event = doc(collection(db, 'operationLogs', id, 'events'));
+    batch.update(doc(db, 'operationLogs', id), {summary, outcome: 'Kõik baasis',
+      completedBy: orgAdminId, completedAt: serverTimestamp(), updatedAt: serverTimestamp()});
+    batch.set(event, {id: event.id, operationLogId: id, organizationId, commandId: organizationId,
+      type: 'summarySaved', status: 'enRoute', title: 'Lõppkokkuvõte salvestatud',
+      description: 'Kõik baasis', summarySnapshot: summary, createdBy: orgAdminId, createdAt: serverTimestamp()});
+    await assertSucceeds(batch.commit());
+  }
+  const saved = (await getDoc(doc(db, 'operationLogs', id))).data();
+  require('node:assert/strict').equal(saved.status, 'enRoute');
+  require('node:assert/strict').equal(saved.summary, 'Täiendatud kokkuvõte');
+  const comment = doc(collection(db, 'operationLogs', id, 'events'));
+  await assertSucceeds(setDoc(comment, {id: comment.id, operationLogId: id, organizationId, commandId: organizationId,
+    type: 'manualNote', status: 'enRoute', title: 'Tagantjärele täiendus', text: 'Tagantjärele täiendus', description: '',
+    occurredAt: new Date('2026-01-01T10:00:00Z'), createdBy: orgAdminId, createdAt: serverTimestamp()}));
+  await testEnv.withSecurityRulesDisabled(async ctx => {
+    await updateDoc(doc(ctx.firestore(), 'memberships', `${activeMemberId}_${organizationId}`), {seaRescueLevel: 'level2'});
+  });
+  const leaderDb = testEnv.authenticatedContext(activeMemberId).firestore();
+  const leaderBatch = writeBatch(leaderDb), leaderEvent = doc(collection(leaderDb, 'operationLogs', id, 'events'));
+  leaderBatch.update(doc(leaderDb, 'operationLogs', id), {summary: 'Meeskonnavanema täiendus', outcome: '',
+    completedBy: activeMemberId, completedAt: serverTimestamp(), updatedAt: serverTimestamp()});
+  leaderBatch.set(leaderEvent, {id: leaderEvent.id, operationLogId: id, organizationId, commandId: organizationId,
+    type: 'summarySaved', status: 'enRoute', title: 'Lõppkokkuvõte salvestatud', description: '',
+    summarySnapshot: 'Meeskonnavanema täiendus', createdBy: activeMemberId, createdAt: serverTimestamp()});
+  await assertSucceeds(leaderBatch.commit());
+});
+
+test('closed-callout summary exception rejects active callouts, cross-org links and unauthorized members', async () => {
+  for (const [name, status, org, user] of [
+    ['active', 'active', organizationId, orgAdminId],
+    ['cross-org', 'closed', otherOrganizationId, orgAdminId],
+    ['member', 'closed', organizationId, activeMemberId],
+    ['outsider', 'closed', organizationId, otherUserId],
+  ]) {
+    const id = `summary-${name}`, calloutId = `callout-${name}`;
+    await seedOperationLog(id, 'open');
+    await testEnv.withSecurityRulesDisabled(async ctx => {
+      await setDoc(doc(ctx.firestore(), 'callouts', calloutId), calloutData(calloutId, {status, organizationId: org, commandId: org}));
+      await updateDoc(doc(ctx.firestore(), 'operationLogs', id), {calloutId});
+    });
+    const db = testEnv.authenticatedContext(user).firestore();
+    await assertFails(updateDoc(doc(db, 'operationLogs', id), {summary: 'Forbidden', outcome: '',
+      completedBy: user, completedAt: serverTimestamp(), updatedAt: serverTimestamp()}));
+  }
+});
+
 test('TROSS activation succeeds with one unqualified admin and no responders; SAR legacy stays valid', async () => {
   const org = 'single-member-org';
   await testEnv.withSecurityRulesDisabled(async context => {
@@ -996,4 +1136,29 @@ test('II-level member can register a live status event with general member log p
  batch.update(doc(db,'operationLogs/live-leader'),{status:'enRoute',updatedAt:serverTimestamp()});
  batch.set(doc(db,'operationLogs/live-leader/events/departure'),{id:'departure',operationLogId:'live-leader',organizationId,commandId:organizationId,type:'statusChange',status:'enRoute',title:'Teel',description:'',createdBy:activeMemberId,createdAt:serverTimestamp()});
  await assertSucceeds(batch.commit());
+});
+
+
+test('new organization profile is atomic with pending creator and restricted from unrelated users',async()=>{
+ const client=testEnv.authenticatedContext(activeMemberId).firestore(), org='new-profile-org',batch=writeBatch(client);
+ batch.set(doc(client,'commands',org),{name:'Uus ühing',joinCode:'ABCD12',createdBy:activeMemberId,status:'pending',allowMembersToCreateActivities:false,allowMembersToViewStatistics:false,allowMembersToStartOperationLog:false,createdAt:serverTimestamp(),isOnDuty:false});
+ batch.set(doc(client,'memberships',`${activeMemberId}_${org}`),{userId:activeMemberId,organizationId:org,commandId:org,role:'orgAdmin',seaRescueLevel:'none',status:'pending',isActive:false,joinedAt:serverTimestamp()});
+ const profile={organizationId:org,createdBy:activeMemberId,createdAt:serverTimestamp(),registrationCode:'',organizationType:'MTÜ',region:'',address:'',contactName:'Kontakt',contactPhone:'',contactEmail:'contact@example.test',organizationEmail:'',description:'',logoUrl:''};
+ batch.set(doc(client,'organizationProfiles',org),profile);
+ await assertSucceeds(batch.commit());
+ await assertSucceeds(getDoc(doc(client,'organizationProfiles',org)));
+ await assertFails(getDoc(doc(testEnv.authenticatedContext(otherUserId).firestore(),'organizationProfiles',org)));
+ await assertFails(updateDoc(doc(client,'organizationProfiles',org),{createdBy:otherUserId}));
+});
+
+test('ordinary member response cannot grant operational editing even with legacy permission enabled',async()=>{
+ const db=serverDb();await db.doc(`commands/${organizationId}`).update({allowMembersToStartOperationLog:true});
+ await db.doc('callouts/scoped-response').set({organizationId,commandId:organizationId,status:'active'});
+ await db.doc('calloutResponses/scoped-response_active-member').set({organizationId,commandId:organizationId,calloutId:'scoped-response',userId:activeMemberId,response:'responding'});
+ const admin=testEnv.authenticatedContext(orgAdminId).firestore();
+ await assertSucceeds(getDocs(query(collection(admin,'calloutResponses'),and(where('calloutId','==','scoped-response'),or(where('organizationId','==',organizationId),where('commandId','==',organizationId))))));
+ const member=testEnv.authenticatedContext(activeMemberId).firestore();
+ await assertFails(updateDoc(doc(member,'callouts/scoped-response'),{status:'closed',updatedAt:serverTimestamp()}));
+ await seedOperationLog('legacy-setting-log','onScene');
+ await assertFails(updateDoc(doc(member,'operationLogs/legacy-setting-log'),{status:'returning',updatedAt:serverTimestamp()}));
 });

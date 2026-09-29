@@ -1,3 +1,6 @@
+import 'package:cloud_functions/cloud_functions.dart';
+import '../widgets/organization_create_dialog.dart';
+import '../widgets/organization_duty_control.dart';
 import '../widgets/home_absence_preview.dart';
 import '../widgets/minimum_crew_dialog.dart';
 import '../widgets/member_permission_settings.dart';
@@ -38,7 +41,7 @@ import 'member_home_dashboard.dart';
 import 'menu_screen.dart';
 import 'notifications_screen.dart';
 import 'operation_log_screen.dart';
-import 'platform_pending_organizations_screen.dart';
+import 'platform_management_screen.dart';
 import 'platform_readiness_screen.dart';
 import 'statistics_screen.dart';
 
@@ -67,13 +70,13 @@ class _HomePermissions {
   bool get canManageOrganization => isOrganizationAdmin;
   bool get canManageMembers => canManageOrganization;
   bool get canManageOrganizationEquipment =>
-      isPlatformAdmin || isOrganizationAdmin;
+      isOrganizationAdmin;
   bool get canManageOrganizationSettings =>
-      isPlatformAdmin || isOrganizationAdmin;
-  bool get canCreateCallout => canManageOrganization;
+      isOrganizationAdmin;
+  bool get canCreateCallout => canManageOrganization || allowMembersToStartOperationLog;
   bool get canManageCertificates => canManageOrganization;
   bool get canViewOrganizationReadiness =>
-      isPlatformAdmin || isOrganizationAdmin;
+      isOrganizationAdmin;
   bool get canManageNotifications => canManageOrganization;
   bool get canCreateActivity =>
       canManageOrganization || allowMembersToCreateActivities;
@@ -81,7 +84,7 @@ class _HomePermissions {
       canManageOrganization || allowMembersToViewStatistics;
   bool get canStartOperationLog =>
       canManageOrganization || allowMembersToStartOperationLog;
-  bool get canCloseCallout => isPlatformAdmin || isOrganizationAdmin;
+  bool get canCloseCallout => canStartOperationLog;
 }
 
 class _HomeScreenState extends State<HomeScreen> {
@@ -321,59 +324,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _showCreateCommandDialog() async {
-    final nameController = TextEditingController();
-
-    final commandName = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Uus ühing'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Uus ühing saadetakse platvormi haldurile kinnitamiseks. '
-              'Ühingut saab kasutada pärast kinnitamist.',
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'Ühingu nimi',
-                hintText: 'nt Purtse',
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, null),
-            child: const Text('Katkesta'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, nameController.text),
-            child: const Text('Loo'),
-          ),
-        ],
-      ),
-    );
-
-    if (commandName == null || commandName.trim().isEmpty) return;
-
-    try {
-      await _commandService.createCommand(name: commandName.trim());
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ühing loodud ja saadetud kinnitamisele.')),
-      );
-    } catch (_) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ühingu loomine ebaõnnestus.')),
-      );
-    }
+    final created = await showDialog<bool>(context: context, builder: (_) => const OrganizationCreateDialog());
+    if (created == true && mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ühingu taotlus saadetud kinnitamisele.')));
   }
 
   Future<void> _showSwitchOrganizationDialog({
@@ -381,6 +333,14 @@ class _HomeScreenState extends State<HomeScreen> {
     required String? currentActiveCommandId,
   }) async {
     final items = <Map<String, String>>[];
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      final profile = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      if (PlatformRole.isPlatformAdmin(profile.data()?['systemRole'])) {
+        items.add({'commandId':'__platform_context__','commandName':'RespondCrew haldus','available':'yes','status':'Platvormihaldus'});
+      }
+    }
+
 
     for (final membershipDoc in membershipDocs) {
       final membership = membershipDoc.data();
@@ -453,6 +413,11 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     if (selectedCommandId == null || selectedCommandId.isEmpty) return;
+    if (selectedCommandId == '__platform_context__') {
+      if (mounted) await Navigator.of(context, rootNavigator: true).push(MaterialPageRoute<void>(builder: (_) => const PlatformManagementScreen()));
+      return;
+    }
+
 
     try {
       await _setActiveCommand(selectedCommandId);
@@ -505,10 +470,10 @@ class _HomeScreenState extends State<HomeScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Lahkusid ühingust')),
       );
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ühingust lahkumine ebaõnnestus.')),
+        SnackBar(content: Text(error is FirebaseFunctionsException ? error.message ?? 'Ühingust lahkumine ebaõnnestus.' : 'Ühingust lahkumine ebaõnnestus.')),
       );
     }
   }
@@ -759,9 +724,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 _pushPage(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => const PlatformPendingOrganizationsScreen(
-                      isPlatformAdmin: true,
-                    ),
+                    builder: (_) => const PlatformManagementScreen(),
                   ),
                 );
               },
@@ -912,20 +875,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           allowMembersToStartOperationLog,
                     ),
                   ),
-                  SwitchListTile(
-                    title: const Text(
-                      'Liikmed võivad alustada operatsioonilogi',
-                    ),
-                    value: allowMembersToStartOperationLog,
-                    onChanged: (value) => _updateMemberPermissions(
-                      organizationId: commandId,
-                      allowMembersToCreateActivities:
-                          allowMembersToCreateActivities,
-                      allowMembersToViewStatistics:
-                          allowMembersToViewStatistics,
-                      allowMembersToStartOperationLog: value,
-                    ),
-                  ),
+
                 ],
               ),
             ),
@@ -963,9 +913,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 _pushPage(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => const PlatformPendingOrganizationsScreen(
-                      isPlatformAdmin: true,
-                    ),
+                    builder: (_) => const PlatformManagementScreen(),
                   ),
                 );
               },
@@ -1201,6 +1149,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         if (permissions.canManageOrganizationSettings && hasOrganization) ...[
+          OrganizationDutyControl(key: ValueKey(organizationId), organizationId: organizationId),
           Card(child: ListTile(
             leading: const Icon(Icons.description_outlined),
             title: const Text('Ühingu load ja tunnistused'),
@@ -1428,7 +1377,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         final minimumCrewRequired =
                             summary?.minimumCrewRequired ?? 0;
                         final readiness = ResponseReadiness.evaluate(
-                          minimumCrewRequired: minimumCrewRequired,
+                          organizationPaused: summary?.dutyPaused ?? false,                          minimumCrewRequired: minimumCrewRequired,
                           onDutyCount: onDutyCount,
                           secondLevelOnDutyCount:
                               effectiveOnDutySecondLevelCount,
@@ -1804,7 +1753,7 @@ class _HomeScreenState extends State<HomeScreen> {
             final isOrganizationAdmin =
                 MembershipRole.isOrgAdmin(myMembershipRole);
             final canSeeJoinCode =
-                isPlatformAdmin || isOrganizationAdmin;
+                isOrganizationAdmin;
 
             if (activeCommandId == null || activeCommandId.isEmpty) {
               final hasPendingMembership =
@@ -1896,13 +1845,13 @@ class _HomeScreenState extends State<HomeScreen> {
                         .trim()
                         .toLowerCase();
                 final organizationIsBlocked =
-                    commandStatus == 'pending' || commandStatus == 'rejected';
+                    commandStatus == 'pending' || commandStatus == 'rejected' || commandStatus == 'suspended';
                 final allowMembersToCreateActivities =
                     commandData?['allowMembersToCreateActivities'] == true;
                 final allowMembersToViewStatistics =
                     commandData?['allowMembersToViewStatistics'] == true;
                 final allowMembersToStartOperationLog =
-                    commandData?['allowMembersToStartOperationLog'] == true || SeaRescueLevel.isLevel2(mySeaRescueLevel);
+                    SeaRescueLevel.isLevel2(mySeaRescueLevel);
 
                 final permissions = _HomePermissions(
                   isPlatformAdmin: isPlatformAdmin,
@@ -1949,7 +1898,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 final homeContent = Scaffold(
                   appBar: AppBar(
                     title: HomeOrganizationTitle(name: commandName ?? 'Ühing',
-                      onSwitch: organizationCount > 1 ? () => _showSwitchOrganizationDialog(
+                      onSwitch: organizationCount > 1 || isPlatformAdmin ? () => _showSwitchOrganizationDialog(
                         membershipDocs: visibleMembershipDocs, currentActiveCommandId: selectedOrganizationId) : null),
                     actions: [IconButton(tooltip: 'Teavitused', icon: const Icon(Icons.notifications_outlined), onPressed: openNotifications),
                     ..._buildAppBarActions(
@@ -2048,6 +1997,12 @@ class _HomeScreenState extends State<HomeScreen> {
                           },
                         )
                       : MemberHomeDashboard(
+                          onCreateCallout: permissions.canCreateCallout ? () => _pushPage(context, MaterialPageRoute<void>(builder: (_) => CalloutsScreen(
+                            organizationId: selectedOrganizationId, currentUid: user.uid, currentUserName: displayName,
+                            canManageCallouts: permissions.canCreateCallout, canCloseCallouts: permissions.canCloseCallout,
+                            canStartOperationLog: permissions.canStartOperationLog, openCreateOnLoad: true))) : null,
+                          onCreateActivity: permissions.canCreateActivity ? () => _pushPage(context, MaterialPageRoute<void>(builder: (_) => ActivitiesScreen(
+                            organizationId: selectedOrganizationId, currentUid: user.uid, canManageActivities: true, openCreateOnLoad: true))) : null,
                           organizationId: selectedOrganizationId,
                           currentUid: user.uid,
                           topHeader: _buildCompactOperationalHeader(
