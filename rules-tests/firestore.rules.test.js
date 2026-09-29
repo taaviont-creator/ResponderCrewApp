@@ -1288,3 +1288,19 @@ test('Storage denies direct reads, writes and listing even to an organization ad
   await assertFails(listAll(ref(storage,'calloutAttachments')));
  }
 });
+
+
+test('attachment maximum size works and concurrent uploads cannot exceed the event limit',async()=>{
+ const {createAttachmentHandlers,MAX_BYTES}=require('../functions/callout-attachments');const db=serverDb();
+ await db.doc('callouts/attachment-capacity').set({organizationId,commandId:organizationId,status:'closed'});
+ let writes=0;
+ const bucket={file:()=>({save:async bytes=>{writes++;assert.equal(bytes.length,MAX_BYTES);}})};
+ const handlers=createAttachmentHandlers({db,bucket,timestamp:()=>new Date()});
+ const batch=db.batch();for(let i=0;i<29;i++)batch.set(db.doc(`calloutAttachments/old-${i}`),{organizationId,calloutId:'attachment-capacity',status:'ready'});await batch.commit();
+ const data={organizationId,calloutId:'attachment-capacity',name:'large.txt',base64:Buffer.alloc(MAX_BYTES,65).toString('base64')};
+ const results=await Promise.allSettled(['one','two'].map(requestId=>handlers.upload({auth:{uid:orgAdminId},data:{...data,requestId}})));
+ assert.equal(results.filter(r=>r.status==='fulfilled').length,1);
+ assert.equal(results.find(r=>r.status==='rejected').reason.code,'resource-exhausted');
+ assert.equal(writes,1);assert.equal((await db.collection('calloutAttachments').where('calloutId','==',data.calloutId).get()).size,30);
+ await assert.rejects(handlers.upload({auth:{uid:orgAdminId},data:{...data,requestId:'bad',base64:'****'}}),e=>e.code==='invalid-argument');
+});

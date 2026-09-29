@@ -9,7 +9,7 @@
 - Alarm võtab enne FCM-i saatmist serveris ühekordse saatmisluku. Korduv Firestore'i sündmus ei saada sama alarmi uuesti. Ebamäärase saatmisvea korral säilib `unknown`, mitte eksitav edukuse märge. FCM ei võimalda garanteerida täpselt ühte kättetoimetamist: katkestus pärast lukku võib jätta alarmi saatmata. Sündmus on äpis eraldi olemas; telefoni kättesaamine vajab seadmekatset.
 
 ## Kontroll
-Kohalikud testid: 86 Flutteri, 49 Functions'i ning 70 Firestore'i/Storage'i ja serveri integratsioonitesti. PDF-i kuueleheküljelist eestikeelset näidist kontrolliti teksti ja pildina; privaatandmed ning valimata tehnika puuduvad tavalisest ekspordist. CI kontrollib Androidi APK-d ja iPhone/iPadi simulaatori ehitust.
+Kohalikud testid: 86 Flutteri, 49 Functions'i ning 71 Firestore'i/Storage'i ja serveri integratsioonitesti. PDF-i kuueleheküljelist eestikeelset näidist kontrolliti teksti ja pildina; privaatandmed ning valimata tehnika puuduvad tavalisest ekspordist. CI kontrollib Androidi APK-d ja iPhone/iPadi simulaatori ehitust.
 
 ## Teadlikud piirid
 - PDF sisaldab PPA referentsvormi sisulisi andmeid RespondCrew kujunduses; see ei ole PPA ametliku plangi visuaalne koopia.

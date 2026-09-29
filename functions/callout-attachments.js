@@ -17,10 +17,10 @@ function createAttachmentHandlers({db,bucket,timestamp}) {
   upload:async request=>{
    const actor=await authorize(db,request),d=request.data;
    if(!validId(d.requestId) || typeof d.name!=='string' || !d.name.trim() || d.name.length>160 || /[\\/\x00-\x1f]/.test(d.name) ||
-      typeof d.base64!=='string' || d.base64.length>Math.ceil(MAX_BYTES/3)*4 || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(d.base64))throw new HttpsError('invalid-argument','Kontrolli faili nime ja suurust (kuni 8 MB).');
+      typeof d.base64!=='string' || d.base64.length>Math.ceil(MAX_BYTES/3)*4 || d.base64.length%4!==0)throw new HttpsError('invalid-argument','Kontrolli faili nime ja suurust (kuni 8 MB).');
    const contentType=types[d.name.split('.').pop().toLowerCase()];
    const bytes=Buffer.from(d.base64,'base64');
-   if(!contentType || !bytes.length || bytes.length>MAX_BYTES)throw new HttpsError('invalid-argument','Lubatud on foto, PDF, DOCX, tekst ja lühivideo, kuni 8 MB.');
+   if(!contentType || !bytes.length || bytes.length>MAX_BYTES || bytes.toString('base64')!==d.base64)throw new HttpsError('invalid-argument','Lubatud on foto, PDF, DOCX, tekst ja lühivideo, kuni 8 MB.');
    const attachmentId=createHash('sha256').update(`${request.auth.uid}:${d.calloutId}:${d.requestId}`).digest('hex');
    const ref=db.doc(`calloutAttachments/${attachmentId}`),hash=createHash('sha256').update(bytes).digest('hex');
    const storagePath=`calloutAttachments/${actor.org}/${d.calloutId}/${attachmentId}`;
@@ -32,6 +32,8 @@ function createAttachmentHandlers({db,bucket,timestamp}) {
     if(old){if(old.sha256!==hash || old.name!==d.name || old.createdBy!==request.auth.uid)throw new HttpsError('already-exists','Faili tunnus on juba kasutusel.');return;}
     const all=await tx.get(db.collection('calloutAttachments').where('calloutId','==',d.calloutId));
     if(all.size>=30)throw new HttpsError('resource-exhausted','Sündmusele saab lisada kuni 30 manust.');
+    // Serialize the per-event capacity check, including an initially empty list.
+    tx.update(db.doc(`callouts/${d.calloutId}`),{attachmentRevision:attachmentId});
     tx.create(ref,{organizationId:actor.org,calloutId:d.calloutId,name:d.name,contentType,size:bytes.length,storagePath,sha256:hash,status:'uploading',createdBy:request.auth.uid,createdAt:timestamp()});
    });
    const file=bucket.file(storagePath);
