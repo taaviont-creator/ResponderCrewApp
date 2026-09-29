@@ -49,14 +49,14 @@ void main() {
       unavailable.add({});
       await tester.pump();
       await tester.pump();
-      expect(find.text('SAR: reageerimisvalmis'), findsOneWidget);
+      expect(find.text('REAGEERIMISVALMIS'), findsOneWidget);
       expect(find.text('Mari'), findsOneWidget);
       expect(find.byType(Switch), findsNothing);
       unavailable.add({'rescuer'});
       await tester.pump();
       await tester.pump();
       expect(find.text('Mari'), findsNothing);
-      expect(find.text('SAR: reageerimisvalmis'), findsNothing);
+      expect(find.text('REAGEERIMISVALMIS'), findsNothing);
       unavailable.addError(StateError('network'));
       organization.add({
         'dutyPaused': true,
@@ -73,7 +73,7 @@ void main() {
       unavailable.add({});
       await tester.pump();
       await tester.pump();
-      expect(find.text('SAR: reageerimisvalmis'), findsOneWidget);
+      expect(find.text('REAGEERIMISVALMIS'), findsOneWidget);
       await tester.pumpWidget(const SizedBox());
       unawaited(organization.close());
       unawaited(unavailable.close());
@@ -114,7 +114,7 @@ void main() {
     expect(find.text('Vana ühing'), findsOneWidget);
     await show('new');
     expect(find.text('Vana ühing'), findsNothing);
-    expect(find.text('Ühingu valmidus'), findsOneWidget);
+    expect(find.text('Ühingu reageerimisvalmidus'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
 }

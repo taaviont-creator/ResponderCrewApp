@@ -842,6 +842,26 @@ service cloud.firestore {
         request.resource.data.createdBy == resource.data.createdBy;
     }
 
+    // Editing changes only schedule content; identity, owner, status and audit
+    // metadata cannot be rewritten, nor can cancelled plans be reactivated.
+    function isOwnActivePlanEdit(documentId, recurring) {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return signedIn() &&
+        resource.data.userId == request.auth.uid &&
+        resource.data.id == documentId &&
+        resource.data.status == 'active' &&
+        isActiveMember(organizationIdFromData(resource.data)) &&
+        request.resource.data.updatedAt == request.time &&
+        request.resource.data.note.size() <= 2000 &&
+        (recurring
+          ? changed.hasOnly(['daysOfWeek', 'startTime', 'endTime', 'startMinute', 'endMinute', 'note', 'updatedAt']) &&
+            isValidPlannedUnavailabilityRuleBaseData(request.resource.data) &&
+            int(request.resource.data.startTime.split(':')[0]) * 60 + int(request.resource.data.startTime.split(':')[1]) == request.resource.data.startMinute &&
+            int(request.resource.data.endTime.split(':')[0]) * 60 + int(request.resource.data.endTime.split(':')[1]) == request.resource.data.endMinute
+          : changed.hasOnly(['startAt', 'endAt', 'note', 'updatedAt']) &&
+            isValidPlannedUnavailabilityBaseData(request.resource.data));
+    }
+
     function isOwnPlannedUnavailabilityCancel(periodId) {
       let organizationId = organizationIdFromData(resource.data);
       return signedIn() &&
@@ -2638,13 +2658,13 @@ service cloud.firestore {
     match /plannedUnavailability/{periodId} {
       allow read: if canReadPlannedUnavailability(resource.data);
       allow create: if isOwnPlannedUnavailabilityCreate(periodId);
-      allow update: if isOwnPlannedUnavailabilityCancel(periodId);
+      allow update: if isOwnPlannedUnavailabilityCancel(periodId) || isOwnActivePlanEdit(periodId, false);
     }
 
     match /plannedUnavailabilityRules/{ruleId} {
       allow read: if canReadPlannedUnavailabilityRule(resource.data);
       allow create: if isOwnPlannedUnavailabilityRuleCreate(ruleId);
-      allow update: if isOwnPlannedUnavailabilityRuleCancel(ruleId);
+      allow update: if isOwnPlannedUnavailabilityRuleCancel(ruleId) || isOwnActivePlanEdit(ruleId, true);
     }
 
     match /availabilityReminderSettings/{settingId} {

@@ -77,10 +77,10 @@ class _OrganizationPlanningState extends State<OrganizationPlanning> {
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       Text(
-        'Liikmete planeeritud mittevalved',
+        'Ühingu planeeritud mittevalved',
         style: Theme.of(context).textTheme.titleMedium,
       ),
-      const Text('Ajad Eesti aja järgi. Isiklikke märkusi ei jagata.'),
+      const Text('Kõigi liikmete ajad Eesti aja järgi. Enda planeeringuid halda Valmisoleku lehel. Isiklikke märkusi ei jagata.'),
       CheckboxListTile(
         contentPadding: EdgeInsets.zero,
         title: const Text('Näita tühistatud'),

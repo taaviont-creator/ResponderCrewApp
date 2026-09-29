@@ -15,6 +15,7 @@ class MemberHomeDashboard extends StatefulWidget {
     required this.currentUserName,
     required this.topHeader,
     required this.onOpenCallouts,
+    required this.onOpenReadiness,
     required this.onOpenCallout,
     required this.onOpenMembers,
     required this.onOpenNotifications,
@@ -28,6 +29,7 @@ class MemberHomeDashboard extends StatefulWidget {
   final String currentUserName;
   final Widget topHeader;
   final VoidCallback onOpenCallouts;
+  final VoidCallback onOpenReadiness;
   final ValueChanged<String> onOpenCallout;
   final VoidCallback onOpenMembers;
   final VoidCallback onOpenNotifications;
@@ -56,7 +58,7 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
               onPressed: widget.onCreateCallout, icon: const Icon(Icons.campaign), label: const Text('Loo väljakutse')),
             if (widget.onCreateActivity != null) OutlinedButton.icon(onPressed: widget.onCreateActivity, icon: const Icon(Icons.event_available), label: const Text('Lisa tegevus / koolitus')),
           ])),
-        CrewReadinessCard(compact: true, organizationId: widget.organizationId, currentUid: widget.currentUid),
+        CrewReadinessCard( onOpenDetails: widget.onOpenReadiness, organizationId: widget.organizationId, currentUid: widget.currentUid),
         const SizedBox(height: 16),
 
         VesselStatusCard(organizationId: widget.organizationId),

@@ -1,3 +1,4 @@
+import 'organization_readiness_screen.dart';
 import '../widgets/platform_pending_badge.dart';
 import '../models/information_notification_open.dart';
 import 'package:cloud_functions/cloud_functions.dart';
@@ -1880,6 +1881,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   body: permissions.canManageOrganization
                       ? AdminHomeDashboard(
+                          onOpenReadiness: () => setState(() => _selectedNavigationIndex = 3),
                           organizationId: selectedOrganizationId,
                           currentUid: user.uid,
                           currentUserName: displayName,
@@ -1969,6 +1971,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           },
                         )
                       : MemberHomeDashboard(
+                          onOpenReadiness: () => setState(() => _selectedNavigationIndex = 3),
                           onCreateCallout: permissions.canCreateCallout ? () => _pushPage(context, MaterialPageRoute<void>(builder: (_) => CalloutsScreen(
                             organizationId: selectedOrganizationId, currentUid: user.uid, currentUserName: displayName,
                             canManageCallouts: permissions.canCreateCallout, canCloseCallouts: permissions.canCloseCallout,
@@ -2033,17 +2036,15 @@ class _HomeScreenState extends State<HomeScreen> {
                       setState(() => _pendingCalloutId = null);
                     },
                   ),
-                  for (final organizationView in [false, true])
-                    AvailabilityScreen(
-                      key: ValueKey(organizationView),
+                  AvailabilityScreen(
                       organizationId: selectedOrganizationId,
                       organizationName: commandName,
                       membershipRole: myMembershipRole,
                       currentUid: user.uid,
                       currentUserName: displayName,
                       canViewOrganizationReadiness: permissions.canViewOrganizationReadiness,
-                      organizationView: organizationView,
                     ),
+                  OrganizationReadinessScreen(organizationId: selectedOrganizationId, organizationName: commandName, membershipRole: myMembershipRole, currentUid: user.uid),
                   MenuScreen(
                     onOpenNotifications: openNotifications,
                     organizationId: selectedOrganizationId,

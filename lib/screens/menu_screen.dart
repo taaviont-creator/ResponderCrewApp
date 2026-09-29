@@ -10,7 +10,6 @@ import 'equipment_screen.dart';
 import 'members_screen.dart';
 import 'operation_log_screen.dart';
 import 'platform_management_screen.dart';
-import 'platform_readiness_screen.dart';
 import 'self_profile_screen.dart';
 import 'statistics_screen.dart';
 
@@ -53,8 +52,7 @@ class MenuScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final canOpenReadinessOverview =
-        isOrganizationAdmin;
+
     final canManageEquipment = isOrganizationAdmin;
 
     return Scaffold(
@@ -186,22 +184,7 @@ class MenuScreen extends StatelessWidget {
               onTap: () => Navigator.of(context, rootNavigator: true).push(
                 MaterialPageRoute<void>(builder: (_) => const PlatformManagementScreen())),
             ),
-          if (canOpenReadinessOverview)
-            _MenuEntry(
-              icon: Icons.health_and_safety_outlined,
-              title: 'Ühingu valmiduse seaded',
-              subtitle: 'Miinimumkoosseis ja varustuse info',
-              onTap: () => _open(
-                context,
-                PlatformReadinessScreen(
-                  currentUid: currentUid,
-                  activeOrganizationId: organizationId,
-                  activeOrganizationName: organizationName,
-                  canManageOwnSummary: isOrganizationAdmin,
-                  isPlatformAdmin: isPlatformAdmin,
-                ),
-              ),
-            ),
+
         ],
       ),
     );

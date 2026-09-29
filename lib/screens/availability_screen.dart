@@ -1,13 +1,8 @@
 import 'dart:async';
-import '../widgets/organization_planning.dart';
-import '../widgets/organization_duty_control.dart';
-import '../widgets/minimum_crew_control.dart';
-import '../widgets/crew_readiness_card.dart';
 import 'package:flutter/material.dart';
 
 import '../models/availability_model.dart';
 import '../models/effective_availability.dart';
-import '../models/membership_model.dart';
 import '../models/availability_reminder_settings_model.dart';
 import '../models/planned_unavailability_model.dart';
 import '../models/planned_unavailability_rule_model.dart';
@@ -28,11 +23,9 @@ class AvailabilityScreen extends StatefulWidget {
     this.organizationName,
     this.membershipRole,
     this.openPlanningOnStart = false,
-    this.organizationView = false,
   });
 
   final bool openPlanningOnStart;
-  final bool organizationView;
   final String organizationId;
   final String? organizationName;
   final String? membershipRole;
@@ -61,7 +54,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     // Time boundaries do not create Firestore writes. Refresh the personal
     // preview even when this page stays open without user interaction.
     _clock = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (mounted && !widget.organizationView) setState(() {});
+      if (mounted) setState(() {});
     });
     if (widget.openPlanningOnStart) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -105,32 +98,25 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(widget.organizationView ? 'Ühingu valmidus' : 'Valmisolek')),
-    body: ListView(padding: const EdgeInsets.all(AppTheme.screenPadding), children: [
-      if (widget.organizationView) ...[
-        CrewReadinessCard(organizationId: widget.organizationId, currentUid: widget.currentUid, showOffDuty: true),
-        if (MembershipRole.isOrgAdmin(widget.membershipRole)) ...[
-          const SizedBox(height: 12),
-          ExpansionTile(title: const Text('Halda ühingu valmidust'), leading: const Icon(Icons.admin_panel_settings_outlined), children: [
-            MinimumCrewControl(key: ValueKey(widget.organizationId), organizationId: widget.organizationId,
-              organizationName: widget.organizationName, currentUid: widget.currentUid),
-            OrganizationDutyControl(key: ValueKey(widget.organizationId), organizationId: widget.organizationId),
-          ]),
-        ],
-        const SizedBox(height: 16),
-        OrganizationPlanning(key: ValueKey(widget.organizationId), organizationId: widget.organizationId),
-      ] else ...[
+    appBar: AppBar(title: const Text('Valmisolek')),
+    body: ListView(
+      padding: const EdgeInsets.all(AppTheme.screenPadding),
+      children: [
         _buildAvailabilityControl(),
         const SizedBox(height: 16),
-        CheckboxListTile(contentPadding: EdgeInsets.zero, title: const Text('Näita tühistatud mittevalveid'),
-          value: _showCancelled, onChanged: (value) => setState(() => _showCancelled = value == true)),
+        CheckboxListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Näita tühistatud mittevalveid'),
+          value: _showCancelled,
+          onChanged: (value) => setState(() => _showCancelled = value == true),
+        ),
         _buildPlannedUnavailabilitySection(),
         const SizedBox(height: 12),
         _buildRecurringPlannedUnavailabilitySection(),
         const SizedBox(height: 12),
         _buildAvailabilityReminderSettings(),
       ],
-    ]),
+    ),
   );
 
   Future<void> _updateAvailabilityRespectingSchedule(
@@ -182,8 +168,9 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
         final availability = snapshot.data;
         final status = availability?.status ?? AvailabilityStatus.offDuty;
         final storedMinutes = availability?.responseMinutes ?? 15;
-        final responseMinutes =
-            const {15, 30, 60}.contains(storedMinutes) ? storedMinutes : 15;
+        final responseMinutes = const {15, 30, 60}.contains(storedMinutes)
+            ? storedMinutes
+            : 15;
         final note = availability?.note ?? '';
 
         return AppSectionCard(
@@ -202,8 +189,8 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                     Text(
                       'Uuendatud ${_formatClock(availability!.updatedAt!)}',
                       style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                 ],
               ),
@@ -219,9 +206,9 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                 onPressed: _isUpdating
                     ? null
                     : () => _updateAvailabilityRespectingSchedule(
-                          AvailabilityStatus.onDuty,
-                          note: note,
-                        ),
+                        AvailabilityStatus.onDuty,
+                        note: note,
+                      ),
               ),
               const SizedBox(height: AppTheme.itemSpacing),
               _StatusActionButton(
@@ -236,10 +223,10 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                 onPressed: _isUpdating
                     ? null
                     : () => _updateAvailabilityRespectingSchedule(
-                          AvailabilityStatus.delayed,
-                          responseMinutes: responseMinutes,
-                          note: note,
-                        ),
+                        AvailabilityStatus.delayed,
+                        responseMinutes: responseMinutes,
+                        note: note,
+                      ),
               ),
               const SizedBox(height: AppTheme.itemSpacing),
               _StatusActionButton(
@@ -252,9 +239,9 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                 onPressed: _isUpdating
                     ? null
                     : () => _updateAvailability(
-                          AvailabilityStatus.offDuty,
-                          note: note,
-                        ),
+                        AvailabilityStatus.offDuty,
+                        note: note,
+                      ),
               ),
               const SizedBox(height: 20),
               Container(
@@ -324,11 +311,11 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                 rulesSnapshot.data ?? const <PlannedUnavailabilityRuleModel>[];
             final hasActiveSchedule =
                 EffectiveAvailability.isPlannedUnavailable(
-              userId: widget.currentUid,
-              periods: periods,
-              rules: rules,
-              now: now,
-            );
+                  userId: widget.currentUid,
+                  periods: periods,
+                  rules: rules,
+                  now: now,
+                );
             final effectiveStatus = EffectiveAvailability.resolve(
               userId: widget.currentUid,
               manualStatus: manualStatus,
@@ -365,7 +352,12 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
         includeCancelled: _showCancelled,
       ),
       builder: (context, snapshot) {
-        final periods = (snapshot.data ?? const <PlannedUnavailabilityModel>[]).where((p) => p.isCancelled || (p.endAt?.isAfter(DateTime.now()) ?? false)).toList();
+        final periods = (snapshot.data ?? const <PlannedUnavailabilityModel>[])
+            .where(
+              (p) =>
+                  p.isCancelled || (p.endAt?.isAfter(DateTime.now()) ?? false),
+            )
+            .toList();
 
         Widget child;
         if (snapshot.connectionState == ConnectionState.waiting &&
@@ -374,9 +366,9 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
         } else if (periods.isEmpty) {
           child = Text(
             'Planeeritud valveväliseid aegu ei ole.',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
           );
         } else {
           child = Column(
@@ -390,7 +382,8 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
         }
 
         return AppSectionCard(
-          title: 'Minu planeeritud valvevälised ajad',
+          title: 'Minu planeeritud mittevalved',
+          subtitle: 'Praegused ja tulevased planeeringud',
           leading: const Icon(Icons.event_busy_outlined),
           trailing: TextButton.icon(
             onPressed: _showAddPlannedUnavailabilityDialog,
@@ -410,8 +403,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
         includeCancelled: _showCancelled,
       ),
       builder: (context, snapshot) {
-        final rules =
-            snapshot.data ?? const <PlannedUnavailabilityRuleModel>[];
+        final rules = snapshot.data ?? const <PlannedUnavailabilityRuleModel>[];
 
         Widget child;
         if (snapshot.connectionState == ConnectionState.waiting &&
@@ -420,9 +412,9 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
         } else if (rules.isEmpty) {
           child = Text(
             'Korduvaid valveväliseid aegu ei ole.',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
           );
         } else {
           child = Column(
@@ -436,7 +428,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
         }
 
         return AppSectionCard(
-          title: 'Minu korduvad valvevälised ajad',
+          title: 'Minu korduvad mittevalved',
           leading: const Icon(Icons.event_repeat_outlined),
           trailing: TextButton.icon(
             onPressed: _showAddRecurringPlannedUnavailabilityDialog,
@@ -449,9 +441,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     );
   }
 
-  Widget _buildPlannedUnavailabilityTile(
-    PlannedUnavailabilityModel period,
-  ) {
+  Widget _buildPlannedUnavailabilityTile(PlannedUnavailabilityModel period) {
     final isCancelling = _cancellingPlannedUnavailabilityId == period.id;
     final note = period.note.trim();
 
@@ -482,8 +472,8 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                       Text(
                         note,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ],
                   ],
@@ -503,6 +493,17 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
           ),
           if (period.isActive) ...[
             const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: isCancelling
+                    ? null
+                    : () =>
+                          _showAddPlannedUnavailabilityDialog(existing: period),
+                icon: const Icon(Icons.edit_outlined),
+                label: const Text('Muuda'),
+              ),
+            ),
             Align(
               alignment: Alignment.centerRight,
               child: TextButton.icon(
@@ -562,8 +563,8 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                       Text(
                         note,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ],
                   ],
@@ -588,6 +589,18 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
               child: TextButton.icon(
                 onPressed: isCancelling
                     ? null
+                    : () => _showAddRecurringPlannedUnavailabilityDialog(
+                        existing: rule,
+                      ),
+                icon: const Icon(Icons.edit_outlined),
+                label: const Text('Muuda'),
+              ),
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: isCancelling
+                    ? null
                     : () => _cancelRecurringPlannedUnavailability(rule),
                 icon: isCancelling
                     ? const SizedBox(
@@ -605,7 +618,9 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     );
   }
 
-  Future<void> _showAddPlannedUnavailabilityDialog() async {
+  Future<void> _showAddPlannedUnavailabilityDialog({
+    PlannedUnavailabilityModel? existing,
+  }) async {
     final organizationId = widget.organizationId.trim();
     if (organizationId.isEmpty) {
       _showSnackBar(
@@ -614,10 +629,10 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
       return;
     }
 
-    var startAt = _defaultPlannedStart();
-    var endAt = startAt.add(const Duration(hours: 2));
+    var startAt = existing?.startAt ?? _defaultPlannedStart();
+    var endAt = existing?.endAt ?? startAt.add(const Duration(hours: 2));
     var isSaving = false;
-    final noteController = TextEditingController();
+    final noteController = TextEditingController(text: existing?.note ?? '');
 
     final route = DialogRoute<void>(
       context: context,
@@ -632,15 +647,29 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
 
               setDialogState(() => isSaving = true);
               try {
-                await _plannedUnavailabilityService.createMyPeriod(
-                  organizationId: organizationId,
-                  startAt: startAt,
-                  endAt: endAt,
-                  note: noteController.text,
-                );
+                if (existing == null) {
+                  await _plannedUnavailabilityService.createMyPeriod(
+                    organizationId: organizationId,
+                    startAt: startAt,
+                    endAt: endAt,
+                    note: noteController.text,
+                  );
+                } else {
+                  await _plannedUnavailabilityService.updateMyPeriod(
+                    periodId: existing.id,
+                    organizationId: organizationId,
+                    startAt: startAt,
+                    endAt: endAt,
+                    note: noteController.text,
+                  );
+                }
                 if (!mounted || !dialogContext.mounted) return;
                 Navigator.of(dialogContext).pop();
-                _showSnackBar('Planeeritud valveväline aeg lisatud.');
+                _showSnackBar(
+                  existing == null
+                      ? 'Planeeritud valveväline aeg lisatud.'
+                      : 'Planeering muudetud.',
+                );
               } catch (e) {
                 if (!mounted || !dialogContext.mounted) return;
                 setDialogState(() => isSaving = false);
@@ -651,7 +680,11 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
             }
 
             return AlertDialog(
-              title: const Text('Lisa planeeritud valveväline aeg'),
+              title: Text(
+                existing == null
+                    ? 'Lisa planeeritud valveväline aeg'
+                    : 'Muuda planeeritud valvevälist aega',
+              ),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -670,9 +703,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                               setDialogState(() {
                                 startAt = selected;
                                 if (!startAt.isBefore(endAt)) {
-                                  endAt = startAt.add(
-                                    const Duration(hours: 2),
-                                  );
+                                  endAt = startAt.add(const Duration(hours: 2));
                                 }
                               });
                             },
@@ -697,8 +728,10 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                       controller: noteController,
                       enabled: !isSaving,
                       maxLines: 2,
+                      maxLength: 2000,
                       decoration: const InputDecoration(
                         labelText: 'Märkus (valikuline)',
+                        counterText: '',
                       ),
                     ),
                   ],
@@ -734,20 +767,28 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     noteController.dispose();
   }
 
-  Future<void> _showAddRecurringPlannedUnavailabilityDialog() async {
+  Future<void> _showAddRecurringPlannedUnavailabilityDialog({
+    PlannedUnavailabilityRuleModel? existing,
+  }) async {
     final organizationId = widget.organizationId.trim();
     if (organizationId.isEmpty) {
       _showSnackBar('Korduvat valvevälist aega ei saanud salvestada.');
       return;
     }
 
-    final selectedDays = <int>{};
-    var startTime = const TimeOfDay(hour: 8, minute: 0);
-    var endTime = const TimeOfDay(hour: 17, minute: 0);
+    final selectedDays = {...?existing?.daysOfWeek};
+    var startTime = TimeOfDay(
+      hour: (existing?.startMinute ?? 480) ~/ 60,
+      minute: (existing?.startMinute ?? 480) % 60,
+    );
+    var endTime = TimeOfDay(
+      hour: (existing?.endMinute ?? 1020) ~/ 60,
+      minute: (existing?.endMinute ?? 1020) % 60,
+    );
     var isSaving = false;
-    final noteController = TextEditingController();
+    final noteController = TextEditingController(text: existing?.note ?? '');
 
-    await showDialog<void>(
+    final route = DialogRoute<void>(
       context: context,
       builder: (dialogContext) {
         return StatefulBuilder(
@@ -767,16 +808,31 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
 
               setDialogState(() => isSaving = true);
               try {
-                await _plannedUnavailabilityService.createMyRule(
-                  organizationId: organizationId,
-                  daysOfWeek: selectedDays.toList(),
-                  startMinute: startMinute,
-                  endMinute: endMinute,
-                  note: noteController.text,
-                );
+                if (existing == null) {
+                  await _plannedUnavailabilityService.createMyRule(
+                    organizationId: organizationId,
+                    daysOfWeek: selectedDays.toList(),
+                    startMinute: startMinute,
+                    endMinute: endMinute,
+                    note: noteController.text,
+                  );
+                } else {
+                  await _plannedUnavailabilityService.updateMyRule(
+                    ruleId: existing.id,
+                    organizationId: organizationId,
+                    daysOfWeek: selectedDays.toList(),
+                    startMinute: startMinute,
+                    endMinute: endMinute,
+                    note: noteController.text,
+                  );
+                }
                 if (!mounted || !dialogContext.mounted) return;
                 Navigator.of(dialogContext).pop();
-                _showSnackBar('Korduv valveväline aeg lisatud.');
+                _showSnackBar(
+                  existing == null
+                      ? 'Korduv valveväline aeg lisatud.'
+                      : 'Korduv planeering muudetud.',
+                );
               } catch (e) {
                 if (!mounted || !dialogContext.mounted) return;
                 setDialogState(() => isSaving = false);
@@ -787,7 +843,11 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
             }
 
             return AlertDialog(
-              title: const Text('Lisa korduv valveväline aeg'),
+              title: Text(
+                existing == null
+                    ? 'Lisa korduv valveväline aeg'
+                    : 'Muuda korduvat valvevälist aega',
+              ),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -851,9 +911,8 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                       controller: noteController,
                       enabled: !isSaving,
                       maxLines: 2,
-                      decoration: const InputDecoration(
-                        labelText: 'Märkus',
-                      ),
+                      maxLength: 2000,
+                      decoration: const InputDecoration(labelText: 'Märkus'),
                     ),
                   ],
                 ),
@@ -883,6 +942,8 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
       },
     );
 
+    await Navigator.of(context).push(route);
+    await route.completed;
     noteController.dispose();
   }
 
@@ -893,7 +954,10 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     final date = await showDatePicker(
       context: dialogContext,
       initialDate: initial,
-      firstDate: DateTime.now().subtract(const Duration(days: 1)),
+      firstDate:
+          initial.isBefore(DateTime.now().subtract(const Duration(days: 1)))
+          ? initial
+          : DateTime.now().subtract(const Duration(days: 1)),
       lastDate: DateTime.now().add(const Duration(days: 730)),
     );
     if (date == null || !dialogContext.mounted) return null;
@@ -904,13 +968,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     );
     if (time == null) return null;
 
-    return DateTime(
-      date.year,
-      date.month,
-      date.day,
-      time.hour,
-      time.minute,
-    );
+    return DateTime(date.year, date.month, date.day, time.hour, time.minute);
   }
 
   Future<TimeOfDay?> _pickTimeOfDay({
@@ -973,10 +1031,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
   Widget _statusBadge(String status) {
     switch (status) {
       case AvailabilityStatus.onDuty:
-        return const StatusBadge(
-          label: 'Valves',
-          type: StatusBadgeType.ready,
-        );
+        return const StatusBadge(label: 'Valves', type: StatusBadgeType.ready);
       case AvailabilityStatus.delayed:
         return const StatusBadge(
           label: 'Hilinemisega',
@@ -997,7 +1052,8 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
         organizationId: widget.organizationId,
       ),
       builder: (context, snapshot) {
-        final settings = snapshot.data ??
+        final settings =
+            snapshot.data ??
             AvailabilityReminderSettingsModel.defaults(
               userId: widget.currentUid,
               organizationId: widget.organizationId,
@@ -1135,9 +1191,9 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
 
   void _showSnackBar(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   List<String> _reminderTimeOptions(String selectedTime) {
@@ -1145,8 +1201,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
       for (var hour = 0; hour < 24; hour++)
         '${hour.toString().padLeft(2, '0')}:00',
       selectedTime,
-    }.toList()
-      ..sort();
+    }.toList()..sort();
     return times;
   }
 
@@ -1187,7 +1242,8 @@ class _StatusActionButton extends StatelessWidget {
           foregroundColor: foregroundColor,
           elevation: selected ? 2 : 0,
           side: BorderSide(
-            color: borderColor ??
+            color:
+                borderColor ??
                 (selected ? foregroundColor : Colors.transparent),
             width: selected ? 2 : 1,
           ),
@@ -1241,8 +1297,9 @@ class _ScheduledStatusPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        hasActiveSchedule ? AppColors.offDuty : AppColors.textSecondary;
+    final color = hasActiveSchedule
+        ? AppColors.offDuty
+        : AppColors.textSecondary;
 
     return Container(
       width: double.infinity,
@@ -1263,31 +1320,33 @@ class _ScheduledStatusPreview extends StatelessWidget {
           Text(
             hasActiveSchedule
                 ? 'Planeeritud valveväline aeg on aktiivne ja sind ei '
-                    'arvestata valves olevate liikmete hulka.'
+                      'arvestata valves olevate liikmete hulka.'
                 : 'Planeeritud valveväline aeg ei ole hetkel aktiivne.',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: color,
-                  fontWeight:
-                      hasActiveSchedule ? FontWeight.w600 : FontWeight.normal,
-                ),
+              color: color,
+              fontWeight: hasActiveSchedule
+                  ? FontWeight.w600
+                  : FontWeight.normal,
+            ),
           ),
           const SizedBox(height: 6),
           Text(
             'Nähtav staatus: $effectiveStatusLabel',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: hasActiveSchedule
-                      ? AppColors.offDuty
-                      : AppColors.textSecondary,
-                  fontWeight:
-                      hasActiveSchedule ? FontWeight.w600 : FontWeight.normal,
-                ),
+              color: hasActiveSchedule
+                  ? AppColors.offDuty
+                  : AppColors.textSecondary,
+              fontWeight: hasActiveSchedule
+                  ? FontWeight.w600
+                  : FontWeight.normal,
+            ),
           ),
           const SizedBox(height: 6),
           Text(
             'Sinu käsitsi valitud staatus säilib.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
           ),
         ],
       ),

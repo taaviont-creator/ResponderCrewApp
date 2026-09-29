@@ -58,11 +58,11 @@ void main() {
       expect(find.text('Menüü').hitTestable(), findsOneWidget);
       await tester.tap(find.text('Open nested'));
       await tester.pumpAndSettle();
-      expect(find.text('Ühingu valmidus').hitTestable(), findsOneWidget);
+      expect(find.text('Ühingu reageerimisvalmidus').hitTestable(), findsOneWidget);
       await tester.pageBack();
       await tester.pumpAndSettle();
       expect(find.text('Detail'), findsOneWidget);
-      await tester.tap(find.text('Ühingu valmidus'));
+      await tester.tap(find.text('Ühingu reageerimisvalmidus'));
       await tester.pumpAndSettle();
       expect(find.text('Page 3'), findsOneWidget);
       expect(find.text('Detail'), findsNothing);
