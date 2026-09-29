@@ -11,6 +11,28 @@ admin.initializeApp();
 const db = admin.firestore();
 const messaging = admin.messaging();
 
+const {defineSecret} = require('firebase-functions/params');
+const {createEmailHandlers, smtpTransport} = require('./transactional-email');
+const smtpPassword = defineSecret('RESPONDCREW_SMTP_PASSWORD');
+const emailHandlers = createEmailHandlers({
+  db, auth: admin.auth(), logger,
+  sendMail: async message => {
+    const transport = smtpTransport(require('nodemailer'), smtpPassword.value());
+    try { return await transport.sendMail(message); }
+    finally { transport.close(); }
+  },
+});
+const emailOptions = {region: 'europe-north1', maxInstances: 2, concurrency: 1,
+  timeoutSeconds: 120, memory: '256MiB', retry: true, secrets: [smtpPassword]};
+exports.sendOrganizationInviteEmail = onDocumentCreated(
+  {...emailOptions, document: 'organizationInvites/{inviteId}'},
+  emailHandlers.sendOrganizationInviteEmail,
+);
+exports.sendOrganizationApplicationEmail = onDocumentCreated(
+  {...emailOptions, document: 'commands/{organizationId}'},
+  emailHandlers.sendOrganizationApplicationEmail,
+);
+
 exports.getOrganizationMemberContact = onCall(
   {region: 'europe-north1', maxInstances: 5, timeoutSeconds: 15},
   createMemberContactHandler({db}),

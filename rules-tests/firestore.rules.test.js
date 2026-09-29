@@ -22,6 +22,7 @@ const {
   serverTimestamp,
   setDoc,
   updateDoc,
+  deleteDoc,
 } = require('firebase/firestore');
 
 const projectId = 'demo-respondcrew';
@@ -408,6 +409,53 @@ test('fake invite cannot bypass join approval', async () => {
   await assertFails(setDoc(doc(firestore, 'memberships', `new-member_${organizationId}`), {
     ...joinRequest(), status: 'active', isActive: true, acceptedInviteId: 'does-not-exist',
   }));
+});
+
+test('email delivery status is server-owned and visible only to this organization admin', async () => {
+  const adminDb = testEnv.authenticatedContext(orgAdminId).firestore();
+  const inviteRef = doc(adminDb, 'organizationInvites', 'email-invite');
+  await assertSucceeds(setDoc(inviteRef, {
+    organizationId, commandId: organizationId, email: 'invitee@example.test', role: 'member',
+    status: 'pending', invitedBy: orgAdminId, createdAt: serverTimestamp(),
+    expiresAt: new Date(Date.now() + 86400000), acceptedBy: null, acceptedAt: null,
+  }));
+  const deliveryPath = 'organizationInvites/email-invite/emailDelivery/status';
+  await assertSucceeds(getDoc(doc(adminDb, deliveryPath))); // Absent status must also be readable.
+  await assertFails(setDoc(doc(adminDb, deliveryPath), {status: 'accepted'}));
+  const backend = serverDb();
+  await backend.doc(deliveryPath).set({status: 'accepted'});
+  await backend.doc('users/platform-only').set({systemRole: 'platformAdmin'});
+  await assertSucceeds(getDoc(doc(adminDb, deliveryPath)));
+  for (const uid of [activeMemberId, otherUserId, 'platform-only', 'invitee']) {
+    const client = testEnv.authenticatedContext(uid, {email: 'invitee@example.test'}).firestore();
+    await assertFails(getDoc(doc(client, deliveryPath)));
+    await assertFails(setDoc(doc(client, deliveryPath), {status: 'sending'}));
+  }
+  await assertFails(getDoc(doc(testEnv.unauthenticatedContext().firestore(), deliveryPath)));
+  await assertFails(updateDoc(doc(adminDb, deliveryPath), {status: 'failed'}));
+  await assertFails(deleteDoc(doc(adminDb, deliveryPath)));
+  await assertFails(getDocs(collection(adminDb, 'organizationApplicationEmailDeliveries')));
+});
+
+test('mail handler integration keeps invitation usable and writes delivery state only once', async () => {
+  const {createEmailHandlers} = serverRequire('./transactional-email');
+  const backend = serverDb();
+  const ref = backend.doc('organizationInvites/handler-invite');
+  await ref.set({organizationId, commandId: organizationId, email: 'invitee@example.test',
+    role: 'member', status: 'pending', invitedBy: orgAdminId,
+    createdAt: new Date(), expiresAt: new Date(Date.now() + 86400000)});
+  const sent = [];
+  const handler = createEmailHandlers({db: backend, auth: {},
+    logger: {info() {}, error() {}}, sendMail: async message => {
+      sent.push(message); return {accepted: [message.to.address]};
+    },
+  }).sendOrganizationInviteEmail;
+  const event = {params: {inviteId: 'handler-invite'}, data: await ref.get()};
+  await Promise.all([handler(event), handler(event)]);
+  const assert = require('node:assert/strict');
+  assert.equal(sent.length, 1);
+  assert.equal((await ref.get()).data().status, 'pending');
+  assert.equal((await ref.collection('emailDelivery').doc('status').get()).data().status, 'accepted');
 });
 
 test('another user cannot reactivate a removed membership', async () => {

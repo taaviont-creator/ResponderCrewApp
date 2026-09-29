@@ -1,0 +1,5 @@
+{
+  "score": 5,
+  "summary": "E-posti saatmise uute reeglite piiratud audit: saajad ja saatmise olek on serveri kontrolli all, organisatsiooni admini lugemisõigus ei laiene platvormirollile või teistele ühingutele. Kliendi create/update/delete on keelatud; reegleid kontrollitakse emulaatoris. See hinnang ei ole kogu rakenduse turvaaudit.",
+  "findings": []
+}
