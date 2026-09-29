@@ -1,3 +1,4 @@
+import '../widgets/crew_readiness_card.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -5,14 +6,10 @@ import '../models/availability_model.dart';
 import '../models/effective_availability.dart';
 import '../models/membership_model.dart';
 import '../models/availability_reminder_settings_model.dart';
-import '../models/platform_readiness_model.dart';
-import '../models/response_readiness.dart';
 import '../models/planned_unavailability_model.dart';
 import '../models/planned_unavailability_rule_model.dart';
 import '../services/availability_reminder_settings_service.dart';
 import '../services/availability_service.dart';
-import '../services/membership_service.dart';
-import '../services/platform_readiness_service.dart';
 import '../services/planned_unavailability_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_section_card.dart';
@@ -48,8 +45,6 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
   final _availabilityService = AvailabilityService();
   final _availabilityReminderSettingsService =
       AvailabilityReminderSettingsService();
-  final _membershipService = MembershipService();
-  final _platformReadinessService = PlatformReadinessService();
   final _plannedUnavailabilityService = PlannedUnavailabilityService();
   var _isUpdating = false;
   String? _cancellingPlannedUnavailabilityId;
@@ -176,7 +171,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
             style: Theme.of(context).textTheme.headlineSmall,
           ),
           const SizedBox(height: AppTheme.itemSpacing),
-          _buildAvailabilityOverview(),
+          CrewReadinessCard(organizationId: widget.organizationId, currentUid: widget.currentUid, showOffDuty: true),
           const SizedBox(height: AppTheme.sectionSpacing),
           _buildAvailabilityReminderSettings(),
           const SizedBox(height: AppTheme.sectionSpacing),
@@ -1135,250 +1130,6 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     }
   }
 
-  Widget _buildAvailabilityOverview() {
-    return StreamBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
-      stream: _membershipService.streamActiveMembershipsForOrganization(
-        widget.organizationId,
-      ),
-      builder: (context, membershipsSnapshot) {
-        if (membershipsSnapshot.connectionState == ConnectionState.waiting &&
-            !membershipsSnapshot.hasData) {
-          return const _LoadingCard();
-        }
-
-        final memberships = membershipsSnapshot.data ??
-            const <QueryDocumentSnapshot<Map<String, dynamic>>>[];
-
-        return StreamBuilder<List<AvailabilityModel>>(
-          stream: _availabilityService.streamOrganizationAvailability(
-            organizationId: widget.organizationId,
-          ),
-          builder: (context, availabilitySnapshot) {
-            final availabilityByUserId = <String, AvailabilityModel>{
-              for (final availability
-                  in availabilitySnapshot.data ?? const <AvailabilityModel>[])
-                if (availability.userId.isNotEmpty)
-                  availability.userId: availability,
-            };
-
-            return StreamBuilder<List<PlannedUnavailabilityModel>>(
-              stream: _plannedUnavailabilityService.streamOrganizationPeriods(
-                organizationId: widget.organizationId,
-              ),
-              builder: (context, periodsSnapshot) {
-                return StreamBuilder<List<PlannedUnavailabilityRuleModel>>(
-                  stream: _plannedUnavailabilityService.streamOrganizationRules(
-                    organizationId: widget.organizationId,
-                  ),
-                  builder: (context, rulesSnapshot) {
-                    final now = DateTime.now();
-                    final periods = periodsSnapshot.data ??
-                        const <PlannedUnavailabilityModel>[];
-                    final rules = rulesSnapshot.data ??
-                        const <PlannedUnavailabilityRuleModel>[];
-                    final onDuty = <_MemberAvailability>[];
-                    final delayed = <_MemberAvailability>[];
-                    final offDuty = <_MemberAvailability>[];
-                    var effectiveOnDutySecondLevelCount = 0;
-
-                    for (final membershipDoc in memberships) {
-                      final membership = membershipDoc.data();
-                      final userId = (membership['userId'] ?? '').toString();
-                      final effectiveStatus = EffectiveAvailability.resolve(
-                        userId: userId,
-                        manualStatus: availabilityByUserId[userId]?.status ??
-                            AvailabilityStatus.offDuty,
-                        periods: periods,
-                        rules: rules,
-                        now: now,
-                      );
-                      final item = _MemberAvailability(
-                        userId: userId,
-                        displayName:
-                            _membershipService.safeDisplayNameFromMembership(
-                          membership,
-                        ),
-                        role: _roleLabel((membership['role'] ?? '').toString()),
-                        availability: availabilityByUserId[userId],
-                        effectiveStatus: effectiveStatus,
-                      );
-                      switch (item.status) {
-                        case AvailabilityStatus.onDuty:
-                          onDuty.add(item);
-                          if (SeaRescueLevel.isLevel2(
-                            membership['seaRescueLevel'],
-                          )) {
-                            effectiveOnDutySecondLevelCount++;
-                          }
-                          break;
-                        case AvailabilityStatus.delayed:
-                          delayed.add(item);
-                          break;
-                        default:
-                          offDuty.add(item);
-                          break;
-                      }
-                    }
-
-                    if (memberships.isEmpty) {
-                      return const _EmptyCard(
-                        icon: Icons.group_off_outlined,
-                        message: 'Ühingus ei ole aktiivseid liikmeid.',
-                      );
-                    }
-
-                    return Column(
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _CountCard(
-                                label: 'Valves',
-                                count: onDuty.length,
-                                color: AppColors.ready,
-                                icon: Icons.check_circle_outline,
-                              ),
-                            ),
-                            const SizedBox(width: AppTheme.itemSpacing),
-                            Expanded(
-                              child: _CountCard(
-                                label: 'Hilinemisega',
-                                count: delayed.length,
-                                color: AppColors.delayed,
-                                icon: Icons.schedule,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: AppTheme.itemSpacing),
-                        _CountCard(
-                          label: 'Mitte valves',
-                          count: offDuty.length,
-                          color: AppColors.offDuty,
-                          icon: Icons.cancel_outlined,
-                        ),
-                        const SizedBox(height: AppTheme.itemSpacing),
-                        _buildMinimumCrewCard(
-                          onDuty.length,
-                          effectiveOnDutySecondLevelCount,
-                        ),
-                        const SizedBox(height: AppTheme.itemSpacing),
-                        _MemberGroupCard(
-                          title: 'Valves',
-                          type: StatusBadgeType.ready,
-                          members: onDuty,
-                        ),
-                        const SizedBox(height: AppTheme.itemSpacing),
-                        _MemberGroupCard(
-                          title: 'Hilinemisega',
-                          type: StatusBadgeType.delayed,
-                          members: delayed,
-                        ),
-                        const SizedBox(height: AppTheme.itemSpacing),
-                        _MemberGroupCard(
-                          title: 'Mitte valves',
-                          type: StatusBadgeType.offDuty,
-                          members: offDuty,
-                        ),
-                      ],
-                    );
-                  },
-                );
-              },
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildMinimumCrewCard(
-    int onDutyCount,
-    int secondLevelOnDutyCount,
-  ) {
-    return StreamBuilder<List<PlatformReadinessSummary>>(
-      stream: _platformReadinessService.streamOrganizationSummary(
-        organizationId: widget.organizationId,
-      ),
-      builder: (context, snapshot) {
-        final summaries =
-            snapshot.data ?? const <PlatformReadinessSummary>[];
-        if (summaries.isEmpty || summaries.first.minimumCrewRequired <= 0) {
-          return const _EmptyCard(
-            icon: Icons.info_outline,
-            message: 'Miinimumkoosseisu ei ole seadistatud.',
-          );
-        }
-
-        if (summaries.first.dutyPaused) return const AppSectionCard(title: 'Ühing on valvest maas', child: Text('Ühingu valveaja arvestus on peatatud.'));
-        final readiness = ResponseReadiness.evaluate(
-          minimumCrewRequired: summaries.first.minimumCrewRequired,
-          onDutyCount: onDutyCount,
-          secondLevelOnDutyCount: secondLevelOnDutyCount,
-        );
-        final requiredCount = readiness.minimumCrewRequired;
-        final secondLevelMet = readiness.secondLevelMet;
-        final responseReady = readiness.isReady;
-
-        return AppSectionCard(
-          accentColor: responseReady ? AppColors.ready : AppColors.critical,
-          child: Row(
-            children: [
-              Icon(
-                responseReady
-                    ? Icons.verified_outlined
-                    : Icons.warning_amber_rounded,
-                color: responseReady ? AppColors.ready : AppColors.critical,
-                size: 28,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Miinimumkoosseis',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      responseReady
-                          ? 'Ühing on reageerimisvalmis'
-                          : 'Ühing ei ole reageerimisvalmis',
-                    ),
-                    if (!secondLevelMet) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        'II astme merepäästja puudub',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.critical,
-                            ),
-                      ),
-                    ],
-                    const SizedBox(height: 4),
-                    Text(
-                      'Miinimum: $requiredCount\n'
-                      'Hetkel valves: $onDutyCount\n'
-                      'II aste valves: $secondLevelOnDutyCount',
-                    ),
-                  ],
-                ),
-              ),
-              StatusBadge(
-                label: responseReady
-                    ? 'Ühing on reageerimisvalmis'
-                    : 'Ühing ei ole reageerimisvalmis',
-                type: responseReady
-                    ? StatusBadgeType.ready
-                    : StatusBadgeType.critical,
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   Widget _buildAvailabilityReminderSettings() {
     return StreamBuilder<AvailabilityReminderSettingsModel>(
       stream: _availabilityReminderSettingsService.streamMySettings(
@@ -1549,24 +1300,6 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     if (hours == 168) return '7 päeva';
     return '$hours tundi';
   }
-}
-
-class _MemberAvailability {
-  const _MemberAvailability({
-    required this.userId,
-    required this.displayName,
-    required this.role,
-    required this.availability,
-    required this.effectiveStatus,
-  });
-
-  final String userId;
-  final String displayName;
-  final String role;
-  final AvailabilityModel? availability;
-  final String effectiveStatus;
-
-  String get status => effectiveStatus;
 }
 
 class _StatusActionButton extends StatelessWidget {
@@ -1786,187 +1519,6 @@ class _OrganizationRecurringPlannedUnavailabilityTile extends StatelessWidget {
   }
 }
 
-class _CountCard extends StatelessWidget {
-  const _CountCard({
-    required this.label,
-    required this.count,
-    required this.color,
-    required this.icon,
-  });
-
-  final String label;
-  final int count;
-  final Color color;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return AppSectionCard(
-      accentColor: color,
-      child: Row(
-        children: [
-          Icon(icon, color: color),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              label,
-              style: Theme.of(context).textTheme.labelLarge,
-            ),
-          ),
-          Text(
-            '$count',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: color,
-                ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MemberGroupCard extends StatelessWidget {
-  const _MemberGroupCard({
-    required this.title,
-    required this.type,
-    required this.members,
-  });
-
-  final String title;
-  final StatusBadgeType type;
-  final List<_MemberAvailability> members;
-
-  @override
-  Widget build(BuildContext context) {
-    return AppSectionCard(
-      title: '$title (${members.length})',
-      leading: Icon(_iconFor(type)),
-      accentColor: _colorFor(type),
-      child: members.isEmpty
-          ? Text(
-              'Selles grupis liikmeid ei ole.',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-            )
-          : Column(
-              children: [
-                for (var index = 0; index < members.length; index++) ...[
-                  _MemberTile(member: members[index]),
-                  if (index < members.length - 1)
-                    const Divider(height: 1),
-                ],
-              ],
-            ),
-    );
-  }
-
-  IconData _iconFor(StatusBadgeType type) {
-    switch (type) {
-      case StatusBadgeType.ready:
-        return Icons.check_circle_outline;
-      case StatusBadgeType.delayed:
-        return Icons.schedule;
-      default:
-        return Icons.cancel_outlined;
-    }
-  }
-
-  Color _colorFor(StatusBadgeType type) {
-    switch (type) {
-      case StatusBadgeType.ready:
-        return AppColors.ready;
-      case StatusBadgeType.delayed:
-        return AppColors.delayed;
-      default:
-        return AppColors.offDuty;
-    }
-  }
-}
-
-class _MemberTile extends StatelessWidget {
-  const _MemberTile({required this.member});
-
-  final _MemberAvailability member;
-
-  @override
-  Widget build(BuildContext context) {
-    final displayName = member.displayName.trim().isEmpty
-        ? MembershipModel.defaultDisplayName
-        : member.displayName.trim();
-    final initials = _initials(displayName);
-    final minutes = member.availability?.responseMinutes;
-    final note = member.availability?.note?.trim();
-    final details = <String>[
-      member.role,
-      if (member.status == AvailabilityStatus.delayed && minutes != null)
-        '+ $minutes min',
-      if (note != null && note.isNotEmpty) note,
-    ];
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CircleAvatar(
-            backgroundColor: AppColors.surfaceBlueStrong,
-            foregroundColor: AppColors.navy,
-            child: Text(initials),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  displayName,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                Text(
-                  details.join(' • '),
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: AppColors.textSecondary,
-                      ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _initials(String name) {
-    final parts =
-        name.trim().split(RegExp(r'\s+')).where((part) => part.isNotEmpty);
-    return parts.take(2).map((part) => part[0].toUpperCase()).join();
-  }
-}
-
-class _EmptyCard extends StatelessWidget {
-  const _EmptyCard({
-    required this.icon,
-    required this.message,
-  });
-
-  final IconData icon;
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return AppSectionCard(
-      child: Row(
-        children: [
-          Icon(icon, color: AppColors.textSecondary),
-          const SizedBox(width: 12),
-          Expanded(child: Text(message)),
-        ],
-      ),
-    );
-  }
-}
-
 class _ScheduledStatusPreview extends StatelessWidget {
   const _ScheduledStatusPreview({
     required this.hasActiveSchedule,
@@ -2028,17 +1580,6 @@ class _ScheduledStatusPreview extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _LoadingCard extends StatelessWidget {
-  const _LoadingCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return const AppSectionCard(
-      child: Center(child: CircularProgressIndicator()),
     );
   }
 }

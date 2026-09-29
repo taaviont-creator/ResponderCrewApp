@@ -104,6 +104,11 @@ class _HomeScreenState extends State<HomeScreen> {
   StreamSubscription<CalloutNotificationOpenEvent>? _calloutOpenSubscription;
   StreamSubscription<MemberRequestNotification>? _memberRequestSubscription;
   StreamSubscription<CertificateReminderOpen>? _certificateSubscription;
+  // Keep root subscriptions stable: acknowledging a deep link must not replace
+  // the navigator with a loading scaffold and discard its just-opened detail.
+  final _userStreams = <String, Stream<DocumentSnapshot<Map<String, dynamic>>>>{};
+  final _membershipStreams = <String, Stream<List<QueryDocumentSnapshot<Map<String, dynamic>>>>>{};
+  final _organizationStreams = <String, Stream<DocumentSnapshot<Map<String, dynamic>>>>{};
   String? _pendingCalloutId;
   var _selectedNavigationIndex = 0;
   bool _savingAvailability = false;
@@ -1650,7 +1655,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: userDoc.snapshots(),
+      key: ValueKey(user.uid),
+      stream: _userStreams.putIfAbsent(user.uid, userDoc.snapshots),
       builder: (context, userSnapshot) {
         if (userSnapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
@@ -1686,7 +1692,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
         return StreamBuilder<
             List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
-          stream: _membershipService.streamMembershipsForUser(user.uid),
+          stream: _membershipStreams.putIfAbsent(user.uid, () => _membershipService.streamMembershipsForUser(user.uid)),
           builder: (context, membershipsSnapshot) {
             if (membershipsSnapshot.connectionState ==
                 ConnectionState.waiting) {
@@ -1819,10 +1825,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 _organizationIdsFromMembershipDocs(visibleMembershipDocs).length;
 
             return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-              stream: FirebaseFirestore.instance
-                  .collection('commands')
-                  .doc(selectedOrganizationId)
-                  .snapshots(),
+              key: ValueKey(selectedOrganizationId),
+              stream: _organizationStreams.putIfAbsent(selectedOrganizationId, () => FirebaseFirestore.instance
+                  .collection('commands').doc(selectedOrganizationId).snapshots()),
               builder: (context, commandSnapshot) {
                 if (commandSnapshot.connectionState ==
                         ConnectionState.waiting &&
@@ -1915,6 +1920,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ? AdminHomeDashboard(
                           organizationId: selectedOrganizationId,
                           currentUid: user.uid,
+                          currentUserName: displayName,
                           topHeader: _buildCompactOperationalHeader(
                             displayName: displayName,
                             commandId: selectedOrganizationId,
@@ -2009,6 +2015,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             organizationId: selectedOrganizationId, currentUid: user.uid, canManageActivities: true, openCreateOnLoad: true))) : null,
                           organizationId: selectedOrganizationId,
                           currentUid: user.uid,
+                          currentUserName: displayName,
                           topHeader: _buildCompactOperationalHeader(
                             displayName: displayName,
                             commandId: selectedOrganizationId,

@@ -22,6 +22,8 @@ List<DutyCrewMember> dutyCrew({
   required Iterable<PlannedUnavailabilityModel> periods,
   required Iterable<PlannedUnavailabilityRuleModel> rules,
   required DateTime now,
+  Set<String> unavailableUserIds = const {},
+  bool includeOffDuty = false,
 }) {
   final byUser = {for (final a in availability) a.userId: a};
   final result = <DutyCrewMember>[];
@@ -35,14 +37,16 @@ List<DutyCrewMember> dutyCrew({
       continue;
     }
     final a = byUser[uid];
-    final status = EffectiveAvailability.resolve(
-      userId: uid,
-      manualStatus: a?.status ?? AvailabilityStatus.offDuty,
-      periods: periods,
-      rules: rules,
-      now: now,
-    );
-    if (status == AvailabilityStatus.offDuty) continue;
+    final status = unavailableUserIds.contains(uid)
+        ? AvailabilityStatus.offDuty
+        : EffectiveAvailability.resolve(
+            userId: uid,
+            manualStatus: a?.status ?? AvailabilityStatus.offDuty,
+            periods: periods,
+            rules: rules,
+            now: now,
+          );
+    if (!includeOffDuty && status == AvailabilityStatus.offDuty) continue;
     final name = member['displayName'];
     result.add(
       DutyCrewMember(

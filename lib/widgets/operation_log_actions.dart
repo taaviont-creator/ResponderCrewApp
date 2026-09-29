@@ -8,9 +8,11 @@ class OperationLogActions extends StatefulWidget {
     required this.status,
     required this.onAction,
     required this.onComment,
+    this.appendOnly = false,
   });
 
   final String status;
+  final bool appendOnly;
   final Future<void> Function(String action) onAction;
   final Future<void> Function() onComment;
 
@@ -83,28 +85,29 @@ class _OperationLogActionsState extends State<OperationLogActions> {
         status == OperationLogStatus.onScene ||
         status == OperationLogStatus.inProgress;
     final actions = <(String, IconData)>[
-      if (status == OperationLogStatus.open)
+      if (active && (widget.appendOnly || status == OperationLogStatus.open))
         ('Väljasõit', Icons.directions_boat_outlined),
-      if (status == OperationLogStatus.open ||
-          status == OperationLogStatus.enRoute)
+      if (active && (widget.appendOnly || status == OperationLogStatus.open ||
+          status == OperationLogStatus.enRoute))
         ('Sündmuskohal', Icons.place_outlined),
-      if (status == OperationLogStatus.onScene) ('Otsing algas', Icons.search),
-      if (onScene) ...[
+      if (active && (widget.appendOnly || status == OperationLogStatus.onScene)) ('Otsing algas', Icons.search),
+      if (active && (widget.appendOnly || onScene)) ...[
         ('Kannatanu leitud', Icons.person_outline),
         ('Pukseerimine alustatud', Icons.directions_boat),
       ],
       if (active && status != OperationLogStatus.completed)
         ('Sündmuskohal tegevused tehtud', Icons.task_alt),
-      if (status == OperationLogStatus.completed) ...[
+      if (active && (widget.appendOnly || status == OperationLogStatus.completed)) ...[
         ('Tagasisõit', Icons.keyboard_return),
-        ('Tagasi baasis', Icons.home_outlined),
+        if (!widget.appendOnly) ('Tagasi baasis', Icons.home_outlined),
       ],
-      if (active) ('Teade edastatud', Icons.radio_outlined),
+      if (active) ...[('Teade edastatud', Icons.radio_outlined),
+        ('Sündmus lõpetatud', Icons.flag_outlined)],
     ];
     final style = FilledButton.styleFrom(
-      minimumSize: const Size.fromHeight(76),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-      textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+      minimumSize: const Size.fromHeight(56),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
       alignment: Alignment.centerLeft,
     );
     return Column(
@@ -118,7 +121,7 @@ class _OperationLogActionsState extends State<OperationLogActions> {
           const Text(
             'Üks vajutus salvestab tegevuse, aja ja võimalusel asukoha.',
           ),
-          const SizedBox(height: 12),
+          if (widget.appendOnly) const Text('Lisad logimärkeid. Sündmuse ja logi olekut saab muuta sündmuse juht.'),
           LayoutBuilder(
             builder: (context, constraints) {
               final width =
@@ -148,10 +151,10 @@ class _OperationLogActionsState extends State<OperationLogActions> {
         ],
         OutlinedButton.icon(
           style: OutlinedButton.styleFrom(
-            minimumSize: const Size.fromHeight(76),
+            minimumSize: const Size.fromHeight(56),
             padding: const EdgeInsets.all(16),
             textStyle: const TextStyle(
-              fontSize: 18,
+              fontSize: 16,
               fontWeight: FontWeight.w700,
             ),
           ),

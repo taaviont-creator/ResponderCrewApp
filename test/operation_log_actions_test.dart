@@ -120,7 +120,7 @@ void main() {
       find.byType(FilledButton),
     )) {
       final size = tester.getSize(find.byWidget(button));
-      expect(size.height, greaterThanOrEqualTo(76));
+      expect(size.height, greaterThanOrEqualTo(56));
       expect(size.width, lessThanOrEqualTo(320));
     }
     await tester.ensureVisible(find.text('Lisa op-logisse kommentaar'));

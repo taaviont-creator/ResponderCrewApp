@@ -9,9 +9,11 @@ DateTime? firstDeparture(List<OperationLogEventModel> events) {
       events
           .where(
             (e) =>
-                e.type == OperationLogEventType.statusChange &&
-                OperationLogStatus.normalize(e.status) ==
-                    OperationLogStatus.enRoute,
+                (e.type == OperationLogEventType.statusChange &&
+                    OperationLogStatus.normalize(e.status) ==
+                        OperationLogStatus.enRoute) ||
+                (e.type == OperationLogEventType.quickAction &&
+                    e.title == 'Väljasõit'),
           )
           .map((e) => e.createdAt)
           .whereType<DateTime>()

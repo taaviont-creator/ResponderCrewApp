@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../widgets/callout_response_controls.dart';
 
 import 'package:flutter/material.dart';
 import 'callout_report_screen.dart';
@@ -50,7 +51,6 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
   late final Stream<OperationLogModel?> _logStream;
   late final Stream<bool> _canConfirmAttendance;
   final _eventStreams = <String, Stream<List<OperationLogEventModel>>>{};
-  bool _isSavingResponse = false;
   bool _isUpdatingStatus = false;
   bool _isOpeningOperationLog = false;
 
@@ -69,7 +69,8 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
           organizationId: widget.organizationId,
         )
         .listen((callout) {
-      if (!mounted || callout == null) return;
+      if (!mounted) return;
+      if (callout == null) { setState(() => _calloutReadFailed = true); return; }
       setState(() { _liveCallout = callout; _calloutReadFailed = false; });
     }, onError: (Object _) {
       if (mounted) setState(() => _calloutReadFailed = true);
@@ -82,111 +83,6 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
     super.dispose();
   }
 
-  Future<void> _showDelayedResponseDialog() async {
-    var selectedMinutes = 15;
-    final noteController = TextEditingController();
-
-    final shouldSave = await showDialog<bool>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Minu saabumisaeg'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Sinu hinnanguline saabumine. See ei muuda väljakutse väljasõidu sihtaega.'),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<int>(
-                initialValue: selectedMinutes,
-                decoration: const InputDecoration(labelText: 'Hilinen umbes'),
-                items: const [
-                  DropdownMenuItem(value: 15, child: Text('15 minutit')),
-                  DropdownMenuItem(value: 30, child: Text('30 minutit')),
-                  DropdownMenuItem(value: 60, child: Text('60 minutit')),
-                ],
-                onChanged: (value) {
-                  if (value == null) return;
-                  setDialogState(() => selectedMinutes = value);
-                },
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: noteController,
-                decoration: const InputDecoration(
-                  labelText: 'Märkus',
-                  hintText: 'Soovi korral lisa täpsustus',
-                ),
-                maxLines: 2,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Katkesta'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Salvesta'),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (shouldSave != true) return;
-    await _setResponse(
-      response: CalloutResponseValue.delayed,
-      responseMinutes: selectedMinutes,
-      note: noteController.text,
-    );
-  }
-
-  Future<void> _setResponse({
-    required String response,
-    int? responseMinutes,
-    String note = '',
-  }) async {
-    if (_isSavingResponse) return;
-    if (!_isActive) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Väljakutse on lõpetatud. Vastust ei saa enam muuta.',
-          ),
-        ),
-      );
-      return;
-    }
-
-    setState(() => _isSavingResponse = true);
-
-    try {
-      await _calloutService.setMyResponse(
-        calloutId: _callout.id,
-        userId: widget.currentUid,
-        userName: widget.currentUserName,
-        organizationId: widget.organizationId,
-        response: response,
-        responseMinutes: responseMinutes,
-        note: note,
-      );
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vastus salvestatud.')),
-      );
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vastust ei saanud salvestada.')),
-      );
-    } finally {
-      if (mounted) setState(() => _isSavingResponse = false);
-    }
-  }
-
   Future<void> _updateCalloutStatus(String status) async {
     if (!widget.canCloseCallouts || _isUpdatingStatus || !_isActive) return;
 
@@ -195,7 +91,7 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(
-          isClosing ? 'Lõpeta väljakutse' : 'Tühista väljakutse',
+          isClosing ? 'Lõpeta sündmus' : 'Tühista väljakutse',
         ),
         content: Text(
           isClosing
@@ -300,8 +196,10 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
           if (widget.canCloseCallouts && _isActive)
             PopupMenuButton<String>(
               tooltip: 'Väljakutse toimingud',
+              enabled: !_isUpdatingStatus && !_calloutReadFailed,
               onSelected: _updateCalloutStatus,
               itemBuilder: (context) => const [
+                PopupMenuItem(value: CalloutStatus.closed, child: Text('Lõpeta sündmus')),
                 PopupMenuItem(
                   value: CalloutStatus.cancelled,
                   child: Text('Tühista väljakutse'),
@@ -314,6 +212,10 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
         padding: const EdgeInsets.all(AppTheme.screenPadding),
         children: [
           if (_calloutReadFailed) const AppSectionCard(child: Text('Väljakutse värskendamine ebaõnnestus. Kuvatakse viimati saadud andmed. Kontrolli ühendust.')),
+          CalloutResponseControls(key: ValueKey(_callout.id), calloutId: _callout.id,
+            organizationId: widget.organizationId, userId: widget.currentUid, userName: widget.currentUserName,
+            active: _isActive, enabled: !_calloutReadFailed),
+          const SizedBox(height: 12),
           _buildOverviewCard(),
           const SizedBox(height: AppTheme.itemSpacing),
           _buildDescriptionCard(),
@@ -332,17 +234,6 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
               if (snapshot.data != true) return const SizedBox.shrink();
               return OutlinedButton.icon(icon: const Icon(Icons.fact_check_outlined), label: const Text('Lisa / muuda ja kinnita osalejad'), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CalloutAttendanceScreen(organizationId: widget.organizationId, calloutId: _callout.id))));
             }),
-          _buildResponseActions(),
-          if (widget.canCloseCallouts && _isActive) ...[
-            const SizedBox(height: AppTheme.sectionSpacing),
-            PrimaryActionButton(
-              label: 'Lõpeta väljakutse',
-              icon: Icons.check_circle_outline,
-              style: PrimaryActionButtonStyle.secondary,
-              isLoading: _isUpdatingStatus,
-              onPressed: () => _updateCalloutStatus(CalloutStatus.closed),
-            ),
-          ],
           const SizedBox(height: AppTheme.sectionSpacing),
         ],
       ),
@@ -606,96 +497,6 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
     );
   }
 
-  Widget _buildResponseActions() {
-    return StreamBuilder<CalloutResponseModel?>(
-      stream: _calloutService.streamMyResponse(
-        calloutId: _callout.id,
-        userId: widget.currentUid,
-        organizationId: widget.organizationId,
-      ),
-      builder: (context, snapshot) {
-        final currentResponse = snapshot.data?.response;
-        final delayedMinutes = snapshot.data?.responseMinutes;
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Minu vastus',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _isSavingResponse ? 'Salvestan vastust… Serveri kinnitus on ootel.' : _myResponseLabel(currentResponse, delayedMinutes),
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-            ),
-            const SizedBox(height: 12),
-            if (!_isActive)
-              const _ClosedResponseNotice()
-            else ...[
-              PrimaryActionButton(
-                label: 'Tulen',
-                icon: Icons.directions_boat_outlined,
-                isLoading: _isSavingResponse,
-                onPressed: () => _setResponse(
-                  response: CalloutResponseValue.responding,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _ResponseButton(
-                      label: 'Hilinen',
-                      icon: Icons.schedule,
-                      selected:
-                          currentResponse == CalloutResponseValue.delayed,
-                      onPressed: _isSavingResponse
-                          ? null
-                          : _showDelayedResponseDialog,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _ResponseButton(
-                      label: 'Ei tule',
-                      icon: Icons.cancel_outlined,
-                      isDanger: true,
-                      selected:
-                          currentResponse == CalloutResponseValue.unavailable,
-                      onPressed: _isSavingResponse
-                          ? null
-                          : () => _setResponse(
-                                response: CalloutResponseValue.unavailable,
-                              ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ],
-        );
-      },
-    );
-  }
-
-  String _myResponseLabel(String? response, int? minutes) {
-    switch (response) {
-      case CalloutResponseValue.responding:
-        return 'Sinu vastus: Tulen';
-      case CalloutResponseValue.delayed:
-        return minutes == null
-            ? 'Sinu vastus: Hilinen'
-            : 'Sinu vastus: Hilinen · $minutes min';
-      case CalloutResponseValue.unavailable:
-        return 'Sinu vastus: Ei tule';
-      default:
-        return 'Sa ei ole veel sellele väljakutsele vastanud.';
-    }
-  }
-
   String _priorityLabel(String priority) {
     switch (priority) {
       case CalloutPriority.low:
@@ -808,80 +609,6 @@ class _InfoLine extends StatelessWidget {
         const SizedBox(width: 8),
         Expanded(child: Text(text)),
       ],
-    );
-  }
-}
-
-class _ClosedResponseNotice extends StatelessWidget {
-  const _ClosedResponseNotice();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceBlueStrong,
-        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: const Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.lock_outline, size: 20, color: AppColors.textSecondary),
-          SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'Väljakutse on lõpetatud. Vastust ei saa enam muuta.',
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ResponseButton extends StatelessWidget {
-  const _ResponseButton({
-    required this.label,
-    required this.icon,
-    required this.onPressed,
-    this.selected = false,
-    this.isDanger = false,
-  });
-
-  final String label;
-  final IconData icon;
-  final VoidCallback? onPressed;
-  final bool selected;
-  final bool isDanger;
-
-  @override
-  Widget build(BuildContext context) {
-    final foreground = isDanger ? AppColors.critical : AppColors.navy;
-    final background = isDanger
-        ? AppColors.criticalSurface
-        : AppColors.surfaceBlueStrong;
-
-    return SizedBox(
-      height: AppTheme.primaryActionHeight,
-      child: ElevatedButton.icon(
-        onPressed: onPressed,
-        icon: Icon(icon, size: 22),
-        label: Text(
-          label,
-          maxLines: 2,
-          textAlign: TextAlign.center,
-        ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: background,
-          foregroundColor: foreground,
-          elevation: selected ? 2 : 0,
-          side: BorderSide(
-            color: selected ? foreground : AppColors.border,
-            width: selected ? 2 : 1,
-          ),
-        ),
-      ),
     );
   }
 }

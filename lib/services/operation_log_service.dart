@@ -1,3 +1,4 @@
+import 'operation_log_access_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -349,13 +350,26 @@ class OperationLogService {
     double? accuracyMeters,
   }) async {
     _requireOrganizationId(organizationId);
-    await _ensureCanStartOperationLog(
-      organizationId: organizationId,
-      createdBy: createdBy,
-    );
+    final currentUser = _auth.currentUser;
+    if (currentUser == null || currentUser.uid != createdBy) throw StateError('Sul puudub logi lisamise õigus.');
+    final logSnapshot = await _operationLogs.doc(operationLogId).get();
+    final logData = logSnapshot.data();
+    if (logData == null || (logData['organizationId'] ?? logData['commandId']) != organizationId) throw StateError('Logi ei leitud.');
+    final membership = (await _firestore.doc('memberships/${createdBy}_$organizationId').get()).data();
+    final manager = membership != null &&
+      (MembershipRole.isOrgAdmin(membership['role']) || SeaRescueLevel.isLevel2(membership['seaRescueLevel']));
+    if (manager) {
+      await _ensureCanStartOperationLog(organizationId: organizationId, createdBy: createdBy);
+    } else {
+      final calloutId = logData['calloutId'];
+      if (calloutId is! String || calloutId.isEmpty ||
+          OperationLogStatus.normalize(logData['status']) == OperationLogStatus.returnedToBase ||
+          !await OperationLogAccessService().participantAccess(organizationId: organizationId,
+            userId: createdBy, calloutId: calloutId).first) { throw StateError('Kirje lisamiseks pead osalema aktiivsel väljakutsel.'); }
+    }
     if (occurredAt != null && (type != OperationLogEventType.manualNote || occurredAt.isAfter(DateTime.now()))) throw Exception('Vigane sündmuse aeg');
     final trimmedTitle = title.trim();
-    if (trimmedTitle.isEmpty) {
+    if (trimmedTitle.isEmpty || trimmedTitle.length > 4000) {
       throw Exception('Operation log event title is required');
     }
     if (type != OperationLogEventType.manualNote &&

@@ -1,3 +1,4 @@
+import '../widgets/callout_link_opener.dart';
 import 'package:flutter/material.dart';
 
 import '../models/callout_model.dart';
@@ -38,16 +39,6 @@ class CalloutsScreen extends StatefulWidget {
 
 class _CalloutsScreenState extends State<CalloutsScreen> {
   final _calloutService = CalloutService();
-  String? _openedInitialCalloutId;
-
-  @override
-  void didUpdateWidget(covariant CalloutsScreen oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.initialCalloutId == null) {
-      _openedInitialCalloutId = null;
-    }
-  }
-
   @override
   void initState() {
     super.initState();
@@ -104,27 +95,17 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
     );
   }
 
-  void _openInitialCalloutIfNeeded(List<CalloutModel> callouts) {
-    final requestedId = widget.initialCalloutId?.trim() ?? '';
-    if (requestedId.isEmpty || _openedInitialCalloutId == requestedId) {
-      return;
-    }
-
-    final matchingCallouts =
-        callouts.where((callout) => callout.id == requestedId).toList();
-    if (matchingCallouts.isEmpty) return;
-
-    _openedInitialCalloutId = requestedId;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      widget.onInitialCalloutOpened?.call();
-      _openCallout(matchingCallouts.first);
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return CalloutLinkOpener(
+      organizationId: widget.organizationId, calloutId: widget.initialCalloutId,
+      load: (org, id) => _calloutService.getCallout(organizationId: org, calloutId: id),
+      onOpened: widget.onInitialCalloutOpened,
+      detailBuilder: (callout) => CalloutDetailScreen(callout: callout,
+        organizationId: widget.organizationId, currentUid: widget.currentUid, currentUserName: widget.currentUserName,
+        canManageCallouts: widget.canManageCallouts, canCloseCallouts: widget.canCloseCallouts,
+        canStartOperationLog: widget.canStartOperationLog),
+      child: Scaffold(
       appBar: AppBar(title: const Text('Väljakutsed')),
       floatingActionButton: widget.canManageCallouts
           ? FloatingActionButton.extended(
@@ -155,7 +136,6 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
           }
 
           final callouts = snapshot.data ?? const <CalloutModel>[];
-          _openInitialCalloutIfNeeded(callouts);
           final activeCallouts = callouts
               .where((callout) => callout.status == CalloutStatus.active)
               .toList(growable: false);
@@ -228,7 +208,7 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
           );
         },
       ),
-    );
+    ));
   }
 
 }

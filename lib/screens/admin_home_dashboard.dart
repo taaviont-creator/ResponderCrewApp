@@ -1,10 +1,9 @@
 import '../widgets/upcoming_activities.dart';
 import 'package:flutter/material.dart';
 
-import '../models/callout_model.dart';
+import '../widgets/active_callouts_card.dart';
 import '../widgets/crew_readiness_card.dart';
 import '../models/equipment_model.dart';
-import '../services/callout_service.dart';
 import '../services/equipment_service.dart';
 import '../widgets/pending_member_requests_notice.dart';
 import '../theme/app_theme.dart';
@@ -17,6 +16,7 @@ class AdminHomeDashboard extends StatelessWidget {
     super.key,
     required this.organizationId,
     required this.currentUid,
+    required this.currentUserName,
     required this.topHeader,
     required this.onCreateCallout,
     required this.onCreateActivity,
@@ -30,6 +30,7 @@ class AdminHomeDashboard extends StatelessWidget {
 
   final String organizationId;
   final String currentUid;
+  final String currentUserName;
   final Widget topHeader;
   final VoidCallback onCreateCallout;
   final VoidCallback onCreateActivity;
@@ -40,7 +41,6 @@ class AdminHomeDashboard extends StatelessWidget {
   final VoidCallback onOpenEquipment;
   final VoidCallback onOpenNotifications;
 
-  final CalloutService _calloutService = CalloutService();
   final EquipmentService _equipmentService = EquipmentService();
 
   @override
@@ -48,6 +48,7 @@ class AdminHomeDashboard extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(AppTheme.screenPadding),
       children: [
+        ActiveCalloutsCard(key: ValueKey(organizationId), organizationId: organizationId, userId: currentUid, userName: currentUserName, onOpen: onOpenCallout),
         topHeader,
         const SizedBox(height: 16),
         CrewReadinessCard(organizationId: organizationId, currentUid: currentUid),
@@ -58,8 +59,6 @@ class AdminHomeDashboard extends StatelessWidget {
           style: PrimaryActionButtonStyle.danger, onPressed: onCreateCallout),
         const SizedBox(height: 8),
         OutlinedButton.icon(onPressed: onCreateActivity, icon: const Icon(Icons.event_available), label: const Text('Lisa tegevus / koolitus')),
-        const SizedBox(height: 16),
-        _buildActiveCallouts(),
         const SizedBox(height: 16),
         Text('Lähiaja tegevused ja koolitused', style: Theme.of(context).textTheme.titleLarge),
         UpcomingActivities(key: ValueKey(organizationId), organizationId: organizationId, userId: currentUid),
@@ -120,137 +119,6 @@ class AdminHomeDashboard extends StatelessWidget {
       },
     );
   }
-
-  Widget _buildActiveCallouts() {
-    return StreamBuilder<List<CalloutModel>>(
-      stream: _calloutService.streamActiveCallouts(
-        organizationId: organizationId,
-      ),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting &&
-            !snapshot.hasData) {
-          return const _PreviewLoadingCard();
-        }
-
-        if (snapshot.hasError) return const AppSectionCard(child: Text('Väljakutse laadimine ebaõnnestus. Kontrolli ühendust.'));
-        final callouts = snapshot.data ?? const <CalloutModel>[];
-        if (callouts.isEmpty) {
-          return const SizedBox.shrink();
-        }
-
-        final callout = callouts.first;
-        return AppSectionCard(
-          accentColor: AppColors.activeCallout,
-          child: InkWell(
-            onTap: () => onOpenCallout(callout.id),
-            borderRadius: BorderRadius.circular(AppTheme.cardRadius),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(
-                  Icons.campaign,
-                  color: AppColors.activeCallout,
-                  size: 28,
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const StatusBadge(
-                        label: 'AKTIIVNE',
-                        type: StatusBadgeType.activeCallout,
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-            '${CalloutType.label(callout.calloutType)} · ${callout.title}',
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      if (callout.location.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          callout.location,
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: AppColors.textSecondary,
-                                  ),
-                        ),
-                      ],
-                      const SizedBox(height: 8),
-                      _buildMyCalloutResponseStatus(
-                        context,
-                        callout.id,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      'Ava väljakutse',
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                            color: AppColors.activeCallout,
-                            fontWeight: FontWeight.w700,
-                          ),
-                    ),
-                    const SizedBox(height: 4),
-                    const Icon(
-                      Icons.chevron_right,
-                      color: AppColors.textSecondary,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildMyCalloutResponseStatus(
-    BuildContext context,
-    String calloutId,
-  ) {
-    return StreamBuilder<CalloutResponseModel?>(
-      stream: _calloutService.streamMyResponse(
-        calloutId: calloutId,
-        userId: currentUid,
-        organizationId: organizationId,
-      ),
-      builder: (context, snapshot) {
-        final response = snapshot.data;
-        final color = switch (response?.response) {
-          CalloutResponseValue.responding => AppColors.ready,
-          CalloutResponseValue.delayed => AppColors.delayed,
-          CalloutResponseValue.unavailable => AppColors.critical,
-          _ => AppColors.textSecondary,
-        };
-
-        return Text(
-          _myCalloutResponseLabel(response),
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: color,
-                fontWeight: FontWeight.w600,
-              ),
-        );
-      },
-    );
-  }
-
-  String _myCalloutResponseLabel(CalloutResponseModel? response) {
-    return switch (response?.response) {
-      CalloutResponseValue.responding => 'Sinu vastus: Tulen',
-      CalloutResponseValue.delayed => response?.responseMinutes == null
-          ? 'Sinu vastus: Hilinen'
-          : 'Sinu vastus: Hilinen · ${response!.responseMinutes} min',
-      CalloutResponseValue.unavailable => 'Sinu vastus: Ei tule',
-      _ => 'Vastus puudub',
-    };
-  }
-
 
 }
 
