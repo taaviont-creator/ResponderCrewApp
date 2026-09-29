@@ -302,6 +302,23 @@ exports.sendCertificateExpiryReminders = onSchedule({
 const {createHistoryHandler} = require('./statistics-history');
 const {createStatisticsHandler, createRecordContributionHandler, createCalloutAttendanceHandler} = require('./statistics-handlers');
 const statisticsCallableOptions = {region:'europe-north1', maxInstances:5, timeoutSeconds:60, memory:'512MiB'};
+const {createGetReportHandler,createSaveReportHandler,createAmendCalloutHandler} = require('./callout-report');
+const {createMembershipManagementHandler,createDutyHandler,createPlatformOverviewHandler,createPlatformStatusHandler,createPlatformAccountsHandler,createRevokeSessionsHandler} = require('./organization-management');
+const workflowDependencies = {db,timestamp:admin.firestore.FieldValue.serverTimestamp};
+exports.getCalloutReport = onCall(statisticsCallableOptions, createGetReportHandler({db}));
+exports.saveCalloutReport = onCall(statisticsCallableOptions, createSaveReportHandler(workflowDependencies));
+exports.amendCallout = onCall(statisticsCallableOptions, createAmendCalloutHandler(workflowDependencies));
+exports.manageOrganizationMembership = onCall(statisticsCallableOptions, createMembershipManagementHandler(workflowDependencies));
+exports.setOrganizationDuty = onCall(statisticsCallableOptions, createDutyHandler(workflowDependencies));
+exports.getPlatformOverview = onCall(statisticsCallableOptions, createPlatformOverviewHandler({db}));
+exports.setPlatformOrganizationStatus = onCall(statisticsCallableOptions, createPlatformStatusHandler(workflowDependencies));
+exports.getPlatformAccounts = onCall(statisticsCallableOptions, createPlatformAccountsHandler({db,auth:admin.auth()}));
+exports.revokeAccountSessions = onCall(statisticsCallableOptions, createRevokeSessionsHandler({...workflowDependencies,auth:admin.auth()}));
+const {onDocumentWrittenWithAuthContext} = require('firebase-functions/v2/firestore');
+const {createAdministrativeAudit} = require('./administrative-audit');
+for (const [name,source] of Object.entries({auditOrganizations:'commands',auditMemberships:'memberships',auditCallouts:'callouts',auditOperationLogs:'operationLogs'})) {
+  exports[name] = onDocumentWrittenWithAuthContext({document:`${source}/{documentId}`,region:'europe-north1',retry:true,maxInstances:5},createAdministrativeAudit({db,source}));
+}
 exports.getContributionStatistics = onCall(statisticsCallableOptions, createStatisticsHandler({db}));
 exports.recordMemberContribution = onCall(statisticsCallableOptions, createRecordContributionHandler({db, timestamp:admin.firestore.FieldValue.serverTimestamp}));
 exports.saveCalloutAttendance = onCall(statisticsCallableOptions, createCalloutAttendanceHandler({db, timestamp:admin.firestore.FieldValue.serverTimestamp}));

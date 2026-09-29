@@ -48,7 +48,7 @@ class _OperationNoteDialogState extends State<OperationNoteDialog> {
     if (_text.text.trim().isEmpty ||
         (_retrospective && _time.isAfter(DateTime.now()))) {
       setState(
-        () => _error = 'Sisesta märge ja vali aeg, mis ei ole tulevikus.',
+        () => _error = 'Sisesta kommentaar ja vali aeg, mis ei ole tulevikus.',
       );
       return;
     }
@@ -63,7 +63,7 @@ class _OperationNoteDialogState extends State<OperationNoteDialog> {
       if (mounted) {
         setState(
           () => _error =
-              'Salvestamine ebaõnnestus. Märge on alles; proovi uuesti.',
+              'Salvestamine ebaõnnestus. Kommentaar on alles; proovi uuesti.',
         );
       }
     } finally {
@@ -75,7 +75,7 @@ class _OperationNoteDialogState extends State<OperationNoteDialog> {
   Widget build(BuildContext context) => PopScope(
     canPop: !_saving,
     child: AlertDialog(
-      title: const Text('Lisa märge või täiendus'),
+      title: const Text('Lisa op-logisse kommentaar'),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -83,7 +83,7 @@ class _OperationNoteDialogState extends State<OperationNoteDialog> {
             TextField(
               controller: _text,
               enabled: !_saving,
-              decoration: const InputDecoration(labelText: 'Märge'),
+              decoration: const InputDecoration(labelText: 'Kommentaar'),
               maxLines: 4,
               autofocus: true,
             ),
@@ -119,7 +119,7 @@ class _OperationNoteDialogState extends State<OperationNoteDialog> {
         ),
         FilledButton(
           onPressed: _saving ? null : _save,
-          child: const Text('Salvesta märge'),
+          child: const Text('Salvesta kommentaar'),
         ),
       ],
     ),

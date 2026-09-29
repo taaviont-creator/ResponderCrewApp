@@ -442,7 +442,15 @@ class OperationLogService {
       final status = OperationLogStatus.normalize(data['status']);
       if (status != OperationLogStatus.completed &&
           status != OperationLogStatus.returnedToBase) {
-        throw Exception('Only a completed operation can have a final summary');
+        final calloutId = data['calloutId'];
+        if (calloutId is! String || calloutId.isEmpty) {
+          throw Exception('Only a completed operation can have a final summary');
+        }
+        final callout = (await transaction.get(_firestore.collection('callouts').doc(calloutId))).data();
+        if (callout == null || callout['status'] != 'closed' ||
+            (callout['organizationId'] ?? callout['commandId']) != organizationId) {
+          throw Exception('Only a completed operation can have a final summary');
+        }
       }
 
       final currentSummary = (data['summary'] ?? '').toString();
@@ -520,13 +528,6 @@ class OperationLogService {
       throw Exception('Sul puudub õigus seda toimingut teha');
     }
 
-    final userSnapshot =
-        await _firestore.collection('users').doc(currentUser.uid).get();
-    final systemRole = userSnapshot.data()?['systemRole'];
-    if (systemRole == 'platformAdmin' || systemRole == 'platformOwner') {
-      return;
-    }
-
     final membershipSnapshot = await _firestore
         .collection('memberships')
         .doc('${currentUser.uid}_$organizationId')
@@ -552,38 +553,8 @@ class OperationLogService {
 
     if (MembershipRole.isOrgAdmin(membership['role']) || SeaRescueLevel.isLevel2(membership['seaRescueLevel'])) return;
 
-    final commandSnapshot =
-        await _firestore.collection('commands').doc(organizationId).get();
-    if (commandSnapshot.data()?['allowMembersToStartOperationLog'] != true) {
-      throw Exception('Sul puudub õigus seda toimingut teha');
-    }
+    throw Exception('Operatsioonilogi saab muuta admin või II astme merepäästja.');
   }
 }
 
-String _operationLogStatusLabel(String status) {
-  const labels = {
-    OperationLogStatus.open: 'Avatud',
-    OperationLogStatus.enRoute: 'Teel',
-    OperationLogStatus.onScene: 'Kohal',
-    OperationLogStatus.inProgress: 'Tegevuses',
-    OperationLogStatus.completed: 'Lõpetatud',
-    OperationLogStatus.returnedToBase: 'Baasis tagasi',
-  };
-  final label = labels[OperationLogStatus.normalize(status)];
-  if (label != null) return label;
-
-  switch (OperationLogStatus.normalize(status)) {
-    case OperationLogStatus.enRoute:
-      return 'Väljasõit';
-    case OperationLogStatus.onScene:
-      return 'Kohal';
-    case OperationLogStatus.inProgress:
-      return 'Tegevus käib';
-    case OperationLogStatus.completed:
-      return 'Lõpetatud';
-    case OperationLogStatus.returnedToBase:
-      return 'Tagasi baasis';
-    default:
-      return 'Logi loodud';
-  }
-}
+String _operationLogStatusLabel(String status) => OperationLogStatus.label(status);

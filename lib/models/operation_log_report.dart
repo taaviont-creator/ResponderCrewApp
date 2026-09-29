@@ -27,17 +27,9 @@ String buildOperationLogReport(
     final timeOrder = a.eventTime?.compareTo(b.eventTime!) ?? 0;
     return timeOrder == 0 ? a.id.compareTo(b.id) : timeOrder;
   });
-  const statuses = {
-    OperationLogStatus.open: 'Avatud',
-    OperationLogStatus.enRoute: 'Teel',
-    OperationLogStatus.onScene: 'Kohal',
-    OperationLogStatus.inProgress: 'Tegevuses',
-    OperationLogStatus.completed: 'Lõpetatud',
-    OperationLogStatus.returnedToBase: 'Baasis tagasi',
-  };
   final lines = <String>[
     log.title,
-    'Staatus: ${statuses[OperationLogStatus.normalize(log.status)]}',
+    'Staatus: ${OperationLogStatus.label(log.status)}',
     'Logi algus: ${operationLogEventTime(log.timestamp ?? log.createdAt)}',
     if (log.createdByName.isNotEmpty) 'Logi alustaja: ${log.createdByName}',
     if (log.description.isNotEmpty) log.description,

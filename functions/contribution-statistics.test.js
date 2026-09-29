@@ -78,3 +78,20 @@ test('history projection excludes personal fields and preserves commit timestamp
  await handler(event);await handler(event);assert.equal(writes.size,1);assert.equal([...writes.values()][0].at,start);
  await handler({...event,id:'deleted',data:{before:{data:()=>manual('onDuty')},after:{data:()=>undefined}}});assert.equal(writes.size,2);assert.equal([...writes.values()][1].after,null);
 });
+
+
+test('organization pauses subtract overlapping intervals once and do not suppress contributions',()=>{
+ const pause=(a,b,org='org')=>({organizationId:org,startAt:start+a*3600000,endAt:b===null?null:start+b*3600000});
+ const activity={id:'training',organizationId:'org',title:'Training',type:'training',startTime:'2026-09-01 10:00'};
+ const options={dutyPauses:[pause(1,6),pause(3,8),pause(0,null,'other')],activities:[activity],participants:[{organizationId:'org',activityId:'training',userId:'u',attendanceStatus:'confirmed',hours:2}]};
+ const row=hours(options);assert.equal(row.dutyHours,5);assert.equal(row.activityCount,1);assert.equal(row.contributionHours,2);
+ assert.equal(hours({dutyPauses:[pause(4,null)]}).dutyHours,4);
+ assert.equal(hours({dutyPauses:[pause(-5,0),pause(12,20)]}).dutyHours,12);
+ assert.equal(hours({current:[base.current[0],rec('availability','u_org',manual('delayed'))],dutyPauses:[pause(4,null)]}).delayedHours,4);
+});
+
+test('event totals are scoped, deduplicated and separate period, type and completion',()=>{
+ const c={id:'sar',organizationId:'org',createdAt:start,status:'closed',calloutType:'sar'};
+ const result=aggregate({...base,callouts:[c,c,{...c,id:'tross',calloutType:'tross',status:'active'},{...c,id:'cancel',status:'cancelled'},{...c,id:'old',createdAt:start-86400000},{...c,id:'foreign',organizationId:'other'},{...c,id:'unknown',createdAt:null}]});
+ assert.deepEqual(result.events,{total:5,period:3,sar:2,tross:1,closed:1,cancelled:1,undated:1});
+});

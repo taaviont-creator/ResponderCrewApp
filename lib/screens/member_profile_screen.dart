@@ -1,3 +1,4 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import '../widgets/own_profile_editor.dart';
 import '../services/member_contact_service.dart';
 import 'equipment_screen.dart';
@@ -110,6 +111,7 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
 
   bool get _canManageProfileMembership {
     if (!widget.canManageRoles) return false;
+    if (_isOwnProfile && !MembershipRole.isOrgAdmin(_membershipRole)) return false;
     if (widget.currentUid.trim().isEmpty) return false;
     if (_targetUid.isEmpty) return false;
 
@@ -118,7 +120,7 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
     return membershipOrganizationId == widget.organizationId;
   }
 
-  bool get _canEditRole => _canManageProfileMembership && !_isOwnProfile;
+  bool get _canEditRole => _canManageProfileMembership;
 
   bool get _canEditMembershipStartDate => _isOwnProfile || _canManageProfileMembership;
 
@@ -821,10 +823,10 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Roll salvestatud.')),
       );
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Rolli ei saanud salvestada.')),
+        SnackBar(content: Text(error is FirebaseFunctionsException ? error.message ?? 'Rolli ei saanud salvestada.' : 'Rolli ei saanud salvestada.')),
       );
     }
   }

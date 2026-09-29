@@ -17,7 +17,8 @@ Map<String, dynamic> statisticsMap(dynamic value) =>
 
 class ContributionReport {
   ContributionReport(Map<String, dynamic> data)
-    : members = (data['members'] as List)
+    : events = Map<String, dynamic>.from(data['events'] as Map? ?? {}),
+      members = (data['members'] as List)
           .map((m) => MemberContribution(statisticsMap(m)))
           .toList(),
       trackingStartedAt = DateTime.tryParse(
@@ -27,6 +28,7 @@ class ContributionReport {
       undatedCount = (data['undatedCount'] as num?)?.toInt() ?? 0,
       canManage = data['canManage'] == true,
       canRecord = data['canRecord'] == true;
+  final Map<String, dynamic> events;
   final List<MemberContribution> members;
   final DateTime? trackingStartedAt;
   final bool dutyHistoryPending, canManage, canRecord;

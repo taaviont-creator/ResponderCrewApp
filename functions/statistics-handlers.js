@@ -27,12 +27,12 @@ function createStatisticsHandler({db,now=()=>Date.now()}) {
     const {from,to}=request.data||{};
     if(!period(from,to)) throw new HttpsError('invalid-argument','Vali kuni 366 päeva pikkune periood.');
     const at=now();
-    const names=[...SOURCES,'activities','activityParticipants','callouts','calloutResponses','calloutAttendance','statisticsHistory'];
-    const [settings,...snapshots]=await Promise.all([db.doc('statisticsSettings/tracking').get(),...names.map(name=>organizationDocs(db,name,org,!['calloutAttendance','statisticsHistory'].includes(name)))]);
+    const names=[...SOURCES,'activities','activityParticipants','callouts','calloutResponses','calloutAttendance','statisticsHistory','organizationDutyPauses'];
+    const [settings,...snapshots]=await Promise.all([db.doc('statisticsSettings/tracking').get(),...names.map(name=>organizationDocs(db,name,org,!['calloutAttendance','statisticsHistory','organizationDutyPauses'].includes(name)))]);
     const data=Object.fromEntries(names.map((name,i)=>[name,snapshots[i].map(d=>({...d.data(),id:d.id}))]));
     const current=SOURCES.flatMap((source,i)=>snapshots[i].map(d=>({source,id:d.id,data:project(source,d.data()),version:millis(d.updateTime)})));
     const result=aggregate({organizationId:org,from,to,now:at,trackingStart:millis(settings.data()?.startedAt),current,history:data.statisticsHistory,
-      memberships:data.memberships,activities:data.activities,participants:data.activityParticipants,callouts:data.callouts,responses:data.calloutResponses,attendance:data.calloutAttendance});
+      memberships:data.memberships,activities:data.activities,participants:data.activityParticipants,callouts:data.callouts,responses:data.calloutResponses,attendance:data.calloutAttendance,dutyPauses:data.organizationDutyPauses});
     return {...result,canManage:admin,canRecord:admin || organization.allowMembersToCreateActivities===true};
   };
 }
@@ -87,7 +87,7 @@ function createCalloutAttendanceHandler({db,timestamp}) {
         before:previous?{status:previous.status,hours:previous.hours??null}:null,
         after:{status,hours:nextHours},createdBy:request.auth.uid,createdByName:actor.membership.displayName||'Liige',createdAt:timestamp(),
       });
-      tx.set(ref,{id,organizationId:org,calloutId,userId,userName:member.data().displayName||'Liige',status,hours:status==='confirmed'?(hours??null):null,confirmedBy:request.auth.uid,updatedAt:timestamp()});
+      tx.set(ref,{id,organizationId:org,calloutId,userId,userName:member.data().displayName||'Liige',seaRescueLevel:member.data().seaRescueLevel||'none',status,hours:status==='confirmed'?(hours??null):null,confirmedBy:request.auth.uid,updatedAt:timestamp()});
       return {saved:true};
     });
   };

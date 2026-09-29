@@ -54,8 +54,10 @@ class PlatformReadinessService {
 
     final doc = _summaries.doc(organizationId);
     final snapshot = await doc.get();
+    final dutyPaused = (await FirebaseFirestore.instance.collection('commands').doc(organizationId).get()).data()?['dutyPaused'] == true;
 
     await doc.set({
+      'dutyPaused': dutyPaused,
       'id': organizationId,
       'organizationId': organizationId,
       // TODO: Remove commandId after all readiness reads use organizationId.
@@ -70,7 +72,7 @@ class PlatformReadinessService {
       'primaryVesselStatus': primaryVesselStatus,
       'equipmentStatus': equipmentStatus,
       'criticalIssues': criticalIssues.trim(),
-      if (!snapshot.exists) 'readinessStatus': ReadinessStatus.unknown,
+      if (!snapshot.exists) 'readinessStatus': dutyPaused ? ReadinessStatus.notReady : ReadinessStatus.unknown,
       if (!snapshot.exists) 'onDutyCount': 0,
       if (!snapshot.exists) 'delayedCount': 0,
       if (!snapshot.exists) 'minimumCrewMet': false,
@@ -112,8 +114,10 @@ class PlatformReadinessService {
 
     final doc = _summaries.doc(organizationId);
     final snapshot = await doc.get();
+    final dutyPaused = (await FirebaseFirestore.instance.collection('commands').doc(organizationId).get()).data()?['dutyPaused'] == true;
 
     final data = {
+      'dutyPaused': dutyPaused,
       'id': organizationId,
       'organizationId': organizationId,
       // TODO: Remove commandId after all readiness reads use organizationId.
@@ -124,7 +128,7 @@ class PlatformReadinessService {
       'region': region.trim(),
       'contactName': contactName.trim(),
       'contactPhone': contactPhone.trim(),
-      'readinessStatus': readinessStatus,
+      'readinessStatus': dutyPaused ? ReadinessStatus.notReady : readinessStatus,
       'onDutyCount': onDutyCount < 0 ? 0 : onDutyCount,
       'delayedCount': delayedCount < 0 ? 0 : delayedCount,
       'minimumCrewRequired':
@@ -155,8 +159,10 @@ class PlatformReadinessService {
 
     final doc = _summaries.doc(organizationId);
     final snapshot = await doc.get();
+    final dutyPaused = (await FirebaseFirestore.instance.collection('commands').doc(organizationId).get()).data()?['dutyPaused'] == true;
 
     await doc.set({
+      'dutyPaused': dutyPaused,
       'id': organizationId,
       'organizationId': organizationId,
       // TODO: Remove commandId after all readiness reads use organizationId.
@@ -168,7 +174,7 @@ class PlatformReadinessService {
       if (!snapshot.exists) 'region': '',
       if (!snapshot.exists) 'contactName': '',
       if (!snapshot.exists) 'contactPhone': '',
-      if (!snapshot.exists) 'readinessStatus': ReadinessStatus.unknown,
+      if (!snapshot.exists) 'readinessStatus': dutyPaused ? ReadinessStatus.notReady : ReadinessStatus.unknown,
       if (!snapshot.exists) 'onDutyCount': 0,
       if (!snapshot.exists) 'delayedCount': 0,
       if (!snapshot.exists) 'minimumCrewMet': false,

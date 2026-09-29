@@ -7,7 +7,7 @@ import 'activities_screen.dart';
 import 'equipment_screen.dart';
 import 'members_screen.dart';
 import 'operation_log_screen.dart';
-import 'platform_pending_organizations_screen.dart';
+import 'platform_management_screen.dart';
 import 'platform_readiness_screen.dart';
 import 'self_profile_screen.dart';
 import 'statistics_screen.dart';
@@ -52,8 +52,8 @@ class MenuScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final canOpenReadinessOverview =
-        isPlatformAdmin || isOrganizationAdmin;
-    final canManageEquipment = isPlatformAdmin || isOrganizationAdmin;
+        isOrganizationAdmin;
+    final canManageEquipment = isOrganizationAdmin;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Menüü')),
@@ -86,7 +86,7 @@ class MenuScreen extends StatelessWidget {
               SelfProfileScreen(
                 currentUid: currentUid,
                 organizationId: organizationId,
-                canManageRoles: isPlatformAdmin || isOrganizationAdmin,
+                canManageRoles: isOrganizationAdmin,
               ),
             ),
           ),
@@ -99,7 +99,7 @@ class MenuScreen extends StatelessWidget {
                 MembersScreen(
                   organizationId: organizationId,
                   currentUid: currentUid,
-                  canManageRoles: isPlatformAdmin || isOrganizationAdmin,
+                  canManageRoles: isOrganizationAdmin,
                 ),
               ),
             ),
@@ -126,7 +126,7 @@ class MenuScreen extends StatelessWidget {
                 organizationId: organizationId,
                 currentUid: currentUid,
                 currentUserName: currentUserName,
-                canViewCalloutResponseSummary: isOrganizationAdmin,
+                canViewCalloutResponseSummary: canStartOperationLog,
                 canStartOperationLog: canStartOperationLog,
               ),
             ),
@@ -166,7 +166,7 @@ class MenuScreen extends StatelessWidget {
               subtitle: 'Lülitu teise ühingu vaatele',
               onTap: onSwitchOrganization,
             ),
-          if (isPlatformAdmin || isOrganizationAdmin)
+          if (isOrganizationAdmin)
             _MenuEntry(
               icon: Icons.settings_outlined,
               title: 'Ühingu seaded',
@@ -176,14 +176,10 @@ class MenuScreen extends StatelessWidget {
           if (isPlatformAdmin)
             _MenuEntry(
               icon: Icons.apartment_outlined,
-              title: 'Ootel ühingud',
-              subtitle: 'Uute ühingute kinnitamine',
-              onTap: () => _open(
-                context,
-                const PlatformPendingOrganizationsScreen(
-                  isPlatformAdmin: true,
-                ),
-              ),
+              title: 'RespondCrew haldus',
+              subtitle: 'Ühingud, kasutajakontod ja audit',
+              onTap: () => Navigator.of(context, rootNavigator: true).push(
+                MaterialPageRoute<void>(builder: (_) => const PlatformManagementScreen())),
             ),
           if (canOpenReadinessOverview)
             _MenuEntry(

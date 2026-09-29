@@ -54,8 +54,6 @@ class _MemberPermissionSettingsState extends State<MemberPermissionSettings> {
               'allowMembersToCreateActivities':
                   'Liikmed võivad lisada tegevusi/koolitusi',
               'allowMembersToViewStatistics': 'Liikmed võivad näha statistikat',
-              'allowMembersToStartOperationLog':
-                  'Liikmed võivad alustada operatsioonilogi',
             }.entries)
               SwitchListTile(
                 title: Text(entry.value),
