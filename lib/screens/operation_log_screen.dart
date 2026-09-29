@@ -1,3 +1,4 @@
+import '../services/operation_log_access_service.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -93,13 +94,6 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
   }
 
   Future<void> _showAddManualEventDialog(OperationLogModel log) async {
-    if (!widget.canStartOperationLog) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sul puudub õigus seda toimingut teha')),
-      );
-      return;
-    }
-
     await showDialog<void>(
       context: context,
       builder: (_) => OperationNoteDialog(
@@ -115,13 +109,6 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
   }
 
   Future<void> _addQuickAction(OperationLogModel log, String title) async {
-    if (!widget.canStartOperationLog) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sul puudub õigus seda toimingut teha')),
-      );
-      return;
-    }
-
     final location = await _tryGetCurrentEventLocation();
     await _operationLogService.addManualEvent(
       operationLogId: log.id,
@@ -167,6 +154,10 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
   }
 
   Future<void> _handleQuickAction(OperationLogModel log, String action) async {
+    if (!widget.canStartOperationLog || action == 'Sündmus lõpetatud') {
+      await _addQuickAction(log, action);
+      return;
+    }
     switch (action) {
       case 'Väljasõit':
         await _updateStatus(log, OperationLogStatus.enRoute);
@@ -409,6 +400,10 @@ class _OperationLogCardState extends State<_OperationLogCard> {
           organizationId: widget.organizationId,
         );
   StreamSubscription<CalloutModel?>? _calloutSubscription;
+  late final Stream<bool> _participantAccess = widget.log.calloutId == null
+      ? Stream.value(false)
+      : OperationLogAccessService().participantAccess(organizationId: widget.organizationId,
+          userId: widget.currentUid, calloutId: widget.log.calloutId!);
   bool _calloutClosed = false;
   bool _calloutReadFailed = false;
 
@@ -420,7 +415,7 @@ class _OperationLogCardState extends State<_OperationLogCard> {
       (callout) {
         if (!mounted) return;
         setState(() {
-          _calloutClosed = callout?.status == CalloutStatus.closed;
+          _calloutClosed = callout?.status != CalloutStatus.active;
           _calloutReadFailed = false;
         });
         _notifyVisibleActiveChanged();
@@ -535,15 +530,17 @@ class _OperationLogCardState extends State<_OperationLogCard> {
             'Täienda lõpetatud väljakutse logi. Kommentaare, kokkuvõtet ja osalejaid saab lisada ka tagantjärele.',
           ),
         ),
-      if (widget.canStartOperationLog)
-        OperationLogActions(
-          // A closed callout needs retrospective entries, not fictitious live timings.
-          status: calloutClosed
-              ? OperationLogStatus.returnedToBase
-              : log.status,
+      StreamBuilder<bool>(stream: _participantAccess, builder: (context, access) {
+        if (!widget.canStartOperationLog && (finished || access.hasError || access.data != true)) {
+          return Text(finished || log.calloutId == null ? 'Logi on ainult vaatamiseks.' : access.hasError ? 'Logi lisamisõigust ei õnnestunud kontrollida.' : 'Logi täitmiseks märgi väljakutsel „Tulen” või „Hilinen” või lase juhil osalemine kinnitada.');
+        }
+        return OperationLogActions(
+          status: calloutClosed ? OperationLogStatus.returnedToBase : log.status,
+          appendOnly: !widget.canStartOperationLog,
           onAction: (title) => widget.onHandleQuickAction(log, title),
           onComment: () => widget.onShowAddManualEventDialog(log),
-        ),
+        );
+      }),
       const SizedBox(height: 16),
       ExpansionTile(
         key: ValueKey('completion-$canSummarize'),

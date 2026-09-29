@@ -319,16 +319,17 @@ class CalloutService {
     _requireUserId(trimmedUserId);
 
     return _responses
-        .where(
-          FieldPath.documentId,
-          isEqualTo: _responseId(trimmedCalloutId, trimmedUserId),
-        )
-        .limit(1)
+        .where(Filter.and(
+          Filter('userId', isEqualTo: trimmedUserId),
+          Filter('calloutId', isEqualTo: trimmedCalloutId),
+          Filter.or(Filter('organizationId', isEqualTo: trimmedOrganizationId),
+            Filter('commandId', isEqualTo: trimmedOrganizationId)),
+        ))
         .snapshots()
         .map((snapshot) {
-      if (snapshot.docs.isEmpty) return null;
-      final response =
-          CalloutResponseModel.fromFirestore(snapshot.docs.first);
+      final canonical = snapshot.docs.where((d) => d.id == _responseId(trimmedCalloutId, trimmedUserId));
+      if (canonical.isEmpty) return null;
+      final response = CalloutResponseModel.fromFirestore(canonical.first);
       final responseOrganizationId = response.organizationId.isNotEmpty
           ? response.organizationId
           : response.commandId;

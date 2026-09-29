@@ -1915,6 +1915,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ? AdminHomeDashboard(
                           organizationId: selectedOrganizationId,
                           currentUid: user.uid,
+                          currentUserName: displayName,
                           topHeader: _buildCompactOperationalHeader(
                             displayName: displayName,
                             commandId: selectedOrganizationId,
@@ -2009,6 +2010,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             organizationId: selectedOrganizationId, currentUid: user.uid, canManageActivities: true, openCreateOnLoad: true))) : null,
                           organizationId: selectedOrganizationId,
                           currentUid: user.uid,
+                          currentUserName: displayName,
                           topHeader: _buildCompactOperationalHeader(
                             displayName: displayName,
                             commandId: selectedOrganizationId,

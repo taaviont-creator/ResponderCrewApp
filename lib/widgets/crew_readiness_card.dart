@@ -1,3 +1,5 @@
+import '../screens/member_profile_screen.dart';
+import '../screens/self_profile_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -151,6 +153,29 @@ class _CrewReadinessCardState extends State<CrewReadinessCard> {
     }
   }
 
+  Future<void> _openProfile(String uid) async {
+    final matches = (_members ?? []).where((m) => m['userId'] == uid);
+    if (matches.isEmpty) return;
+    final membership = matches.first;
+    final own = (_members ?? []).where((m) => m['userId'] == widget.currentUid);
+    final canManage = own.isNotEmpty && MembershipRole.isOrgAdmin(own.first['role']);
+    try {
+      if (uid == widget.currentUid) {
+        await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => SelfProfileScreen(
+          currentUid: widget.currentUid, organizationId: widget.organizationId, canManageRoles: canManage)));
+        return;
+      }
+      final user = canManage ? (await FirebaseFirestore.instance.doc('users/$uid').get()).data() : null;
+      if (!mounted) return;
+      await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => MemberProfileScreen(
+        userData: user ?? {'name': MembershipService().safeDisplayNameFromMembership(membership)},
+        membershipData: membership, membershipId: '${uid}_${widget.organizationId}',
+        organizationId: widget.organizationId, currentUid: widget.currentUid, canManageRoles: canManage)));
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Liikme profiili ei saanud avada.')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_dutyPaused == true) {
@@ -197,6 +222,7 @@ class _CrewReadinessCardState extends State<CrewReadinessCard> {
       busyUserId: _busy,
       showOffDuty: widget.showOffDuty,
       onContact: _contact,
+      onOpenMember: _openProfile,
     );
   }
 }
@@ -208,6 +234,7 @@ class CrewReadinessView extends StatelessWidget {
     required this.minimumCrew,
     required this.currentUid,
     required this.onContact,
+    this.onOpenMember,
     this.busyUserId,
     this.showOffDuty = false,
   });
@@ -217,6 +244,7 @@ class CrewReadinessView extends StatelessWidget {
   final String? busyUserId;
   final bool showOffDuty;
   final void Function(String, bool) onContact;
+  final ValueChanged<String>? onOpenMember;
   @override
   Widget build(BuildContext context) {
     final onDuty = members
@@ -346,10 +374,11 @@ class CrewReadinessView extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      '${member.name}${member.userId == currentUid ? ' · Mina' : ''}',
-                      style: Theme.of(context).textTheme.titleSmall,
-                    ),
+                    InkWell(onTap: onOpenMember == null ? null : () => onOpenMember!(member.userId),
+                      child: ConstrainedBox(constraints: const BoxConstraints(minHeight: 48),
+                        child: Align(alignment: Alignment.centerLeft, child: Text(
+                          '${member.name}${member.userId == currentUid ? ' · Mina' : ''}',
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(decoration: TextDecoration.underline))))),
                     Text(
                       '$status · $level',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(

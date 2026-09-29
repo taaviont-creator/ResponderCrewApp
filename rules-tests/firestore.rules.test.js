@@ -1329,3 +1329,79 @@ test('member readiness returns only current unavailability while private schedul
   await assert.rejects(handler({data:{organizationId}}),e=>e.code==='unauthenticated');
   await assert.rejects(handler({auth:{uid:activeMemberId},data:{organizationId:otherOrganizationId}}),e=>e.code==='permission-denied');
 });
+async function seedPhoneCallout({response = 'responding', attendance, status = 'active'} = {}) {
+  const db=serverDb();
+  await db.doc('callouts/phone-callout').set({id:'phone-callout',organizationId,commandId:organizationId,status});
+  await seedOperationLog('phone-log','enRoute');
+  await db.doc('operationLogs/phone-log').update({calloutId:'phone-callout'});
+  if(response) await db.doc(`calloutResponses/phone-callout_${activeMemberId}`).set({id:`phone-callout_${activeMemberId}`,organizationId,commandId:organizationId,calloutId:'phone-callout',userId:activeMemberId,response});
+  if(attendance) await db.doc(`calloutAttendance/phone-callout_${activeMemberId}`).set({organizationId,calloutId:'phone-callout',userId:activeMemberId,status:attendance});
+  return testEnv.authenticatedContext(activeMemberId).firestore();
+}
+function phoneNote(id, overrides={}) {
+  return {id,operationLogId:'phone-log',organizationId,commandId:organizationId,type:'manualNote',status:'enRoute',
+    title:'Kontakt abivajajaga',text:'Kontakt abivajajaga',description:'',createdBy:activeMemberId,createdByName:'Liige',createdAt:serverTimestamp(),...overrides};
+}
+test('phone participant appends notes and informational end without changing callout or log status',async()=>{
+  const db=await seedPhoneCallout();
+  await assertSucceeds(setDoc(doc(db,'operationLogs/phone-log/events/note'),phoneNote('note',{occurredAt:new Date('2026-01-01'),latitude:59.44,longitude:27.01,accuracyMeters:8})));
+  const event=phoneNote('end',{type:'quickAction',title:'Sündmus lõpetatud'});delete event.text;
+  await assertSucceeds(setDoc(doc(db,'operationLogs/phone-log/events/end'),event));
+  assert.equal((await serverDb().doc('callouts/phone-callout').get()).data().status,'active');
+  assert.equal((await serverDb().doc('operationLogs/phone-log').get()).data().status,'enRoute');
+  assert.equal((await serverDb().doc('operationLogs/phone-log/events/note').get()).data().createdBy,activeMemberId);
+  await assertFails(updateDoc(doc(db,'operationLogs/phone-log/events/note'),{title:'Muudetud'}));
+  await assertFails(deleteDoc(doc(db,'operationLogs/phone-log/events/note')));
+  await assertFails(updateDoc(doc(db,'operationLogs/phone-log'),{status:'onScene',updatedAt:serverTimestamp()}));
+  await assertFails(updateDoc(doc(db,'operationLogs/phone-log'),{summary:'Bypass',outcome:'',completedBy:activeMemberId,completedAt:serverTimestamp(),updatedAt:serverTimestamp()}));
+  await assertFails(updateDoc(doc(db,'callouts/phone-callout'),{status:'closed',closedAt:serverTimestamp(),updatedAt:serverTimestamp()}));
+});
+test('phone delayed and confirmed participants append, absent attendance overrides responding',async()=>{
+  const db=await seedPhoneCallout({response:'delayed'});
+  await assertSucceeds(setDoc(doc(db,'operationLogs/phone-log/events/delayed'),phoneNote('delayed')));
+  await serverDb().doc(`calloutAttendance/phone-callout_${activeMemberId}`).set({organizationId,calloutId:'phone-callout',userId:activeMemberId,status:'absent'});
+  await assertFails(setDoc(doc(db,'operationLogs/phone-log/events/absent'),phoneNote('absent')));
+  await serverDb().doc(`calloutAttendance/phone-callout_${activeMemberId}`).update({status:'confirmed'});
+  await serverDb().doc(`calloutResponses/phone-callout_${activeMemberId}`).delete();
+  await assertSucceeds(setDoc(doc(db,'operationLogs/phone-log/events/confirmed'),phoneNote('confirmed')));
+});
+test('phone no response and unavailable members cannot append; changing response revokes access',async()=>{
+  const db=await seedPhoneCallout({response:null});
+  await assertFails(setDoc(doc(db,'operationLogs/phone-log/events/none'),phoneNote('none')));
+  const ref=serverDb().doc(`calloutResponses/phone-callout_${activeMemberId}`);
+  await ref.set({organizationId,commandId:organizationId,calloutId:'phone-callout',userId:activeMemberId,response:'responding'});
+  await assertSucceeds(setDoc(doc(db,'operationLogs/phone-log/events/yes'),phoneNote('yes')));
+  await ref.update({response:'unavailable'});
+  await assertFails(setDoc(doc(db,'operationLogs/phone-log/events/no'),phoneNote('no')));
+});
+test('phone closed/cancelled callouts, finished logs, suspended organizations and removed members deny append',async()=>{
+  const db=await seedPhoneCallout(), server=serverDb();
+  for(const status of ['closed','cancelled']) {
+    await server.doc('callouts/phone-callout').update({status});
+    await assertFails(setDoc(doc(db,`operationLogs/phone-log/events/${status}`),phoneNote(status)));
+  }
+  await server.doc('callouts/phone-callout').update({status:'active'});
+  await server.doc('operationLogs/phone-log').update({status:'returnedToBase'});
+  await assertFails(setDoc(doc(db,'operationLogs/phone-log/events/finished'),phoneNote('finished',{status:'returnedToBase'})));
+  await server.doc('operationLogs/phone-log').update({status:'enRoute'});
+  await server.doc(`commands/${organizationId}`).update({status:'suspended'});
+  await assertFails(setDoc(doc(db,'operationLogs/phone-log/events/suspended'),phoneNote('suspended')));
+  await server.doc(`commands/${organizationId}`).update({status:'approved'});
+  await server.doc(`memberships/${activeMemberId}_${organizationId}`).update({isActive:false,status:'removed'});
+  await assertFails(setDoc(doc(db,'operationLogs/phone-log/events/removed'),phoneNote('removed')));
+});
+test('phone append rejects forged author, event type, fields, oversized text, future time and other org',async()=>{
+  const db=await seedPhoneCallout();
+  const mutations=[{createdBy:orgAdminId},{type:'statusChange'},{type:'summarySaved'},{summarySnapshot:'fake'},
+    {title:'x'.repeat(4001),text:'x'.repeat(4001)},{occurredAt:new Date('2099-01-01')},{organizationId:otherOrganizationId,commandId:otherOrganizationId},
+    {status:'onScene'},{createdByName:7}];
+  for(let i=0;i<mutations.length;i++) await assertFails(setDoc(doc(db,`operationLogs/phone-log/events/bad${i}`),phoneNote(`bad${i}`,mutations[i])));
+  await serverDb().doc('callouts/phone-callout').update({organizationId:otherOrganizationId,commandId:otherOrganizationId});
+  await assertFails(setDoc(doc(db,'operationLogs/phone-log/events/crossOrg'),phoneNote('crossOrg')));
+});
+test('phone response and attendance subscription queries work before first response and stay private',async()=>{
+  const db=await seedPhoneCallout({response:null});
+  for(const name of ['calloutResponses','calloutAttendance']) await assertSucceeds(getDocs(query(collection(db,name),where('organizationId','==',organizationId),where('calloutId','==','phone-callout'),where('userId','==',activeMemberId))));
+  await assertSucceeds(getDocs(query(collection(db,'calloutResponses'),and(where('userId','==',activeMemberId),where('calloutId','==','phone-callout'),or(where('organizationId','==',organizationId),where('commandId','==',organizationId))))));
+  await assertFails(getDocs(query(collection(db,'calloutResponses'),where('organizationId','==',organizationId),where('calloutId','==','phone-callout'),where('userId','==',orgAdminId))));
+});
