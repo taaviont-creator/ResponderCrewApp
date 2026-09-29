@@ -2615,6 +2615,12 @@ service cloud.firestore {
       allow create: if canCreateOrganizationInvite(request.resource.data);
       allow update: if isOrganizationInviteAccept(inviteId) ||
         isOrganizationInviteCancel();
+
+      match /emailDelivery/{deliveryId} {
+        allow get: if deliveryId == 'status' && isActiveOrgAdmin(
+          organizationIdFromData(get(/databases/$(database)/documents/organizationInvites/$(inviteId)).data));
+        // Delivery state is written only by the mail function, never the client.
+      }
     }
 
     match /availability/{availabilityId} {

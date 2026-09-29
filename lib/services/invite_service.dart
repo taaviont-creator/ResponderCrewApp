@@ -4,11 +4,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/membership_model.dart';
 
 class InviteService {
-  InviteService({
-    FirebaseFirestore? firestore,
-    FirebaseAuth? auth,
-  })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        _auth = auth ?? FirebaseAuth.instance;
+  InviteService({FirebaseFirestore? firestore, FirebaseAuth? auth})
+    : _firestore = firestore ?? FirebaseFirestore.instance,
+      _auth = auth ?? FirebaseAuth.instance;
 
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;
@@ -31,7 +29,7 @@ class InviteService {
   }
 
   Stream<List<QueryDocumentSnapshot<Map<String, dynamic>>>>
-      streamPendingInvitesForEmail(String normalizedEmail) {
+  streamPendingInvitesForEmail(String normalizedEmail) {
     final email = normalizedEmail.trim().toLowerCase();
     if (email.isEmpty) {
       return Stream.value(<QueryDocumentSnapshot<Map<String, dynamic>>>[]);
@@ -42,17 +40,19 @@ class InviteService {
         .where('status', isEqualTo: 'pending')
         .snapshots()
         .map((snapshot) {
-      final now = Timestamp.now();
-      return snapshot.docs.where((doc) {
-        final invite = doc.data();
-        final expiresAt = _timestampValue(invite['expiresAt']);
-        return expiresAt != null && expiresAt.compareTo(now) > 0;
-      }).toList(growable: false);
-    });
+          final now = Timestamp.now();
+          return snapshot.docs
+              .where((doc) {
+                final invite = doc.data();
+                final expiresAt = _timestampValue(invite['expiresAt']);
+                return expiresAt != null && expiresAt.compareTo(now) > 0;
+              })
+              .toList(growable: false);
+        });
   }
 
   Stream<List<QueryDocumentSnapshot<Map<String, dynamic>>>>
-      streamPendingInvitesForOrganization(String organizationId) {
+  streamPendingInvitesForOrganization(String organizationId) {
     final normalizedOrganizationId = organizationId.trim();
     if (normalizedOrganizationId.isEmpty) {
       return Stream.value(<QueryDocumentSnapshot<Map<String, dynamic>>>[]);
@@ -63,13 +63,16 @@ class InviteService {
         .where('status', isEqualTo: 'pending')
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.where((doc) {
-        final invite = doc.data();
-        final inviteOrganizationId =
-            (invite['organizationId'] ?? invite['commandId'] ?? '').toString();
-        return inviteOrganizationId == normalizedOrganizationId;
-      }).toList(growable: false);
-    });
+          return snapshot.docs
+              .where((doc) {
+                final invite = doc.data();
+                final inviteOrganizationId =
+                    (invite['organizationId'] ?? invite['commandId'] ?? '')
+                        .toString();
+                return inviteOrganizationId == normalizedOrganizationId;
+              })
+              .toList(growable: false);
+        });
   }
 
   Future<void> createMemberInvite({
@@ -105,13 +108,7 @@ class InviteService {
       throw Exception('Kutseid saab saata ainult kinnitatud ühingus.');
     }
 
-    final userSnapshot =
-        await _firestore.collection('users').doc(user.uid).get();
-    final isPlatformAdmin = PlatformRole.isPlatformAdmin(
-      userSnapshot.data()?['systemRole'],
-    );
-
-    if (!isPlatformAdmin) {
+    {
       final membershipSnapshot = await _firestore
           .collection('memberships')
           .doc('${user.uid}_$normalizedOrganizationId')
@@ -129,10 +126,12 @@ class InviteService {
         .where('organizationId', isEqualTo: normalizedOrganizationId)
         .where('email', isEqualTo: normalizedEmail)
         .where('status', isEqualTo: 'pending')
-        .limit(1)
         .get();
 
-    if (existingInvite.docs.isNotEmpty) {
+    if (existingInvite.docs.any((doc) {
+      final expiresAt = _timestampValue(doc.data()['expiresAt']);
+      return expiresAt != null && expiresAt.compareTo(Timestamp.now()) > 0;
+    })) {
       throw Exception('Selle e-postiga ootel kutse on juba olemas.');
     }
 
@@ -198,13 +197,7 @@ class InviteService {
       throw Exception('Kutseid saab tühistada ainult kinnitatud ühingus.');
     }
 
-    final userSnapshot =
-        await _firestore.collection('users').doc(user.uid).get();
-    final isPlatformAdmin = PlatformRole.isPlatformAdmin(
-      userSnapshot.data()?['systemRole'],
-    );
-
-    if (!isPlatformAdmin) {
+    {
       final membershipSnapshot = await _firestore
           .collection('memberships')
           .doc('${user.uid}_$normalizedOrganizationId')
@@ -258,8 +251,10 @@ class InviteService {
       throw Exception('Seda kutset ei saa vastu võtta.');
     }
 
-    final commandSnapshot =
-        await _firestore.collection('commands').doc(organizationId).get();
+    final commandSnapshot = await _firestore
+        .collection('commands')
+        .doc(organizationId)
+        .get();
     final commandData = commandSnapshot.data();
     if (!commandSnapshot.exists || commandData == null) {
       throw Exception('Seda kutset ei saa vastu võtta.');

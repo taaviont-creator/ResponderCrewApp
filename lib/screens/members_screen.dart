@@ -1,5 +1,6 @@
 import 'package:url_launcher/url_launcher.dart';
 import '../widgets/member_directory.dart';
+import '../widgets/invite_email_status.dart';
 import '../services/member_contact_service.dart';
 import 'self_profile_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -404,7 +405,6 @@ class _PendingOrganizationInvitesSection extends StatelessWidget {
 
   static const _inviteMessage =
       'Tere! Sind on kutsutud liituma RespondCrew ühinguga. '
-      'Kutse e-kirja automaatselt ei saadeta. '
       'Palun registreeru või logi sisse sama e-posti aadressiga, '
       'millele kutse saadeti, ning ava äpis kutsete vaade, '
       'et liitumine kinnitada.';
@@ -576,6 +576,7 @@ class _PendingOrganizationInviteTile extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(details.join('\n')),
+          InviteEmailStatus(invite: invite.reference),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
