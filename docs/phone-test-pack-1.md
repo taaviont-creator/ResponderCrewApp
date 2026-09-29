@@ -4,11 +4,13 @@
 
 - Väljakutse loomine loob juba seotud op-logi ja alguskande samas kirjutuspaketis.
 - Vabatekst, autor, aeg, tagantjärele märgitud aeg ja GPS on olemasolevas `operationLogs/{id}/events` mudelis.
-- FCM tausta- ja külmkäivituse ning kohaliku esiplaaniteavituse avamine kannab edasi ühingu ja väljakutse ID. Avamine vahetab ühingut ning suunab `CalloutsScreen` kaudu täpselt sobivasse detailvaatesse. Säilitatud; telefoni kõiki olekuid kohapeal ei testitud.
+- FCM tausta- ja külmkäivituse ning kohaliku esiplaaniteavituse avamine kannab edasi ühingu ja väljakutse ID. Avamise ID-andmed olid olemas, aga juurvaate uuesti loodavad vood võisid detaili kohe sulgeda ja jätta kasutaja nimekirja. Parandatud püsivate voogude ning ID-põhise avajaga; telefoni kõiki olekuid kohapeal ei testitud.
 - Sündmuse ametlik lõpetamine kinnitusega ning admini/II astme õigused olid olemas, aga nupp oli liiga all.
 - Olemasolevad liikme- ja enda profiilivaated jäävad kasutusse.
 
 ## Muudatused
+
+- Teavitus avab väljakutse otse ID järgi, ootamata nimekirja päringut. Avalehe kasutaja-, liikmesuse- ja ühinguvood püsivad samad läbi ümberjoonistamiste, nii et avamise kinnitus ei hävita navigaatorit. Puuduva/keelatud sündmuse korral kuvatakse selge viga ja korduskatse.
 
 - Ühine `ActiveCalloutsCard` asendab mõlema avalehe dubleeritud sündmusekaardid. Aktiivsed sündmused on enne pikka isikliku staatuse plokki. Kaardil on tüüp, pealkiri, algus, asukoht, vastus ja avamine. Tühjal nimekirjal ei jää kaardi ruumi.
 - `CalloutResponseControls` annab avalehel ja detaili alguses samad Tulen / Hilinen / Ei tule nupud. Valik on nähtav, muudetav, salvestus on lukustatud kordusvajutuse vastu. Hilinemise olemasolev aeg ja märkus säilivad avamisel. Oma vastuse päring on ühingu/kasutaja/sündmuse järgi piiratud ka enne esimese vastuse salvestamist.
@@ -30,6 +32,7 @@ Reegli ühised väärtused on taaskasutatud, et lisamisõiguse kontroll mahuks F
 - `lib/widgets/active_callouts_card.dart`, `callout_response_controls.dart`: ühised sündmuse- ja vastamiskomponendid.
 - `lib/screens/admin_home_dashboard.dart`, `member_home_dashboard.dart`, `home_screen.dart`, `callout_detail_screen.dart`: paigutus, andmed ja lõpetamise menüü.
 - `lib/services/callout_service.dart`: oma vastuse piiratud päring.
+- `lib/widgets/callout_link_opener.dart`, `lib/screens/callouts_screen.dart`, `test/callout_link_opener_test.dart`: otsene avamine ID järgi ja navigeerimise regressioonid.
 - `lib/services/operation_log_access_service.dart`, `operation_log_service.dart`, `lib/screens/operation_log_screen.dart`, `lib/widgets/operation_log_actions.dart`: osaleja lisamisõigus ja kiirmärked.
 - `lib/widgets/callout_departure_timing.dart`: ka osaleja väljasõidumärge.
 - `lib/widgets/crew_readiness_card.dart`: olemasoleva profiili avamine.
@@ -40,10 +43,10 @@ Samasse PR-i kuulub varasem seni maini ühendamata liikme valmisoleku parandus (
 ## Kontrollid
 
 - Flutter analyze: puhas.
-- Flutter: 95 testi läbis.
+- Flutter: 98 testi läbis.
 - Firestore/Storage ja serveritöövood emulaatorites: 78 testi läbis.
 - Functions: 51 testi läbis.
-- Kokku 224 automaattesti. Lisatud/uuendatud vastuste kooskõla, kordusvajutus, salvestusvea järel uuesti proovimine, hilinemine, kitsas ekraan, sündmuse kadumine, õige profiil, informatiivne lõpetamise märge, osalemine, GPS, õiguse kaotamine ja keelatud muutmised.
+- Kokku 227 automaattesti. Lisatud/uuendatud vastuste kooskõla, kordusvajutus, salvestusvea järel uuesti proovimine, hilinemine, kitsas ekraan, sündmuse kadumine, õige profiil, informatiivne lõpetamise märge, osalemine, GPS, õiguse kaotamine ja keelatud muutmised.
 - APK koostamise, avaldamise ja GitHubi CI lõpptulemus on üleandmise kokkuvõttes.
 
 ## Minimaalne pärisseadme test
