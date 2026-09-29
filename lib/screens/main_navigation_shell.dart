@@ -37,7 +37,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
       'Töölaud',
       'Väljakutsed',
       'Valmisolek',
-      'Ühingu valmidus',
+      'Ühingu reageerimisvalmidus',
       'Menüü',
     ];
     const icons = [

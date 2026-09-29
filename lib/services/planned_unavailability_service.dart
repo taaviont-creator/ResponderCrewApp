@@ -8,8 +8,8 @@ class PlannedUnavailabilityService {
   PlannedUnavailabilityService({
     FirebaseFirestore? firestore,
     FirebaseAuth? auth,
-  })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        _auth = auth ?? FirebaseAuth.instance;
+  }) : _firestore = firestore ?? FirebaseFirestore.instance,
+       _auth = auth ?? FirebaseAuth.instance;
 
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;
@@ -85,9 +85,74 @@ class PlannedUnavailabilityService {
     });
   }
 
-  Future<void> cancelMyPeriod({
+  Future<void> updateMyPeriod({
     required String periodId,
+    required String organizationId,
+    required DateTime startAt,
+    required DateTime endAt,
+    String? note,
   }) async {
+    _requireValidPeriod(startAt: startAt, endAt: endAt);
+    await _updateOwnActive(
+      _plannedUnavailability.doc(periodId),
+      organizationId,
+      {
+        'startAt': Timestamp.fromDate(startAt),
+        'endAt': Timestamp.fromDate(endAt),
+        'note': note?.trim() ?? '',
+      },
+    );
+  }
+
+  Future<void> updateMyRule({
+    required String ruleId,
+    required String organizationId,
+    required List<int> daysOfWeek,
+    required int startMinute,
+    required int endMinute,
+    String? note,
+  }) async {
+    final days = _requireValidDaysOfWeek(daysOfWeek);
+    _requireValidMinuteRange(startMinute: startMinute, endMinute: endMinute);
+    await _updateOwnActive(
+      _plannedUnavailabilityRules.doc(ruleId),
+      organizationId,
+      {
+        'daysOfWeek': days,
+        'startMinute': startMinute,
+        'endMinute': endMinute,
+        'startTime': _formatMinuteOfDay(startMinute),
+        'endTime': _formatMinuteOfDay(endMinute),
+        'note': note?.trim() ?? '',
+      },
+    );
+  }
+
+  Future<void> _updateOwnActive(
+    DocumentReference<Map<String, dynamic>> doc,
+    String organizationId,
+    Map<String, dynamic> changes,
+  ) async {
+    final uid = _requireUser().uid;
+    final org = _requireOrganizationId(organizationId);
+    await _firestore.runTransaction((transaction) async {
+      final data = (await transaction.get(doc)).data();
+      if (data == null ||
+          data['userId'] != uid ||
+          data['organizationId'] != org ||
+          data['status'] != 'active') {
+        throw StateError(
+          'Muuta saab ainult enda aktiivset planeeringut selles ühingus.',
+        );
+      }
+      transaction.update(doc, {
+        ...changes,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    });
+  }
+
+  Future<void> cancelMyPeriod({required String periodId}) async {
     final user = _requireUser();
     final trimmedPeriodId = periodId.trim();
     if (trimmedPeriodId.isEmpty) {
@@ -156,10 +221,7 @@ class PlannedUnavailabilityService {
     final user = _requireUser();
     final trimmedOrganizationId = _requireOrganizationId(organizationId);
     final normalizedDays = _requireValidDaysOfWeek(daysOfWeek);
-    _requireValidMinuteRange(
-      startMinute: startMinute,
-      endMinute: endMinute,
-    );
+    _requireValidMinuteRange(startMinute: startMinute, endMinute: endMinute);
 
     final doc = _plannedUnavailabilityRules.doc();
     await doc.set({
@@ -182,9 +244,7 @@ class PlannedUnavailabilityService {
     });
   }
 
-  Future<void> cancelMyRule({
-    required String ruleId,
-  }) async {
+  Future<void> cancelMyRule({required String ruleId}) async {
     final user = _requireUser();
     final trimmedRuleId = ruleId.trim();
     if (trimmedRuleId.isEmpty) {
@@ -211,9 +271,7 @@ class PlannedUnavailabilityService {
     required bool includeCancelled,
   }) {
     final sorted = periods
-        .where(
-          (period) => includeCancelled || period.isActive,
-        )
+        .where((period) => includeCancelled || period.isActive)
         .toList(growable: false);
 
     sorted.sort((a, b) {
@@ -233,9 +291,7 @@ class PlannedUnavailabilityService {
     required bool includeCancelled,
   }) {
     final sorted = rules
-        .where(
-          (rule) => includeCancelled || rule.isActive,
-        )
+        .where((rule) => includeCancelled || rule.isActive)
         .toList(growable: false);
 
     sorted.sort((a, b) {
@@ -279,8 +335,7 @@ class PlannedUnavailabilityService {
   }
 
   List<int> _requireValidDaysOfWeek(List<int> daysOfWeek) {
-    if (daysOfWeek.isEmpty ||
-        daysOfWeek.any((day) => day < 1 || day > 7)) {
+    if (daysOfWeek.isEmpty || daysOfWeek.any((day) => day < 1 || day > 7)) {
       throw Exception('Vali vähemalt üks nädalapäev.');
     }
 

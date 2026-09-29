@@ -22,6 +22,7 @@ class AdminHomeDashboard extends StatelessWidget {
     required this.onCreateActivity,
     required this.onCreateEquipment,
     required this.onOpenCallouts,
+    required this.onOpenReadiness,
     required this.onOpenCallout,
     required this.onOpenMembers,
     required this.onOpenEquipment,
@@ -36,6 +37,7 @@ class AdminHomeDashboard extends StatelessWidget {
   final VoidCallback onCreateActivity;
   final VoidCallback onCreateEquipment;
   final VoidCallback onOpenCallouts;
+  final VoidCallback onOpenReadiness;
   final ValueChanged<String> onOpenCallout;
   final VoidCallback onOpenMembers;
   final VoidCallback onOpenEquipment;
@@ -51,7 +53,7 @@ class AdminHomeDashboard extends StatelessWidget {
         ActiveCalloutsCard(key: ValueKey(organizationId), organizationId: organizationId, userId: currentUid, userName: currentUserName, onOpen: onOpenCallout),
         topHeader,
         const SizedBox(height: 16),
-        CrewReadinessCard(compact: true, organizationId: organizationId, currentUid: currentUid),
+        CrewReadinessCard( onOpenDetails: onOpenReadiness, organizationId: organizationId, currentUid: currentUid),
         const SizedBox(height: 16),
         PendingMemberRequestsNotice(organizationId: organizationId, currentUid: currentUid),
         Text('Kiirtegevused', style: Theme.of(context).textTheme.titleLarge),

@@ -1,3 +1,4 @@
+import 'organization_readiness_screen.dart';
 import 'members_screen.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -319,12 +320,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       case 'organizationReadiness':
       case NotificationType.minimumCrew:
       case NotificationType.readiness:
-        targetScreen = AvailabilityScreen(
+        targetScreen = OrganizationReadinessScreen(
           organizationId: widget.organizationId,
           currentUid: widget.currentUid,
-          currentUserName: widget.currentUserName,
-          canViewOrganizationReadiness: widget.canManageNotifications,
-          organizationView: true,
+          membershipRole: widget.canManageNotifications ? 'orgAdmin' : 'member',
         );
         break;
       case NotificationType.certificate:

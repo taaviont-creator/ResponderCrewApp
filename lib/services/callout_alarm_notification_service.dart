@@ -347,7 +347,7 @@ class CalloutAlarmNotificationService with WidgetsBindingObserver {
     final android = _localNotifications.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
     for (final channel in const [
       AndroidNotificationChannel('tross_callouts','Trossi mereabi',importance:Importance.defaultImportance),
-      AndroidNotificationChannel('readiness_changes','Ühingu valmiduse muutused',importance:Importance.defaultImportance),
+      AndroidNotificationChannel('readiness_changes','Ühingu reageerimisvalmiduse muutused',importance:Importance.defaultImportance),
       AndroidNotificationChannel('respondcrew_info','RespondCrew teated',importance:Importance.defaultImportance),
     ]) { await android?.createNotificationChannel(channel); }
     final launch = await _localNotifications.getNotificationAppLaunchDetails();
@@ -385,7 +385,7 @@ class CalloutAlarmNotificationService with WidgetsBindingObserver {
     if (InformationNotificationOpen.fromData(message.data) != null) {
       final readiness = message.data['type'] != 'platformApplication';
       await _localNotifications.show(id:message.hashCode,title:message.notification?.title,body:message.notification?.body,
-        notificationDetails:NotificationDetails(android:AndroidNotificationDetails(readiness ? 'readiness_changes' : 'respondcrew_info',readiness ? 'Ühingu valmiduse muutused' : 'RespondCrew teated'),
+        notificationDetails:NotificationDetails(android:AndroidNotificationDetails(readiness ? 'readiness_changes' : 'respondcrew_info',readiness ? 'Ühingu reageerimisvalmiduse muutused' : 'RespondCrew teated'),
           iOS:const DarwinNotificationDetails(presentAlert:true,presentSound:true)),payload:jsonEncode(message.data));
       return;
     }

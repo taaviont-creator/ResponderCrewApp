@@ -55,7 +55,7 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) {
           return AlertDialog(
-            title: const Text('Valmisoleku seaded'),
+            title: const Text('Ühingu reageerimisvalmiduse seaded'),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -179,7 +179,7 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Valmisoleku seaded salvestatud')),
+        const SnackBar(content: Text('Ühingu reageerimisvalmiduse seaded salvestatud')),
       );
     } catch (_) {
       if (!mounted) return;
@@ -199,7 +199,7 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
   Widget build(BuildContext context) {
     if (!widget.isPlatformAdmin && !widget.canManageOwnSummary) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Valmisoleku seaded')),
+        appBar: AppBar(title: const Text('Ühingu reageerimisvalmiduse seaded')),
         body: const Center(
           child: Text('See vaade on ainult administraatorile'),
         ),
@@ -222,7 +222,7 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
         title: Text(
           widget.isPlatformAdmin
               ? 'Ühingute valmisoleku seaded'
-              : 'Valmisoleku seaded',
+              : 'Ühingu reageerimisvalmiduse seaded',
         ),
       ),
       floatingActionButton: widget.canManageOwnSummary &&
@@ -242,14 +242,14 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
 
           if (snapshot.hasError) {
             return const Center(
-              child: Text('Valmisoleku seadete laadimine ebaõnnestus.'),
+              child: Text('Ühingu reageerimisvalmiduse seadete laadimine ebaõnnestus.'),
             );
           }
 
           final summaries = snapshot.data ?? const <PlatformReadinessSummary>[];
           if (summaries.isEmpty) {
             return const Center(
-              child: Text('Valmisoleku seadeid ei ole lisatud'),
+              child: Text('Ühingu reageerimisvalmiduse seadeid ei ole lisatud'),
             );
           }
 

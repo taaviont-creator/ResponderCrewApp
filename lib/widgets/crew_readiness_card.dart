@@ -20,10 +20,12 @@ class CrewReadinessCard extends StatefulWidget {
     required this.organizationId,
     required this.currentUid,
     this.streamsForOrganization,
+    this.onOpenDetails,
     this.showOffDuty = false,
     this.compact = false,
   });
   final String organizationId, currentUid;
+  final VoidCallback? onOpenDetails;
   final bool showOffDuty;
   final bool compact;
   final CrewReadinessStreams Function(String)? streamsForOrganization;
@@ -93,7 +95,9 @@ class _CrewReadinessCardState extends State<CrewReadinessCard> {
       _listen(streams.readiness!, (data) {
         _serverState = data;
         _availability = const [];
-        _unavailable = (data['unavailableUserIds'] as List).cast<String>().toSet();
+        _unavailable = (data['unavailableUserIds'] as List)
+            .cast<String>()
+            .toSet();
         _minimum = data['minimum'] as int;
       });
     } else {
@@ -169,32 +173,87 @@ class _CrewReadinessCardState extends State<CrewReadinessCard> {
     if (matches.isEmpty) return;
     final membership = matches.first;
     final own = (_members ?? []).where((m) => m['userId'] == widget.currentUid);
-    final canManage = own.isNotEmpty && MembershipRole.isOrgAdmin(own.first['role']);
+    final canManage =
+        own.isNotEmpty && MembershipRole.isOrgAdmin(own.first['role']);
     try {
       if (uid == widget.currentUid) {
-        await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => SelfProfileScreen(
-          currentUid: widget.currentUid, organizationId: widget.organizationId, canManageRoles: canManage)));
+        await Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => SelfProfileScreen(
+              currentUid: widget.currentUid,
+              organizationId: widget.organizationId,
+              canManageRoles: canManage,
+            ),
+          ),
+        );
         return;
       }
-      final user = canManage ? (await FirebaseFirestore.instance.doc('users/$uid').get()).data() : null;
+      final user = canManage
+          ? (await FirebaseFirestore.instance.doc('users/$uid').get()).data()
+          : null;
       if (!mounted) return;
-      await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => MemberProfileScreen(
-        userData: user ?? {'name': MembershipService().safeDisplayNameFromMembership(membership)},
-        membershipData: membership, membershipId: '${uid}_${widget.organizationId}',
-        organizationId: widget.organizationId, currentUid: widget.currentUid, canManageRoles: canManage)));
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => MemberProfileScreen(
+            userData:
+                user ??
+                {
+                  'name': MembershipService().safeDisplayNameFromMembership(
+                    membership,
+                  ),
+                },
+            membershipData: membership,
+            membershipId: '${uid}_${widget.organizationId}',
+            organizationId: widget.organizationId,
+            currentUid: widget.currentUid,
+            canManageRoles: canManage,
+          ),
+        ),
+      );
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Liikme profiili ei saanud avada.')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Liikme profiili ei saanud avada.')),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_dutyPaused == true) {
+    final content = _buildContent(context);
+    if (widget.onOpenDetails == null) return content;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: widget.onOpenDetails,
+        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            content,
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Text('Vaata täpsemalt →'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent(BuildContext context) {
+    if (_dutyPaused == true &&
+        (_errors.isNotEmpty ||
+            _members == null ||
+            _availability == null ||
+            _unavailable == null ||
+            _minimum == null)) {
       return OrganizationDutyPauseCard(reason: _pauseReason);
     }
     if (_errors.isNotEmpty) {
       return AppSectionCard(
-        title: 'Ühingu valmidus',
+        title: 'Ühingu reageerimisvalmidus',
         child: Column(
           children: [
             const Text(
@@ -214,24 +273,41 @@ class _CrewReadinessCardState extends State<CrewReadinessCard> {
         _unavailable == null ||
         _minimum == null) {
       return const AppSectionCard(
-        title: 'Ühingu valmidus',
+        title: 'Ühingu reageerimisvalmidus',
         child: LinearProgressIndicator(),
       );
     }
     return CrewReadinessView(
       authoritative: _serverState,
-      members: _serverState != null ? (_serverState!['crew'] as List).map((raw) {
-        final m = Map<String, dynamic>.from(raw as Map);
-        return DutyCrewMember(userId:m['userId'],name:m['name'],status:m['status'],level:m['level'],arrivalMinutes:m['arrivalMinutes']);
-      }).where((m) => widget.showOffDuty || m.status != AvailabilityStatus.offDuty).toList() : dutyCrew(
-        memberships: _members!,
-        availability: _availability!,
-        periods: const [],
-        rules: const [],
-        unavailableUserIds: _unavailable!,
-        includeOffDuty: widget.showOffDuty,
-        now: DateTime.now(),
-      ),
+      organizationPaused: _dutyPaused == true,
+      pauseReason: _pauseReason,
+      members: _serverState != null
+          ? (_serverState!['crew'] as List)
+                .map((raw) {
+                  final m = Map<String, dynamic>.from(raw as Map);
+                  return DutyCrewMember(
+                    userId: m['userId'],
+                    name: m['name'],
+                    status: m['status'],
+                    level: m['level'],
+                    arrivalMinutes: m['arrivalMinutes'],
+                  );
+                })
+                .where(
+                  (m) =>
+                      widget.showOffDuty ||
+                      m.status != AvailabilityStatus.offDuty,
+                )
+                .toList()
+          : dutyCrew(
+              memberships: _members!,
+              availability: _availability!,
+              periods: const [],
+              rules: const [],
+              unavailableUserIds: _unavailable!,
+              includeOffDuty: widget.showOffDuty,
+              now: DateTime.now(),
+            ),
       minimumCrew: _minimum!,
       currentUid: widget.currentUid,
       busyUserId: _busy,
@@ -252,11 +328,15 @@ class CrewReadinessView extends StatelessWidget {
     required this.onContact,
     this.onOpenMember,
     this.authoritative,
+    this.organizationPaused = false,
+    this.pauseReason = '',
     this.busyUserId,
     this.showOffDuty = false,
     this.compact = false,
   });
   final List<DutyCrewMember> members;
+  final bool organizationPaused;
+  final String pauseReason;
   final Map<String, dynamic>? authoritative;
   final int minimumCrew;
   final String currentUid;
@@ -277,54 +357,78 @@ class CrewReadinessView extends StatelessWidget {
         .where((m) => m.status == AvailabilityStatus.offDuty)
         .toList();
     final readiness = ResponseReadiness.evaluate(
+      organizationPaused: organizationPaused,
       minimumCrewRequired: minimumCrew,
       onDutyCount: onDuty.length,
       secondLevelOnDutyCount: onDuty
           .where((m) => m.level == SeaRescueLevel.level2)
           .length,
     );
-    final ready = authoritative?['ready'] as bool? ?? readiness.isReady;
-    final missing = (authoritative?['missing'] as List?)?.cast<String>() ?? readiness.missingRequirements;
+    final ready =
+        !organizationPaused &&
+        (authoritative?['ready'] as bool? ?? readiness.isReady);
+    final missing = organizationPaused
+        ? ['Ühing on valvest maas']
+        : (authoritative?['missing'] as List?)?.cast<String>() ??
+              readiness.missingRequirements;
+    final secondLevelCount = onDuty
+        .where((m) => m.level == SeaRescueLevel.level2)
+        .length;
     return AppSectionCard(
-      title: 'Ühingu valmidus',
+      title: 'Ühingu reageerimisvalmidus',
       leading: Icon(
         Icons.shield_outlined,
-        color: ready ? AppColors.ready : AppColors.delayed,
+        color: ready ? AppColors.ready : AppColors.offDuty,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (!compact)
+            Text(
+              'SAR REAGEERIMISVALMIDUS',
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
           Text(
             ready
-                ? 'SAR: reageerimisvalmis'
-                : 'SAR: ${missing.join(' · ')}',
-            style: TextStyle(
-              color: ready ? AppColors.ready : AppColors.delayed,
+                ? (compact ? 'SAR-valmis' : 'REAGEERIMISVALMIS')
+                : (compact ? 'Ei ole SAR-valmis' : 'EI OLE REAGEERIMISVALMIS'),
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              color: ready ? AppColors.ready : AppColors.offDuty,
             ),
           ),
           const SizedBox(height: 4),
           Text(
-            'Valves ${onDuty.length}${minimumCrew > 0 ? ' · vajalik vähemalt $minimumCrew' : ''} · hilinemisega ${delayed.length}',
+            'Valves ${onDuty.length}/$minimumCrew · II aste: $secondLevelCount ${secondLevelCount > 0 ? '✓' : '— puudub'}',
           ),
-          if (showOffDuty) Text('Mitte valves: ${offDuty.length}'),
-          if (members.isEmpty)
+          if (!ready)
+            Text(
+              missing.join(' · '),
+              style: const TextStyle(color: AppColors.offDuty),
+            ),
+          if (organizationPaused && pauseReason.trim().isNotEmpty)
+            Text(pauseReason),
+          if (!compact && delayed.isNotEmpty)
+            Text('Hilinemisega: ${delayed.length}'),
+          if (!compact && showOffDuty) Text('Mitte valves: ${offDuty.length}'),
+          if (!compact && members.isEmpty)
             const Padding(
               padding: EdgeInsets.only(top: 12),
               child: Text('Valves ega hilinemisega liikmeid praegu ei ole.'),
             ),
-          if (!compact) for (final group in [onDuty, delayed, if (showOffDuty) offDuty])
-            if (group.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              Text(
-                group.first.status == AvailabilityStatus.onDuty
-                    ? 'Valves'
-                    : group.first.status == AvailabilityStatus.delayed
-                    ? 'Hilinemisega'
-                    : 'Mitte valves',
-                style: Theme.of(context).textTheme.labelLarge,
-              ),
-              for (final member in group) _row(context, member),
-            ],
+          if (!compact)
+            for (final group in [onDuty, delayed, if (showOffDuty) offDuty])
+              if (group.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Text(
+                  group.first.status == AvailabilityStatus.onDuty
+                      ? 'Valves'
+                      : group.first.status == AvailabilityStatus.delayed
+                      ? 'Hilinemisega'
+                      : 'Mitte valves',
+                  style: Theme.of(context).textTheme.labelLarge,
+                ),
+                for (final member in group) _row(context, member),
+              ],
         ],
       ),
     );
@@ -396,11 +500,24 @@ class CrewReadinessView extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    InkWell(onTap: onOpenMember == null ? null : () => onOpenMember!(member.userId),
-                      child: ConstrainedBox(constraints: const BoxConstraints(minHeight: 48),
-                        child: Align(alignment: Alignment.centerLeft, child: Text(
-                          '${member.name}${member.userId == currentUid ? ' · Mina' : ''}',
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(decoration: TextDecoration.underline))))),
+                    InkWell(
+                      onTap: onOpenMember == null
+                          ? null
+                          : () => onOpenMember!(member.userId),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(minHeight: 48),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            '${member.name}${member.userId == currentUid ? ' · Mina' : ''}',
+                            style: Theme.of(context).textTheme.titleSmall
+                                ?.copyWith(
+                                  decoration: TextDecoration.underline,
+                                ),
+                          ),
+                        ),
+                      ),
+                    ),
                     Text(
                       '$status · $level',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(

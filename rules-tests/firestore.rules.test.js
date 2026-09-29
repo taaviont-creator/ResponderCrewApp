@@ -1527,3 +1527,37 @@ test('pack23 readiness invalidation is active-org scoped and platform inbox is p
  await db.doc('users/platform-only').update({systemRole:'user'});
  await assertFails(getDoc(doc(platform,'userNotifications/platform-note')));
 });
+
+for (const recurring of [false, true]) {
+  test(`own ${recurring ? 'recurring' : 'dated'} plan edits preserve tenant, owner and cancellation`, async () => {
+    const db = testEnv.authenticatedContext(activeMemberId).firestore();
+    const collectionName = recurring ? 'plannedUnavailabilityRules' : 'plannedUnavailability';
+    const id = 'edit-own-plan';
+    const ref = doc(db, collectionName, id);
+    const times = recurring
+      ? {daysOfWeek: [1, 3], startMinute: 480, endMinute: 600, startTime: '08:00', endTime: '10:00'}
+      : {startAt: new Date('2026-10-01T08:00:00Z'), endAt: new Date('2026-10-01T10:00:00Z')};
+    await assertSucceeds(setDoc(ref, {id, organizationId, commandId: organizationId,
+      userId: activeMemberId, createdBy: activeMemberId, status: 'active', note: '',
+      createdAt: serverTimestamp(), updatedAt: serverTimestamp(), ...times}));
+    const edit = recurring
+      ? {daysOfWeek: [2, 4], endMinute: 660, endTime: '11:00'}
+      : {endAt: new Date('2026-10-01T11:00:00Z')};
+    await assertSucceeds(updateDoc(ref, {...edit, note: 'Muudetud', updatedAt: serverTimestamp()}));
+    for (const uid of [targetMemberId, orgAdminId, 'outsider']) {
+      const foreign = testEnv.authenticatedContext(uid).firestore();
+      await assertFails(updateDoc(doc(foreign, collectionName, id), {...edit, note: 'Võõras', updatedAt: serverTimestamp()}));
+    }
+    for (const bad of [
+      {userId: targetMemberId}, {organizationId: otherOrganizationId, commandId: otherOrganizationId},
+      {createdBy: targetMemberId}, {role: 'orgAdmin'}, {status: 'cancelled'},
+      {note: 'x'.repeat(2001)},
+      recurring ? {startTime: '09:00'} : {startAt: 'not-a-date'},
+      recurring ? {endMinute: 1, endTime: '00:01'} : {endAt: new Date('2026-09-01T00:00:00Z')},
+    ]) await assertFails(updateDoc(ref, {...bad, updatedAt: serverTimestamp()}));
+    await assertSucceeds(updateDoc(ref, {status: 'cancelled', cancelledBy: activeMemberId,
+      cancelledAt: serverTimestamp(), updatedAt: serverTimestamp()}));
+    await assertFails(updateDoc(ref, {...edit, note: 'Reactivate', updatedAt: serverTimestamp()}));
+    await assertFails(updateDoc(ref, {status: 'active', updatedAt: serverTimestamp()}));
+  });
+}

@@ -25,7 +25,7 @@ function readinessTransition(before,after) {
     ended:(before.unavailableUserIds || []).filter(uid => !after.unavailableUserIds.includes(uid)),left};
 }
 function readinessMessage(after,keys) {
-  const title = keys.includes('readinessRestored') ? 'Ühing on taas SAR-valmis' : !after.ready ? 'Ühing ei ole SAR-valmis' : 'Ühingu valmidus muutus';
+  const title = keys.includes('readinessRestored') ? 'Ühing on taas SAR-valmis' : !after.ready ? 'Ühing ei ole SAR-valmis' : 'Ühingu reageerimisvalmidus muutus';
   const body = after.paused ? `Ühing on valvest maas.${after.pauseReason ? ` ${after.pauseReason}` : ''}` :
     `Valves ${after.onDutyCount}/${after.minimum} liiget.${!after.secondLevelMet ? ' Puudub II astme merepäästja.' : ''}`;
   return {title,body};
