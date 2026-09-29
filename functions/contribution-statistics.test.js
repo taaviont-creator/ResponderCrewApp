@@ -95,3 +95,10 @@ test('event totals are scoped, deduplicated and separate period, type and comple
  const result=aggregate({...base,callouts:[c,c,{...c,id:'tross',calloutType:'tross',status:'active'},{...c,id:'cancel',status:'cancelled'},{...c,id:'old',createdAt:start-86400000},{...c,id:'foreign',organizationId:'other'},{...c,id:'unknown',createdAt:null}]});
  assert.deepEqual(result.events,{total:5,period:3,sar:2,tross:1,closed:1,cancelled:1,undated:1});
 });
+
+test('corrected event start moves participation and event counts to the corrected period',()=>{
+ const c={id:'c',organizationId:'org',createdAt:start,startedAt:start-86400000,status:'closed',calloutType:'tross'};
+ const attendance=[{calloutId:'c',organizationId:'org',userId:'u',status:'confirmed',hours:3}];
+ const result=aggregate({...base,callouts:[c],attendance});assert.equal(result.events.period,0);assert.equal(result.members[0].calloutCount,0);
+ const previous=aggregate({...base,from:'2026-08-31',to:'2026-08-31',callouts:[c],attendance});assert.equal(previous.events.period,1);assert.equal(previous.events.tross,1);assert.equal(previous.members[0].calloutCount,1);
+});

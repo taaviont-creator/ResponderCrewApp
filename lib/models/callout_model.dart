@@ -71,6 +71,8 @@ class CalloutModel {
     this.closedAt,
     this.calloutType = CalloutType.sar,
     this.responseTargetMinutes,
+    this.startedAt,
+    this.endedAt,
   });
 
   final String id;
@@ -88,6 +90,10 @@ class CalloutModel {
   final DateTime? closedAt;
   final String calloutType;
   final int? responseTargetMinutes;
+  final DateTime? startedAt;
+  final DateTime? endedAt;
+  DateTime? get effectiveStartedAt => startedAt ?? createdAt;
+  DateTime? get effectiveEndedAt => endedAt ?? closedAt;
 
   factory CalloutModel.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> document,
@@ -113,6 +119,8 @@ class CalloutModel {
       closedAt: _dateTimeValue(data['closedAt']),
       calloutType: _stringValue(data['calloutType'], fallback: CalloutType.sar),
       responseTargetMinutes: _nullableIntValue(data['responseTargetMinutes']),
+      startedAt: _dateTimeValue(data['startedAt']),
+      endedAt: _dateTimeValue(data['endedAt']),
     );
   }
 

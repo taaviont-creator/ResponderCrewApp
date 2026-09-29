@@ -22,6 +22,41 @@ class _CalloutEditDialogState extends State<CalloutEditDialog> {
   late final _location = TextEditingController(text: widget.callout.location);
   bool _saving = false;
   String? _error;
+  late DateTime _start = widget.callout.effectiveStartedAt ?? DateTime.now();
+  late DateTime? _end = widget.callout.effectiveEndedAt;
+  late String _type = widget.callout.calloutType;
+  late int _target = widget.callout.responseTargetMinutes ?? 60;
+
+  Future<void> _pickTime(bool start) async {
+    final current = start ? _start : _end ?? DateTime.now();
+    final date = await showDatePicker(
+      context: context,
+      initialDate: current,
+      firstDate: DateTime(1970),
+      lastDate: DateTime.now(),
+    );
+    if (date == null || !mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(current),
+    );
+    if (time == null || !mounted) return;
+    final value = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      time.hour,
+      time.minute,
+    );
+    setState(() {
+      if (start) {
+        _start = value;
+      } else {
+        _end = value;
+      }
+    });
+  }
+
   @override
   void dispose() {
     _title.dispose();
@@ -45,6 +80,10 @@ class _CalloutEditDialogState extends State<CalloutEditDialog> {
         'title': _title.text,
         'description': _description.text,
         'location': _location.text,
+        'startedAt': _start.toUtc().toIso8601String(),
+        'endedAt': _end?.toUtc().toIso8601String(),
+        'calloutType': _type,
+        'responseTargetMinutes': _type == CalloutType.tross ? _target : null,
       });
       if (mounted) Navigator.pop(context);
     } on FirebaseFunctionsException catch (error) {
@@ -69,6 +108,51 @@ class _CalloutEditDialogState extends State<CalloutEditDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            DropdownButtonFormField<String>(
+              initialValue: _type,
+              decoration: const InputDecoration(labelText: 'Sündmuse tüüp'),
+              items: [
+                for (final type in CalloutType.values)
+                  DropdownMenuItem(
+                    value: type,
+                    child: Text(CalloutType.label(type)),
+                  ),
+              ],
+              onChanged: _saving
+                  ? null
+                  : (value) => setState(() => _type = value!),
+            ),
+            if (_type == CalloutType.tross)
+              DropdownButtonFormField<int>(
+                initialValue: _target,
+                decoration: const InputDecoration(
+                  labelText: 'Väljasõidu sihtaeg',
+                ),
+                items: [
+                  for (var m = 1; m <= 60; m++)
+                    DropdownMenuItem(value: m, child: Text('$m min')),
+                ],
+                onChanged: _saving
+                    ? null
+                    : (value) => setState(() => _target = value!),
+              ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Sündmuse algus'),
+              subtitle: Text(_start.toLocal().toString().substring(0, 16)),
+              trailing: const Icon(Icons.edit_calendar),
+              onTap: _saving ? null : () => _pickTime(true),
+            ),
+            if (widget.callout.status != CalloutStatus.active)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Sündmuse lõpp'),
+                subtitle: Text(
+                  _end?.toLocal().toString().substring(0, 16) ?? 'Määramata',
+                ),
+                trailing: const Icon(Icons.edit_calendar),
+                onTap: _saving ? null : () => _pickTime(false),
+              ),
             TextField(
               controller: _title,
               enabled: !_saving,

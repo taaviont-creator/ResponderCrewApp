@@ -1,3 +1,5 @@
+> Hilisemad täiendused ja praegused piirid: [avalduse lõpetamine](2026-09-release-completion.md). Allolev kirjeldab PR #29 kontrolli hetke. PPA vorm kontrolliti hiljem ning SMTP, PDF-eksport, manused ja profiili hilisem muutmine on lisatud.
+
 # RespondCrew: olemasoleva lahenduse ülevaatus 29.09.2026
 
 Alus: main d5ed906 ja pooleliolev op-logi kasutusmugavuse parandus. Allpool on algseis ning teostatud muudatuste ja kontrollide kokkuvõte.

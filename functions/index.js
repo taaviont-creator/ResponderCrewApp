@@ -48,77 +48,11 @@ exports.sendMemberRequestNotification = onDocumentWritten(
   createMemberRequestHandler({db, messaging, logger, loadTokens: loadEnabledDeviceTokens}),
 );
 
+const {createCalloutAlarmHandler} = require('./callout-alarm-delivery');
 exports.sendCalloutAlarmNotification = onDocumentCreated(
-  "callouts/{calloutId}",
-  async (event) => {
-    const snapshot = event.data;
-    const calloutId = event.params.calloutId;
-
-    if (!snapshot) {
-      logger.warn("Callout create event missing snapshot", { calloutId });
-      return;
-    }
-
-    const createdCallout = snapshot.data();
-    if (createdCallout.status !== "active") {
-      logger.info("Skipping non-active callout create", {
-        calloutId,
-        status: createdCallout.status,
-      });
-      return;
-    }
-
-    const organizationId = organizationIdFromData(createdCallout);
-    if (!organizationId) {
-      logger.warn("Skipping callout without organization id", { calloutId });
-      return;
-    }
-
-    const latestSnapshot = await snapshot.ref.get();
-    if (!latestSnapshot.exists) {
-      logger.info("Skipping deleted callout before push send", { calloutId });
-      return;
-    }
-
-    const latestCallout = latestSnapshot.data();
-    if (
-      latestCallout.status !== "active" ||
-      organizationIdFromData(latestCallout) !== organizationId
-    ) {
-      logger.info("Skipping callout that changed before push send", {
-        calloutId,
-        status: latestCallout.status,
-      });
-      return;
-    }
-
-    const userIds = await loadActiveMemberUserIds(organizationId);
-    if (userIds.length === 0) {
-      logger.info("No active members for callout alarm", {
-        calloutId,
-        organizationId,
-      });
-      return;
-    }
-
-    const tokenRecords = await loadEnabledDeviceTokens(userIds);
-    if (tokenRecords.length === 0) {
-      logger.info("No enabled device tokens for callout alarm", {
-        calloutId,
-        organizationId,
-        memberCount: userIds.length,
-      });
-      return;
-    }
-
-    // TODO: Add idempotent delivery tracking, for example
-    // calloutPushDeliveries/{calloutId}, before broad production rollout.
-    await sendCalloutAlarm({
-      calloutId,
-      organizationId,
-      tokenRecords,
-    });
-  },
+  {document: 'callouts/{calloutId}', region: 'europe-north1', retry: false, maxInstances: 5},
+  createCalloutAlarmHandler({db, loadMembers: loadActiveMemberUserIds,
+    loadTokens: loadEnabledDeviceTokens, sendAlarm: sendCalloutAlarm, logger}),
 );
 
 async function loadActiveMemberUserIds(organizationId) {
@@ -146,6 +80,8 @@ async function loadActiveMemberUserIds(organizationId) {
 
     if (
       membershipOrganizationId === organizationId &&
+      (!membership.commandId || membership.commandId === organizationId) &&
+      doc.id === `${userId}_${organizationId}` &&
       userId &&
       isActiveMembership(membership)
     ) {
@@ -194,7 +130,7 @@ async function sendCalloutAlarm({
 }) {
   let successCount = 0;
   let failureCount = 0;
-  const staleTokenDocumentIds = new Set();
+  const staleTokenDocumentIds = new Map();
 
   for (const tokenRecordChunk of chunkArray(
     tokenRecords,
@@ -218,11 +154,13 @@ async function sendCalloutAlarm({
         priority: "high",
         notification: {
           channelId: CALLOUT_ALARM_CHANNEL_ID,
+          tag: calloutId,
           title: "V\u00e4ljakutse",
           body: "Uus v\u00e4ljakutse vajab reageerimist",
         },
       },
       apns: {
+        headers: {'apns-collapse-id': require('node:crypto').createHash('sha256').update(calloutId).digest('hex')},
         payload: {
           aps: {
             sound: "default",
@@ -243,7 +181,7 @@ async function sendCalloutAlarm({
 
       const staleToken = isInvalidTokenError(errorCode);
       if (staleToken && tokenRecord.documentId) {
-        staleTokenDocumentIds.add(tokenRecord.documentId);
+        staleTokenDocumentIds.set(tokenRecord.documentId, tokenRecord.token);
       }
 
       logger.warn("Failed to send callout alarm push", {
@@ -259,9 +197,13 @@ async function sendCalloutAlarm({
 
   if (staleTokenDocumentIds.size > 0) {
     await Promise.all(
-      [...staleTokenDocumentIds].map(async (documentId) => {
+      [...staleTokenDocumentIds].map(async ([documentId, failedToken]) => {
         try {
-          await db.collection("userDeviceTokens").doc(documentId).delete();
+          await db.runTransaction(async tx => {
+            const ref = db.collection("userDeviceTokens").doc(documentId);
+            const current = await tx.get(ref);
+            if (current.data()?.token === failedToken) tx.delete(ref);
+          });
         } catch (error) {
           logger.warn("Failed to delete stale callout device token", {
             documentId,
@@ -280,6 +222,7 @@ async function sendCalloutAlarm({
     failureCount,
     staleTokenCount: staleTokenDocumentIds.size,
   });
+  return {successCount, failureCount};
 }
 
 function organizationIdFromData(data) {
@@ -327,6 +270,8 @@ const statisticsCallableOptions = {region:'europe-north1', maxInstances:5, timeo
 const {createGetReportHandler,createSaveReportHandler,createAmendCalloutHandler} = require('./callout-report');
 const {createMembershipManagementHandler,createDutyHandler,createPlatformOverviewHandler,createPlatformStatusHandler,createPlatformAccountsHandler,createRevokeSessionsHandler} = require('./organization-management');
 const workflowDependencies = {db,timestamp:admin.firestore.FieldValue.serverTimestamp};
+const {createSaveOrganizationProfileHandler} = require('./organization-profile');
+exports.saveOrganizationProfile = onCall(statisticsCallableOptions, createSaveOrganizationProfileHandler(workflowDependencies));
 exports.getCalloutReport = onCall(statisticsCallableOptions, createGetReportHandler({db}));
 exports.saveCalloutReport = onCall(statisticsCallableOptions, createSaveReportHandler(workflowDependencies));
 exports.amendCallout = onCall(statisticsCallableOptions, createAmendCalloutHandler(workflowDependencies));
@@ -350,3 +295,9 @@ for (const [name, source] of Object.entries({
 })) {
   exports[name] = onDocumentWritten({document:`${source}/{documentId}`, region:'europe-north1', retry:true, maxInstances:5}, createHistoryHandler({db, source}));
 }
+
+const {createAttachmentHandlers} = require('./callout-attachments');
+const attachmentHandlers = createAttachmentHandlers({db, bucket:admin.storage().bucket('respondcrew.firebasestorage.app'), timestamp:()=>admin.firestore.FieldValue.serverTimestamp()});
+const attachmentOptions = {region:'europe-north1', maxInstances:3, concurrency:2, timeoutSeconds:120, memory:'512MiB'};
+exports.uploadCalloutAttachment = onCall(attachmentOptions, attachmentHandlers.upload);
+exports.downloadCalloutAttachment = onCall(attachmentOptions, attachmentHandlers.download);

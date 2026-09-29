@@ -53,7 +53,7 @@ class _CalloutDepartureTimingState extends State<CalloutDepartureTiming> {
     final callout = widget.callout;
     final departure = firstDeparture(widget.events);
     final target = callout.responseTargetMinutes;
-    final activated = callout.createdAt;
+    final activated = callout.effectiveStartedAt;
     final deadline = activated == null || target == null
         ? null
         : activated.add(Duration(minutes: target));
