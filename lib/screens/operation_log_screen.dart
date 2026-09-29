@@ -218,7 +218,7 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
     final shouldCreate = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Uus operatsioonilogi'),
+        title: const Text('Uus operatiivlogi'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -288,7 +288,7 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Operatsioonilogi')),
+      appBar: AppBar(title: const Text('Operatiivlogi')),
       floatingActionButton: widget.canStartOperationLog
           ? FloatingActionButton(
               onPressed: _showAddOperationLogDialog,

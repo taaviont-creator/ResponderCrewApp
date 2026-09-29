@@ -1,3 +1,4 @@
+import '../models/equipment_model.dart';
 import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -68,7 +69,11 @@ Future<Uint8List> buildCalloutReportPdf(
   void field(String name, dynamic value) => paragraph(
     '$name: ${value == null || value.toString().isEmpty ? 'Märkimata' : value}',
   );
-  heading('Merepäästetööde aruanne');
+  heading(
+    event['isTest'] == true
+        ? 'TEST-/PROOVISÜNDMUS – ei ole ametlik aruanne'
+        : 'Merepäästetööde aruanne',
+  );
   paragraph(data['organizationName']);
   paragraph(report['status'] == 'completed' ? 'Aruanne valmis' : 'MUSTAND');
   if (private) paragraph('Sisaldab piiratud ligipääsuga isikuandmeid.');
@@ -97,23 +102,26 @@ Future<Uint8List> buildCalloutReportPdf(
       '${member['name']} · $level${member['levelAtConfirmation'] == true ? '' : ' (praegune aste)'}${member['hours'] == null ? '' : ' · ${member['hours']} t'}',
     );
   }
-  heading('Kasutatud tehnika');
   final gear = _rows(
     data['equipment'],
-  ).where((e) => selected.contains(e['id'])).toList();
-  if (gear.isEmpty) paragraph('Tehnikat pole seotud.');
-  for (final item in gear) {
-    final registration =
-        (report['equipmentRegistration'] as Map?)?[item['id']] ??
-        item['registrationNumber'] ??
-        '';
-    paragraph('${item['name']} · $registration');
+  ).where((e) => selected.contains(e['id']));
+  for (final group in EquipmentCategory.groupEquipment(gear).entries) {
+    heading(group.key);
+    for (final item in group.value) {
+      final registration =
+          (report['equipmentRegistration'] as Map?)?[item['id']] ??
+          item['registrationNumber'] ??
+          '';
+      paragraph(
+        '${item['name']}${registration.toString().isEmpty ? '' : ' · $registration'}',
+      );
+    }
   }
   heading('Sündmuse kokkuvõte');
   paragraph(data['summary']);
   heading('Tulemus');
   paragraph(data['outcome']);
-  heading('Operatsioonilogi');
+  heading('Operatiivlogi');
   final timeline = _rows(data['timeline'])
     ..sort(
       (a, b) =>

@@ -1024,6 +1024,7 @@ service cloud.firestore {
     function isValidEquipmentCategory(category) {
       return category == 'vessel' ||
         category == 'engine' ||
+        category == 'trailer' || category == 'vehicle' || category == 'machinery' ||
         category == 'rescue' ||
         category == 'medical' ||
         category == 'radio' ||
@@ -1988,10 +1989,13 @@ service cloud.firestore {
 
     function notificationOrganizationMatches(notificationId, data) {
       let reminderPath = /databases/$(database)/documents/certificateReminders/$(notificationId);
+      let personalPath = /databases/$(database)/documents/userNotifications/$(notificationId);
       return (notificationExists(notificationId) &&
         organizationIdFromData(get(/databases/$(database)/documents/notifications/$(notificationId)).data) == organizationIdFromData(data)) ||
         (exists(reminderPath) && get(reminderPath).data.recipientUserId == request.auth.uid &&
-          get(reminderPath).data.organizationId == organizationIdFromData(data));
+          get(reminderPath).data.organizationId == organizationIdFromData(data)) ||
+        (exists(personalPath) && get(personalPath).data.recipientUserId == request.auth.uid &&
+          get(personalPath).data.organizationId == organizationIdFromData(data));
     }
 
     function isValidNotificationReadData(data) {
@@ -2527,6 +2531,12 @@ service cloud.firestore {
         isActiveOrgAdmin(summaryId);
     }
 
+    // Explicitly public login help, maintained by the project operator via Admin SDK/console.
+    match /publicAppInfo/login {
+      allow get: if true;
+      allow list, write: if false;
+    }
+
     match /users/{userId} {
       allow read: if canReadUser(userId);
       allow create: if isSafeUserCreate(userId);
@@ -2710,6 +2720,19 @@ service cloud.firestore {
         request.resource.data.createdBy == resource.data.createdBy && request.resource.data.createdAt == resource.data.createdAt;
     }
     // Only the scheduled server job writes member-specific certificate reminders.
+    // Preferences are updated only by a validated callable; inbox is server-owned.
+    match /readinessNotificationState/{organizationId} {
+      allow get: if signedIn() && isActiveMember(organizationId);
+    }
+    match /notificationPreferences/{settingId} {
+      allow get: if signedIn() && (resource == null ||
+        (resource.data.userId == request.auth.uid && isActiveMember(resource.data.organizationId)));
+    }
+    match /userNotifications/{notificationId} {
+      allow read: if signedIn() && resource.data.recipientUserId == request.auth.uid &&
+        ((resource.data.organizationId == 'platform' && isPlatformAdmin()) || isActiveMember(resource.data.organizationId));
+    }
+
     match /certificateReminders/{reminderId} {
       allow read: if signedIn() && resource.data.recipientUserId == request.auth.uid && isActiveMember(resource.data.organizationId);
     }

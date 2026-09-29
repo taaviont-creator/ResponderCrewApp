@@ -1,7 +1,7 @@
 // Firestore may deliver the same create event more than once. FCM does not offer
 // an idempotency key, so a claimed send must never be retried after an uncertain
 // outcome. The callout itself remains available in the app independently of push.
-function createCalloutAlarmHandler({db, loadMembers, loadTokens, sendAlarm, logger, now = () => new Date()}) {
+function createCalloutAlarmHandler({db, loadMembers, loadTokens, sendAlarm, logger, filterRecipients = async (_org,ids) => ids, now = () => new Date()}) {
   return async event => {
     const snapshot = event.data, calloutId = event.params.calloutId;
     const original = snapshot?.data();
@@ -14,7 +14,7 @@ function createCalloutAlarmHandler({db, loadMembers, loadTokens, sendAlarm, logg
     if (!current || current.status !== 'active' ||
         (current.organizationId || current.commandId) !== org ||
         !organization.exists || (organization.data().status || 'approved') !== 'approved') return;
-    const tokenRecords = await loadTokens(await loadMembers(org));
+    const tokenRecords = await loadTokens(await filterRecipients(org,await loadMembers(org)));
     if (!tokenRecords.length) {
       logger.warn('No enabled device tokens for callout alarm', {calloutId, organizationId: org});
       return;
@@ -29,7 +29,7 @@ function createCalloutAlarmHandler({db, loadMembers, loadTokens, sendAlarm, logg
     }
     let result;
     try {
-      result = await sendAlarm({calloutId, organizationId: org, tokenRecords});
+      result = await sendAlarm({calloutId, organizationId: org, tokenRecords, calloutType: current.calloutType || 'sar'});
     } catch (_) {
       await delivery.update({status: 'unknown', updatedAt: now()});
       logger.error('Callout push result unknown; automatic resend suppressed', {calloutId, organizationId: org});

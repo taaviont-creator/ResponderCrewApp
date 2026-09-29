@@ -109,7 +109,7 @@ function aggregate({organizationId, from, to, now, trackingStart, current, histo
   for(const m of scoped(memberships).sort((a,b)=>Number(a.id===`${a.userId}_${organizationId}`)-Number(b.id===`${b.userId}_${organizationId}`))) { const row=member(m.userId,m.displayName); row.active=active(m); }
   for(const h of history) if(h.userId) member(h.userId,h.after?.displayName || h.before?.displayName);
   const byActivity=new Map(scoped(activities).map(a=>[a.id,a]));
-  const byCallout=new Map(scoped(callouts).map(c=>[c.id,c]));
+  const byCallout=new Map(scoped(callouts).filter(c=>c.isTest!==true).map(c=>[c.id,c]));
   let undatedCount=0;
   const seen=new Set();
   for(const p of scoped(participants)) {

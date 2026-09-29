@@ -56,7 +56,7 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
               onPressed: widget.onCreateCallout, icon: const Icon(Icons.campaign), label: const Text('Loo väljakutse')),
             if (widget.onCreateActivity != null) OutlinedButton.icon(onPressed: widget.onCreateActivity, icon: const Icon(Icons.event_available), label: const Text('Lisa tegevus / koolitus')),
           ])),
-        CrewReadinessCard(organizationId: widget.organizationId, currentUid: widget.currentUid),
+        CrewReadinessCard(compact: true, organizationId: widget.organizationId, currentUid: widget.currentUid),
         const SizedBox(height: 16),
 
         VesselStatusCard(organizationId: widget.organizationId),

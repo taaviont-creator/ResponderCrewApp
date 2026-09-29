@@ -93,7 +93,7 @@ void main() {
                 child: Padding(
                   padding: EdgeInsets.all(16),
                   child: PrimaryActionButton(
-                    label: 'Ava väljakutse operatsioonilogi',
+                    label: 'Ava väljakutse operatiivlogi',
                     onPressed: null,
                   ),
                 ),
@@ -105,7 +105,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
       final text = tester.widget<Text>(
-        find.text('Ava väljakutse operatsioonilogi'),
+        find.text('Ava väljakutse operatiivlogi'),
       );
       expect(text.maxLines, isNull);
       expect(text.overflow, isNull);

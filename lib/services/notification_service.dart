@@ -24,12 +24,14 @@ class NotificationService {
     if (uid == null) return Stream.value(const []);
     final personal = _firestore.collection('certificateReminders').where('organizationId', isEqualTo: organizationId)
       .where('recipientUserId', isEqualTo: uid).snapshots();
+    final inbox = _firestore.collection('userNotifications').where('organizationId', isEqualTo: organizationId)
+      .where('recipientUserId', isEqualTo: uid).snapshots();
     late StreamController<List<NotificationModel>> controller;
     final subscriptions = <StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>[];
     final latest = <int, List<NotificationModel>>{};
     void update(int source, QuerySnapshot<Map<String, dynamic>> value) {
       latest[source] = value.docs.map(NotificationModel.fromFirestore).toList();
-      if (latest.length != 2 || controller.isClosed) return;
+      if (latest.length != 3 || controller.isClosed) return;
       final all = latest.values.expand((items) => items).toList();
       all.sort((a, b) => (b.createdAt ?? DateTime(1970)).compareTo(a.createdAt ?? DateTime(1970)));
       controller.add(all);
@@ -37,6 +39,7 @@ class NotificationService {
     controller = StreamController<List<NotificationModel>>(onListen: () {
       subscriptions.add(organization.listen((value) => update(0, value), onError: controller.addError));
       subscriptions.add(personal.listen((value) => update(1, value), onError: controller.addError));
+      subscriptions.add(inbox.listen((value) => update(2, value), onError: controller.addError));
     }, onCancel: () async { for (final subscription in subscriptions) { await subscription.cancel(); } });
     return controller.stream;
   }
@@ -196,21 +199,6 @@ class NotificationService {
     required String organizationId,
   }) async {
     _requireOrganizationId(organizationId);
-    final notificationSnapshot =
-        await _notifications.doc(notificationId).get();
-    final notificationData = notificationSnapshot.data();
-    if (notificationData == null) {
-      throw Exception('Notification not found');
-    }
-    final notificationOrganizationId =
-        (notificationData['organizationId'] ??
-                notificationData['commandId'] ??
-                '')
-            .toString();
-    if (notificationOrganizationId != organizationId) {
-      throw Exception('Notification belongs to another organization');
-    }
-
     final readId = '${notificationId}_$userId';
 
     await _notificationReads.doc(readId).set(

@@ -39,6 +39,8 @@ class CalloutsScreen extends StatefulWidget {
 
 class _CalloutsScreenState extends State<CalloutsScreen> {
   final _calloutService = CalloutService();
+  bool _showTests = false;
+  late var _stream = _calloutService.streamOrganizationCallouts(organizationId: widget.organizationId);
   @override
   void initState() {
     super.initState();
@@ -46,6 +48,15 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _showAddCalloutDialog();
       });
+    }
+  }
+
+  @override
+  void didUpdateWidget(CalloutsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.organizationId != widget.organizationId) {
+      _stream = _calloutService.streamOrganizationCallouts(organizationId: widget.organizationId);
+      _showTests = false;
     }
   }
 
@@ -115,9 +126,7 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
             )
           : null,
       body: StreamBuilder<List<CalloutModel>>(
-        stream: _calloutService.streamOrganizationCallouts(
-          organizationId: widget.organizationId,
-        ),
+        stream: _stream,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -135,7 +144,7 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
             );
           }
 
-          final callouts = snapshot.data ?? const <CalloutModel>[];
+          final callouts = (snapshot.data ?? const <CalloutModel>[]).where((c) => _showTests || !c.isTest);
           final activeCallouts = callouts
               .where((callout) => callout.status == CalloutStatus.active)
               .toList(growable: false);
@@ -151,6 +160,8 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
               96,
             ),
             children: [
+              SwitchListTile(contentPadding: EdgeInsets.zero, title: const Text('Näita test-/proovisündmusi'),
+                value: _showTests, onChanged: (value) => setState(() => _showTests = value)),
               _SectionHeading(
                 title: 'Aktiivsed väljakutsed',
                 count: activeCallouts.length,
@@ -270,7 +281,7 @@ class _CalloutCard extends StatelessWidget {
               ),
               const SizedBox(height: 14),
               Text(
-            '${CalloutType.label(callout.calloutType)} · ${callout.title}',
+            '${callout.isTest ? 'TEST · ' : ''}${CalloutType.label(callout.calloutType)} · ${callout.title}',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               if (callout.location.isNotEmpty) ...[

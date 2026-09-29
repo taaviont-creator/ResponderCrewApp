@@ -1,5 +1,8 @@
+import 'dart:async';
+import '../widgets/organization_planning.dart';
+import '../widgets/organization_duty_control.dart';
+import '../widgets/minimum_crew_control.dart';
 import '../widgets/crew_readiness_card.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../models/availability_model.dart';
@@ -25,11 +28,11 @@ class AvailabilityScreen extends StatefulWidget {
     this.organizationName,
     this.membershipRole,
     this.openPlanningOnStart = false,
-    this.planningOnly = false,
+    this.organizationView = false,
   });
 
   final bool openPlanningOnStart;
-  final bool planningOnly;
+  final bool organizationView;
   final String organizationId;
   final String? organizationName;
   final String? membershipRole;
@@ -47,17 +50,30 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
       AvailabilityReminderSettingsService();
   final _plannedUnavailabilityService = PlannedUnavailabilityService();
   var _isUpdating = false;
+  Timer? _clock;
+  bool _showCancelled = false;
   String? _cancellingPlannedUnavailabilityId;
   String? _cancellingPlannedUnavailabilityRuleId;
 
   @override
   void initState() {
     super.initState();
+    // Time boundaries do not create Firestore writes. Refresh the personal
+    // preview even when this page stays open without user interaction.
+    _clock = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted && !widget.organizationView) setState(() {});
+    });
     if (widget.openPlanningOnStart) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _showAddPlannedUnavailabilityDialog();
       });
     }
+  }
+
+  @override
+  void dispose() {
+    _clock?.cancel();
+    super.dispose();
   }
 
   Future<void> _updateAvailability(
@@ -88,98 +104,34 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final organizationName = widget.organizationName?.trim();
-
-    return Scaffold(
-      appBar: AppBar(title: Text(widget.planningOnly ? 'Planeerimine' : 'Valmisolek')),
-      body: ListView(
-        padding: const EdgeInsets.all(AppTheme.screenPadding),
-        children: [
-          AppSectionCard(
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.anchor,
-                  color: AppColors.navy,
-                  size: 28,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        organizationName == null || organizationName.isEmpty
-                            ? 'Aktiivne ühing'
-                            : organizationName,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      Text(
-                        _roleLabel(widget.membershipRole ?? ''),
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
-                      ),
-                    ],
-                  ),
-                ),
-                StatusBadge(
-                  label: widget.canViewOrganizationReadiness
-                      ? 'ADMIN'
-                      : 'LIIGE',
-                  type: StatusBadgeType.neutral,
-                  icon: widget.canViewOrganizationReadiness
-                      ? Icons.admin_panel_settings_outlined
-                      : Icons.person_outline,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppTheme.sectionSpacing),
-          if (!widget.planningOnly) ...[
-          Text(
-            'Minu valmisolek',
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Määra oma operatiivne staatus.',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-          ),
-          const SizedBox(height: AppTheme.itemSpacing),
-          _buildAvailabilityControl(),
-          const SizedBox(height: AppTheme.sectionSpacing),
-          ],
-          if (widget.planningOnly) ...[
-          _buildPlannedUnavailabilitySection(),
-          const SizedBox(height: AppTheme.sectionSpacing),
-          _buildRecurringPlannedUnavailabilitySection(),
-          const SizedBox(height: AppTheme.sectionSpacing),
-          if (_canViewOrganizationPlannedUnavailability) ...[
-            _buildOrganizationPlannedUnavailabilitySection(),
-            const SizedBox(height: AppTheme.sectionSpacing),
-            _buildOrganizationRecurringPlannedUnavailabilitySection(),
-            const SizedBox(height: AppTheme.sectionSpacing),
-          ],
-          ],
-          if (!widget.planningOnly) ...[
-          Text(
-            'Meeskonna ülevaade',
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const SizedBox(height: AppTheme.itemSpacing),
-          CrewReadinessCard(organizationId: widget.organizationId, currentUid: widget.currentUid, showOffDuty: true),
-          const SizedBox(height: AppTheme.sectionSpacing),
-          _buildAvailabilityReminderSettings(),
-          const SizedBox(height: AppTheme.sectionSpacing),
-          ],
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: Text(widget.organizationView ? 'Ühingu valmidus' : 'Valmisolek')),
+    body: ListView(padding: const EdgeInsets.all(AppTheme.screenPadding), children: [
+      if (widget.organizationView) ...[
+        CrewReadinessCard(organizationId: widget.organizationId, currentUid: widget.currentUid, showOffDuty: true),
+        if (MembershipRole.isOrgAdmin(widget.membershipRole)) ...[
+          const SizedBox(height: 12),
+          ExpansionTile(title: const Text('Halda ühingu valmidust'), leading: const Icon(Icons.admin_panel_settings_outlined), children: [
+            MinimumCrewControl(key: ValueKey(widget.organizationId), organizationId: widget.organizationId,
+              organizationName: widget.organizationName, currentUid: widget.currentUid),
+            OrganizationDutyControl(key: ValueKey(widget.organizationId), organizationId: widget.organizationId),
+          ]),
         ],
-      ),
-    );
-  }
+        const SizedBox(height: 16),
+        OrganizationPlanning(key: ValueKey(widget.organizationId), organizationId: widget.organizationId),
+      ] else ...[
+        _buildAvailabilityControl(),
+        const SizedBox(height: 16),
+        CheckboxListTile(contentPadding: EdgeInsets.zero, title: const Text('Näita tühistatud mittevalveid'),
+          value: _showCancelled, onChanged: (value) => setState(() => _showCancelled = value == true)),
+        _buildPlannedUnavailabilitySection(),
+        const SizedBox(height: 12),
+        _buildRecurringPlannedUnavailabilitySection(),
+        const SizedBox(height: 12),
+        _buildAvailabilityReminderSettings(),
+      ],
+    ]),
+  );
 
   Future<void> _updateAvailabilityRespectingSchedule(
     String status, {
@@ -410,10 +362,10 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     return StreamBuilder<List<PlannedUnavailabilityModel>>(
       stream: _plannedUnavailabilityService.streamMyPeriods(
         organizationId: widget.organizationId,
-        includeCancelled: true,
+        includeCancelled: _showCancelled,
       ),
       builder: (context, snapshot) {
-        final periods = snapshot.data ?? const <PlannedUnavailabilityModel>[];
+        final periods = (snapshot.data ?? const <PlannedUnavailabilityModel>[]).where((p) => p.isCancelled || (p.endAt?.isAfter(DateTime.now()) ?? false)).toList();
 
         Widget child;
         if (snapshot.connectionState == ConnectionState.waiting &&
@@ -455,7 +407,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     return StreamBuilder<List<PlannedUnavailabilityRuleModel>>(
       stream: _plannedUnavailabilityService.streamMyRules(
         organizationId: widget.organizationId,
-        includeCancelled: true,
+        includeCancelled: _showCancelled,
       ),
       builder: (context, snapshot) {
         final rules =
@@ -491,98 +443,6 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
             icon: const Icon(Icons.add),
             label: const Text('Lisa'),
           ),
-          child: child,
-        );
-      },
-    );
-  }
-
-  bool get _canViewOrganizationPlannedUnavailability {
-    return MembershipRole.isOrgAdmin(widget.membershipRole);
-  }
-
-  Widget _buildOrganizationPlannedUnavailabilitySection() {
-    return StreamBuilder<List<PlannedUnavailabilityModel>>(
-      stream: _plannedUnavailabilityService.streamOrganizationPeriods(
-        organizationId: widget.organizationId,
-        includeCancelled: true,
-      ),
-      builder: (context, snapshot) {
-        final periods = snapshot.data ?? const <PlannedUnavailabilityModel>[];
-
-        Widget child;
-        if (snapshot.connectionState == ConnectionState.waiting &&
-            !snapshot.hasData) {
-          child = const Center(child: CircularProgressIndicator());
-        } else if (periods.isEmpty) {
-          child = Text(
-            'Ühingus ei ole planeeritud valveväliseid aegu.',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-          );
-        } else {
-          child = Column(
-            children: [
-              for (var index = 0; index < periods.length; index++) ...[
-                _OrganizationPlannedUnavailabilityTile(
-                  period: periods[index],
-                  formattedStart: _formatDateTime(periods[index].startAt),
-                  formattedEnd: _formatDateTime(periods[index].endAt),
-                ),
-                if (index < periods.length - 1) const Divider(height: 1),
-              ],
-            ],
-          );
-        }
-
-        return AppSectionCard(
-          title: 'Ühingu planeeritud valvevälised ajad',
-          leading: const Icon(Icons.groups_2_outlined),
-          child: child,
-        );
-      },
-    );
-  }
-
-  Widget _buildOrganizationRecurringPlannedUnavailabilitySection() {
-    return StreamBuilder<List<PlannedUnavailabilityRuleModel>>(
-      stream: _plannedUnavailabilityService.streamOrganizationRules(
-        organizationId: widget.organizationId,
-        includeCancelled: true,
-      ),
-      builder: (context, snapshot) {
-        final rules =
-            snapshot.data ?? const <PlannedUnavailabilityRuleModel>[];
-
-        Widget child;
-        if (snapshot.connectionState == ConnectionState.waiting &&
-            !snapshot.hasData) {
-          child = const Center(child: CircularProgressIndicator());
-        } else if (rules.isEmpty) {
-          child = Text(
-            'Ühingus ei ole korduvaid valveväliseid aegu.',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-          );
-        } else {
-          child = Column(
-            children: [
-              for (var index = 0; index < rules.length; index++) ...[
-                _OrganizationRecurringPlannedUnavailabilityTile(
-                  rule: rules[index],
-                  formattedWeekdays: _formatWeekdays(rules[index].daysOfWeek),
-                ),
-                if (index < rules.length - 1) const Divider(height: 1),
-              ],
-            ],
-          );
-        }
-
-        return AppSectionCard(
-          title: 'Ühingu korduvad valvevälised ajad',
-          leading: const Icon(Icons.event_repeat_outlined),
           child: child,
         );
       },
@@ -1280,12 +1140,6 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     );
   }
 
-  String _roleLabel(String role) {
-    return MembershipRole.isOrgAdmin(role)
-        ? 'Ühingu administraator'
-        : 'Liige';
-  }
-
   List<String> _reminderTimeOptions(String selectedTime) {
     final times = <String>{
       for (var hour = 0; hour < 24; hour++)
@@ -1376,149 +1230,6 @@ class _DateTimePickerTile extends StatelessWidget {
   }
 }
 
-class _OrganizationPlannedUnavailabilityTile extends StatelessWidget {
-  const _OrganizationPlannedUnavailabilityTile({
-    required this.period,
-    required this.formattedStart,
-    required this.formattedEnd,
-  });
-
-  final PlannedUnavailabilityModel period;
-  final String formattedStart;
-  final String formattedEnd;
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      future: FirebaseFirestore.instance
-          .collection('users')
-          .doc(period.userId)
-          .get(),
-      builder: (context, snapshot) {
-        final data = snapshot.data?.data() ?? const <String, dynamic>{};
-        final name = (data['name'] ?? '').toString().trim();
-        final note = period.note.trim();
-
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(
-                Icons.event_busy_outlined,
-                color: AppColors.textSecondary,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name.isEmpty ? 'Nimi puudub' : name,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '$formattedStart - $formattedEnd',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      note.isEmpty ? 'Märkus puudub' : note,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              StatusBadge(
-                label: period.isCancelled ? 'Tühistatud' : 'Aktiivne',
-                type: period.isCancelled
-                    ? StatusBadgeType.neutral
-                    : StatusBadgeType.offDuty,
-                icon: period.isCancelled
-                    ? Icons.cancel_outlined
-                    : Icons.event_busy_outlined,
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _OrganizationRecurringPlannedUnavailabilityTile extends StatelessWidget {
-  const _OrganizationRecurringPlannedUnavailabilityTile({
-    required this.rule,
-    required this.formattedWeekdays,
-  });
-
-  final PlannedUnavailabilityRuleModel rule;
-  final String formattedWeekdays;
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      future: FirebaseFirestore.instance.collection('users').doc(rule.userId).get(),
-      builder: (context, snapshot) {
-        final data = snapshot.data?.data() ?? const <String, dynamic>{};
-        final name = (data['name'] ?? '').toString().trim();
-        final note = rule.note.trim();
-
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(
-                Icons.event_repeat_outlined,
-                color: AppColors.textSecondary,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name.isEmpty ? 'Nimi puudub' : name,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '$formattedWeekdays, ${rule.startTime} - ${rule.endTime}',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      note.isEmpty ? 'Märkus puudub' : note,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              StatusBadge(
-                label: rule.isCancelled ? 'Tühistatud' : 'Aktiivne',
-                type: rule.isCancelled
-                    ? StatusBadgeType.neutral
-                    : StatusBadgeType.offDuty,
-                icon: rule.isCancelled
-                    ? Icons.cancel_outlined
-                    : Icons.event_repeat_outlined,
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
 class _ScheduledStatusPreview extends StatelessWidget {
   const _ScheduledStatusPreview({
     required this.hasActiveSchedule,
@@ -1573,7 +1284,7 @@ class _ScheduledStatusPreview extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'See ei muuda veel automaatselt sinu käsitsi valitud staatust.',
+            'Sinu käsitsi valitud staatus säilib.',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: AppColors.textSecondary,
                 ),

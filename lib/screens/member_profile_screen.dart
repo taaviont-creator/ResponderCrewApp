@@ -264,24 +264,7 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
   bool get _canViewTargetPersonalEquipment =>
       _isOwnProfile || _canManageProfileMembership;
 
-  String _equipmentCategoryLabel(String category) {
-    switch (category) {
-      case EquipmentCategory.vessel:
-        return 'Alus';
-      case EquipmentCategory.engine:
-        return 'Mootor';
-      case EquipmentCategory.rescue:
-        return 'Päästevarustus';
-      case EquipmentCategory.medical:
-        return 'Meditsiin';
-      case EquipmentCategory.radio:
-        return 'Raadio';
-      case EquipmentCategory.safety:
-        return 'Ohutus';
-      default:
-        return 'Muu';
-    }
-  }
+  String _equipmentCategoryLabel(String category) => EquipmentCategory.label(category);
 
   String _equipmentStatusLabel(String status) {
     switch (status) {
@@ -627,11 +610,11 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
     );
   }
 
-  Future<void> _editOwnProfile() async {
+  Future<void> _editOwnProfile(String field) async {
     if (!_isOwnProfile) return;
     final saved = await showDialog<bool>(context: context, barrierDismissible: false,
-      builder: (_) => OwnProfileEditor(name: _name, phone: _phone ?? '', save: (name, phone) async {
-        await _userService.updateOwnBasicProfile(uid: widget.currentUid, name: name, phone: phone);
+      builder: (_) => OwnProfileEditor(field: field,name: _name, phone: _phone ?? '', save: (name, phone) async {
+        await _userService.updateOwnBasicProfile(uid: widget.currentUid, name: name, phone: phone, field: field);
         if (mounted) setState(() { _name = name; _phone = _optionalString(phone); });
       }));
     if (saved == true && mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Andmed salvestatud.')));
@@ -853,17 +836,17 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
               Text(_name, style: Theme.of(context).textTheme.headlineSmall),
               Text('$role · $seaRescueLevel'),
               const SizedBox(height: 12),
-              if (_isOwnProfile) FilledButton.icon(onPressed: _editOwnProfile,
-                icon: const Icon(Icons.edit_outlined), label: const Text('Muuda minu andmeid'))
-              else Wrap(spacing: 8, children: [
+              if (!_isOwnProfile) Wrap(spacing: 8, children: [
                 OutlinedButton.icon(onPressed: () => _contact(false), icon: const Icon(Icons.phone_outlined), label: const Text('Helista')),
                 OutlinedButton.icon(onPressed: () => _contact(true), icon: const Icon(Icons.sms_outlined), label: const Text('SMS')),
               ]),
             ]))),
           if (_isOwnProfile || _canManageProfileMembership) Card(child: Column(children: [
-            _ProfileRow(label: 'E-post', value: email),
-            _ProfileRow(label: 'Telefon', value: _phone ?? 'Telefoni pole lisatud.'),
+            if (_isOwnProfile) _ProfileRow(label: 'Nimi', value: _name, onTap: () => _editOwnProfile('name')),
+            _ProfileRow(label: 'E-post (sisselogimiskonto)', value: email),
+            _ProfileRow(label: 'Telefon', value: _phone ?? 'Telefoni pole lisatud.', onTap: _isOwnProfile ? () => _editOwnProfile('phone') : _canManageProfileMembership ? _editMemberPhone : null),
           ])),
+          _ProfileRow(label: 'Merepääste aste', value: seaRescueLevel, onTap: _canManageProfileMembership ? _changeSeaRescueLevel : null),
           _ProfileRow(label: 'Liikmesus', value: status),
           _ProfileRow(label: 'Ühingu liikmeks alates', value: membershipStartDetails,
             onTap: _canEditMembershipStartDate ? _editMembershipStartDate : null),
@@ -877,13 +860,6 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                     leading: Icon(Icons.admin_panel_settings_outlined),
                     title: Text('Halda liiget'),
                   ),
-                  ListTile(
-                    title: const Text('Muuda merepääste astet'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: _changeSeaRescueLevel,
-                  ),
-                  if (!_isOwnProfile) ListTile(title: const Text('Muuda telefoninumbrit'),
-                    trailing: const Icon(Icons.chevron_right), onTap: _editMemberPhone),
                   if (_canEditRole)
                     ListTile(
                       title: const Text('Muuda rolli'),

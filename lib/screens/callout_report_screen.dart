@@ -1,3 +1,4 @@
+import '../models/equipment_model.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -372,6 +373,14 @@ class _CalloutReportScreenState extends State<CalloutReportScreen> {
                           : 'Aruande mustand',
                       style: Theme.of(context).textTheme.headlineSmall,
                     ),
+                    if (_map(data['callout'])['isTest'] == true)
+                      const ListTile(
+                        leading: Icon(Icons.science_outlined),
+                        title: Text('Test-/proovisündmuse aruanne'),
+                        subtitle: Text(
+                          'Ei kuulu ametlikku aruandlusse. PDF on märgistatud testina.',
+                        ),
+                      ),
                     _section('Sündmuse põhiandmed', [
                       Text(callout['title'] ?? ''),
                       Text('Ühing: ${data['organizationName']}'),
@@ -486,53 +495,72 @@ class _CalloutReportScreenState extends State<CalloutReportScreen> {
                           'Salvesta aruande muudatused enne osalejate vaate avamist.',
                         ),
                     ]),
-                    _section('Kasutatud tehnika', [
-                      for (final e in _maps(data['equipment']))
-                        if (edit)
-                          CheckboxListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(
-                              '${e['name']} ${e['registrationNumber']}',
+                    if (edit)
+                      _section('Seo kasutatud varustus', [
+                        ExpansionTile(
+                          title: Text('Valitud ${_equipment.length} eset'),
+                          children: [
+                            for (final group
+                                in EquipmentCategory.groupEquipment(
+                                  _maps(data['equipment']),
+                                ).entries) ...[
+                              ListTile(title: Text(group.key)),
+                              for (final e in group.value)
+                                CheckboxListTile(
+                                  title: Text('${e['name']}'),
+                                  value: _equipment.contains(e['id']),
+                                  onChanged: _saving
+                                      ? null
+                                      : (value) => setState(() {
+                                          _dirty = true;
+                                          if (value == true) {
+                                            _equipment.add(e['id']);
+                                          } else {
+                                            _equipment.remove(e['id']);
+                                          }
+                                        }),
+                                ),
+                            ],
+                          ],
+                        ),
+                      ]),
+                    for (final group in EquipmentCategory.groupEquipment(
+                      _maps(
+                        data['equipment'],
+                      ).where((e) => _equipment.contains(e['id'])),
+                    ).entries)
+                      _section(group.key, [
+                        for (final e in group.value) ...[
+                          if (edit &&
+                              EquipmentCategory.group(e['category']) ==
+                                  EquipmentCategory.group(
+                                    EquipmentCategory.vessel,
+                                  ))
+                            TextFormField(
+                              key: ValueKey(
+                                'registration-${e['id']}-${_map(data['report'])['revision']}',
+                              ),
+                              initialValue:
+                                  _registrations[e['id']] ??
+                                  e['registrationNumber'] ??
+                                  '',
+                              maxLength: 100,
+                              decoration: InputDecoration(
+                                labelText:
+                                    '${e['name']} · registreerimisnumber',
+                              ),
+                              enabled: !_saving,
+                              onChanged: (value) => setState(() {
+                                _registrations[e['id']] = value;
+                                _dirty = true;
+                              }),
+                            )
+                          else
+                            Text(
+                              '${e['name']}${(_registrations[e['id']] ?? e['registrationNumber'] ?? '').toString().isEmpty ? '' : ' · ${_registrations[e['id']] ?? e['registrationNumber']}'}',
                             ),
-                            value: _equipment.contains(e['id']),
-                            onChanged: _saving
-                                ? null
-                                : (value) => setState(() {
-                                    _dirty = true;
-                                    if (value == true) {
-                                      _equipment.add(e['id']);
-                                    } else {
-                                      _equipment.remove(e['id']);
-                                    }
-                                  }),
-                          )
-                        else
-                          Text('${e['name']} ${e['registrationNumber']}'),
-                      if (_maps(data['equipment']).isEmpty)
-                        const Text('Tehnikat pole seotud.'),
-                      if (edit)
-                        for (final e in _maps(
-                          data['equipment'],
-                        ).where((e) => _equipment.contains(e['id'])))
-                          TextFormField(
-                            key: ValueKey(
-                              'registration-${e['id']}-${_map(data['report'])['revision']}',
-                            ),
-                            initialValue:
-                                _registrations[e['id']] ??
-                                e['registrationNumber'] ??
-                                '',
-                            maxLength: 100,
-                            decoration: InputDecoration(
-                              labelText: '${e['name']} · registreerimisnumber',
-                            ),
-                            enabled: !_saving,
-                            onChanged: (value) => setState(() {
-                              _registrations[e['id']] = value;
-                              _dirty = true;
-                            }),
-                          ),
-                    ]),
+                        ],
+                      ]),
                     _section('Sündmuse kokkuvõte', [
                       if (edit)
                         const Text(
@@ -541,7 +569,7 @@ class _CalloutReportScreenState extends State<CalloutReportScreen> {
                       _field('Kokkuvõte', _summary, edit),
                       _field('Tulemus', _outcome, edit),
                     ]),
-                    _section('Operatsioonilogi', [
+                    _section('Operatiivlogi', [
                       if (_maps(data['timeline']).isEmpty)
                         const Text('Logikanded puuduvad.'),
                       for (final e in _maps(data['timeline']))
@@ -607,7 +635,7 @@ class _CalloutReportScreenState extends State<CalloutReportScreen> {
                     ]),
                     if (edit && data['operationLogId'] == null)
                       const Text(
-                        'Ava sündmuse op-logi, et saaksid aruande salvestada.',
+                        'Ava sündmuse operatiivlogi, et saaksid aruande salvestada.',
                       ),
                     if (edit && data['operationLogId'] != null) ...[
                       OutlinedButton(

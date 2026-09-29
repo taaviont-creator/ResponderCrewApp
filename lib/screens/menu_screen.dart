@@ -1,3 +1,5 @@
+import '../widgets/platform_pending_badge.dart';
+import 'notification_settings_screen.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
@@ -76,6 +78,8 @@ class MenuScreen extends StatelessWidget {
           const PendingInvitesSection(),
           if (onOpenNotifications != null) _MenuEntry(icon: Icons.notifications_outlined,
             title: 'Teavitused', subtitle: 'Ühingu teated', onTap: onOpenNotifications!),
+          _MenuEntry(icon: Icons.notifications_active_outlined, title: 'Teavituste seaded', subtitle: 'Sinu valikud ja SAR-häire heli',
+            onTap: () => _open(context, NotificationSettingsScreen(organizationId: organizationId, userId: currentUid, isAdmin: isOrganizationAdmin))),
           const SizedBox(height: AppTheme.sectionSpacing),
           _MenuEntry(
             icon: Icons.person_outline,
@@ -118,7 +122,7 @@ class MenuScreen extends StatelessWidget {
           ),
           _MenuEntry(
             icon: Icons.assignment_outlined,
-            title: 'Operatsioonilogi',
+            title: 'Operatiivlogi',
             subtitle: 'Operatsioonide sündmused ja kokkuvõtted',
             onTap: () => _open(
               context,
@@ -177,6 +181,7 @@ class MenuScreen extends StatelessWidget {
             _MenuEntry(
               icon: Icons.apartment_outlined,
               title: 'RespondCrew haldus',
+              leading: const PlatformPendingBadge(),
               subtitle: 'Ühingud, kasutajakontod ja audit',
               onTap: () => Navigator.of(context, rootNavigator: true).push(
                 MaterialPageRoute<void>(builder: (_) => const PlatformManagementScreen())),
@@ -184,7 +189,7 @@ class MenuScreen extends StatelessWidget {
           if (canOpenReadinessOverview)
             _MenuEntry(
               icon: Icons.health_and_safety_outlined,
-              title: 'Valmisoleku seaded',
+              title: 'Ühingu valmiduse seaded',
               subtitle: 'Miinimumkoosseis ja varustuse info',
               onTap: () => _open(
                 context,
@@ -208,10 +213,12 @@ class _MenuEntry extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.subtitle,
+    this.leading,
     required this.onTap,
   });
 
   final IconData icon;
+  final Widget? leading;
   final String title;
   final String subtitle;
   final VoidCallback? onTap;
@@ -233,7 +240,7 @@ class _MenuEntry extends StatelessWidget {
                 padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
-                    Icon(icon, color: AppColors.navy, size: 26),
+                    leading ?? Icon(icon, color: AppColors.navy, size: 26),
                     const SizedBox(width: 16),
                     Expanded(
                       child: Column(

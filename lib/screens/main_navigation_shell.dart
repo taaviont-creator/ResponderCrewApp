@@ -37,14 +37,14 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
       'Töölaud',
       'Väljakutsed',
       'Valmisolek',
-      'Planeerimine',
+      'Ühingu valmidus',
       'Menüü',
     ];
     const icons = [
       Icons.dashboard_outlined,
       Icons.campaign_outlined,
       Icons.health_and_safety_outlined,
-      Icons.event_outlined,
+      Icons.groups_outlined,
       Icons.menu,
     ];
     return Scaffold(

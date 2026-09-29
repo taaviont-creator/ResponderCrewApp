@@ -812,24 +812,7 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
     return value is String ? value.trim() : '';
   }
 
-  String _equipmentCategoryLabel(String category) {
-    switch (category) {
-      case EquipmentCategory.vessel:
-        return 'Alus';
-      case EquipmentCategory.engine:
-        return 'Mootor';
-      case EquipmentCategory.rescue:
-        return 'Päästevarustus';
-      case EquipmentCategory.medical:
-        return 'Meditsiin';
-      case EquipmentCategory.radio:
-        return 'Raadio';
-      case EquipmentCategory.safety:
-        return 'Ohutus';
-      default:
-        return 'Muu';
-    }
-  }
+  String _equipmentCategoryLabel(String category) => EquipmentCategory.label(category);
 
   bool _canEditEquipment(EquipmentModel item) {
     if (item.isPersonal) {

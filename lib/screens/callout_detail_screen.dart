@@ -1,3 +1,4 @@
+import '../widgets/callout_test_status_control.dart';
 import 'dart:async';
 import '../widgets/callout_response_controls.dart';
 
@@ -163,7 +164,7 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Op-logi avatud: ${log.title}')),
+        SnackBar(content: Text('Operatiivlogi avatud: ${log.title}')),
       );
       await Navigator.of(context).push(
         MaterialPageRoute<void>(
@@ -180,7 +181,7 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Operatsioonilogi avamine ebaõnnestus.')),
+        const SnackBar(content: Text('Operatiivlogi avamine ebaõnnestus.')),
       );
     } finally {
       if (mounted) setState(() => _isOpeningOperationLog = false);
@@ -216,13 +217,15 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
             organizationId: widget.organizationId, userId: widget.currentUid, userName: widget.currentUserName,
             active: _isActive, enabled: !_calloutReadFailed),
           const SizedBox(height: 12),
+          if (_callout.isTest) const ListTile(leading: Icon(Icons.science_outlined), title: Text('Test-/proovisündmus'), subtitle: Text('Ei kuulu ametlikku statistikasse.')),
           _buildOverviewCard(),
           const SizedBox(height: AppTheme.itemSpacing),
           _buildDescriptionCard(),
           const SizedBox(height: AppTheme.itemSpacing),
-          if (_callout.status == CalloutStatus.closed) const AppSectionCard(child: Text('Väljakutse on lõpetatud. Lisa või täienda nüüd op-logi kokkuvõtet ja kinnita osalejad. Neid saab muuta ka hiljem.')),
+          if (_callout.status == CalloutStatus.closed) const AppSectionCard(child: Text('Väljakutse on lõpetatud. Lisa või täienda nüüd operatiivlogi kokkuvõtet ja kinnita osalejad. Neid saab muuta ka hiljem.')),
           _buildOperationLogAction(),
           FilledButton.icon(icon: const Icon(Icons.description_outlined), label: const Text('Sündmuse aruanne'), onPressed: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => CalloutReportScreen(organizationId: widget.organizationId, calloutId: _callout.id)))),
+          CalloutTestStatusControl(key: ValueKey('${widget.organizationId}-${widget.callout.id}'), callout: _callout, organizationId: widget.organizationId, userId: widget.currentUid),
           if (widget.canManageCallouts) OutlinedButton.icon(icon: const Icon(Icons.edit_outlined), label: const Text('Täienda sündmuse andmeid'), onPressed: () => showDialog<void>(context: context, builder: (_) => CalloutEditDialog(callout: _callout, organizationId: widget.organizationId))),
           const SizedBox(height: AppTheme.itemSpacing),
           if (widget.canManageCallouts) ...[
@@ -253,15 +256,15 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
         if (!canOpenOrStart) return const SizedBox.shrink();
 
         return AppSectionCard(
-          title: 'Operatsioonilogi',
+          title: 'Operatiivlogi',
           leading: const Icon(Icons.assignment_outlined),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 existingLog == null
-                    ? 'Op-logi luuakse selle väljakutse põhjal.'
-                    : 'Väljakutsega seotud op-logi on valmis avamiseks.',
+                    ? 'Operatiivlogi luuakse selle väljakutse põhjal.'
+                    : 'Väljakutsega seotud operatiivlogi on valmis avamiseks.',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppColors.textSecondary,
                     ),
@@ -276,7 +279,7 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
               ),
               const SizedBox(height: 12),
               PrimaryActionButton(
-                label: existingLog == null ? 'Alusta op-logi' : 'Ava op-logi',
+                label: existingLog == null ? 'Alusta operatiivlogi' : 'Ava operatiivlogi',
                 icon: existingLog == null
                     ? Icons.playlist_add_outlined
                     : Icons.open_in_new,

@@ -102,3 +102,16 @@ test('corrected event start moves participation and event counts to the correcte
  const result=aggregate({...base,callouts:[c],attendance});assert.equal(result.events.period,0);assert.equal(result.members[0].calloutCount,0);
  const previous=aggregate({...base,from:'2026-08-31',to:'2026-08-31',callouts:[c],attendance});assert.equal(previous.events.period,1);assert.equal(previous.events.tross,1);assert.equal(previous.members[0].calloutCount,1);
 });
+
+test('test callout never enters official event totals, responses or member contribution; activities stay counted',()=>{
+ const c={id:'test',organizationId:'org',isTest:true,calloutType:'sar',status:'closed',createdAt:start+1000};
+ const response={organizationId:'org',calloutId:'test',userId:'u',response:'responding'};
+ const attendance=[{...response,status:'confirmed',hours:5}];
+ const result=aggregate({...base,callouts:[c],responses:[response],attendance,
+   activities:[{id:'training',organizationId:'org',type:'training',startTime:start+1000}],
+   participants:[{activityId:'training',organizationId:'org',userId:'u',attendanceStatus:'confirmed',hours:2}]});
+ assert.equal(result.events.total,0);assert.equal(result.events.sar,0);assert.equal(result.events.closed,0);
+ assert.equal(result.members[0].calloutCount,0);assert.equal(result.members[0].responseCount,0);assert.equal(result.members[0].contributionHours,2);
+ assert.equal(c.isTest,true);assert.equal(attendance.length,1);
+ const old=aggregate({...base,callouts:[{...c,isTest:undefined}],attendance});assert.equal(old.events.total,1);assert.equal(old.members[0].calloutCount,1);
+});

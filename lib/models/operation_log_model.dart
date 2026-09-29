@@ -70,7 +70,7 @@ class OperationLogStatus {
     onScene => 'Sündmuskohal',
     inProgress => 'Tegevuses',
     completed => 'Sündmuskohal tegevused tehtud',
-    returnedToBase => 'Tagasi baasis · op-logi lõpetatud',
+    returnedToBase => 'Tagasi baasis · operatiivlogi lõpetatud',
     _ => 'Avatud',
   };
 

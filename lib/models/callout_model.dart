@@ -5,8 +5,8 @@ class CalloutType {
   static const tross = 'tross';
   static const values = {sar, tross};
   static String label(String type) => type == tross ? 'TROSSI mereabi' : 'SAR sündmus';
-  static const sarChoices = ['Inimene vees.', 'Punane rakett.', 'Uppumisohus alus.', 'Alus madalikul kinni.', 'Eksinud alus.', 'Terviserikkega inimene alusel.', 'Muu sündmus.'];
-  static const trossChoices = ['Tehniline rike.', 'Mootoririke.', 'Vajab pukseerimist.', 'Kütus otsas.', 'Käivitusabi.', 'Muu mereabi.'];
+  static const sarChoices = ['Kadunud isik.', 'Inimene vees.', 'Punane rakett.', 'Uppumisohus alus.', 'Alus madalikul kinni.', 'Eksinud alus.', 'Terviserikkega inimene alusel.', 'Muu sündmus.'];
+  static const trossChoices = ['Tehniline rike.', 'Mootoririke.', 'Vajab pukseerimist.', 'Kütus otsas.', 'Aku-/elektririke.', 'Alus madalikul kinni.', 'Käivitusabi.', 'Muu mereabi.'];
   static List<String> choices(String type) => type == tross ? trossChoices : sarChoices;
   static bool validTarget(String type, int? minutes) =>
       values.contains(type) && (type == tross
@@ -73,8 +73,10 @@ class CalloutModel {
     this.responseTargetMinutes,
     this.startedAt,
     this.endedAt,
+    this.isTest = false,
   });
 
+  final bool isTest;
   final String id;
   final String organizationId;
   final String commandId;
@@ -102,6 +104,7 @@ class CalloutModel {
 
     return CalloutModel(
       id: document.id,
+      isTest: data['isTest'] == true,
       organizationId: _stringValue(data['organizationId']),
       commandId: _stringValue(data['commandId']),
       title: _stringValue(data['title']),

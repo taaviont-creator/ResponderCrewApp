@@ -1,3 +1,7 @@
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../widgets/platform_pending_badge.dart';
+import '../widgets/platform_application_notices.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import '../services/command_service.dart';
@@ -12,6 +16,8 @@ class PlatformManagementScreen extends StatefulWidget {
 class _PlatformManagementScreenState extends State<PlatformManagementScreen> {
   final _functions = FirebaseFunctions.instanceFor(region: 'europe-north1');
   Map<String, dynamic>? _data;
+  StreamSubscription<QuerySnapshot<Map<String,dynamic>>>? _pendingSubscription;
+  bool _reloadQueued = false;
   final List<Map<String, dynamic>> _accounts = [];
   String? _pageToken, _error;
   bool _loading = true, _saving = false, _accountsLoaded = false;
@@ -23,7 +29,13 @@ class _PlatformManagementScreenState extends State<PlatformManagementScreen> {
   void initState() {
     super.initState();
     _load();
+    _pendingSubscription = FirebaseFirestore.instance.collection('commands').where('status',isEqualTo:'pending').snapshots().listen((_) {
+      if (_loading || _saving) { _reloadQueued = true; } else { _load(); }
+    },onError:(Object _) {});
   }
+
+  @override
+  void dispose() { _pendingSubscription?.cancel(); super.dispose(); }
 
   Future<void> _load() async {
     setState(() => _loading = true);
@@ -45,7 +57,7 @@ class _PlatformManagementScreenState extends State<PlatformManagementScreen> {
         );
       }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) { setState(() => _loading = false); if (_reloadQueued && !_saving) { _reloadQueued = false; unawaited(_load()); } }
     }
   }
 
@@ -194,7 +206,7 @@ class _PlatformManagementScreenState extends State<PlatformManagementScreen> {
           bottom: const TabBar(
             isScrollable: true,
             tabs: [
-              Tab(text: 'Ühingud'),
+              Tab(child: PlatformPendingBadge(child: Text('Ühingud'))),
               Tab(text: 'Kasutajakontod'),
               Tab(text: 'Auditlogi'),
             ],
@@ -218,12 +230,17 @@ class _PlatformManagementScreenState extends State<PlatformManagementScreen> {
                       const Text(
                         'Platvormihaldus on eraldi organisatsiooni liikmelisusest ja sündmuste juhtimisest.',
                       ),
-                      for (final org in organizations)
-                        Card(
+                      const PlatformApplicationNotices(),
+                      for (final group in const {'pending':'Kinnitamise ootel','approved':'Kinnitatud','suspended':'Peatatud','rejected':'Tagasi lükatud','other':'Muu olek'}.entries)
+                        if (organizations.any((o) => (['pending','approved','suspended','rejected'].contains(o['status']) ? o['status'] : 'other') == group.key)) ...[
+                          Padding(padding: const EdgeInsets.only(top:16,bottom:8),child:Text(group.value,style:Theme.of(context).textTheme.titleMedium)),
+                          for (final org in organizations.where((o) => (['pending','approved','suspended','rejected'].contains(o['status']) ? o['status'] : 'other') == group.key)) Card(
                           child: ExpansionTile(
                             title: Text(org['name']),
+                            leading: Icon(group.key == 'approved' ? Icons.check_circle : group.key == 'pending' ? Icons.pending_actions : Icons.pause_circle_outline,
+                              color: group.key == 'approved' ? Colors.green.shade700 : group.key == 'pending' ? Colors.deepOrange.shade700 : Colors.grey.shade700),
                             subtitle: Text(
-                              '${org['status']} · ${org['memberCount']} liiget · ${org['adminCount']} admini · ${org['calloutCount']} sündmust',
+                              '${group.value} · ${org['memberCount']} liiget · ${org['adminCount']} admini · ${org['calloutCount']} sündmust',
                             ),
                             childrenPadding: const EdgeInsets.all(16),
                             children: [
@@ -298,6 +315,7 @@ class _PlatformManagementScreenState extends State<PlatformManagementScreen> {
                             ],
                           ),
                         ),
+                      ],
                     ],
                   ),
                   ListView(

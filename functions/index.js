@@ -1,6 +1,5 @@
 const logger = require("firebase-functions/logger");
 const { onDocumentCreated, onDocumentWritten } = require("firebase-functions/v2/firestore");
-const { createMemberRequestHandler } = require('./member-request-notification');
 const admin = require("firebase-admin");
 
 const { onCall } = require('firebase-functions/v2/https');
@@ -39,20 +38,18 @@ exports.getOrganizationMemberContact = onCall(
 );
 
 const APP_ID = "respondcrew";
-const CALLOUT_ALARM_CHANNEL_ID = "callout_alarm";
 const MAX_MULTICAST_TOKENS = 500;
 const USER_QUERY_CHUNK_SIZE = 10;
-
-exports.sendMemberRequestNotification = onDocumentWritten(
-  {document: 'memberships/{membershipId}', region: 'europe-north1', retry: false},
-  createMemberRequestHandler({db, messaging, logger, loadTokens: loadEnabledDeviceTokens}),
-);
 
 const {createCalloutAlarmHandler} = require('./callout-alarm-delivery');
 exports.sendCalloutAlarmNotification = onDocumentCreated(
   {document: 'callouts/{calloutId}', region: 'europe-north1', retry: false, maxInstances: 5},
   createCalloutAlarmHandler({db, loadMembers: loadActiveMemberUserIds,
-    loadTokens: loadEnabledDeviceTokens, sendAlarm: sendCalloutAlarm, logger}),
+    loadTokens: loadEnabledDeviceTokens, sendAlarm: sendCalloutAlarm, logger,
+    filterRecipients: async (org,uids) => {
+      const pairs = await Promise.all(uids.map(async uid => [uid,(await require('./notification-preferences').loadPreferences(db,org,uid,'member')).newCallout]));
+      return pairs.filter(([,enabled])=>enabled).map(([uid])=>uid);
+    }}),
 );
 
 async function loadActiveMemberUserIds(organizationId) {
@@ -127,6 +124,7 @@ async function sendCalloutAlarm({
   calloutId,
   organizationId,
   tokenRecords,
+  calloutType = 'sar',
 }) {
   let successCount = 0;
   let failureCount = 0;
@@ -136,38 +134,8 @@ async function sendCalloutAlarm({
     tokenRecords,
     MAX_MULTICAST_TOKENS,
   )) {
-    const message = {
-      tokens: tokenRecordChunk.map((record) => record.token),
-      notification: {
-        title: "V\u00e4ljakutse",
-        body: "Uus v\u00e4ljakutse vajab reageerimist",
-      },
-      data: {
-        type: "callout_alarm",
-        relatedType: "callout",
-        calloutId,
-        relatedId: calloutId,
-        organizationId,
-        channelId: CALLOUT_ALARM_CHANNEL_ID,
-      },
-      android: {
-        priority: "high",
-        notification: {
-          channelId: CALLOUT_ALARM_CHANNEL_ID,
-          tag: calloutId,
-          title: "V\u00e4ljakutse",
-          body: "Uus v\u00e4ljakutse vajab reageerimist",
-        },
-      },
-      apns: {
-        headers: {'apns-collapse-id': require('node:crypto').createHash('sha256').update(calloutId).digest('hex')},
-        payload: {
-          aps: {
-            sound: "default",
-          },
-        },
-      },
-    };
+    const message = require('./callout-notification-payload').calloutNotificationPayload({calloutId,organizationId,calloutType,
+      tokens:tokenRecordChunk.map(record=>record.token)});
 
     const response = await messaging.sendEachForMulticast(message);
     successCount += response.successCount;
@@ -307,3 +275,43 @@ exports.getOrganizationReadinessAvailability = onCall(
   {region: 'europe-north1', maxInstances: 5, timeoutSeconds: 30},
   createReadinessAvailabilityHandler({db}),
 );
+
+exports.getOrganizationReadinessPlanning = onCall(
+  {region: 'europe-north1', maxInstances: 5, timeoutSeconds: 30},
+  require('./readiness-planning').createReadinessPlanningHandler({db}),
+);
+
+exports.setCalloutTestStatus = onCall({region:'europe-north1', maxInstances:5, timeoutSeconds:30},
+  require('./callout-test-status').createSetCalloutTestStatusHandler({db,timestamp:()=>admin.firestore.FieldValue.serverTimestamp()}));
+
+exports.setNotificationPreference = onCall({region:'europe-north1', maxInstances:5, timeoutSeconds:30},
+  require('./notification-preferences').createSetNotificationPreferenceHandler({db,timestamp:()=>admin.firestore.FieldValue.serverTimestamp()}));
+
+const {createPersonalDelivery} = require('./personal-notifications');
+const personalDelivery = createPersonalDelivery({db,messaging,loadTokens:loadEnabledDeviceTokens,logger});
+const {createReadinessEngine,createReadinessDelivery} = require('./organization-readiness');
+const readinessEngine = createReadinessEngine({db});
+for (const collection of ['availability','memberships','plannedUnavailability','plannedUnavailabilityRules','organizationReadinessSummaries']) {
+  exports[`updateReadiness_${collection}`] = onDocumentWritten({document:`${collection}/{documentId}`,region:'europe-north1',
+    maxInstances:3,timeoutSeconds:60,retry:true},readinessEngine.changed);
+}
+exports.updateReadiness_organization = onDocumentWritten({document:'commands/{organizationId}',region:'europe-north1',
+  maxInstances:3,timeoutSeconds:60,retry:true},readinessEngine.changed);
+exports.refreshScheduledReadiness = onSchedule({schedule:'every 1 minutes',timeZone:'Europe/Tallinn',region:'europe-west1',
+  maxInstances:1,concurrency:1,timeoutSeconds:120,retryCount:0},readinessEngine.scheduled);
+exports.sendReadinessChangeNotification = onDocumentCreated({document:'readinessNotificationEvents/{eventId}',region:'europe-north1',
+  maxInstances:3,timeoutSeconds:120,retry:true},createReadinessDelivery({db,deliver:personalDelivery,preferencesFor:async(org,uid)=>{
+    const member = (await db.doc(`memberships/${uid}_${org}`).get()).data();
+    return require('./notification-preferences').loadPreferences(db,org,uid,member?.role);
+  }}));
+
+const applicationNotifications = require('./application-notifications');
+exports.sendMemberRequestNotification = onDocumentWritten({document:'memberships/{membershipId}',region:'europe-north1',
+  maxInstances:3,timeoutSeconds:120,retry:true},require('./member-request-notification').createMemberRequestHandler({db,messaging,loadTokens:loadEnabledDeviceTokens,logger}));
+exports.sendMemberApplicationEmail = onDocumentWritten({...emailOptions,document:'memberships/{membershipId}'},
+  applicationNotifications.createMemberApplicationEmail({db,auth:admin.auth(),logger,sendMail:async message => {
+    const transport = smtpTransport(require('nodemailer'),smtpPassword.value());
+    try { return await transport.sendMail(message); } finally { transport.close(); }
+  }}));
+exports.sendOrganizationApplicationNotification = onDocumentCreated({document:'commands/{organizationId}',region:'europe-north1',
+  maxInstances:3,timeoutSeconds:120,retry:true},applicationNotifications.createOrganizationApplicationNotification({db,deliver:personalDelivery}));

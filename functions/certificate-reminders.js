@@ -1,4 +1,5 @@
 const {createHash} = require('node:crypto');
+const {loadPreferences} = require('./notification-preferences');
 const DAY = 86400000;
 const orgId = d => d.organizationId || d.commandId;
 const active = d => (d.status === 'active' || d.isActive === true) &&
@@ -46,6 +47,7 @@ function createCertificateReminderJob({db, messaging, loadTokens, logger, now = 
             organizations.set(org, members);
           }
           for (const uid of recipients(certificate, organizations.get(org))) {
+            if (!(await loadPreferences(db,org,uid,'member')).certificates) continue;
             const id = reminderId(document.id, certificate.expiresAt, stage, uid);
             const ref = db.collection('certificateReminders').doc(id);
             const title = stage === 'expired' ? 'Tunnistus on aegunud' : 'Tunnistus aegub peagi';
