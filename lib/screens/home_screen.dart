@@ -919,7 +919,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 16),
             OutlinedButton.icon(
               icon: const Icon(Icons.health_and_safety),
-              label: const Text('Valmisoleku seaded'),
+              label: const Text('Ühingu reageerimisvalmiduse seaded'),
               onPressed: () {
                 _pushPage(
                   context,
@@ -1197,7 +1197,7 @@ class _HomeScreenState extends State<HomeScreen> {
           if (permissions.canManageOrganization) ...[
             const SizedBox(height: 16),
             Text(
-              'Valmisoleku seaded',
+              'Ühingu reageerimisvalmiduse seaded',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 8),

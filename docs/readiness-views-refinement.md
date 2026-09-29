@@ -32,6 +32,8 @@ teise ühingu ja tühistatud planeeringu muutmine on keelatud. Admin ei saa sell
 liidese kaudu muuta teise liikme isiklikku planeeringut. Jagatud planeeringute
 vaade ei avalda isiklikke märkusi.
 
+Tootmise reeglikompilaator tagastas ühise tingimusliku muutmisharu korral 503, kuigi emulatori testid läbisid. Ühekordse ja korduva planeeringu muutmisharud eraldati; tootmise kompilaatori kontroll läbib. Õigused ega salvestusmudel ei muutunud.
+
 Cloud Functionsis muutus ainult valmidusteate varupealkirja sõnastus.
 Storage'i reegleid ega ärilist SAR/Trossi valmisolekuarvutust ei muudetud.
 
