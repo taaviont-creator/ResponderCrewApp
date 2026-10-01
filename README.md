@@ -12,7 +12,7 @@ Katseveeb: https://respondcrew--keskused-katse-aznyqfmn.web.app/ (ajutine Hostin
 - Platvormihaldur: **RespondCrew haldus → Taotlused / Kaardikeskused / Ühingud / Kasutajakontod / Auditlogi**.
 - Keskuse õigus ei anna ühingu adminiõigust. Kaardile jõudmiseks peavad ühingu jagamistaotlus ja platvormi heakskiit olemas olema.
 
-APK koostamine on kasutaja otsuseni peatatud. Olemasolev üldine PR-töövoog koostab APK; ainult veebi kontrollimiseks on eraldi käsitsi käivitatav `web-foundation.yml`. Ärge nimetage kohalikke teste GitHubi CI tulemuseks.
+PR-i kontrollid käivitavad Flutteri analüüsi ja testid, Functions’i testid, Firestore/Storage’i reeglitestid, veebikoostamise ning iOS-i simulaatori koostamise. APK-d PR-i käigus ei koostata. APK saab luua ainult `RespondCrew MVP CI` käsitsi käivitamisel, märkides valiku `build_android_apk` (vaikimisi väljas). `web-foundation.yml` kontrollib veebi nii PR-is kui ka käsitsi käivitamisel. Avaldamine Firebase’i on eraldi samm.
 
 ## Kohalik arendus ja kontrollid
 
