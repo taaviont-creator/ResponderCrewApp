@@ -52,7 +52,7 @@ Uued regressioonid kontrollivad sisestuse ja vaate säilimist, õiguse eemaldami
 - `functions/eslint.config.cjs` kasutab ESLinti soovituslikku veakontrolli CommonJS/Node keskkonnas. Senine teateskript on asendatud käsuga `eslint . --max-warnings 0`; olemasolev CI käivitab selle. Eemaldatud kaks kasutamata importi. Kolmel tahtlikul juhtmärkide filtreerimise regulaaravaldisel on selgitusega ühe rea erand; filtreerimise turvakäitumist ei muudeta. Seadistuse alus: [ESLint configuration](https://eslint.org/docs/latest/use/configure/configuration-files).
 - Püsivale katseveebile on eraldi `firebase.katse.json`, saidiga `respondcrew-katse`. Põhisaidi live-versiooni ei asendata. Ajutise lingi jaoks jääb alles `firebase.web.json`. Uue domeeni brauserisalvestus on eraldi, mistõttu sinna esmakordsel sisenemisel tuleb uuesti sisse logida.
 
-Kontrollid: `flutter analyze` 0 probleemi; kõik **185 Flutteri**, **93 Functions'i**, **120 Firestore/Storage'i ja serverivoogude testi** läbivad; ESLint 0 viga/hoiatust. Uued regressioonid katavad vormi salvestamise/loobumise/vea, konkureeriva navigeerimise, töökeskkonna marsruudid, 54 kaardikirjet, 107 halduse jagamistaotlust, osalise vastuse vältimise ja ligipääsu eemaldamise lehekülgede vahel. Veebikoost ja pilve avaldamine kontrollitakse enne üleandmist. APK-d selles töös ei koostata.
+Kontrollid: `flutter analyze` 0 probleemi; kõik **185 Flutteri**, **93 Functions'i**, **120 Firestore/Storage'i ja serverivoogude testi** läbivad; ESLint 0 viga/hoiatust. Uued regressioonid katavad vormi salvestamise/loobumise/vea, konkureeriva navigeerimise, töökeskkonna marsruudid, 54 kaardikirjet, 107 halduse jagamistaotlust, osalise vastuse vältimise ja ligipääsu eemaldamise lehekülgede vahel. Veebikoost läbis. Mõlemad kaardipäringufunktsioonid olid 01.10.2026 18:24 UTC järel ACTIVE; püsiva ja vana katseveebi põhifailide SHA-256 vastavus kontrollitud. Brauseris kontrollitud uus sisselogimisleht ning olemasoleva sessiooniga SAR 3/3 + II aste 1, Tross 3/2 ja kaardipunkt. APK-d selles töös ei koostata.
 
 ### Avaldamise kord
 
@@ -61,3 +61,10 @@ Kontrollid: `flutter analyze` 0 probleemi; kõik **185 Flutteri**, **93 Function
 3. `firebase deploy --config firebase.katse.json --project respondcrew --only hosting` püsiva katseveebi jaoks.
 4. Vajadusel vana lingi värskendamine: `firebase hosting:channel:deploy keskused-katse --config firebase.web.json --project respondcrew --expires 30d`.
 5. Kontrollida Functions'i ACTIVE-olekut, avaldatud failide räside vastavust ning sisselogimisvaadet. Päriskonto kontroll tehakse kasutaja olemasoleva sessiooniga; paroole ei kirjutata lähtekoodi ega logidesse.
+
+
+### Sõltuvuste kontroll
+
+Serveri käitusaegsete sõltuvuste kontroll leidis 13 teadet (1 kõrge, 12 mõõdukat). Ühilduvad parandused lisati lukufaili ilma otseste sõltuvuste põhiversioone muutmata: gRPC, body-parser, qs, protobufjs ja uuid uuem ühilduv alamversioon. Pärast parandust on kõrgeid/kriitilisi teateid 0; alles on 8 mõõdukat sõltuvusahela teadet, mille alus on `uuid <11.1.1` v3/v5/v6 puhvripiiride probleem (GHSA-w5hq-g745-h8pq). npm soovitab täielikuks lahenduseks Firebase Admin 14 põhiversiooni. Seda ei rakendata jõuga ega kirjutata ühildumatut `overrides` reeglit. Vajalik on eraldi Firebase Admin/Google Cloud SDK ühilduvusring; käesolev kontroll ei võrdu kõigi võimalike turvaprobleemide puudumise kinnitusega.
+
+Lukufaili turvaparanduste rakendamiseks tuleb uuendada olemasolevad selle repo Cloud Functions'id, mitte ainult kaks muudetud kaardipäringut. Avaldamisel võrreldakse repo eksporditud funktsioone projekti olemasoleva loendiga; võõraid funktsioone ei kustutata. SMTP/FCM prooviteateid pärisliikmetele ei saadeta.
