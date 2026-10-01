@@ -1,3 +1,4 @@
+import '../widgets/app_layout.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -65,9 +66,7 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
     }
   }
 
-  Future<void> _showAddEquipmentDialog({
-    required String scope,
-  }) async {
+  Future<void> _showAddEquipmentDialog({required String scope}) async {
     if (widget.organizationId.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -208,10 +207,10 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
       await _equipmentService.addEquipment(
         organizationId: organizationId,
         scope: scope,
-        storage: scope == EquipmentScope.organization && _view == 'warehouse' ? 'warehouse' : 'shared',
-        ownerUserId: scope == EquipmentScope.personal
-            ? currentUid
-            : '',
+        storage: scope == EquipmentScope.organization && _view == 'warehouse'
+            ? 'warehouse'
+            : 'shared',
+        ownerUserId: scope == EquipmentScope.personal ? currentUid : '',
         name: name,
         category: selectedCategory,
         status: selectedStatus,
@@ -226,9 +225,9 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
       }
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Varustus salvestatud')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Varustus salvestatud')));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -390,9 +389,9 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
       }
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Varustus salvestatud')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Varustus salvestatud')));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -417,9 +416,9 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
 
     if (!mounted) return;
     if (members.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Liikmeid ei leitud.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Liikmeid ei leitud.')));
       return;
     }
 
@@ -472,9 +471,9 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
       );
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Varustus väljastatud.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Varustus väljastatud.')));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -555,10 +554,7 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
             ? name
             : (email.isNotEmpty ? email : userId);
 
-        return _EquipmentMemberOption(
-          userId: userId,
-          label: label,
-        );
+        return _EquipmentMemberOption(userId: userId, label: label);
       }),
     );
 
@@ -569,10 +565,8 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Varustus'),
-      ),
+    return AppScaffold(
+      appBar: AppBar(title: const Text('Varustus')),
       body: StreamBuilder<List<EquipmentModel>>(
         stream: _equipmentService.streamVisibleEquipment(
           organizationId: widget.organizationId,
@@ -593,32 +587,102 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
           final equipment = snapshot.data ?? const <EquipmentModel>[];
           final visible = equipment.where((item) {
             final matchesTab = item.appearsIn(_view, widget.currentUid);
-            return matchesTab && (_category == null || item.category == _category) &&
-              '${item.name} ${item.assignedToName} ${item.location}'.toLowerCase().contains(_search);
+            return matchesTab &&
+                (_category == null || item.category == _category) &&
+                '${item.name} ${item.assignedToName} ${item.location}'
+                    .toLowerCase()
+                    .contains(_search);
           }).toList();
-          final title = switch (_view) {'warehouse' => 'Ladu', 'mine' => 'Minu varustus', 'members' => 'Liikmete varustus', _ => 'Ühingu varustus'};
-          return ListView(padding: const EdgeInsets.all(16), children: [
-            TextField(decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Otsi varustust või saajat'),
-              onChanged: (value) => setState(() => _search = value.trim().toLowerCase())),
-            const SizedBox(height: 12),
-            Wrap(spacing: 8, runSpacing: 8, children: [
-              for (final entry in const {'shared': 'Ühingu varustus', 'warehouse': 'Ladu', 'mine': 'Minu varustus', 'members': 'Liikmete varustus'}.entries)
-                ChoiceChip(label: Text(entry.value), selected: _view == entry.key,
-                  onSelected: (_) => setState(() => _view = entry.key)),
-            ]),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(initialValue: _category ?? '', decoration: const InputDecoration(labelText: 'Kategooria'),
-              items: [const DropdownMenuItem(value: '', child: Text('Kõik kategooriad')),
-                for (final category in EquipmentCategory.values) DropdownMenuItem(value: category, child: Text(_equipmentCategoryLabel(category)))],
-              onChanged: (value) => setState(() => _category = value == '' ? null : value)),
-            const SizedBox(height: 16),
-            _buildEquipmentSection(title: title, equipment: visible, emptyText: 'Varustust ei leitud.',
-              addLabel: _view == 'mine' ? 'Lisa isiklik varustus' : 'Lisa varustus',
-              helperText: _view == 'warehouse' ? 'Laos olevad esemed saab väljastada liikmele. Tagastatud ese tuleb tagasi lattu.' :
-                _view == 'mine' ? 'Sulle väljastatud ja sinu isiklik varustus.' : null,
-              onAdd: _view == 'members' || (_view != 'mine' && !widget.canManageEquipment) ? null :
-                () => _showAddEquipmentDialog(scope: _view == 'mine' ? EquipmentScope.personal : EquipmentScope.organization)),
-          ]);
+          final title = switch (_view) {
+            'warehouse' => 'Ladu',
+            'mine' => 'Minu varustus',
+            'members' => 'Liikmete varustus',
+            _ => 'Ühingu varustus',
+          };
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              TextField(
+                decoration: const InputDecoration(
+                  prefixIcon: Icon(Icons.search),
+                  hintText: 'Otsi varustust või saajat',
+                ),
+                onChanged: (value) =>
+                    setState(() => _search = value.trim().toLowerCase()),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final entry in const {
+                    'shared': 'Ühing',
+                    'warehouse': 'Ladu',
+                    'mine': 'Minu',
+                    'members': 'Liikmete',
+                  }.entries)
+                    ChoiceChip(
+                      label: Text(entry.value),
+                      selected: _view == entry.key,
+                      onSelected: (_) => setState(() => _view = entry.key),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                title: Text(
+                  _category == null
+                      ? 'Filtrid'
+                      : 'Filter: ${_equipmentCategoryLabel(_category!)}',
+                ),
+                children: [
+                  DropdownButtonFormField<String>(
+                    initialValue: _category ?? '',
+                    isExpanded: true,
+                    decoration: const InputDecoration(labelText: 'Kategooria'),
+                    items: [
+                      const DropdownMenuItem(
+                        value: '',
+                        child: Text('Kõik kategooriad'),
+                      ),
+                      for (final category in EquipmentCategory.values)
+                        DropdownMenuItem(
+                          value: category,
+                          child: Text(_equipmentCategoryLabel(category)),
+                        ),
+                    ],
+                    onChanged: (value) =>
+                        setState(() => _category = value == '' ? null : value),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ),
+              const SizedBox(height: 8),
+              _buildEquipmentSection(
+                title: title,
+                equipment: visible,
+                emptyText: 'Varustust ei leitud.',
+                addLabel: _view == 'mine'
+                    ? 'Lisa isiklik varustus'
+                    : 'Lisa varustus',
+                helperText: _view == 'warehouse'
+                    ? 'Laos olevad esemed saab väljastada liikmele. Tagastatud ese tuleb tagasi lattu.'
+                    : _view == 'mine'
+                    ? 'Sulle väljastatud ja sinu isiklik varustus.'
+                    : null,
+                onAdd:
+                    _view == 'members' ||
+                        (_view != 'mine' && !widget.canManageEquipment)
+                    ? null
+                    : () => _showAddEquipmentDialog(
+                        scope: _view == 'mine'
+                            ? EquipmentScope.personal
+                            : EquipmentScope.organization,
+                      ),
+              ),
+            ],
+          );
         },
       ),
     );
@@ -626,12 +690,25 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
 
   Future<void> _moveEquipment(EquipmentModel item, String storage) async {
     try {
-      await _equipmentService.updateEquipment(equipmentId: item.id,
-        organizationId: widget.organizationId, name: item.name, category: item.category,
-        status: item.status, location: item.location, nextMaintenanceDate: item.nextMaintenanceDate,
-        note: item.note, updatedBy: widget.currentUid, canManageOrganizationEquipment: widget.canManageEquipment, storage: storage);
+      await _equipmentService.updateEquipment(
+        equipmentId: item.id,
+        organizationId: widget.organizationId,
+        name: item.name,
+        category: item.category,
+        status: item.status,
+        location: item.location,
+        nextMaintenanceDate: item.nextMaintenanceDate,
+        note: item.note,
+        updatedBy: widget.currentUid,
+        canManageOrganizationEquipment: widget.canManageEquipment,
+        storage: storage,
+      );
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Varustuse liigutamine ebaõnnestus.')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Varustuse liigutamine ebaõnnestus.')),
+        );
+      }
     }
   }
 
@@ -646,14 +723,11 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
+        Wrap(
+          spacing: 12,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            Expanded(
-              child: Text(
-                title,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-            ),
+            Text(title, style: Theme.of(context).textTheme.titleMedium),
             if (onAdd != null)
               TextButton.icon(
                 onPressed: onAdd,
@@ -666,9 +740,9 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
           const SizedBox(height: 4),
           Text(
             helperText,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.grey[700],
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: Colors.grey[700]),
           ),
         ],
         const SizedBox(height: 12),
@@ -697,9 +771,14 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
       if (item.note.isNotEmpty) item.note,
     ];
 
-    return EquipmentItemCard(name: item.name, description: subtitleParts.join(' · '),
-      statusLabel: _equipmentStatusLabel(item.status), statusType: _equipmentStatusBadgeType(item.status),
-      statusIcon: _equipmentStatusIcon(item.status), actions: _buildEquipmentActions(item));
+    return EquipmentItemCard(
+      name: item.name,
+      description: subtitleParts.join(' · '),
+      statusLabel: _equipmentStatusLabel(item.status),
+      statusType: _equipmentStatusBadgeType(item.status),
+      statusIcon: _equipmentStatusIcon(item.status),
+      actions: _buildEquipmentActions(item),
+    );
   }
 
   Widget? _buildEquipmentActions(EquipmentModel item) {
@@ -732,8 +811,14 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
           child: Text('Muuda varustust'),
         ),
         if (!item.isAssigned)
-          PopupMenuItem<String>(value: item.storage == 'warehouse' ? 'shared' : 'warehouse',
-            child: Text(item.storage == 'warehouse' ? 'Liiguta ühiskasutusse' : 'Liiguta lattu')),
+          PopupMenuItem<String>(
+            value: item.storage == 'warehouse' ? 'shared' : 'warehouse',
+            child: Text(
+              item.storage == 'warehouse'
+                  ? 'Liiguta ühiskasutusse'
+                  : 'Liiguta lattu',
+            ),
+          ),
         if (!item.isAssigned)
           const PopupMenuItem<String>(
             value: 'issue',
@@ -761,7 +846,9 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
         color: hasProblems ? const Color(0xFFFFF7E6) : const Color(0xFFE7F5E8),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: hasProblems ? const Color(0xFFE0A100) : const Color(0xFF2E7D32),
+          color: hasProblems
+              ? const Color(0xFFE0A100)
+              : const Color(0xFF2E7D32),
         ),
       ),
       child: Row(
@@ -780,7 +867,7 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
             child: Text(
               hasProblems
                   ? 'Tähelepanu vajav varustus: '
-                      '${problemItems.map((item) => item.name).join(', ')}'
+                        '${problemItems.map((item) => item.name).join(', ')}'
                   : 'Kõik varustus on korras.',
             ),
           ),
@@ -790,7 +877,11 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
   }
 
   String? _assignmentStatusLabel(EquipmentModel item) {
-    if (item.isPersonal) return item.ownerUserId == widget.currentUid ? 'Isiklik varustus' : 'Liikme isiklik varustus';
+    if (item.isPersonal) {
+      return item.ownerUserId == widget.currentUid
+          ? 'Isiklik varustus'
+          : 'Liikme isiklik varustus';
+    }
     if (!item.isAssigned) return 'Saadaval';
     if (item.assignedToUserId == widget.currentUid) return 'Väljastatud mulle';
 
@@ -812,12 +903,12 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
     return value is String ? value.trim() : '';
   }
 
-  String _equipmentCategoryLabel(String category) => EquipmentCategory.label(category);
+  String _equipmentCategoryLabel(String category) =>
+      EquipmentCategory.label(category);
 
   bool _canEditEquipment(EquipmentModel item) {
     if (item.isPersonal) {
-      return item.ownerUserId == widget.currentUid ||
-          widget.canManageEquipment;
+      return item.ownerUserId == widget.currentUid || widget.canManageEquipment;
     }
     return widget.canManageEquipment;
   }
@@ -871,8 +962,7 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
   }
 
   String? _maintenanceStatusLabel(EquipmentModel item) {
-    final parsedDueDate =
-        DateTime.tryParse(item.nextMaintenanceDate.trim());
+    final parsedDueDate = DateTime.tryParse(item.nextMaintenanceDate.trim());
     if (parsedDueDate == null) return null;
 
     final now = DateTime.now();
@@ -891,10 +981,7 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
 }
 
 class _EquipmentMemberOption {
-  const _EquipmentMemberOption({
-    required this.userId,
-    required this.label,
-  });
+  const _EquipmentMemberOption({required this.userId, required this.label});
 
   final String userId;
   final String label;

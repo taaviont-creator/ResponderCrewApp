@@ -1,3 +1,4 @@
+import '../widgets/app_layout.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../widgets/member_directory.dart';
 import '../widgets/invite_email_status.dart';
@@ -51,9 +52,7 @@ class _MembersScreenState extends State<MembersScreen> {
             controller: controller,
             autofocus: true,
             keyboardType: TextInputType.emailAddress,
-            decoration: const InputDecoration(
-              labelText: 'E-post',
-            ),
+            decoration: const InputDecoration(labelText: 'E-post'),
           ),
           actions: [
             TextButton(
@@ -81,14 +80,14 @@ class _MembersScreenState extends State<MembersScreen> {
       );
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Kutse loodud.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Kutse loodud.')));
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_inviteErrorMessage(error))),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_inviteErrorMessage(error))));
     }
   }
 
@@ -103,14 +102,25 @@ class _MembersScreenState extends State<MembersScreen> {
     setState(() => _busyContact = uid);
     try {
       final uri = await MemberContactService().contactUri(
-        organizationId: widget.organizationId, userId: uid, sms: sms);
+        organizationId: widget.organizationId,
+        userId: uid,
+        sms: sms,
+      );
       if (!mounted) return;
-      if (uri == null || !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (uri == null ||
+          !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
         throw StateError('Contact unavailable');
       }
     } catch (_) {
-      if (mounted) { ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Kontakti ei saanud avada. Kontrolli, et liikmel on telefoninumber.'))); }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Kontakti ei saanud avada. Kontrolli, et liikmel on telefoninumber.',
+            ),
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _busyContact = null);
     }
@@ -124,22 +134,38 @@ class _MembersScreenState extends State<MembersScreen> {
     if (targetUid.isEmpty) return;
 
     if (targetUid == widget.currentUid) {
-      await Navigator.push(context, MaterialPageRoute<void>(builder: (_) => SelfProfileScreen(
-        currentUid: widget.currentUid, organizationId: widget.organizationId, canManageRoles: widget.canManageRoles)));
+      await Navigator.push(
+        context,
+        MaterialPageRoute<void>(
+          builder: (_) => SelfProfileScreen(
+            currentUid: widget.currentUid,
+            organizationId: widget.organizationId,
+            canManageRoles: widget.canManageRoles,
+          ),
+        ),
+      );
       return;
     }
     try {
-      final userSnapshot = widget.canManageRoles ? await FirebaseFirestore.instance
-          .collection('users')
-          .doc(targetUid)
-          .get() : null;
+      final userSnapshot = widget.canManageRoles
+          ? await FirebaseFirestore.instance
+                .collection('users')
+                .doc(targetUid)
+                .get()
+          : null;
       if (!mounted) return;
 
       await Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => MemberProfileScreen(
-            userData: userSnapshot?.data() ?? {'name': _membershipService.safeDisplayNameFromMembership(membership)},
+            userData:
+                userSnapshot?.data() ??
+                {
+                  'name': _membershipService.safeDisplayNameFromMembership(
+                    membership,
+                  ),
+                },
             membershipData: membership,
             membershipId: membershipDoc.id,
             organizationId: widget.organizationId,
@@ -151,9 +177,7 @@ class _MembersScreenState extends State<MembersScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Liikme profiili ei saanud avada.'),
-        ),
+        const SnackBar(content: Text('Liikme profiili ei saanud avada.')),
       );
     }
   }
@@ -164,43 +188,71 @@ class _MembersScreenState extends State<MembersScreen> {
     required List<PlannedUnavailabilityModel> periods,
     required List<PlannedUnavailabilityRuleModel> rules,
   }) {
-    final byId = {for (final doc in membershipDocs) doc.data()['userId'].toString(): doc};
+    final byId = {
+      for (final doc in membershipDocs) doc.data()['userId'].toString(): doc,
+    };
     final now = DateTime.now();
     return MemberDirectory(
       key: ValueKey(widget.organizationId),
       busyUserId: _busyContact,
-      members: [for (final doc in membershipDocs)
-        DirectoryMember(id: doc.data()['userId'].toString(),
-          name: _membershipService.safeDisplayNameFromMembership(doc.data()),
-          role: MembershipRole.normalize(doc.data()['role']),
-          level: SeaRescueLevel.normalize(doc.data()['seaRescueLevel']),
-          isSelf: doc.data()['userId'] == widget.currentUid,
-          status: switch (EffectiveAvailability.resolve(userId: doc.data()['userId'].toString(),
-            manualStatus: availabilityByUserId[doc.data()['userId']]?.status ?? AvailabilityStatus.offDuty,
-            periods: periods, rules: rules, now: now)) {
-              AvailabilityStatus.onDuty => 'Valves', AvailabilityStatus.delayed => 'Hilinemisega', _ => 'Mitte valves',
-            }),
+      members: [
+        for (final doc in membershipDocs)
+          DirectoryMember(
+            id: doc.data()['userId'].toString(),
+            name: _membershipService.safeDisplayNameFromMembership(doc.data()),
+            role: MembershipRole.normalize(doc.data()['role']),
+            level: SeaRescueLevel.normalize(doc.data()['seaRescueLevel']),
+            isSelf: doc.data()['userId'] == widget.currentUid,
+            status: switch (EffectiveAvailability.resolve(
+              userId: doc.data()['userId'].toString(),
+              manualStatus:
+                  availabilityByUserId[doc.data()['userId']]?.status ??
+                  AvailabilityStatus.offDuty,
+              periods: periods,
+              rules: rules,
+              now: now,
+            )) {
+              AvailabilityStatus.onDuty => 'Valves',
+              AvailabilityStatus.delayed => 'Hilinemisega',
+              _ => 'Mitte valves',
+            },
+          ),
       ],
-      onOpen: (uid) { final doc = byId[uid]; if (doc != null) _openMemberProfile(membershipDoc: doc, membership: doc.data()); },
+      onOpen: (uid) {
+        final doc = byId[uid];
+        if (doc != null) {
+          _openMemberProfile(membershipDoc: doc, membership: doc.data());
+        }
+      },
       onContact: _contact,
-      adminSections: widget.canManageRoles ? [
-        _PendingMemberRequestsSection(key: ValueKey(widget.organizationId), organizationId: widget.organizationId, membershipService: _membershipService),
-        _PendingOrganizationInvitesSection(organizationId: widget.organizationId, inviteService: _inviteService),
-      ] : const [],
+      adminSections: widget.canManageRoles
+          ? [
+              _PendingMemberRequestsSection(
+                key: ValueKey(widget.organizationId),
+                organizationId: widget.organizationId,
+                membershipService: _membershipService,
+              ),
+              _PendingOrganizationInvitesSection(
+                organizationId: widget.organizationId,
+                inviteService: _inviteService,
+              ),
+            ]
+          : const [],
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AppScaffold(
       appBar: AppBar(
         title: const Text('Liikmed'),
         actions: [
-          if (widget.canManageRoles) IconButton(
-            tooltip: 'Kutsu liige',
-            icon: const Icon(Icons.person_add_alt_1),
-            onPressed: _showInviteDialog,
-          ),
+          if (widget.canManageRoles)
+            IconButton(
+              tooltip: 'Kutsu liige',
+              icon: const Icon(Icons.person_add_alt_1),
+              onPressed: _showInviteDialog,
+            ),
         ],
       ),
       body: StreamBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
@@ -213,12 +265,11 @@ class _MembersScreenState extends State<MembersScreen> {
             return const Center(child: CircularProgressIndicator());
           }
           if (membershipsSnapshot.hasError) {
-            return const Center(
-              child: Text('Liikmete laadimine ebaõnnestus.'),
-            );
+            return const Center(child: Text('Liikmete laadimine ebaõnnestus.'));
           }
 
-          final membershipDocs = membershipsSnapshot.data ??
+          final membershipDocs =
+              membershipsSnapshot.data ??
               <QueryDocumentSnapshot<Map<String, dynamic>>>[];
           if (membershipDocs.isEmpty) {
             return const Center(child: Text('Liikmeid ei leitud.'));
@@ -242,10 +293,10 @@ class _MembersScreenState extends State<MembersScreen> {
                 ),
                 builder: (context, periodsSnapshot) {
                   return StreamBuilder<List<PlannedUnavailabilityRuleModel>>(
-                    stream:
-                        _plannedUnavailabilityService.streamOrganizationRules(
-                      organizationId: widget.organizationId,
-                    ),
+                    stream: _plannedUnavailabilityService
+                        .streamOrganizationRules(
+                          organizationId: widget.organizationId,
+                        ),
                     builder: (context, rulesSnapshot) {
                       if ((availabilitySnapshot.connectionState ==
                                   ConnectionState.waiting &&
@@ -272,9 +323,11 @@ class _MembersScreenState extends State<MembersScreen> {
                       return _buildMembersList(
                         membershipDocs: membershipDocs,
                         availabilityByUserId: availabilityByUserId,
-                        periods: periodsSnapshot.data ??
+                        periods:
+                            periodsSnapshot.data ??
                             const <PlannedUnavailabilityModel>[],
-                        rules: rulesSnapshot.data ??
+                        rules:
+                            rulesSnapshot.data ??
                             const <PlannedUnavailabilityRuleModel>[],
                       );
                     },
@@ -396,7 +449,6 @@ class _PendingMemberRequestsSectionState
   }
 }
 
-
 class _PendingOrganizationInvitesSection extends StatelessWidget {
   const _PendingOrganizationInvitesSection({
     required this.organizationId,
@@ -416,15 +468,12 @@ class _PendingOrganizationInvitesSection extends StatelessWidget {
     await Clipboard.setData(const ClipboardData(text: _inviteMessage));
 
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Kutse tekst kopeeritud.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Kutse tekst kopeeritud.')));
   }
 
-  Future<void> _cancelInvite(
-    BuildContext context,
-    String inviteId,
-  ) async {
+  Future<void> _cancelInvite(BuildContext context, String inviteId) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) {
@@ -453,9 +502,9 @@ class _PendingOrganizationInvitesSection extends StatelessWidget {
       );
 
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Kutse tühistatud.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Kutse tühistatud.')));
     } catch (_) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -500,7 +549,8 @@ class _PendingOrganizationInvitesSection extends StatelessWidget {
               return const Text('Kutsete laadimine ebaõnnestus.');
             }
 
-            final invites = snapshot.data ??
+            final invites =
+                snapshot.data ??
                 <QueryDocumentSnapshot<Map<String, dynamic>>>[];
 
             return Column(
@@ -552,9 +602,7 @@ class _PendingOrganizationInviteTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final data = invite.data();
     final email = (data['email'] ?? 'E-post puudub').toString();
-    final details = <String>[
-      'Staatus: ${statusLabel(data['status'])}',
-    ];
+    final details = <String>['Staatus: ${statusLabel(data['status'])}'];
     final expiresAt = formatTimestamp(data['expiresAt']);
     final createdAt = formatTimestamp(data['createdAt']);
 
@@ -570,10 +618,7 @@ class _PendingOrganizationInviteTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            email,
-            style: Theme.of(context).textTheme.titleSmall,
-          ),
+          Text(email, style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 4),
           Text(details.join('\n')),
           InviteEmailStatus(invite: invite.reference),

@@ -24,6 +24,46 @@ const crew = [
   ),
 ];
 void main() {
+  testWidgets(
+    'compact choices fit a 320px phone card and remain one-tap actions',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 740);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      String? selected;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.maritime,
+          home: Scaffold(
+            body: Padding(
+              padding: const EdgeInsets.all(32),
+              child: PersonalStatusChoices(
+                status: 'offDuty',
+                minutes: 15,
+                saving: false,
+                plannedUnavailable: false,
+                onSelect: (value) => selected = value,
+              ),
+            ),
+          ),
+        ),
+      );
+      final buttons = find.byType(OutlinedButton);
+      for (var i = 0; i < 3; i++) {
+        // Text may wrap with Flutter's wide test font; never clip it to 48px.
+        expect(tester.getSize(buttons.at(i)).height, greaterThanOrEqualTo(48));
+        expect(tester.getSize(buttons.at(i)).height, lessThan(76));
+        expect(
+          tester.getTopLeft(buttons.at(i)).dy,
+          tester.getTopLeft(buttons.first).dy,
+        );
+      }
+      await tester.tap(find.text('Hilinemisega'));
+      expect(selected, AvailabilityStatus.delayed);
+      expect(tester.takeException(), isNull);
+    },
+  );
   test(
     'crew list and readiness exclude scheduled unavailability and inactive membership',
     () {

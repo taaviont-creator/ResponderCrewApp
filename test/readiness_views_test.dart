@@ -122,8 +122,8 @@ void main() {
         ),
       );
       expect(find.text('Planeerimine'), findsNothing);
-      expect(find.text('Ühingu valmidus'), findsNothing);
-      await tester.tap(find.text('Ühingu reageerimisvalmidus'));
+      expect(find.text('Ühingu reageerimisvalmidus'), findsNothing);
+      await tester.tap(find.text('Ühingu valmidus'));
       expect(index, 3);
       expect(tester.takeException(), isNull);
     },

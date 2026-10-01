@@ -1,3 +1,4 @@
+import '../widgets/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/statistics_model.dart';
@@ -105,7 +106,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) => AppScaffold(
     appBar: AppBar(
       title: const Text('Panus ja statistika'),
       actions: [
@@ -218,8 +219,18 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        for (final entry in const {'total':'Sündmusi kokku', 'period':'Sündmusi perioodil', 'sar':'SAR perioodil', 'tross':'TROSS perioodil', 'closed':'Lõpetatud perioodil', 'cancelled':'Tühistatud perioodil'}.entries)
-                          _summary(entry.value, '${report.events[entry.key] ?? '—'}'),
+                        for (final entry in const {
+                          'total': 'Sündmusi kokku',
+                          'period': 'Sündmusi perioodil',
+                          'sar': 'SAR perioodil',
+                          'tross': 'TROSS perioodil',
+                          'closed': 'Lõpetatud perioodil',
+                          'cancelled': 'Tühistatud perioodil',
+                        }.entries)
+                          _summary(
+                            entry.value,
+                            '${report.events[entry.key] ?? '—'}',
+                          ),
                         _summary(
                           'Valves oldud',
                           report.hasDuty
@@ -424,19 +435,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             },
           ),
   );
-  Widget _summary(String title, String value) => SizedBox(
-    width: (MediaQuery.sizeOf(context).width - 40) / 2,
-    child: Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(value, style: Theme.of(context).textTheme.headlineSmall),
-            Text(title),
-          ],
-        ),
-      ),
-    ),
-  );
+  Widget _summary(String title, String value) =>
+      MetricValue(title: title, value: value);
 }

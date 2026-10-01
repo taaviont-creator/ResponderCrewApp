@@ -1,3 +1,4 @@
+import '../widgets/app_layout.dart';
 import '../services/operation_log_access_service.dart';
 import 'dart:async';
 
@@ -287,12 +288,13 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AppScaffold(
       appBar: AppBar(title: const Text('Operatiivlogi')),
       floatingActionButton: widget.canStartOperationLog
-          ? FloatingActionButton(
+          ? FloatingActionButton.extended(
               onPressed: _showAddOperationLogDialog,
-              child: const Icon(Icons.add),
+              icon: const Icon(Icons.add),
+              label: const Text('Uus logi'),
             )
           : null,
       body: StreamBuilder<List<OperationLogModel>>(
@@ -402,8 +404,11 @@ class _OperationLogCardState extends State<_OperationLogCard> {
   StreamSubscription<CalloutModel?>? _calloutSubscription;
   late final Stream<bool> _participantAccess = widget.log.calloutId == null
       ? Stream.value(false)
-      : OperationLogAccessService().participantAccess(organizationId: widget.organizationId,
-          userId: widget.currentUid, calloutId: widget.log.calloutId!);
+      : OperationLogAccessService().participantAccess(
+          organizationId: widget.organizationId,
+          userId: widget.currentUid,
+          calloutId: widget.log.calloutId!,
+        );
   bool _calloutClosed = false;
   bool _calloutReadFailed = false;
 
@@ -530,17 +535,29 @@ class _OperationLogCardState extends State<_OperationLogCard> {
             'Täienda lõpetatud väljakutse logi. Kommentaare, kokkuvõtet ja osalejaid saab lisada ka tagantjärele.',
           ),
         ),
-      StreamBuilder<bool>(stream: _participantAccess, builder: (context, access) {
-        if (!widget.canStartOperationLog && (finished || access.hasError || access.data != true)) {
-          return Text(finished || log.calloutId == null ? 'Logi on ainult vaatamiseks.' : access.hasError ? 'Logi lisamisõigust ei õnnestunud kontrollida.' : 'Logi täitmiseks märgi väljakutsel „Tulen” või „Hilinen” või lase juhil osalemine kinnitada.');
-        }
-        return OperationLogActions(
-          status: calloutClosed ? OperationLogStatus.returnedToBase : log.status,
-          appendOnly: !widget.canStartOperationLog,
-          onAction: (title) => widget.onHandleQuickAction(log, title),
-          onComment: () => widget.onShowAddManualEventDialog(log),
-        );
-      }),
+      StreamBuilder<bool>(
+        stream: _participantAccess,
+        builder: (context, access) {
+          if (!widget.canStartOperationLog &&
+              (finished || access.hasError || access.data != true)) {
+            return Text(
+              finished || log.calloutId == null
+                  ? 'Logi on ainult vaatamiseks.'
+                  : access.hasError
+                  ? 'Logi lisamisõigust ei õnnestunud kontrollida.'
+                  : 'Logi täitmiseks märgi väljakutsel „Tulen” või „Hilinen” või lase juhil osalemine kinnitada.',
+            );
+          }
+          return OperationLogActions(
+            status: calloutClosed
+                ? OperationLogStatus.returnedToBase
+                : log.status,
+            appendOnly: !widget.canStartOperationLog,
+            onAction: (title) => widget.onHandleQuickAction(log, title),
+            onComment: () => widget.onShowAddManualEventDialog(log),
+          );
+        },
+      ),
       const SizedBox(height: 16),
       ExpansionTile(
         key: ValueKey('completion-$canSummarize'),

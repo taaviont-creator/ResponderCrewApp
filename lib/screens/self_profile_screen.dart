@@ -1,3 +1,4 @@
+import '../widgets/app_layout.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -32,13 +33,13 @@ class SelfProfileScreen extends StatelessWidget {
       builder: (context, userSnapshot) {
         if (userSnapshot.connectionState == ConnectionState.waiting &&
             !userSnapshot.hasData) {
-          return const Scaffold(
+          return const AppScaffold(
             body: Center(child: CircularProgressIndicator()),
           );
         }
 
         if (userSnapshot.hasError || userSnapshot.data?.data() == null) {
-          return Scaffold(
+          return AppScaffold(
             appBar: AppBar(title: const Text('Minu profiil')),
             body: const Center(child: Text('Profiili ei saanud laadida.')),
           );
@@ -50,10 +51,9 @@ class SelfProfileScreen extends StatelessWidget {
               .doc(membershipId)
               .snapshots(),
           builder: (context, membershipSnapshot) {
-            if (membershipSnapshot.connectionState ==
-                    ConnectionState.waiting &&
+            if (membershipSnapshot.connectionState == ConnectionState.waiting &&
                 !membershipSnapshot.hasData) {
-              return const Scaffold(
+              return const AppScaffold(
                 body: Center(child: CircularProgressIndicator()),
               );
             }
@@ -64,7 +64,7 @@ class SelfProfileScreen extends StatelessWidget {
                 !membershipService.isActiveMembership(membership) ||
                 membershipService.organizationIdFromMembership(membership) !=
                     organizationId) {
-              return Scaffold(
+              return AppScaffold(
                 appBar: AppBar(title: const Text('Minu profiil')),
                 body: const Center(
                   child: Text('Aktiivse ühingu liikmelisust ei leitud.'),

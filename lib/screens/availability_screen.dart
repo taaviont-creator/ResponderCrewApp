@@ -1,3 +1,4 @@
+import '../widgets/app_layout.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 
@@ -12,6 +13,7 @@ import '../services/planned_unavailability_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_section_card.dart';
 import '../widgets/status_badge.dart';
+import '../widgets/home_header.dart';
 
 class AvailabilityScreen extends StatefulWidget {
   const AvailabilityScreen({
@@ -97,23 +99,30 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) => AppScaffold(
     appBar: AppBar(title: const Text('Valmisolek')),
     body: ListView(
       padding: const EdgeInsets.all(AppTheme.screenPadding),
       children: [
         _buildAvailabilityControl(),
         const SizedBox(height: 16),
-        CheckboxListTile(
-          contentPadding: EdgeInsets.zero,
-          title: const Text('Näita tühistatud mittevalveid'),
-          value: _showCancelled,
-          onChanged: (value) => setState(() => _showCancelled = value == true),
-        ),
         _buildPlannedUnavailabilitySection(),
         const SizedBox(height: 12),
         _buildRecurringPlannedUnavailabilitySection(),
         const SizedBox(height: 12),
+        ExpansionTile(
+          tilePadding: EdgeInsets.zero,
+          title: const Text('Planeeringute vaate valikud'),
+          children: [
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Näita tühistatud mittevalveid'),
+              value: _showCancelled,
+              onChanged: (value) =>
+                  setState(() => _showCancelled = value == true),
+            ),
+          ],
+        ),
         _buildAvailabilityReminderSettings(),
       ],
     ),
@@ -174,6 +183,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
         final note = availability?.note ?? '';
 
         return AppSectionCard(
+          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -196,92 +206,61 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
               ),
               const SizedBox(height: AppTheme.itemSpacing),
               _buildScheduledStatusPreview(status),
-              const SizedBox(height: 20),
-              _StatusActionButton(
-                label: 'Valves',
-                icon: Icons.check_circle_outline,
-                selected: status == AvailabilityStatus.onDuty,
-                backgroundColor: AppColors.ready,
-                foregroundColor: Colors.white,
-                onPressed: _isUpdating
-                    ? null
-                    : () => _updateAvailabilityRespectingSchedule(
-                        AvailabilityStatus.onDuty,
-                        note: note,
-                      ),
-              ),
-              const SizedBox(height: AppTheme.itemSpacing),
-              _StatusActionButton(
-                label: 'Hilinemisega',
-                icon: Icons.schedule,
-                selected: status == AvailabilityStatus.delayed,
-                backgroundColor: AppColors.delayedSurface,
-                foregroundColor: AppColors.delayed,
-                borderColor: status == AvailabilityStatus.delayed
-                    ? AppColors.delayed
-                    : AppColors.border,
-                onPressed: _isUpdating
-                    ? null
-                    : () => _updateAvailabilityRespectingSchedule(
-                        AvailabilityStatus.delayed,
-                        responseMinutes: responseMinutes,
-                        note: note,
-                      ),
-              ),
-              const SizedBox(height: AppTheme.itemSpacing),
-              _StatusActionButton(
-                label: 'Mitte valves',
-                icon: Icons.cancel_outlined,
-                selected: status == AvailabilityStatus.offDuty,
-                backgroundColor: Colors.transparent,
-                foregroundColor: AppColors.offDuty,
-                borderColor: AppColors.offDuty,
-                onPressed: _isUpdating
-                    ? null
-                    : () => _updateAvailability(
-                        AvailabilityStatus.offDuty,
-                        note: note,
-                      ),
-              ),
-              const SizedBox(height: 20),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceBlue,
-                  borderRadius: BorderRadius.circular(AppTheme.controlRadius),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Reageerimisviivitus',
-                      style: Theme.of(context).textTheme.labelLarge,
-                    ),
-                    const SizedBox(height: 8),
-                    DropdownButtonFormField<int>(
-                      initialValue: responseMinutes,
-                      decoration: const InputDecoration(
-                        prefixIcon: Icon(Icons.schedule),
-                      ),
-                      items: const [
-                        DropdownMenuItem(value: 15, child: Text('+ 15 min')),
-                        DropdownMenuItem(value: 30, child: Text('+ 30 min')),
-                        DropdownMenuItem(value: 60, child: Text('+ 60 min')),
-                      ],
-                      onChanged: _isUpdating
-                          ? null
-                          : (value) {
-                              if (value == null) return;
-                              _updateAvailabilityRespectingSchedule(
-                                AvailabilityStatus.delayed,
-                                responseMinutes: value,
-                                note: note,
-                              );
-                            },
-                    ),
-                  ],
+              const SizedBox(height: 12),
+              PersonalStatusChoices(
+                status: status,
+                minutes: responseMinutes,
+                saving: _isUpdating,
+                plannedUnavailable: false,
+                onSelect: (value) => _updateAvailabilityRespectingSchedule(
+                  value,
+                  responseMinutes: value == AvailabilityStatus.delayed
+                      ? responseMinutes
+                      : null,
+                  note: note,
                 ),
               ),
+              if (status == AvailabilityStatus.delayed) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceBlue,
+                    borderRadius: BorderRadius.circular(AppTheme.controlRadius),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Reageerimisviivitus',
+                        style: Theme.of(context).textTheme.labelLarge,
+                      ),
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<int>(
+                        initialValue: responseMinutes,
+                        decoration: const InputDecoration(
+                          prefixIcon: Icon(Icons.schedule),
+                        ),
+                        items: const [
+                          DropdownMenuItem(value: 15, child: Text('+ 15 min')),
+                          DropdownMenuItem(value: 30, child: Text('+ 30 min')),
+                          DropdownMenuItem(value: 60, child: Text('+ 60 min')),
+                        ],
+                        onChanged: _isUpdating
+                            ? null
+                            : (value) {
+                                if (value == null) return;
+                                _updateAvailabilityRespectingSchedule(
+                                  AvailabilityStatus.delayed,
+                                  responseMinutes: value,
+                                  note: note,
+                                );
+                              },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               if (_isUpdating) ...[
                 const SizedBox(height: 12),
                 const LinearProgressIndicator(),
@@ -382,8 +361,8 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
         }
 
         return AppSectionCard(
+          padding: const EdgeInsets.all(12),
           title: 'Minu planeeritud mittevalved',
-          subtitle: 'Praegused ja tulevased planeeringud',
           leading: const Icon(Icons.event_busy_outlined),
           trailing: TextButton.icon(
             onPressed: _showAddPlannedUnavailabilityDialog,
@@ -428,6 +407,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
         }
 
         return AppSectionCard(
+          padding: const EdgeInsets.all(12),
           title: 'Minu korduvad mittevalved',
           leading: const Icon(Icons.event_repeat_outlined),
           trailing: TextButton.icon(
@@ -491,36 +471,35 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
               ),
             ],
           ),
-          if (period.isActive) ...[
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: isCancelling
-                    ? null
-                    : () =>
-                          _showAddPlannedUnavailabilityDialog(existing: period),
-                icon: const Icon(Icons.edit_outlined),
-                label: const Text('Muuda'),
-              ),
+          if (period.isActive)
+            Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 8,
+              children: [
+                TextButton.icon(
+                  onPressed: isCancelling
+                      ? null
+                      : () => _showAddPlannedUnavailabilityDialog(
+                          existing: period,
+                        ),
+                  icon: const Icon(Icons.edit_outlined),
+                  label: const Text('Muuda'),
+                ),
+                TextButton.icon(
+                  onPressed: isCancelling
+                      ? null
+                      : () => _cancelPlannedUnavailability(period),
+                  icon: isCancelling
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.cancel_outlined),
+                  label: const Text('Tühista'),
+                ),
+              ],
             ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: isCancelling
-                    ? null
-                    : () => _cancelPlannedUnavailability(period),
-                icon: isCancelling
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.cancel_outlined),
-                label: const Text('Tühista'),
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -582,37 +561,35 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
               ),
             ],
           ),
-          if (rule.isActive) ...[
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: isCancelling
-                    ? null
-                    : () => _showAddRecurringPlannedUnavailabilityDialog(
-                        existing: rule,
-                      ),
-                icon: const Icon(Icons.edit_outlined),
-                label: const Text('Muuda'),
-              ),
+          if (rule.isActive)
+            Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 8,
+              children: [
+                TextButton.icon(
+                  onPressed: isCancelling
+                      ? null
+                      : () => _showAddRecurringPlannedUnavailabilityDialog(
+                          existing: rule,
+                        ),
+                  icon: const Icon(Icons.edit_outlined),
+                  label: const Text('Muuda'),
+                ),
+                TextButton.icon(
+                  onPressed: isCancelling
+                      ? null
+                      : () => _cancelRecurringPlannedUnavailability(rule),
+                  icon: isCancelling
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.cancel_outlined),
+                  label: const Text('Tühista'),
+                ),
+              ],
             ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: isCancelling
-                    ? null
-                    : () => _cancelRecurringPlannedUnavailability(rule),
-                icon: isCancelling
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.cancel_outlined),
-                label: const Text('Tühista'),
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -1208,53 +1185,6 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
   String _reminderIntervalLabel(int hours) {
     if (hours == 168) return '7 päeva';
     return '$hours tundi';
-  }
-}
-
-class _StatusActionButton extends StatelessWidget {
-  const _StatusActionButton({
-    required this.label,
-    required this.icon,
-    required this.selected,
-    required this.backgroundColor,
-    required this.foregroundColor,
-    required this.onPressed,
-    this.borderColor,
-  });
-
-  final String label;
-  final IconData icon;
-  final bool selected;
-  final Color backgroundColor;
-  final Color foregroundColor;
-  final Color? borderColor;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: AppTheme.primaryActionHeight,
-      child: ElevatedButton.icon(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: backgroundColor,
-          foregroundColor: foregroundColor,
-          elevation: selected ? 2 : 0,
-          side: BorderSide(
-            color:
-                borderColor ??
-                (selected ? foregroundColor : Colors.transparent),
-            width: selected ? 2 : 1,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppTheme.controlRadius),
-          ),
-        ),
-        icon: Icon(icon),
-        label: Text(label),
-      ),
-    );
   }
 }
 

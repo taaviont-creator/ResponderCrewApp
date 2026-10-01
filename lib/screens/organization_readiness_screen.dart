@@ -1,4 +1,4 @@
-import 'platform_readiness_screen.dart';
+import '../widgets/app_layout.dart';
 import 'package:flutter/material.dart';
 import '../models/membership_model.dart';
 import '../theme/app_theme.dart';
@@ -18,10 +18,8 @@ class OrganizationReadinessScreen extends StatelessWidget {
   final String organizationId, currentUid;
   final String? organizationName, membershipRole;
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: const Text('Ühingu reageerimisvalmidus', maxLines: 2),
-    ),
+  Widget build(BuildContext context) => AppScaffold(
+    appBar: AppBar(title: const Text('Ühingu valmidus', maxLines: 2)),
     body: ListView(
       padding: const EdgeInsets.all(AppTheme.screenPadding),
       children: [
@@ -30,6 +28,15 @@ class OrganizationReadinessScreen extends StatelessWidget {
           organizationId: organizationId,
           currentUid: currentUid,
         ),
+        if (MembershipRole.isOrgAdmin(membershipRole)) ...[
+          const SizedBox(height: 12),
+          MinimumCrewControl(
+            key: ValueKey('minimum-$organizationId'),
+            organizationId: organizationId,
+            organizationName: organizationName,
+            currentUid: currentUid,
+          ),
+        ],
         const SizedBox(height: 16),
         OrganizationPlanning(
           key: ValueKey('planning-$organizationId'),
@@ -38,34 +45,13 @@ class OrganizationReadinessScreen extends StatelessWidget {
         if (MembershipRole.isOrgAdmin(membershipRole)) ...[
           const SizedBox(height: 16),
           ExpansionTile(
-            title: const Text('Ühingu reageerimisvalmiduse haldus'),
+            title: const Text('Ühingu valve juhtimine'),
             subtitle: const Text('Ühingu seaded, mitte sinu isiklik staatus'),
             leading: const Icon(Icons.admin_panel_settings_outlined),
             children: [
-              MinimumCrewControl(
-                key: ValueKey('minimum-$organizationId'),
-                organizationId: organizationId,
-                organizationName: organizationName,
-                currentUid: currentUid,
-              ),
               OrganizationDutyControl(
                 key: ValueKey('duty-$organizationId'),
                 organizationId: organizationId,
-              ),
-              ListTile(
-                leading: const Icon(Icons.settings_outlined),
-                title: const Text('Tehnika ja kontaktandmed'),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => PlatformReadinessScreen(
-                      currentUid: currentUid,
-                      activeOrganizationId: organizationId,
-                      activeOrganizationName: organizationName,
-                      canManageOwnSummary: true,
-                      isPlatformAdmin: false,
-                    ),
-                  ),
-                ),
               ),
             ],
           ),

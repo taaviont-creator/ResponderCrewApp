@@ -10,7 +10,44 @@ admin.initializeApp();
 const db = admin.firestore();
 const messaging = admin.messaging();
 
+const {createCenterAccessHandlers} = require('./center-access');
+const centerAccessHandlers = createCenterAccessHandlers({db,
+  timestamp: () => admin.firestore.FieldValue.serverTimestamp(),
+  fromMillis: value => admin.firestore.Timestamp.fromMillis(value)});
+for (const [name, handler] of Object.entries(centerAccessHandlers)) {
+  exports[name] = onCall({region: 'europe-north1', maxInstances: 3, timeoutSeconds: 15}, handler);
+}
+
+const {createResponseUnitHandlers} = require('./response-units');
+const responseUnitHandlers = createResponseUnitHandlers({db,
+  timestamp: () => admin.firestore.FieldValue.serverTimestamp(),
+  fromMillis: value => admin.firestore.Timestamp.fromMillis(value),
+  geoPoint: (latitude,longitude) => new admin.firestore.GeoPoint(latitude,longitude)});
+for (const [name, handler] of Object.entries(responseUnitHandlers)) {
+  exports[name] = onCall({region:'europe-north1',maxInstances:3,timeoutSeconds:30}, handler);
+}
+
 const {defineSecret} = require('firebase-functions/params');
+const {createOrganizationCenterReadinessHandlers}=require('./organization-center-readiness');
+for (const [name,handler] of Object.entries(createOrganizationCenterReadinessHandlers({db,
+  timestamp:()=>admin.firestore.FieldValue.serverTimestamp(),
+  fromMillis:value=>admin.firestore.Timestamp.fromMillis(value)}))) {
+  exports[name]=onCall({region:'europe-north1',maxInstances:3,timeoutSeconds:60},handler);
+}
+const {createCenterBoardHandlers}=require('./center-board');
+for (const [name,handler] of Object.entries(createCenterBoardHandlers({db,timestamp:()=>admin.firestore.FieldValue.serverTimestamp()}))) {
+  exports[name]=onCall({region:'europe-north1',maxInstances:3,timeoutSeconds:60},handler);
+}
+const {createOrganizationResponseSettingsHandlers}=require('./organization-response-settings');
+for (const [name,handler] of Object.entries(require('./center-resources').createCenterResourceHandlers({db,
+  timestamp:()=>admin.firestore.FieldValue.serverTimestamp()}))) {
+  exports[name]=onCall({region:'europe-north1',maxInstances:3,timeoutSeconds:60},handler);
+}
+for (const [name,handler] of Object.entries(createOrganizationResponseSettingsHandlers({db,
+  timestamp:()=>admin.firestore.FieldValue.serverTimestamp()}))) {
+  exports[name]=onCall({region:'europe-north1',maxInstances:3,timeoutSeconds:30},handler);
+}
+
 const {createEmailHandlers, smtpTransport} = require('./transactional-email');
 const smtpPassword = defineSecret('RESPONDCREW_SMTP_PASSWORD');
 const emailHandlers = createEmailHandlers({
@@ -296,7 +333,11 @@ for (const collection of ['availability','memberships','plannedUnavailability','
     maxInstances:3,timeoutSeconds:60,retry:true},readinessEngine.changed);
 }
 exports.updateReadiness_organization = onDocumentWritten({document:'commands/{organizationId}',region:'europe-north1',
-  maxInstances:3,timeoutSeconds:60,retry:true},readinessEngine.changed);
+  maxInstances:3,timeoutSeconds:120,retry:false},readinessEngine.sharedChanged);
+for (const collection of ['equipment','organizationResponseSettings','organizationReadinessConfirmations','vesselIdentities','resourceAllocations']) {
+  exports[`updateCenterReadiness_${collection}`] = onDocumentWritten({document:`${collection}/{documentId}`,region:'europe-north1',
+    maxInstances:3,timeoutSeconds:120,retry:false},readinessEngine.sharedChanged);
+}
 exports.refreshScheduledReadiness = onSchedule({schedule:'every 1 minutes',timeZone:'Europe/Tallinn',region:'europe-west1',
   maxInstances:1,concurrency:1,timeoutSeconds:120,retryCount:0},readinessEngine.scheduled);
 exports.sendReadinessChangeNotification = onDocumentCreated({document:'readinessNotificationEvents/{eventId}',region:'europe-north1',

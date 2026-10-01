@@ -1,0 +1,12 @@
+{
+  "hosting": {
+    "public": "build/web",
+    "predeploy": ["node tool/verify-web-build.cjs", "node tool/prepare-web-assets.cjs", "node tool/verify-web-build.cjs"],
+    "ignore": ["firebase.web.json", "**/.*", "**/node_modules/**"],
+    "rewrites": [{"source": "**", "destination": "/index.html"}],
+    "headers": [
+      {"source": "**", "headers": [{"key": "Cache-Control", "value": "no-cache"}, {"key": "X-Content-Type-Options", "value": "nosniff"}, {"key": "Referrer-Policy", "value": "strict-origin-when-cross-origin"}]}
+    ]
+  },
+  "emulators": {"hosting": {"port": 5000}}
+}

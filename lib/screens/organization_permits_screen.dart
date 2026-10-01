@@ -1,3 +1,4 @@
+import '../widgets/app_layout.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -28,7 +29,7 @@ class OrganizationPermitsScreen extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) => AppScaffold(
     appBar: AppBar(title: const Text('Ühingu load ja tunnistused')),
     floatingActionButton: FloatingActionButton.extended(
       onPressed: () => _edit(context),
@@ -183,7 +184,7 @@ class _PermitEditorState extends State<_PermitEditor> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) => AppScaffold(
     appBar: AppBar(
       title: Text(
         widget.document == null ? 'Lisa ühingu luba' : 'Muuda ühingu luba',

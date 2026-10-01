@@ -1,0 +1,30 @@
+name: RespondCrew web foundation
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter build web --release --no-web-resources-cdn
+      - run: node tool/verify-web-build.cjs
+      - run: node tool/prepare-web-assets.cjs
+      - run: node tool/verify-web-build.cjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RespondCrew-web-foundation
+          path: build/web
+          retention-days: 7

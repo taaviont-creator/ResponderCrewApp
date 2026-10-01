@@ -1,0 +1,5 @@
+{
+  "score": 5,
+  "summary": "Scoped review: the only effective permission added relative to the deployed Firestore rules is authenticated reading of one's own centerAccess/{uid}/grants. Client creation, update and deletion remain denied, including for platform admins. Other center collections remain server-only. Authority derives from request.auth.uid and the document path, not client fields. Schema/size validation is not relevant to this read-only client rule; audited server handlers validate mutations. This assessment does not score the entire pre-existing ruleset. Production lacked this already-tested own-grant read rule, which broke the invalidation listener.",
+  "findings": []
+}

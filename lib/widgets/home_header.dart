@@ -81,9 +81,9 @@ class PersonalStatusChoices extends StatelessWidget {
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
       final columns =
-          constraints.maxWidth >= 300 &&
+          constraints.maxWidth >= 240 &&
           MediaQuery.textScalerOf(context).scale(14) <= 20;
-      Widget button(String value, String label, IconData icon) {
+      Widget button(String value, String label) {
         final selected =
             !saving &&
             (plannedUnavailable
@@ -102,7 +102,7 @@ class PersonalStatusChoices extends StatelessWidget {
         };
         return SizedBox(
           width: columns
-              ? (constraints.maxWidth - 16) / 3
+              ? (constraints.maxWidth - 8) / 3
               : constraints.maxWidth,
           child: OutlinedButton(
             onPressed:
@@ -111,43 +111,31 @@ class PersonalStatusChoices extends StatelessWidget {
                 ? null
                 : () => onSelect(value),
             style: OutlinedButton.styleFrom(
-              minimumSize: const Size(48, 76),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+              minimumSize: const Size(48, 48),
+              padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
               backgroundColor: selected ? background : AppColors.surface,
               foregroundColor: selected ? foreground : AppColors.textPrimary,
               side: BorderSide(color: selected ? foreground : AppColors.border),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon),
-                const SizedBox(height: 6),
-                Text(
-                  label,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 14),
-                ),
-              ],
+            child: Semantics(
+              selected: selected,
+              child: Text(
+                label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 14),
+              ),
             ),
           ),
         );
       }
 
       return Wrap(
-        spacing: 8,
-        runSpacing: 8,
+        spacing: 4,
+        runSpacing: 4,
         children: [
-          button(AvailabilityStatus.onDuty, 'Valves', Icons.verified_outlined),
-          button(
-            AvailabilityStatus.delayed,
-            'Hilinemisega\n+$minutes min',
-            Icons.schedule,
-          ),
-          button(
-            AvailabilityStatus.offDuty,
-            'Mitte valves',
-            Icons.nights_stay_outlined,
-          ),
+          button(AvailabilityStatus.onDuty, 'Valves'),
+          button(AvailabilityStatus.delayed, 'Hilinemisega'),
+          button(AvailabilityStatus.offDuty, 'Mitte valves'),
         ],
       );
     },

@@ -1,3 +1,4 @@
+import '../widgets/app_layout.dart';
 import '../models/equipment_model.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
@@ -208,7 +209,7 @@ class _CalloutReportScreenState extends State<CalloutReportScreen> {
       await Navigator.push(
         context,
         MaterialPageRoute<void>(
-          builder: (_) => Scaffold(
+          builder: (_) => AppScaffold(
             appBar: AppBar(title: const Text('Aruande PDF')),
             body: PdfPreview(
               build: (_) async => bytes,
@@ -246,16 +247,23 @@ class _CalloutReportScreenState extends State<CalloutReportScreen> {
     });
   }
 
-  Widget _section(String title, List<Widget> children) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(title, style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 12),
-          ...children,
-        ],
+  Widget _section(String title, List<Widget> children) => Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(title, style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 12),
+            for (final child in children) ...[
+              child,
+              if (child is DropdownButtonFormField<String>)
+                const SizedBox(height: 12),
+            ],
+          ],
+        ),
       ),
     ),
   );
@@ -330,7 +338,7 @@ class _CalloutReportScreenState extends State<CalloutReportScreen> {
           });
         }
       },
-      child: Scaffold(
+      child: AppScaffold(
         appBar: AppBar(
           title: const Text('Sündmuse aruanne'),
           actions: [
@@ -351,12 +359,65 @@ class _CalloutReportScreenState extends State<CalloutReportScreen> {
               ),
           ],
         ),
+        bottomNavigationBar:
+            !edit || data == null || data['operationLogId'] == null || _loading
+            ? null
+            : Material(
+                elevation: 2,
+                child: SafeArea(
+                  top: false,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Wrap(
+                          spacing: 12,
+                          runSpacing: 4,
+                          alignment: WrapAlignment.end,
+                          children: [
+                            OutlinedButton(
+                              onPressed: _saving
+                                  ? null
+                                  : () => _save(completed: false),
+                              child: const Text('Salvesta mustand'),
+                            ),
+                            if (callout['status'] == 'closed')
+                              FilledButton(
+                                onPressed: _saving
+                                    ? null
+                                    : () => _save(completed: true),
+                                child: Text(
+                                  _status == 'completed'
+                                      ? 'Salvesta parandused'
+                                      : 'Märgi aruanne valmis',
+                                ),
+                              ),
+                          ],
+                        ),
+                        if (_error != null)
+                          Text(
+                            _error!,
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.error,
+                            ),
+                          ),
+                        if (_saving) const LinearProgressIndicator(),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
         body: _loading
             ? const Center(child: CircularProgressIndicator())
             : ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  if (_error != null)
+                  if (_error != null &&
+                      (!edit || data == null || data['operationLogId'] == null))
                     Padding(
                       padding: const EdgeInsets.all(12),
                       child: Text(
@@ -637,26 +698,6 @@ class _CalloutReportScreenState extends State<CalloutReportScreen> {
                       const Text(
                         'Ava sündmuse operatiivlogi, et saaksid aruande salvestada.',
                       ),
-                    if (edit && data['operationLogId'] != null) ...[
-                      OutlinedButton(
-                        onPressed: _saving
-                            ? null
-                            : () => _save(completed: false),
-                        child: const Text('Salvesta mustand'),
-                      ),
-                      if (callout['status'] == 'closed')
-                        FilledButton(
-                          onPressed: _saving
-                              ? null
-                              : () => _save(completed: true),
-                          child: Text(
-                            _status == 'completed'
-                                ? 'Salvesta valmis aruande parandused'
-                                : 'Märgi aruanne valmis',
-                          ),
-                        ),
-                      if (_saving) const LinearProgressIndicator(),
-                    ],
                   ],
                 ],
               ),

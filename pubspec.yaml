@@ -31,6 +31,8 @@ dependencies:
   
   flutter:
     sdk: flutter
+  flutter_web_plugins:
+    sdk: flutter
 
 
   firebase_core: ^3.0.0
@@ -45,6 +47,8 @@ dependencies:
   printing: ^5.15.1
   file_selector: ^1.1.0
   share_plus: ^13.3.0
+  flutter_map: ^8.3.2
+  latlong2: ^0.10.1
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -74,6 +78,7 @@ flutter:
   # the material Icons class.
   uses-material-design: true
   assets:
+    - assets/center-demo.json
     - assets/fonts/NotoSans-Regular.ttf
     - assets/fonts/NotoSans-Bold.ttf
     - assets/fonts/LICENSE.txt

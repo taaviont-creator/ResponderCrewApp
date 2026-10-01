@@ -28,7 +28,8 @@ function evaluateReadiness({org,organization,settings,members,availability,perio
     const a = byUser.get(m.userId), manual = a?.status || 'offDuty';
     const status = unavailable.has(m.userId) || !['onDuty','delayed'].includes(manual) ? 'offDuty' : manual;
     return {userId:m.userId,name:m.displayName || 'Liige',level:m.seaRescueLevel || 'none',status,
-      arrivalMinutes:status === 'delayed' && Number.isInteger(a?.responseMinutes) ? a.responseMinutes : null};
+      arrivalMinutes:status === 'delayed' && Number.isInteger(a?.responseMinutes) ? a.responseMinutes : null,
+      delayUpdatedAtMs:status === 'delayed' ? millis(a?.updatedAt) : null};
   }).sort((a,b) => a.name.localeCompare(b.name,'et'));
   const onDuty = crew.filter(m => m.status === 'onDuty');
   const minimum = Number.isInteger(settings?.minimumCrewRequired) ? Math.max(0,settings.minimumCrewRequired) : 0;

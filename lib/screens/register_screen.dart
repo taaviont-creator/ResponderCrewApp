@@ -1,3 +1,4 @@
+import '../widgets/app_layout.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:respondcrew_app/services/auth_service.dart';
@@ -50,9 +51,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Konto loodud')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Konto loodud')));
       Navigator.pop(context);
     } on Exception catch (_) {
       if (!mounted) return;
@@ -66,9 +67,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AppScaffold(
+      contentMaxWidth: 560,
       appBar: AppBar(title: const Text('RespondCrew – Loo konto')),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [

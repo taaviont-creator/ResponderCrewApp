@@ -23,11 +23,13 @@ class CrewReadinessCard extends StatefulWidget {
     this.onOpenDetails,
     this.showOffDuty = false,
     this.compact = false,
+    this.memberPreviewLimit,
   });
   final String organizationId, currentUid;
   final VoidCallback? onOpenDetails;
   final bool showOffDuty;
   final bool compact;
+  final int? memberPreviewLimit;
   final CrewReadinessStreams Function(String)? streamsForOrganization;
   @override
   State<CrewReadinessCard> createState() => _CrewReadinessCardState();
@@ -253,7 +255,7 @@ class _CrewReadinessCardState extends State<CrewReadinessCard> {
     }
     if (_errors.isNotEmpty) {
       return AppSectionCard(
-        title: 'Ühingu reageerimisvalmidus',
+        title: 'Ühingu valmidus',
         child: Column(
           children: [
             const Text(
@@ -273,7 +275,7 @@ class _CrewReadinessCardState extends State<CrewReadinessCard> {
         _unavailable == null ||
         _minimum == null) {
       return const AppSectionCard(
-        title: 'Ühingu reageerimisvalmidus',
+        title: 'Ühingu valmidus',
         child: LinearProgressIndicator(),
       );
     }
@@ -313,6 +315,7 @@ class _CrewReadinessCardState extends State<CrewReadinessCard> {
       busyUserId: _busy,
       showOffDuty: widget.showOffDuty,
       compact: widget.compact,
+      memberPreviewLimit: widget.memberPreviewLimit,
       onContact: _contact,
       onOpenMember: _openProfile,
     );
@@ -333,6 +336,7 @@ class CrewReadinessView extends StatelessWidget {
     this.busyUserId,
     this.showOffDuty = false,
     this.compact = false,
+    this.memberPreviewLimit,
   });
   final List<DutyCrewMember> members;
   final bool organizationPaused;
@@ -343,6 +347,7 @@ class CrewReadinessView extends StatelessWidget {
   final String? busyUserId;
   final bool showOffDuty;
   final bool compact;
+  final int? memberPreviewLimit;
   final void Function(String, bool) onContact;
   final ValueChanged<String>? onOpenMember;
   @override
@@ -371,40 +376,60 @@ class CrewReadinessView extends StatelessWidget {
         ? ['Ühing on valvest maas']
         : (authoritative?['missing'] as List?)?.cast<String>() ??
               readiness.missingRequirements;
-    final secondLevelCount = onDuty
-        .where((m) => m.level == SeaRescueLevel.level2)
-        .length;
+    final secondLevelCount =
+        authoritative?['secondLevelOnDutyCount'] as int? ??
+        onDuty.where((m) => m.level == SeaRescueLevel.level2).length;
+    final eligibleCount =
+        authoritative?['onDutyCount'] as int? ?? onDuty.length;
+    final status = organizationPaused
+        ? 'unavailable'
+        : authoritative?['operationalStatus'];
+    final statusColor = status == 'unknown'
+        ? AppColors.offDuty
+        : status == 'delayed'
+        ? AppColors.delayed
+        : ready
+        ? AppColors.ready
+        : AppColors.critical;
+    final statusText = status == 'unknown'
+        ? 'VALMIDUS TEADMATA'
+        : status == 'delayed'
+        ? 'REAGEERIB VIIVITUSEGA'
+        : ready
+        ? (compact || memberPreviewLimit != null
+              ? 'SAR-valmis'
+              : 'REAGEERIMISVALMIS')
+        : (compact || memberPreviewLimit != null
+              ? 'Ei ole SAR-valmis'
+              : 'EI OLE REAGEERIMISVALMIS');
+    final ordered = [...onDuty, ...delayed, if (showOffDuty) ...offDuty];
+    final visibleMembers = memberPreviewLimit == null
+        ? ordered
+        : ordered.take(memberPreviewLimit!).toList();
     return AppSectionCard(
-      title: 'Ühingu reageerimisvalmidus',
-      leading: Icon(
-        Icons.shield_outlined,
-        color: ready ? AppColors.ready : AppColors.offDuty,
-      ),
+      title: 'Ühingu valmidus',
+      padding: const EdgeInsets.all(12),
+      leading: Icon(Icons.shield_outlined, color: statusColor),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (!compact)
+          if (!compact && memberPreviewLimit == null)
             Text(
               'SAR REAGEERIMISVALMIDUS',
               style: Theme.of(context).textTheme.labelLarge,
             ),
           Text(
-            ready
-                ? (compact ? 'SAR-valmis' : 'REAGEERIMISVALMIS')
-                : (compact ? 'Ei ole SAR-valmis' : 'EI OLE REAGEERIMISVALMIS'),
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: ready ? AppColors.ready : AppColors.offDuty,
-            ),
+            statusText,
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(color: statusColor),
           ),
           const SizedBox(height: 4),
           Text(
-            'Valves ${onDuty.length}/$minimumCrew · II aste: $secondLevelCount ${secondLevelCount > 0 ? '✓' : '— puudub'}',
+            'Valves $eligibleCount/$minimumCrew · II aste: $secondLevelCount ${secondLevelCount > 0 ? '✓' : '— puudub'}',
           ),
           if (!ready)
-            Text(
-              missing.join(' · '),
-              style: const TextStyle(color: AppColors.offDuty),
-            ),
+            Text(missing.join(' · '), style: TextStyle(color: statusColor)),
           if (organizationPaused && pauseReason.trim().isNotEmpty)
             Text(pauseReason),
           if (!compact && delayed.isNotEmpty)
@@ -417,8 +442,8 @@ class CrewReadinessView extends StatelessWidget {
             ),
           if (!compact)
             for (final group in [onDuty, delayed, if (showOffDuty) offDuty])
-              if (group.isNotEmpty) ...[
-                const SizedBox(height: 16),
+              if (group.any(visibleMembers.contains)) ...[
+                const SizedBox(height: 8),
                 Text(
                   group.first.status == AvailabilityStatus.onDuty
                       ? 'Valves'
@@ -427,24 +452,22 @@ class CrewReadinessView extends StatelessWidget {
                       : 'Mitte valves',
                   style: Theme.of(context).textTheme.labelLarge,
                 ),
-                for (final member in group) _row(context, member),
+                for (final member in group.where(visibleMembers.contains))
+                  _row(context, member),
               ],
+          if (!compact && visibleMembers.length < ordered.length)
+            Text(
+              'Veel ${ordered.length - visibleMembers.length} liiget · kogu nimekiri ühingu valmiduse vaates',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
         ],
       ),
     );
   }
 
   Widget _row(BuildContext context, DutyCrewMember member) {
-    final narrow =
-        MediaQuery.sizeOf(context).width < 390 ||
-        MediaQuery.textScalerOf(context).scale(14) > 20;
+    final narrow = MediaQuery.textScalerOf(context).scale(14) > 20;
     final delayed = member.status == AvailabilityStatus.delayed;
-    final initials = member.name
-        .split(RegExp(r'\s+'))
-        .take(2)
-        .map((part) => part.substring(0, 1))
-        .join()
-        .toUpperCase();
     final status = delayed
         ? (member.arrivalMinutes == null
               ? 'Hilinemise aeg täpsustamata'
@@ -478,60 +501,41 @@ class CrewReadinessView extends StatelessWidget {
         ),
       ],
     );
-    return Container(
-      margin: const EdgeInsets.only(top: 8),
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceBlueStrong,
-        borderRadius: BorderRadius.circular(12),
+    final details = InkWell(
+      onTap: onOpenMember == null ? null : () => onOpenMember!(member.userId),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 48),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${member.name}${member.userId == currentUid ? ' · Mina' : ''}',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            Text(
+              '$status · $level',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: delayed
+                    ? AppColors.delayed
+                    : member.status == AvailabilityStatus.offDuty
+                    ? AppColors.offDuty
+                    : AppColors.ready,
+              ),
+            ),
+          ],
+        ),
       ),
+    );
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              CircleAvatar(
-                radius: 18,
-                backgroundColor: AppColors.surfaceBlue,
-                child: Text(initials, style: const TextStyle(fontSize: 12)),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    InkWell(
-                      onTap: onOpenMember == null
-                          ? null
-                          : () => onOpenMember!(member.userId),
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(minHeight: 48),
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            '${member.name}${member.userId == currentUid ? ' · Mina' : ''}',
-                            style: Theme.of(context).textTheme.titleSmall
-                                ?.copyWith(
-                                  decoration: TextDecoration.underline,
-                                ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    Text(
-                      '$status · $level',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: delayed
-                            ? AppColors.delayed
-                            : member.status == AvailabilityStatus.offDuty
-                            ? AppColors.offDuty
-                            : AppColors.ready,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (!narrow) actions,
+              Expanded(child: details),
+              if (!narrow) ...[const SizedBox(width: 4), actions],
             ],
           ),
           if (narrow) Align(alignment: Alignment.centerRight, child: actions),

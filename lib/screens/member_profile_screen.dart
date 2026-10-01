@@ -1,3 +1,4 @@
+import '../widgets/app_layout.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import '../widgets/own_profile_editor.dart';
 import '../services/member_contact_service.dart';
@@ -71,7 +72,9 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
     _seaRescueLevel = SeaRescueLevel.normalize(
       widget.membershipData['seaRescueLevel'],
     );
-    _membershipStartedAt = _dateValue(widget.membershipData['membershipStartedAt']);
+    _membershipStartedAt = _dateValue(
+      widget.membershipData['membershipStartedAt'],
+    );
   }
 
   @override
@@ -80,8 +83,12 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
     _name = _stringValue(widget.userData['name'], 'Nimi puudub');
     _phone = _optionalString(widget.userData['phone']);
     _membershipRole = MembershipRole.normalize(widget.membershipData['role']);
-    _seaRescueLevel = SeaRescueLevel.normalize(widget.membershipData['seaRescueLevel']);
-    _membershipStartedAt = _dateValue(widget.membershipData['membershipStartedAt']);
+    _seaRescueLevel = SeaRescueLevel.normalize(
+      widget.membershipData['seaRescueLevel'],
+    );
+    _membershipStartedAt = _dateValue(
+      widget.membershipData['membershipStartedAt'],
+    );
   }
 
   String _stringValue(Object? value, String fallback) {
@@ -111,26 +118,44 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
 
   bool get _canManageProfileMembership {
     if (!widget.canManageRoles) return false;
-    if (_isOwnProfile && !MembershipRole.isOrgAdmin(_membershipRole)) return false;
+    if (_isOwnProfile && !MembershipRole.isOrgAdmin(_membershipRole)) {
+      return false;
+    }
     if (widget.currentUid.trim().isEmpty) return false;
     if (_targetUid.isEmpty) return false;
 
-    final membershipOrganizationId =
-        _membershipService.organizationIdFromMembership(widget.membershipData);
+    final membershipOrganizationId = _membershipService
+        .organizationIdFromMembership(widget.membershipData);
     return membershipOrganizationId == widget.organizationId;
   }
 
   bool get _canEditRole => _canManageProfileMembership;
 
-  bool get _canEditMembershipStartDate => _isOwnProfile || _canManageProfileMembership;
+  bool get _canEditMembershipStartDate =>
+      _isOwnProfile || _canManageProfileMembership;
 
   Future<void> _contact(bool sms) async {
     try {
-      final uri = await MemberContactService().contactUri(organizationId: widget.organizationId, userId: _targetUid, sms: sms);
+      final uri = await MemberContactService().contactUri(
+        organizationId: widget.organizationId,
+        userId: _targetUid,
+        sms: sms,
+      );
       if (!mounted) return;
-      if (uri == null || !await launchUrl(uri, mode: LaunchMode.externalApplication)) throw StateError('Contact unavailable');
+      if (uri == null ||
+          !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+        throw StateError('Contact unavailable');
+      }
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Kontakti ei saanud avada. Telefoninumber võib puududa.')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Kontakti ei saanud avada. Telefoninumber võib puududa.',
+            ),
+          ),
+        );
+      }
     }
   }
 
@@ -187,10 +212,7 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
 
   Widget _buildAvailabilitySection() {
     if (_targetUid.isEmpty || widget.organizationId.trim().isEmpty) {
-      return const _ProfileRow(
-        label: 'Valmisolek',
-        value: 'Mitte valves',
-      );
+      return const _ProfileRow(label: 'Valmisolek', value: 'Mitte valves');
     }
 
     final periodsStream = _isOwnProfile
@@ -209,8 +231,14 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
           );
 
     return StreamBuilder<AvailabilityModel?>(
-      stream: _availabilityService.streamOrganizationAvailability(organizationId: widget.organizationId)
-          .map((items) { for (final item in items) { if (item.userId == _targetUid) return item; } return null; }),
+      stream: _availabilityService
+          .streamOrganizationAvailability(organizationId: widget.organizationId)
+          .map((items) {
+            for (final item in items) {
+              if (item.userId == _targetUid) return item;
+            }
+            return null;
+          }),
       builder: (context, availabilitySnapshot) {
         return StreamBuilder<List<PlannedUnavailabilityModel>>(
           stream: periodsStream,
@@ -233,9 +261,11 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                 final effectiveStatus = EffectiveAvailability.resolve(
                   userId: _targetUid,
                   manualStatus: manualStatus,
-                  periods: periodsSnapshot.data ??
+                  periods:
+                      periodsSnapshot.data ??
                       const <PlannedUnavailabilityModel>[],
-                  rules: rulesSnapshot.data ??
+                  rules:
+                      rulesSnapshot.data ??
                       const <PlannedUnavailabilityRuleModel>[],
                 );
 
@@ -264,7 +294,8 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
   bool get _canViewTargetPersonalEquipment =>
       _isOwnProfile || _canManageProfileMembership;
 
-  String _equipmentCategoryLabel(String category) => EquipmentCategory.label(category);
+  String _equipmentCategoryLabel(String category) =>
+      EquipmentCategory.label(category);
 
   String _equipmentStatusLabel(String status) {
     switch (status) {
@@ -283,10 +314,7 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
     if (_targetUid.isEmpty ||
         widget.organizationId.trim().isEmpty ||
         widget.currentUid.trim().isEmpty) {
-      return const _ProfileRow(
-        label: 'Varustus',
-        value: 'Varustust ei ole.',
-      );
+      return const _ProfileRow(label: 'Varustus', value: 'Varustust ei ole.');
     }
 
     return StreamBuilder<List<EquipmentModel>>(
@@ -296,7 +324,12 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
         canViewMemberPersonalEquipment: _canManageProfileMembership,
       ),
       builder: (context, snapshot) {
-        if (snapshot.hasError) return const _ProfileRow(label: 'Varustus', value: 'Laadimine ebaõnnestus.');
+        if (snapshot.hasError) {
+          return const _ProfileRow(
+            label: 'Varustus',
+            value: 'Laadimine ebaõnnestus.',
+          );
+        }
         if (!snapshot.hasData) return const LinearProgressIndicator();
         final equipment = snapshot.data ?? const <EquipmentModel>[];
         final issuedEquipment = equipment
@@ -308,12 +341,12 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
             .toList(growable: false);
         final personalEquipment = _canViewTargetPersonalEquipment
             ? equipment
-                .where(
-                  (item) =>
-                      item.scope == EquipmentScope.personal &&
-                      item.ownerUserId == _targetUid,
-                )
-                .toList(growable: false)
+                  .where(
+                    (item) =>
+                        item.scope == EquipmentScope.personal &&
+                        item.ownerUserId == _targetUid,
+                  )
+                  .toList(growable: false)
             : const <EquipmentModel>[];
 
         if (issuedEquipment.isEmpty && personalEquipment.isEmpty) {
@@ -432,7 +465,12 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
         userId: _targetUid,
       ),
       builder: (context, snapshot) {
-        if (snapshot.hasError) return const _ProfileRow(label: 'Tunnistused', value: 'Laadimine ebaõnnestus.');
+        if (snapshot.hasError) {
+          return const _ProfileRow(
+            label: 'Tunnistused',
+            value: 'Laadimine ebaõnnestus.',
+          );
+        }
         if (!snapshot.hasData) return const LinearProgressIndicator();
         final certificates = snapshot.data ?? const <CertificateModel>[];
         if (certificates.isEmpty) {
@@ -516,7 +554,12 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
         organizationId: widget.organizationId,
       ),
       builder: (context, activitiesSnapshot) {
-        if (activitiesSnapshot.hasError) return const _ProfileRow(label: 'Tegevused', value: 'Laadimine ebaõnnestus.');
+        if (activitiesSnapshot.hasError) {
+          return const _ProfileRow(
+            label: 'Tegevused',
+            value: 'Laadimine ebaõnnestus.',
+          );
+        }
         if (!activitiesSnapshot.hasData) return const LinearProgressIndicator();
         final activities = activitiesSnapshot.data ?? const <ActivityModel>[];
         final activityById = {
@@ -529,17 +572,25 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
             userId: _targetUid,
           ),
           builder: (context, participantsSnapshot) {
-            if (participantsSnapshot.hasError) return const _ProfileRow(label: 'Osalemised', value: 'Laadimine ebaõnnestus.');
-            if (!participantsSnapshot.hasData) return const LinearProgressIndicator();
-            final confirmedParticipations = (participantsSnapshot.data ??
-                    const <ActivityParticipantModel>[])
-                .where(
-                  (participant) =>
-                      participant.attendanceStatus ==
-                          ActivityAttendanceStatus.confirmed &&
-                      activityById.containsKey(participant.activityId),
-                )
-                .toList();
+            if (participantsSnapshot.hasError) {
+              return const _ProfileRow(
+                label: 'Osalemised',
+                value: 'Laadimine ebaõnnestus.',
+              );
+            }
+            if (!participantsSnapshot.hasData) {
+              return const LinearProgressIndicator();
+            }
+            final confirmedParticipations =
+                (participantsSnapshot.data ??
+                        const <ActivityParticipantModel>[])
+                    .where(
+                      (participant) =>
+                          participant.attendanceStatus ==
+                              ActivityAttendanceStatus.confirmed &&
+                          activityById.containsKey(participant.activityId),
+                    )
+                    .toList();
 
             if (confirmedParticipations.isEmpty) {
               return const _ProfileRow(
@@ -563,8 +614,9 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
               0,
               (total, participant) => total + (participant.hours ?? 0),
             );
-            final latestParticipations =
-                confirmedParticipations.take(3).toList(growable: false);
+            final latestParticipations = confirmedParticipations
+                .take(3)
+                .toList(growable: false);
 
             return Card(
               child: Padding(
@@ -612,12 +664,34 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
 
   Future<void> _editOwnProfile(String field) async {
     if (!_isOwnProfile) return;
-    final saved = await showDialog<bool>(context: context, barrierDismissible: false,
-      builder: (_) => OwnProfileEditor(field: field,name: _name, phone: _phone ?? '', save: (name, phone) async {
-        await _userService.updateOwnBasicProfile(uid: widget.currentUid, name: name, phone: phone, field: field);
-        if (mounted) setState(() { _name = name; _phone = _optionalString(phone); });
-      }));
-    if (saved == true && mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Andmed salvestatud.')));
+    final saved = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => OwnProfileEditor(
+        field: field,
+        name: _name,
+        phone: _phone ?? '',
+        save: (name, phone) async {
+          await _userService.updateOwnBasicProfile(
+            uid: widget.currentUid,
+            name: name,
+            phone: phone,
+            field: field,
+          );
+          if (mounted) {
+            setState(() {
+              _name = name;
+              _phone = _optionalString(phone);
+            });
+          }
+        },
+      ),
+    );
+    if (saved == true && mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Andmed salvestatud.')));
+    }
   }
 
   Future<void> _editMembershipStartDate() async {
@@ -803,13 +877,19 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
 
       if (!mounted) return;
       setState(() => _membershipRole = role);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Roll salvestatud.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Roll salvestatud.')));
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error is FirebaseFunctionsException ? error.message ?? 'Rolli ei saanud salvestada.' : 'Rolli ei saanud salvestada.')),
+        SnackBar(
+          content: Text(
+            error is FirebaseFunctionsException
+                ? error.message ?? 'Rolli ei saanud salvestada.'
+                : 'Rolli ei saanud salvestada.',
+          ),
+        ),
       );
     }
   }
@@ -824,32 +904,91 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
         ? 'Kuupäev lisamata'
         : '${membershipDateLabel(_membershipStartedAt!)}\nStaaž: ${membershipTenureLabel(_membershipStartedAt!)}';
 
-    return Scaffold(
+    return AppScaffold(
       appBar: AppBar(
         title: Text(_isOwnProfile ? 'Minu profiil' : 'Liikme profiil'),
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(_name, style: Theme.of(context).textTheme.headlineSmall),
-              Text('$role · $seaRescueLevel'),
-              const SizedBox(height: 12),
-              if (!_isOwnProfile) Wrap(spacing: 8, children: [
-                OutlinedButton.icon(onPressed: () => _contact(false), icon: const Icon(Icons.phone_outlined), label: const Text('Helista')),
-                OutlinedButton.icon(onPressed: () => _contact(true), icon: const Icon(Icons.sms_outlined), label: const Text('SMS')),
-              ]),
-            ]))),
-          if (_isOwnProfile || _canManageProfileMembership) Card(child: Column(children: [
-            if (_isOwnProfile) _ProfileRow(label: 'Nimi', value: _name, onTap: () => _editOwnProfile('name')),
-            _ProfileRow(label: 'E-post (sisselogimiskonto)', value: email),
-            _ProfileRow(label: 'Telefon', value: _phone ?? 'Telefoni pole lisatud.', onTap: _isOwnProfile ? () => _editOwnProfile('phone') : _canManageProfileMembership ? _editMemberPhone : null),
-          ])),
-          _ProfileRow(label: 'Merepääste aste', value: seaRescueLevel, onTap: _canManageProfileMembership ? _changeSeaRescueLevel : null),
-          _ProfileRow(label: 'Liikmesus', value: status),
-          _ProfileRow(label: 'Ühingu liikmeks alates', value: membershipStartDetails,
-            onTap: _canEditMembershipStartDate ? _editMembershipStartDate : null),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(_name, style: Theme.of(context).textTheme.headlineSmall),
+                  Text('$role · $seaRescueLevel'),
+                  const SizedBox(height: 12),
+                  if (!_isOwnProfile)
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: () => _contact(false),
+                          icon: const Icon(Icons.phone_outlined),
+                          label: const Text('Helista'),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: () => _contact(true),
+                          icon: const Icon(Icons.sms_outlined),
+                          label: const Text('SMS'),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+          ),
+          if (_isOwnProfile || _canManageProfileMembership)
+            Card(
+              child: Column(
+                children: [
+                  if (_isOwnProfile)
+                    _ProfileRow(
+                      label: 'Nimi',
+                      value: _name,
+                      onTap: () => _editOwnProfile('name'),
+                    ),
+                  _ProfileRow(
+                    label: 'E-post (sisselogimiskonto)',
+                    value: email,
+                  ),
+                  _ProfileRow(
+                    label: 'Telefon',
+                    value: _phone ?? 'Telefoni pole lisatud.',
+                    onTap: _isOwnProfile
+                        ? () => _editOwnProfile('phone')
+                        : _canManageProfileMembership
+                        ? _editMemberPhone
+                        : null,
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 8),
+          Card(
+            child: Column(
+              children: [
+                _ProfileRow(
+                  label: 'Merepääste aste',
+                  value: seaRescueLevel,
+                  onTap: _canManageProfileMembership
+                      ? _changeSeaRescueLevel
+                      : null,
+                ),
+                _ProfileRow(label: 'Liikmesus', value: status),
+                _ProfileRow(
+                  label: 'Ühingu liikmeks alates',
+                  value: membershipStartDetails,
+                  onTap: _canEditMembershipStartDate
+                      ? _editMembershipStartDate
+                      : null,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
           _buildAvailabilitySection(),
           if (_canManageProfileMembership) ...[
             const SizedBox(height: 8),
@@ -871,57 +1010,98 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
             ),
           ],
           const SizedBox(height: 12),
-          _profileSection('Varustus', _buildEquipmentSection(), onOpen: _isOwnProfile ? () => Navigator.push(context,
-            MaterialPageRoute<void>(builder: (_) => EquipmentScreen(organizationId: widget.organizationId,
-              currentUid: widget.currentUid, canManageEquipment: widget.canManageRoles, initialView: 'mine'))) : null),
-          if (_canViewTargetCertificates) _profileSection('Tunnistused', _buildCertificatesSection(),
-            onOpen: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => CertificatesScreen(
-              organizationId: widget.organizationId, currentUid: widget.currentUid, targetUserId: _targetUid, canManageCertificates: widget.canManageRoles)))),
-          if (_canViewTargetParticipation) _profileSection('Tegevused ja koolitused', _buildActivityContributionSection(),
-            onOpen: _isOwnProfile ? () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => ActivitiesScreen(
-              organizationId: widget.organizationId, currentUid: widget.currentUid, canManageActivities: widget.canManageRoles))) : null),
+          _profileSection(
+            'Varustus',
+            _buildEquipmentSection(),
+            onOpen: _isOwnProfile
+                ? () => Navigator.push(
+                    context,
+                    MaterialPageRoute<void>(
+                      builder: (_) => EquipmentScreen(
+                        organizationId: widget.organizationId,
+                        currentUid: widget.currentUid,
+                        canManageEquipment: widget.canManageRoles,
+                        initialView: 'mine',
+                      ),
+                    ),
+                  )
+                : null,
+          ),
+          if (_canViewTargetCertificates)
+            _profileSection(
+              'Tunnistused',
+              _buildCertificatesSection(),
+              onOpen: () => Navigator.push(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => CertificatesScreen(
+                    organizationId: widget.organizationId,
+                    currentUid: widget.currentUid,
+                    targetUserId: _targetUid,
+                    canManageCertificates: widget.canManageRoles,
+                  ),
+                ),
+              ),
+            ),
+          if (_canViewTargetParticipation)
+            _profileSection(
+              'Tegevused ja koolitused',
+              _buildActivityContributionSection(),
+              onOpen: _isOwnProfile
+                  ? () => Navigator.push(
+                      context,
+                      MaterialPageRoute<void>(
+                        builder: (_) => ActivitiesScreen(
+                          organizationId: widget.organizationId,
+                          currentUid: widget.currentUid,
+                          canManageActivities: widget.canManageRoles,
+                        ),
+                      ),
+                    )
+                  : null,
+            ),
         ],
       ),
     );
   }
-  Widget _profileSection(String title, Widget child, {VoidCallback? onOpen}) => Card(child: ExpansionTile(
-    title: Text(title), children: [if (onOpen != null) Align(alignment: Alignment.centerRight,
-      child: TextButton(onPressed: onOpen, child: const Text('Ava'))), child]));
+
+  Widget _profileSection(String title, Widget child, {VoidCallback? onOpen}) =>
+      Card(
+        child: ExpansionTile(
+          title: Text(title),
+          children: [
+            if (onOpen != null)
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(onPressed: onOpen, child: const Text('Ava')),
+              ),
+            child,
+          ],
+        ),
+      );
 }
 
 class _SeaRescueLevelOption extends StatelessWidget {
-  const _SeaRescueLevelOption({
-    required this.level,
-    required this.label,
-  });
+  const _SeaRescueLevelOption({required this.level, required this.label});
 
   final String level;
   final String label;
 
   @override
   Widget build(BuildContext context) {
-    return RadioListTile<String>(
-      value: level,
-      title: Text(label),
-    );
+    return RadioListTile<String>(value: level, title: Text(label));
   }
 }
 
 class _RoleOption extends StatelessWidget {
-  const _RoleOption({
-    required this.role,
-    required this.label,
-  });
+  const _RoleOption({required this.role, required this.label});
 
   final String role;
   final String label;
 
   @override
   Widget build(BuildContext context) {
-    return RadioListTile<String>(
-      value: role,
-      title: Text(label),
-    );
+    return RadioListTile<String>(value: role, title: Text(label));
   }
 }
 
@@ -947,10 +1127,7 @@ class _EquipmentGroup extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-          child: Text(
-            title,
-            style: Theme.of(context).textTheme.labelLarge,
-          ),
+          child: Text(title, style: Theme.of(context).textTheme.labelLarge),
         ),
         ...equipment.map(
           (item) => ListTile(
@@ -1019,9 +1196,11 @@ class _ActivityContributionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       dense: true,
-      title: Text(activity.title.trim().isEmpty
-          ? 'Tegevused ja koolitused'
-          : activity.title.trim()),
+      title: Text(
+        activity.title.trim().isEmpty
+            ? 'Tegevused ja koolitused'
+            : activity.title.trim(),
+      ),
       subtitle: Text(
         [
           if (dateLabel.isNotEmpty) 'Kuupäev: $dateLabel',
@@ -1042,13 +1221,11 @@ class _ProfileRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        title: Text(label),
-        subtitle: Text(value),
-        trailing: onTap == null ? null : const Icon(Icons.edit_outlined),
-        onTap: onTap,
-      ),
+    return ListTile(
+      title: Text(label),
+      subtitle: Text(value),
+      trailing: onTap == null ? null : const Icon(Icons.edit_outlined),
+      onTap: onTap,
     );
   }
 }

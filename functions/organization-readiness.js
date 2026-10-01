@@ -25,10 +25,11 @@ function readinessTransition(before,after) {
     ended:(before.unavailableUserIds || []).filter(uid => !after.unavailableUserIds.includes(uid)),left};
 }
 function readinessMessage(after,keys) {
-  const title = keys.includes('readinessRestored') ? 'Ühing on taas SAR-valmis' : !after.ready ? 'Ühing ei ole SAR-valmis' : 'Ühingu reageerimisvalmidus muutus';
+  const title = after.operationalStatus === 'delayed' ? 'Ühing reageerib viivitusega' : after.operationalStatus === 'unknown' ? 'Ühingu SAR-valmidus on teadmata' : keys.includes('readinessRestored') ? 'Ühing on taas SAR-valmis' : !after.ready ? 'Ühing ei ole SAR-valmis' : 'Ühingu valmidus muutus';
   const body = after.paused ? `Ühing on valvest maas.${after.pauseReason ? ` ${after.pauseReason}` : ''}` :
     `Valves ${after.onDutyCount}/${after.minimum} liiget.${!after.secondLevelMet ? ' Puudub II astme merepäästja.' : ''}`;
-  return {title,body};
+  return {title,body:body + (!after.paused && keys.some(key=>['belowMinimum','missingLevel2'].includes(key))
+    ? ' Admin: kontrolli koosseisu ning otsusta, kas ühing jätkab valves või tuleb valvest maha võtta.' : '')};
 }
 
 function createReadinessEngine({db,now = Date.now}) {
@@ -37,31 +38,44 @@ function createReadinessEngine({db,now = Date.now}) {
     return db.runTransaction(async tx => {
       // Queries and settings are read in the same transaction as the cursor:
       // duplicate/out-of-order triggers cannot roll the state back.
-      const transactional = {
-        doc:path => ({get:() => tx.get(db.doc(path))}),
-        collection:name => ({where:(...args) => ({get:() => tx.get(db.collection(name).where(...args))})}),
-      };
+      const transactional = require('./organization-center-readiness').transactionalDb(db,tx);
       const state = db.doc(`readinessNotificationState/${org}`);
       const before = (await tx.get(state)).data();
-      const after = await loadReadiness(transactional,org,now());
+      const after = await require('./operational-readiness').loadOperationalReadiness(transactional,org,now());
       const {crew,...operational} = after;
       const fingerprint = JSON.stringify(Object.keys(operational).sort().map(key=>[key,operational[key]]));
       if (before?.fingerprint === fingerprint) return;
       const transition = readinessTransition(before?.operational,operational);
       tx.set(state,{operational,fingerprint,updatedAt:new Date(now())});
+      if (after.centerServices) tx.set(db.doc(`organizationOperationalReadiness/${org}`), {
+        organizationId:org, services:after.centerServices, computedAt:new Date(now()),
+        // Human confirmation time is kept separately in each service result.
+        freshUntil:new Date(Math.min(...after.centerServices.map(s=>s.freshUntilMs))),
+      });
       if (transition.keys.length || transition.started.length || transition.ended.length) {
         tx.create(db.doc(`readinessNotificationEvents/${eventId}`),{organizationId:org,...transition,after:operational,fingerprint,
           memberIds:crew.map(m => m.userId),createdAt:new Date(now())});
       }
     });
   }
+  async function scheduled() {
+    const organizations = await db.collection('commands').where('status','==','approved').get();
+    const failures=[];
+    for (const org of organizations.docs) {
+      try { await recompute(org.id); } catch(error) { failures.push(error); }
+    }
+    if(failures.length) throw new AggregateError(failures,'Ühingute valmiduse värskendamine jäi osaliselt tegemata.');
+  }
   return {recompute,changed:async event => {
     const org = event.params.organizationId || orgId(event.data?.after.data()) || orgId(event.data?.before.data());
     if (org) await recompute(org);
-  },scheduled:async () => {
-    const organizations = await db.collection('commands').where('status','==','approved').get();
-    for (const org of organizations.docs) await recompute(org.id);
-  }};
+    // Shared members can change another organization's eligibility as well.
+    const uid=event.data?.after.data()?.userId || event.data?.before.data()?.userId;
+    if(uid) {
+      const memberships=await db.collection('memberships').where('userId','==',uid).get();
+      for(const other of new Set(memberships.docs.map(d=>orgId(d.data())).filter(o=>o && o!==org))) await recompute(other);
+    }
+  },sharedChanged:scheduled,scheduled};
 }
 function createReadinessDelivery({db,deliver,preferencesFor}) {
   return async event => {

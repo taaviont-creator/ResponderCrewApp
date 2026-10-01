@@ -37,6 +37,8 @@ Alarmikatse ajal kontrolli Functions'i logidest sama väljakutse tulemust: `Call
 
 Läbitud on ainult katse, mille kõik sammud on päriselt kontrollitud. Ebaõnnestunud samm parandatakse ja korratakse koos sellest sõltuvate sammudega.
 
-## Teadaolev suurem puuduolev funktsioon
+## E-posti järelkontroll
 
-Automaatne e-posti kutse ja uue ühingu kohta platvormiadminile saadetav e-posti teavitus vajavad e-posti teenuse / SMTP / API secret'i seadistust ning saatmisvoo ühendamist ja kontrolli. Need jäävad eraldi tööks. Deploy takistused ja tegemata seadmetestid on eraldi väljalaske eeltingimused, mitte kinnitus, et ülejäänud äpp on juba lõplikult valmis.
+Varasem SMTP seadistamise takistus on lahendatud: saatmisvood ning saladuse seadistus on kirjeldatud [e-posti juhendis](transactional-email.md) ja [väljalaske kokkuvõttes](2026-09-release-completion.md). Kontrolli uue päriskutse ja uue ühingutaotlusega kirja tegelikku jõudmist õigesse postkasti. SMTP serveri vastuvõtmise kinnitus ei tõenda postkasti jõudmist.
+
+Seadmetestid jäävad kuni tegeliku läbimiseni märgituks „Tegemata”. Telefoni alarmi, heli, GPS-i ja taustakäitumist ei loeta veebikatse või automaattestidega kinnitatuks.

@@ -36,6 +36,8 @@ test('one departure coalesces minimum and II loss; unchanged state does not aler
   const lost=readinessTransition(before,after);
   assert.deepEqual(lost.keys,['readinessLost','belowMinimum','missingLevel2','memberOffDuty']);
   assert.match(readinessMessage(after,lost.keys).body,/Valves 1\/2.*II astme/);
+  assert.match(readinessMessage(after,lost.keys).body,/Admin: kontrolli koosseisu/);
+  assert.equal(after.paused,false); // A shortage alerts; only the admin controls organizational suspension.
   assert.deepEqual(readinessTransition(after,after).keys,[]);
   assert.deepEqual(readinessTransition(null,after).keys,[]);
   assert.deepEqual(readinessTransition(after,before).keys,['readinessRestored']);
@@ -53,6 +55,7 @@ test('recipient preferences choose one combined push for org loss plus own absen
   const after=evaluate({availability:[base.availability[1]]});
   await handler({params:{eventId:'e'},data:{data:()=>({organizationId:'o',keys:['readinessLost','belowMinimum','missingLevel2'],started:['a','b'],ended:[],memberIds:['a','b'],after})}});
   assert.equal(delivered.length,1);assert.equal(delivered[0].uid,'a');assert.match(delivered[0].body,/Sinu planeeritud mittevalve algas/);
+  assert.match(delivered[0].body,/kas ühing jätkab valves/);
 });
 test('shared planning excludes private notes, expired and cancelled rows by default',()=>{
   const period={id:'p',userId:'a',status:'active',startAt:now,endAt:now+10000,note:'PRIVATE'};

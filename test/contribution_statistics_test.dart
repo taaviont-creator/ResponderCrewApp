@@ -101,6 +101,9 @@ void main() {
             )
             .first,
       );
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Testliige'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Testliige'));
       await tester.pumpAndSettle();
       expect(find.text('Sadama niitmine'), findsOneWidget);

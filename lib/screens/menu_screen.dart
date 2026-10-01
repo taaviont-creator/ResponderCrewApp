@@ -1,9 +1,9 @@
+import '../widgets/app_layout.dart';
 import '../widgets/platform_pending_badge.dart';
 import 'notification_settings_screen.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
-import '../widgets/app_section_card.dart';
 import '../widgets/pending_invites_section.dart';
 import 'activities_screen.dart';
 import 'equipment_screen.dart';
@@ -28,8 +28,11 @@ class MenuScreen extends StatelessWidget {
     required this.onOpenOrganizationSettings,
     this.onSwitchOrganization,
     this.onOpenNotifications,
+    this.pendingInvites = const PendingInvitesSection(),
+    this.platformBadge = const PlatformPendingBadge(),
   });
 
+  final Widget pendingInvites, platformBadge;
   final VoidCallback? onOpenNotifications;
   final String organizationId;
   final String? organizationName;
@@ -44,22 +47,17 @@ class MenuScreen extends StatelessWidget {
   final VoidCallback? onSwitchOrganization;
 
   void _open(BuildContext context, Widget screen) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => screen),
-    );
+    Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
   }
 
   @override
   Widget build(BuildContext context) {
-
     final canManageEquipment = isOrganizationAdmin;
 
-    return Scaffold(
+    return AppScaffold(
       appBar: AppBar(title: const Text('Menüü')),
-      body: ListView(
-        padding: const EdgeInsets.all(AppTheme.screenPadding),
-        children: [
+      body: ResponsiveSections(
+        header: [
           Text(
             organizationName?.trim().isNotEmpty == true
                 ? organizationName!
@@ -69,46 +67,31 @@ class MenuScreen extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             isOrganizationAdmin ? 'Administraator' : 'Liige',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
           ),
-          const PendingInvitesSection(),
-          if (onOpenNotifications != null) _MenuEntry(icon: Icons.notifications_outlined,
-            title: 'Teavitused', subtitle: 'Ühingu teated', onTap: onOpenNotifications!),
-          _MenuEntry(icon: Icons.notifications_active_outlined, title: 'Teavituste seaded', subtitle: 'Sinu valikud ja SAR-häire heli',
-            onTap: () => _open(context, NotificationSettingsScreen(organizationId: organizationId, userId: currentUid, isAdmin: isOrganizationAdmin))),
-          const SizedBox(height: AppTheme.sectionSpacing),
+          pendingInvites,
+        ],
+        primary: [
+          const _MenuHeading('Ühingu töö'),
           _MenuEntry(
-            icon: Icons.person_outline,
-            title: 'Minu profiil',
-            subtitle: 'Andmed, valmisolek ja panus',
+            icon: Icons.group_outlined,
+            title: 'Liikmed',
+            subtitle: 'Profiilid, rollid ja tunnistused',
             onTap: () => _open(
               context,
-              SelfProfileScreen(
-                currentUid: currentUid,
+              MembersScreen(
                 organizationId: organizationId,
+                currentUid: currentUid,
                 canManageRoles: isOrganizationAdmin,
               ),
             ),
           ),
-            _MenuEntry(
-              icon: Icons.group_outlined,
-              title: 'Liikmed',
-              subtitle: 'Liikmed ja rollid',
-              onTap: () => _open(
-                context,
-                MembersScreen(
-                  organizationId: organizationId,
-                  currentUid: currentUid,
-                  canManageRoles: isOrganizationAdmin,
-                ),
-              ),
-            ),
           _MenuEntry(
             icon: Icons.inventory_2_outlined,
-            title: canManageEquipment ? 'Varustus' : 'Minu varustus',
-            subtitle: 'Varustuse seisund ja hooldus',
+            title: 'Varustus',
+            subtitle: 'Ühingu varustus ja ladu',
             onTap: () => _open(
               context,
               EquipmentScreen(
@@ -121,7 +104,7 @@ class MenuScreen extends StatelessWidget {
           _MenuEntry(
             icon: Icons.assignment_outlined,
             title: 'Operatiivlogi',
-            subtitle: 'Operatsioonide sündmused ja kokkuvõtted',
+            subtitle: 'Logid ja väljavõtted',
             onTap: () => _open(
               context,
               OperationLogScreen(
@@ -136,7 +119,7 @@ class MenuScreen extends StatelessWidget {
           _MenuEntry(
             icon: Icons.event_outlined,
             title: 'Tegevused ja koolitused',
-            subtitle: 'Kohtumised, koolitused ja õppused',
+            subtitle: 'Osalemine ja kinnitatud tunnid',
             onTap: () => _open(
               context,
               ActivitiesScreen(
@@ -149,8 +132,8 @@ class MenuScreen extends StatelessWidget {
           if (canViewStatistics)
             _MenuEntry(
               icon: Icons.insights_outlined,
-              title: 'Statistika',
-              subtitle: 'Ühingu ülevaated',
+              title: 'Panus ja statistika',
+              subtitle: 'Valveaeg ja osalemine',
               onTap: () => _open(
                 context,
                 StatisticsScreen(
@@ -161,6 +144,63 @@ class MenuScreen extends StatelessWidget {
                 ),
               ),
             ),
+        ],
+        secondary: [
+          if (isOrganizationAdmin || isPlatformAdmin)
+            const _MenuHeading('Haldus'),
+          if (isOrganizationAdmin)
+            _MenuEntry(
+              icon: Icons.settings_outlined,
+              title: 'Ühingu seaded',
+              subtitle: 'Andmed, valmidus ja õigused',
+              onTap: onOpenOrganizationSettings,
+            ),
+          if (isPlatformAdmin)
+            _MenuEntry(
+              icon: Icons.apartment_outlined,
+              title: 'RespondCrew haldus',
+              leading: platformBadge,
+              subtitle: 'Ühingud, kasutajakontod ja audit',
+              onTap: () => Navigator.of(context, rootNavigator: true).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => const PlatformManagementScreen(),
+                ),
+              ),
+            ),
+          const _MenuHeading('Minu konto'),
+          _MenuEntry(
+            icon: Icons.person_outline,
+            title: 'Minu profiil',
+            subtitle: 'Kontaktid ja liikmesus',
+            onTap: () => _open(
+              context,
+              SelfProfileScreen(
+                currentUid: currentUid,
+                organizationId: organizationId,
+                canManageRoles: isOrganizationAdmin,
+              ),
+            ),
+          ),
+          if (onOpenNotifications != null)
+            _MenuEntry(
+              icon: Icons.notifications_outlined,
+              title: 'Teavitused',
+              subtitle: 'Ühingu teated',
+              onTap: onOpenNotifications!,
+            ),
+          _MenuEntry(
+            icon: Icons.notifications_active_outlined,
+            title: 'Teavituste seaded',
+            subtitle: 'Sinu valikud ja SAR-häire heli',
+            onTap: () => _open(
+              context,
+              NotificationSettingsScreen(
+                organizationId: organizationId,
+                userId: currentUid,
+                isAdmin: isOrganizationAdmin,
+              ),
+            ),
+          ),
           if (onSwitchOrganization != null)
             _MenuEntry(
               icon: Icons.swap_horiz_outlined,
@@ -168,23 +208,6 @@ class MenuScreen extends StatelessWidget {
               subtitle: 'Lülitu teise ühingu vaatele',
               onTap: onSwitchOrganization,
             ),
-          if (isOrganizationAdmin)
-            _MenuEntry(
-              icon: Icons.settings_outlined,
-              title: 'Ühingu seaded',
-              subtitle: 'Õigused ja ühingu valikud',
-              onTap: onOpenOrganizationSettings,
-            ),
-          if (isPlatformAdmin)
-            _MenuEntry(
-              icon: Icons.apartment_outlined,
-              title: 'RespondCrew haldus',
-              leading: const PlatformPendingBadge(),
-              subtitle: 'Ühingud, kasutajakontod ja audit',
-              onTap: () => Navigator.of(context, rootNavigator: true).push(
-                MaterialPageRoute<void>(builder: (_) => const PlatformManagementScreen())),
-            ),
-
         ],
       ),
     );
@@ -207,59 +230,21 @@ class _MenuEntry extends StatelessWidget {
   final VoidCallback? onTap;
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppTheme.itemSpacing),
-      child: Opacity(
-        opacity: onTap == null ? 0.55 : 1,
-        child: AppSectionCard(
-          padding: EdgeInsets.zero,
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: onTap,
-              borderRadius: BorderRadius.circular(AppTheme.cardRadius),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    leading ?? Icon(icon, color: AppColors.navy, size: 26),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            title,
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            subtitle,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(
-                                  color: AppColors.textSecondary,
-                                ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Icon(
-                      onTap == null
-                          ? Icons.lock_outline
-                          : Icons.chevron_right,
-                      color: AppColors.textSecondary,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => ListTile(
+    leading: leading ?? Icon(icon, color: AppColors.navy),
+    title: Text(title),
+    subtitle: Text(subtitle),
+    trailing: const Icon(Icons.chevron_right),
+    onTap: onTap,
+  );
+}
+
+class _MenuHeading extends StatelessWidget {
+  const _MenuHeading(this.title);
+  final String title;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(12, 20, 12, 4),
+    child: Text(title, style: Theme.of(context).textTheme.titleMedium),
+  );
 }

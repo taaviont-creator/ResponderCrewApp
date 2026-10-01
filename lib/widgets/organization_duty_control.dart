@@ -3,8 +3,13 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 
 class OrganizationDutyControl extends StatefulWidget {
-  const OrganizationDutyControl({super.key, required this.organizationId});
+  const OrganizationDutyControl({
+    super.key,
+    required this.organizationId,
+    this.onSaved,
+  });
   final String organizationId;
+  final VoidCallback? onSaved;
   @override
   State<OrganizationDutyControl> createState() =>
       _OrganizationDutyControlState();
@@ -41,6 +46,7 @@ class _OrganizationDutyControlState extends State<OrganizationDutyControl> {
         'paused': paused,
         'reason': _reason.text,
       });
+      if (mounted) widget.onSaved?.call();
     } on FirebaseFunctionsException catch (error) {
       if (mounted) {
         setState(() => _error = error.message ?? 'Muudatus ebaõnnestus.');

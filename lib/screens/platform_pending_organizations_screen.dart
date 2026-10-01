@@ -1,3 +1,4 @@
+import '../widgets/app_layout.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -53,7 +54,9 @@ class _PlatformPendingOrganizationsScreenState
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(approve ? 'Ühing kinnitatud.' : 'Ühing tagasi lükatud.'),
+          content: Text(
+            approve ? 'Ühing kinnitatud.' : 'Ühing tagasi lükatud.',
+          ),
         ),
       );
     } catch (_) {
@@ -69,15 +72,13 @@ class _PlatformPendingOrganizationsScreenState
   @override
   Widget build(BuildContext context) {
     if (!widget.isPlatformAdmin) {
-      return Scaffold(
+      return AppScaffold(
         appBar: AppBar(title: const Text('Ootel ühingud')),
-        body: const Center(
-          child: Text('Sul puudub õigus ühinguid kinnitada.'),
-        ),
+        body: const Center(child: Text('Sul puudub õigus ühinguid kinnitada.')),
       );
     }
 
-    return Scaffold(
+    return AppScaffold(
       appBar: AppBar(title: const Text('Ootel ühingud')),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: _commandService.streamPendingCommands(),
@@ -126,10 +127,10 @@ class _PlatformPendingOrganizationsScreenState
                             onPressed: isSaving || createdBy.isEmpty
                                 ? null
                                 : () => _reviewOrganization(
-                                      commandId: doc.id,
-                                      creatorUserId: createdBy,
-                                      approve: false,
-                                    ),
+                                    commandId: doc.id,
+                                    creatorUserId: createdBy,
+                                    approve: false,
+                                  ),
                             icon: const Icon(Icons.close),
                             label: const Text('Lükka tagasi'),
                           ),
@@ -140,10 +141,10 @@ class _PlatformPendingOrganizationsScreenState
                             onPressed: isSaving || createdBy.isEmpty
                                 ? null
                                 : () => _reviewOrganization(
-                                      commandId: doc.id,
-                                      creatorUserId: createdBy,
-                                      approve: true,
-                                    ),
+                                    commandId: doc.id,
+                                    creatorUserId: createdBy,
+                                    approve: true,
+                                  ),
                             icon: const Icon(Icons.check),
                             label: const Text('Kinnita'),
                           ),

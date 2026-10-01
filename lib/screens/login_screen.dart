@@ -1,3 +1,4 @@
+import '../widgets/app_layout.dart';
 import 'package:flutter/material.dart';
 import '../widgets/login_information.dart';
 
@@ -46,14 +47,18 @@ class _LoginScreenState extends State<LoginScreen> {
 
       // 3.4 UI tagasiside (SnackBar)
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sisselogimine õnnestus')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Sisselogimine õnnestus')));
     } on Exception catch (_) {
       // 3.5 Vea korral näita kasutajale
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sisselogimine ebaõnnestus. Kontrolli e-posti ja parooli.')),
+        const SnackBar(
+          content: Text(
+            'Sisselogimine ebaõnnestus. Kontrolli e-posti ja parooli.',
+          ),
+        ),
       );
     } finally {
       // 3.6 Lülita loading välja (kui ekraan on alles elus)
@@ -121,7 +126,8 @@ class _LoginScreenState extends State<LoginScreen> {
   // =========================
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AppScaffold(
+      contentMaxWidth: 560,
       // 9.1 AppBar (ekraani pealkiri)
       appBar: AppBar(title: const Text('RespondCrew')),
 
