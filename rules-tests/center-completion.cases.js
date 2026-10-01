@@ -130,6 +130,33 @@ module.exports = ({getEnv,serverDb,serverRequire}) => {
     assert.equal(audit.size,1);
     assert.equal(audit.docs[0].data().createdBy,uid);
   });
+  test('readiness refresh renews freshness without invalidating pending alerts; real recovery suppresses the old alert', async()=>{
+    const {db,deps,advance}=await setup();
+    const {createReadinessEngine,createReadinessDelivery}=serverRequire('./organization-readiness');
+    const engine=createReadinessEngine(deps);
+    await engine.recompute(org);
+    await db.doc(`availability/${uid}_${org}`).update({status:'offDuty'});
+    await engine.recompute(org);
+    const events=await db.collection('readinessNotificationEvents').get();
+    assert.equal(events.size,1);
+    const pending=events.docs[0], oldTime=(await db.doc(`organizationOperationalReadiness/${org}`).get()).data().computedAt.toMillis();
+    advance(60000);
+    await engine.recompute(org);
+    const current=(await db.doc(`readinessNotificationState/${org}`).get()).data();
+    assert.equal(current.fingerprint,pending.data().fingerprint);
+    assert.ok((await db.doc(`organizationOperationalReadiness/${org}`).get()).data().computedAt.toMillis()>oldTime);
+    assert.equal((await db.collection('readinessNotificationEvents').get()).size,1);
+    const sent=[];
+    const deliver=createReadinessDelivery({db,deliver:async d=>sent.push(d),preferencesFor:async()=>({belowMinimum:true})});
+    const event={params:{eventId:pending.id},data:pending};
+    await deliver(event);
+    assert.ok(sent.some(d=>d.uid===uid));
+    sent.length=0;
+    await db.doc(`availability/${uid}_${org}`).update({status:'onDuty'});
+    await engine.recompute(org);
+    await deliver(event);
+    assert.equal(sent.length,0);
+  });
   test('complete center workflow: scheduler persists actual results and admin below-minimum event without automatic pause',async()=>{
     const {db,deps}=await setup();
     const engine=serverRequire('./organization-readiness').createReadinessEngine(deps);

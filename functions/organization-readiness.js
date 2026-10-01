@@ -32,6 +32,17 @@ function readinessMessage(after,keys) {
     ? ' Admin: kontrolli koosseisu ning otsusta, kas ühing jätkab valves või tuleb valvest maha võtta.' : '')};
 }
 
+// Refresh timestamps are evidence freshness, not an operational transition.
+// Keep queued notifications valid while the actual readiness stays unchanged.
+function readinessFingerprint(operational) {
+  const stable = {...operational};
+  if (Array.isArray(stable.centerServices)) stable.centerServices = stable.centerServices.map(service => {
+    const {computedAtMs, freshUntilMs, ...meaningful} = service;
+    return meaningful;
+  });
+  return JSON.stringify(Object.keys(stable).sort().map(key => [key, stable[key]]));
+}
+
 function createReadinessEngine({db,now = Date.now}) {
   async function recompute(org) {
     const eventId = randomUUID();
@@ -43,8 +54,8 @@ function createReadinessEngine({db,now = Date.now}) {
       const before = (await tx.get(state)).data();
       const after = await require('./operational-readiness').loadOperationalReadiness(transactional,org,now());
       const {crew,...operational} = after;
-      const fingerprint = JSON.stringify(Object.keys(operational).sort().map(key=>[key,operational[key]]));
-      if (before?.fingerprint === fingerprint) return;
+      const fingerprint = readinessFingerprint(operational);
+      if (before?.fingerprint === fingerprint && !after.centerServices) return;
       const transition = readinessTransition(before?.operational,operational);
       tx.set(state,{operational,fingerprint,updatedAt:new Date(now())});
       if (after.centerServices) tx.set(db.doc(`organizationOperationalReadiness/${org}`), {
@@ -98,4 +109,4 @@ function createReadinessDelivery({db,deliver,preferencesFor}) {
     }
   };
 }
-module.exports = {loadReadiness,readinessTransition,readinessMessage,createReadinessEngine,createReadinessDelivery};
+module.exports = {loadReadiness,readinessTransition,readinessMessage,readinessFingerprint,createReadinessEngine,createReadinessDelivery};

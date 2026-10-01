@@ -25,7 +25,7 @@ class CenterBoardItem {
       status = CenterReadinessStatus.parse(data['status']),
       latitude = _coordinate(data['latitude'], 90),
       longitude = _coordinate(data['longitude'], 180),
-      reasons = (data['reasons'] as List? ?? []).whereType<String>().toList(),
+      reasons = _list(data['reasons']).whereType<String>().toList(),
       contactName = data['contactName'] is String
           ? data['contactName'] as String
           : '',
@@ -40,10 +40,9 @@ class CenterBoardItem {
       confirmedAt = _time(data['confirmedAtMs']),
       freshUntil = _time(data['freshUntilMs']),
       expectedReadyAt = _time(data['expectedReadyAtMs']),
-      vessels = (data['vessels'] as List? ?? [])
-          .whereType<Map>()
-          .map((e) => Map<String, dynamic>.from(e))
-          .toList();
+      vessels = _list(
+        data['vessels'],
+      ).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
   final String id, name, contactName, contactPhone, restrictionReason;
   final CenterReadinessStatus status;
   final bool automatic;
@@ -59,6 +58,7 @@ class CenterBoardItem {
   }) => !connected || freshUntil == null || !freshUntil!.isAfter(now)
       ? CenterReadinessStatus.unknown
       : status;
+  static List<dynamic> _list(Object? value) => value is List ? value : const [];
   static double? _coordinate(Object? v, int max) =>
       v is num && v.isFinite && v.abs() <= max ? v.toDouble() : null;
   static int? _int(Object? v) =>

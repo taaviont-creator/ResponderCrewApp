@@ -1,6 +1,6 @@
 # RespondCrew – minimaalne Androidi päris-seadme lõppkatse
 
-Versioon: haru `fix/require-member-approval`, baas main `f0972e34163c253dead820e8ebc97955cc6034c6`. Märgi paigaldatud APK täpne commit.
+Versioon: kasuta testiks valitud värsket main-versiooni ning märgi paigaldatud APK täpne commit. Esialgne 27.09 haruviide ei ole enam testimise alus. APK koostamine toimub ainult kasutaja eraldi tellimusel.
 Koostatud: 27.09.2026. Olek: **ette valmistatud, seadmel läbi tegemata**.
 Täielik lõppkatse algab pärast Firestore rules ja Functions deploy ning pilves kontrollimist.
 

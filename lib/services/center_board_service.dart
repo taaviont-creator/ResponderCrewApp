@@ -69,12 +69,12 @@ class CenterBoardService extends ChangeNotifier {
       if (at is! int || at.abs() > 8640000000000000 || data['items'] is! List) {
         throw const FormatException('Invalid board');
       }
-      items = (data['items'] as List)
+      final nextItems = (data['items'] as List)
           .whereType<Map>()
           .map((d) => CenterBoardItem.fromMap(Map<String, dynamic>.from(d)))
           .where((d) => d.id.isNotEmpty)
           .toList();
-      _serverTime = DateTime.fromMillisecondsSinceEpoch(
+      final nextServerTime = DateTime.fromMillisecondsSinceEpoch(
         at,
         isUtc: true,
       ).add(roundTrip.elapsed);
@@ -82,9 +82,14 @@ class CenterBoardService extends ChangeNotifier {
       if (until != null && (until is! int || until.abs() > 8640000000000000)) {
         throw const FormatException('Invalid access expiry');
       }
-      _accessUntil = until is int
+      final nextAccessUntil = until is int
           ? DateTime.fromMillisecondsSinceEpoch(until, isUtc: true)
           : null;
+      // Publish one fully validated snapshot. A malformed response must not
+      // replace the last known board while retaining its previous clock.
+      items = nextItems;
+      _serverTime = nextServerTime;
+      _accessUntil = nextAccessUntil;
       checkedAt = DateTime.fromMillisecondsSinceEpoch(at, isUtc: true);
       _elapsed.reset();
       connected = true;

@@ -33,6 +33,80 @@ class _SessionState extends State<_Session> {
 }
 
 void main() {
+  for (final path in ['/', '/uhingud']) {
+    testWidgets(
+      'organization draft survives access refresh and grant changes at $path',
+      (tester) async {
+        var fail = false;
+        var granted = false;
+        var created = 0;
+        final access = CenterAccessService(
+          load: () async {
+            if (fail) throw Exception('offline');
+            return {
+              'serverNowMs': DateTime.now().millisecondsSinceEpoch,
+              'contexts': [
+                if (granted)
+                  {
+                    'centerId': 'merevalvekeskus',
+                    'service': 'sar',
+                    'validUntilMs': null,
+                  },
+              ],
+            };
+          },
+        );
+        final input = TextEditingController();
+        await tester.pumpWidget(
+          MaterialApp(
+            home: AppContextScreen(
+              userId: 'user',
+              path: path,
+              access: access,
+              navigate: (_) {},
+              organizationHome: Column(
+                children: [
+                  _Session(() => created++, 'Open report'),
+                  TextField(controller: input),
+                ],
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.byType(TextField),
+          'Salvestamata kokkuvõte',
+        );
+        expect(created, 1);
+        fail = true;
+        await access.refresh(invalidateFirst: false);
+        await tester.pumpAndSettle();
+        expect(created, 1);
+        expect(find.text('Salvestamata kokkuvõte'), findsOneWidget);
+        fail = false;
+        granted = true;
+        await access.refresh();
+        await tester.pumpAndSettle();
+        expect(created, 1);
+        expect(find.text('Merevalvekeskus'), findsOneWidget);
+        expect(find.text('Vali töökeskkond'), findsNothing);
+        access.pause();
+        await tester.pump();
+        expect(created, 1);
+        access.resume();
+        await tester.pumpAndSettle();
+        granted = false;
+        await access.refresh();
+        await tester.pumpAndSettle();
+        expect(created, 1);
+        expect(find.text('Merevalvekeskus'), findsNothing);
+        expect(find.text('Salvestamata kokkuvõte'), findsOneWidget);
+        await tester.pumpWidget(const SizedBox());
+        input.dispose();
+      },
+    );
+  }
   testWidgets(
     'center-enabled organization context preserves desktop content width',
     (tester) async {

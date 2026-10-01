@@ -4,6 +4,8 @@ Flutteri rakendus vabatahtlike merepäästeühingute liikmetele, ühingu adminis
 
 ## Praegune tööseis
 
+Ajakohane ülevaatus ja allesjäänud tööd: [väljalaske töökindluse ülevaatus](docs/release-readiness-review.md).
+
 Keskuste uusim lahendus ja kontrollid: [keskuste lõpetamise kokkuvõte](docs/center-completion.md). See asendab varasemates etapikirjeldustes säilinud liikmete erijaotuse ja korduva positiivse valmiduskinnituse nõuded.
 
 Katseveeb: https://respondcrew--keskused-katse-aznyqfmn.web.app/ (ajutine Hosting-kanal `keskused-katse`). See kasutab päris Firebase’i andmeid ja nõuab sisselogimist. Näidisandmetega proovivaade on eraldi `lib/main_center_demo.dart`.
