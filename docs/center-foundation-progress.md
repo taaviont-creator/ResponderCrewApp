@@ -1,5 +1,7 @@
 # Keskuste veebipõhi: esimene teostusetapp
 
+> Ajalooline etapiraport. Hilisem tegelik tööseis: [keskuste lõpetamise kokkuvõte](center-completion.md); praegused lahtised tööd: [väljalaske ülevaatus](release-readiness-review.md). Allpool säilinud varasema etapi piiranguid ei tule käsitleda tänase seisuna.
+
 30.09.2026. Alus: [keskuste arendusplaan](center-readiness-maps-plan.md).
 
 Järgnev teostusetapp: [päästebaasid, üksused ja ressursside jaotus](response-units-progress.md).

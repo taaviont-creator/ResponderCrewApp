@@ -1,5 +1,7 @@
 # Keskuste kaardivaate katsetamine
 
+> Ajalooline etapiraport. Hilisem tegelik tööseis: [keskuste lõpetamise kokkuvõte](center-completion.md); praegused lahtised tööd: [väljalaske ülevaatus](release-readiness-review.md). Allpool säilinud varasema etapi piiranguid ei tule käsitleda tänase seisuna.
+
 **Uuem pärisandmete testijuhend ja seis:** [keskuste esimese versiooni lõpetamine](center-completion.md). Allpool kirjeldatakse varasemaid näidis-/katseetappe; püsiv rohelise/kollase keeld enam ei kehti.
 
 Seis 30.09.2026. Jätk plaanile [center-readiness-maps-plan.md](center-readiness-maps-plan.md). Kaardi kasutajaliides on nüüd katsetatav; operatiivse pärisandmete valmiduse tervik pole veel valmis.

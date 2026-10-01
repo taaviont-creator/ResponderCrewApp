@@ -26,6 +26,8 @@ class _AppContextScreenState extends State<AppContextScreen>
     with WidgetsBindingObserver {
   late final _access =
       widget.access ?? CenterAccessService.firebase(widget.userId);
+  bool? _initialContextChoice;
+
   @override
   void initState() {
     super.initState();
@@ -73,6 +75,7 @@ class _AppContextScreenState extends State<AppContextScreen>
           ),
         );
       }
+      _initialContextChoice ??= contexts.isNotEmpty;
       Widget content;
       if (centerPath) {
         content = selected != null
@@ -107,7 +110,7 @@ class _AppContextScreenState extends State<AppContextScreen>
                   ),
                 ),
               );
-      } else if (widget.path == '/' && contexts.isNotEmpty) {
+      } else if (widget.path == '/' && _initialContextChoice!) {
         content = AppScaffold(
           appBar: AppBar(title: const Text('Vali töökeskkond')),
           body: ListView(
@@ -140,9 +143,8 @@ class _AppContextScreenState extends State<AppContextScreen>
       } else {
         content = widget.organizationHome ?? const HomeScreen();
       }
-      if (!centerPath && contexts.isEmpty && _access.error == null) {
-        return content;
-      }
+      final showContextBar =
+          centerPath || contexts.isNotEmpty || _access.error != null;
       // This is the application frame, not a bounded content page. In
       // particular the center map and the desktop navigation need its width.
       return Scaffold(
@@ -156,38 +158,39 @@ class _AppContextScreenState extends State<AppContextScreen>
                     'Keskuste ühendus on häiritud. Proovin automaatselt uuesti.',
                   ),
                 ),
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 4,
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Wrap(
-                        spacing: 8,
-                        children: [
-                          TextButton(
-                            onPressed: () => widget.navigate('/uhingud'),
-                            child: const Text('Minu ühingud'),
-                          ),
-                          for (final c in contexts)
+              if (showContextBar)
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 4,
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Wrap(
+                          spacing: 8,
+                          children: [
                             TextButton(
-                              onPressed: () => widget.navigate(c.path),
-                              child: Text(c.name),
+                              onPressed: () => widget.navigate('/uhingud'),
+                              child: const Text('Minu ühingud'),
                             ),
-                        ],
+                            for (final c in contexts)
+                              TextButton(
+                                onPressed: () => widget.navigate(c.path),
+                                child: Text(c.name),
+                              ),
+                          ],
+                        ),
                       ),
-                    ),
-                    IconButton(
-                      tooltip: 'Logi välja',
-                      onPressed: () => FirebaseAuth.instance.signOut(),
-                      icon: const Icon(Icons.logout),
-                    ),
-                  ],
+                      IconButton(
+                        tooltip: 'Logi välja',
+                        onPressed: () => FirebaseAuth.instance.signOut(),
+                        icon: const Icon(Icons.logout),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              Expanded(child: content),
+              Expanded(key: const ValueKey('context-content'), child: content),
             ],
           ),
         ),

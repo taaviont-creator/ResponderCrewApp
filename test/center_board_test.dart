@@ -28,6 +28,43 @@ Map<String, dynamic> board() {
 }
 
 void main() {
+  test('malformed optional legacy lists do not discard the board', () {
+    final item = CenterBoardItem.fromMap({
+      'id': 'old',
+      'reasons': 'legacy',
+      'vessels': 1,
+    });
+    expect(item.id, 'old');
+    expect(item.reasons, isEmpty);
+    expect(item.vessels, isEmpty);
+    expect(item.status, CenterReadinessStatus.unknown);
+  });
+
+  test(
+    'invalid access metadata cannot partially replace last verified board',
+    () async {
+      var data = board();
+      final service = CenterBoardService(
+        autoRefresh: false,
+        load: () async => data,
+      );
+      await service.refresh();
+      final checked = service.checkedAt;
+      data = {
+        ...board(),
+        'accessValidUntilMs': 'invalid',
+        'items': [
+          {'id': 'unverified'},
+        ],
+      };
+      await service.refresh();
+      expect(service.items.single.id, 'one');
+      expect(service.checkedAt, checked);
+      expect(service.freshConnection, isFalse);
+      expect(service.error, isNotNull);
+      service.dispose();
+    },
+  );
   test(
     'invalid coordinates never produce a marker and stale state is unknown',
     () {
