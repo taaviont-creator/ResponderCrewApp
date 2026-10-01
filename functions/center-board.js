@@ -1,4 +1,5 @@
 const {randomUUID}=require('node:crypto');
+const {FieldPath}=require('firebase-admin/firestore');
 const {HttpsError}=require('firebase-functions/v2/https');
 const {CENTERS,allowed}=require('./center-access');
 const {access}=require('./statistics-handlers');
@@ -25,6 +26,20 @@ function createCenterBoardHandlers({db,timestamp,now=Date.now}) {
     const grant=(await tx.get(db.doc(`centerAccess/${request.auth.uid}/grants/${id}`))).data();
     if(!allowed(grant,c,CENTERS[id].service,now())) throw new HttpsError('permission-denied','Keskuse ligipääsuõigus puudub või on aegunud.');
     return {id,service:CENTERS[id].service,grant};
+  }
+  async function publicationPage(tx,request,query) {
+    const pageSize=request.data?.pageSize ?? 100,cursor=request.data?.cursor ?? null;
+    if(!Number.isInteger(pageSize) || pageSize<1 || pageSize>100 ||
+      (cursor!==null && (typeof cursor!=='string' || !/^[A-Za-z0-9_-]{1,256}$/.test(cursor)))) {
+      throw new HttpsError('invalid-argument','Vigane lehekülje päring.');
+    }
+    query=query.orderBy(FieldPath.documentId());
+    if(cursor) query=query.startAfter(cursor);
+    const rows=await tx.get(query.limit(pageSize+1)),more=rows.size>pageSize;
+    // Legacy clients must fail visibly instead of displaying an incomplete list.
+    if(more && request.data?.pageSize===undefined) throw new HttpsError('resource-exhausted','Uuenda rakendust kogu loendi laadimiseks.');
+    const page=rows.docs.slice(0,pageSize);
+    return {page,nextCursor:more?page.at(-1).id:null};
   }
   function changeData(d) {
     if(!d || !validId(d.organizationId) || !Object.hasOwn(CENTERS,d.centerId) || typeof d.enabled!=='boolean' ||
@@ -68,23 +83,22 @@ function createCenterBoardHandlers({db,timestamp,now=Date.now}) {
     }),
     getCenterSharingRequests:request=>db.runTransaction(async tx=>{
       await platformAccess(txDb(tx),request);
-      const rows=await tx.get(db.collection('organizationCenterPublication').where('requested','==',true).limit(101));
-      if(rows.size>100) throw new HttpsError('resource-exhausted','Taotluste loend vajab lehekülgedega laadimist.');
+      const {page,nextCursor}=await publicationPage(tx,request,db.collection('organizationCenterPublication').where('requested','==',true));
       const entries=[];
-      for(const doc of rows.docs) {
+      for(const doc of page) {
         const d=doc.data(),org=(await tx.get(db.doc(`commands/${d.organizationId}`))).data();
         entries.push({organizationId:d.organizationId,name:org?.name || 'Ühing',centerId:d.centerId,
           approved:d.approved===true,revision:d.revision});
       }
-      return {entries};
+      return {entries,nextCursor};
     }),
     getCenterReadinessBoard:request=>db.runTransaction(async tx=>{
       const center=await centerAccess(tx,request),at=now();
       const source=txDb(tx),evidenceReader=createEvidenceReader(source);
-      const rows=await tx.get(db.collection('organizationCenterPublication').where('centerId','==',center.id).limit(26));
-      if(rows.size>25) throw new HttpsError('resource-exhausted','Katsevaate piir on 25 ühingut keskuse kohta.');
+      const {page,nextCursor}=await publicationPage(tx,request,db.collection('organizationCenterPublication')
+        .where('centerId','==',center.id).where('requested','==',true).where('approved','==',true));
       const items=[];
-      for(const row of rows.docs) {
+      for(const row of page) {
         const p=row.data(),org=p.organizationId;
         if(!p.requested || !p.approved || !validId(org)) continue;
         const organization=(await tx.get(db.doc(`commands/${org}`))).data();
@@ -101,7 +115,7 @@ function createCenterBoardHandlers({db,timestamp,now=Date.now}) {
       }
       // Check expiry after the potentially long read, too.
       await centerAccess(tx,request);
-      return {items,serverNowMs:now(),accessValidUntilMs:millis(center.grant.validUntil),pilot:true};
+      return {items,serverNowMs:now(),accessValidUntilMs:millis(center.grant.validUntil),nextCursor};
     }),
   };
 }

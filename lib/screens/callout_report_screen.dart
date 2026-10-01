@@ -1,3 +1,4 @@
+import '../navigation/navigation_protection.dart';
 import '../widgets/app_layout.dart';
 import '../models/equipment_model.dart';
 import 'package:cloud_functions/cloud_functions.dart';
@@ -57,6 +58,45 @@ class _CalloutReportScreenState extends State<CalloutReportScreen> {
     _outcome.dispose();
     _suggestions.dispose();
     super.dispose();
+  }
+
+  Future<bool> _confirmLeave() async {
+    if (_saving) return false;
+    if (!_dirty) return true;
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Salvestamata muudatused'),
+        content: const Text(
+          'Salvesta aruanne enne jätkamist või lahku muudatusi salvestamata.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Jätka täitmist'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'discard'),
+            child: const Text('Lahku salvestamata'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, 'save'),
+            child: const Text('Salvesta ja jätka'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return false;
+    if (choice == 'save') {
+      await _save(completed: _status == 'completed');
+      return mounted && !_dirty && !_saving && _error == null;
+    }
+    if (choice == 'discard') {
+      setState(() => _dirty = false);
+      await WidgetsBinding.instance.endOfFrame;
+      return mounted;
+    }
+    return false;
   }
 
   Future<void> _load() async {
@@ -310,397 +350,392 @@ class _CalloutReportScreenState extends State<CalloutReportScreen> {
             .map((m) => m['name'].toString())
             .firstOrNull ??
         'Määramata';
-    return PopScope(
-      canPop: !_saving && !_dirty,
-      onPopInvokedWithResult: (didPop, result) async {
-        if (didPop || _saving) return;
-        final leave = await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Salvestamata muudatused'),
-            content: const Text('Kas lahkud muudatusi salvestamata?'),
+    return NavigationLeaveGuard(
+      confirmLeave: _confirmLeave,
+      child: PopScope(
+        canPop: !_saving && !_dirty,
+        onPopInvokedWithResult: (didPop, result) async {
+          if (!didPop &&
+              await NavigationProtection.confirm() &&
+              context.mounted) {
+            Navigator.pop(context);
+          }
+        },
+        child: AppScaffold(
+          appBar: AppBar(
+            title: const Text('Sündmuse aruanne'),
             actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Jätka täitmist'),
+              IconButton(
+                tooltip: _dirty
+                    ? 'Salvesta enne PDF-i koostamist'
+                    : 'Ekspordi aruanne PDF-ina',
+                onPressed: _dirty || _saving || _loading || _data == null
+                    ? null
+                    : _exportPdf,
+                icon: const Icon(Icons.picture_as_pdf_outlined),
               ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Lahku'),
-              ),
+              if (!_dirty)
+                IconButton(
+                  tooltip: 'Värskenda',
+                  onPressed: _saving ? null : _load,
+                  icon: const Icon(Icons.refresh),
+                ),
             ],
           ),
-        );
-        if (leave == true && mounted) {
-          setState(() => _dirty = false);
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) Navigator.pop(context);
-          });
-        }
-      },
-      child: AppScaffold(
-        appBar: AppBar(
-          title: const Text('Sündmuse aruanne'),
-          actions: [
-            IconButton(
-              tooltip: _dirty
-                  ? 'Salvesta enne PDF-i koostamist'
-                  : 'Ekspordi aruanne PDF-ina',
-              onPressed: _dirty || _saving || _loading || _data == null
-                  ? null
-                  : _exportPdf,
-              icon: const Icon(Icons.picture_as_pdf_outlined),
-            ),
-            if (!_dirty)
-              IconButton(
-                tooltip: 'Värskenda',
-                onPressed: _saving ? null : _load,
-                icon: const Icon(Icons.refresh),
-              ),
-          ],
-        ),
-        bottomNavigationBar:
-            !edit || data == null || data['operationLogId'] == null || _loading
-            ? null
-            : Material(
-                elevation: 2,
-                child: SafeArea(
-                  top: false,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Wrap(
-                          spacing: 12,
-                          runSpacing: 4,
-                          alignment: WrapAlignment.end,
-                          children: [
-                            OutlinedButton(
-                              onPressed: _saving
-                                  ? null
-                                  : () => _save(completed: false),
-                              child: const Text('Salvesta mustand'),
-                            ),
-                            if (callout['status'] == 'closed')
-                              FilledButton(
+          bottomNavigationBar:
+              !edit ||
+                  data == null ||
+                  data['operationLogId'] == null ||
+                  _loading
+              ? null
+              : Material(
+                  elevation: 2,
+                  child: SafeArea(
+                    top: false,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Wrap(
+                            spacing: 12,
+                            runSpacing: 4,
+                            alignment: WrapAlignment.end,
+                            children: [
+                              OutlinedButton(
                                 onPressed: _saving
                                     ? null
-                                    : () => _save(completed: true),
-                                child: Text(
-                                  _status == 'completed'
-                                      ? 'Salvesta parandused'
-                                      : 'Märgi aruanne valmis',
-                                ),
+                                    : () => _save(completed: false),
+                                child: const Text('Salvesta mustand'),
                               ),
-                          ],
-                        ),
-                        if (_error != null)
-                          Text(
-                            _error!,
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.error,
-                            ),
+                              if (callout['status'] == 'closed')
+                                FilledButton(
+                                  onPressed: _saving
+                                      ? null
+                                      : () => _save(completed: true),
+                                  child: Text(
+                                    _status == 'completed'
+                                        ? 'Salvesta parandused'
+                                        : 'Märgi aruanne valmis',
+                                  ),
+                                ),
+                            ],
                           ),
-                        if (_saving) const LinearProgressIndicator(),
-                      ],
+                          if (_error != null)
+                            Text(
+                              _error!,
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.error,
+                              ),
+                            ),
+                          if (_saving) const LinearProgressIndicator(),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-        body: _loading
-            ? const Center(child: CircularProgressIndicator())
-            : ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  if (_error != null &&
-                      (!edit || data == null || data['operationLogId'] == null))
-                    Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Text(
-                        _error!,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
-                        ),
-                      ),
-                    ),
-                  if (data != null) ...[
-                    Text(
-                      _status == 'completed'
-                          ? 'Aruanne valmis'
-                          : 'Aruande mustand',
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                    if (_map(data['callout'])['isTest'] == true)
-                      const ListTile(
-                        leading: Icon(Icons.science_outlined),
-                        title: Text('Test-/proovisündmuse aruanne'),
-                        subtitle: Text(
-                          'Ei kuulu ametlikku aruandlusse. PDF on märgistatud testina.',
-                        ),
-                      ),
-                    _section('Sündmuse põhiandmed', [
-                      Text(callout['title'] ?? ''),
-                      Text('Ühing: ${data['organizationName']}'),
-                      Text(
-                        'Tüüp: ${CalloutType.label(callout['calloutType'] ?? 'sar')}',
-                      ),
-                      Text(
-                        'Algus: ${_date(callout['startedAt'] ?? callout['createdAt'])}',
-                      ),
-                      Text(
-                        'Lõpp: ${_date(callout['endedAt'] ?? callout['closedAt'])}',
-                      ),
-                      Text('Asukoht: ${callout['location'] ?? ''}'),
-                      if (callout['latitude'] != null &&
-                          callout['longitude'] != null)
-                        Text(
-                          'GPS: ${callout['latitude']}, ${callout['longitude']}',
-                        ),
-                      SelectableText('Sündmuse ID: ${widget.calloutId}'),
-                    ]),
-                    _section('Koostaja ja meeskonna juht', [
-                      if (edit) ...[
-                        for (final author in [true, false])
-                          DropdownButtonFormField<String>(
-                            key: ValueKey(
-                              'author-$author-${_map(data['report'])['revision']}',
-                            ),
-                            initialValue:
-                                (author ? _author : _leader).isEmpty ||
-                                    !authorOptions.any(
-                                      (m) =>
-                                          m['userId'] ==
-                                          (author ? _author : _leader),
-                                    )
-                                ? ''
-                                : (author ? _author : _leader),
-                            isExpanded: true,
-                            decoration: InputDecoration(
-                              labelText: author
-                                  ? 'Aruande koostaja'
-                                  : 'Meeskonna juht',
-                            ),
-                            items: [
-                              const DropdownMenuItem(
-                                value: '',
-                                child: Text('Vali liige'),
-                              ),
-                              for (final m in authorOptions)
-                                DropdownMenuItem(
-                                  value: m['userId'] as String,
-                                  child: Text(m['name'].toString()),
-                                ),
-                            ],
-                            onChanged: _saving
-                                ? null
-                                : (v) => setState(() {
-                                    _dirty = true;
-                                    if (author) {
-                                      _author = v ?? '';
-                                    } else {
-                                      _leader = v ?? '';
-                                    }
-                                  }),
+          body: _loading
+              ? const Center(child: CircularProgressIndicator())
+              : ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    if (_error != null &&
+                        (!edit ||
+                            data == null ||
+                            data['operationLogId'] == null))
+                      Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Text(
+                          _error!,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
                           ),
-                      ] else ...[
+                        ),
+                      ),
+                    if (data != null) ...[
+                      Text(
+                        _status == 'completed'
+                            ? 'Aruanne valmis'
+                            : 'Aruande mustand',
+                        style: Theme.of(context).textTheme.headlineSmall,
+                      ),
+                      if (_map(data['callout'])['isTest'] == true)
+                        const ListTile(
+                          leading: Icon(Icons.science_outlined),
+                          title: Text('Test-/proovisündmuse aruanne'),
+                          subtitle: Text(
+                            'Ei kuulu ametlikku aruandlusse. PDF on märgistatud testina.',
+                          ),
+                        ),
+                      _section('Sündmuse põhiandmed', [
+                        Text(callout['title'] ?? ''),
+                        Text('Ühing: ${data['organizationName']}'),
                         Text(
-                          'Koostaja: ${data['authorName'] ?? personName(_author)}',
+                          'Tüüp: ${CalloutType.label(callout['calloutType'] ?? 'sar')}',
                         ),
                         Text(
-                          'Juht: ${data['leaderName'] ?? personName(_leader)}',
+                          'Algus: ${_date(callout['startedAt'] ?? callout['createdAt'])}',
                         ),
-                      ],
-                    ]),
-                    _section('Kinnitatud meeskond', [
-                      if (_maps(
-                        data['crew'],
-                      ).any((m) => m['levelAtConfirmation'] != true))
-                        const Text(
-                          'Vanemate osalemiste juures kuvatakse liikme praegune merepääste aste.',
-                        ),
-                      if (_maps(data['crew']).isEmpty)
-                        const Text('Osalejaid pole veel kinnitatud.'),
-                      for (final m in _maps(data['crew']))
                         Text(
-                          '${m['name']} · ${m['level'] == 'level2'
-                              ? 'II aste'
-                              : m['level'] == 'level1'
-                              ? 'I aste'
-                              : 'Aste märkimata'}${m['hours'] == null ? '' : ' · ${m['hours']} t'}',
+                          'Lõpp: ${_date(callout['endedAt'] ?? callout['closedAt'])}',
                         ),
-                      if (edit)
-                        OutlinedButton.icon(
-                          onPressed: _saving || _dirty
-                              ? null
-                              : () async {
-                                  await Navigator.push(
-                                    context,
-                                    MaterialPageRoute<void>(
-                                      builder: (_) => CalloutAttendanceScreen(
-                                        organizationId: widget.organizationId,
-                                        calloutId: widget.calloutId,
-                                      ),
-                                    ),
-                                  );
-                                  if (mounted) await _load();
-                                },
-                          icon: const Icon(Icons.people_outline),
-                          label: const Text('Lisa / muuda ja kinnita osalejad'),
-                        ),
-                      if (_dirty)
-                        const Text(
-                          'Salvesta aruande muudatused enne osalejate vaate avamist.',
-                        ),
-                    ]),
-                    if (edit)
-                      _section('Seo kasutatud varustus', [
-                        ExpansionTile(
-                          title: Text('Valitud ${_equipment.length} eset'),
-                          children: [
-                            for (final group
-                                in EquipmentCategory.groupEquipment(
-                                  _maps(data['equipment']),
-                                ).entries) ...[
-                              ListTile(title: Text(group.key)),
-                              for (final e in group.value)
-                                CheckboxListTile(
-                                  title: Text('${e['name']}'),
-                                  value: _equipment.contains(e['id']),
-                                  onChanged: _saving
-                                      ? null
-                                      : (value) => setState(() {
-                                          _dirty = true;
-                                          if (value == true) {
-                                            _equipment.add(e['id']);
-                                          } else {
-                                            _equipment.remove(e['id']);
-                                          }
-                                        }),
-                                ),
-                            ],
-                          ],
-                        ),
+                        Text('Asukoht: ${callout['location'] ?? ''}'),
+                        if (callout['latitude'] != null &&
+                            callout['longitude'] != null)
+                          Text(
+                            'GPS: ${callout['latitude']}, ${callout['longitude']}',
+                          ),
+                        SelectableText('Sündmuse ID: ${widget.calloutId}'),
                       ]),
-                    for (final group in EquipmentCategory.groupEquipment(
-                      _maps(
-                        data['equipment'],
-                      ).where((e) => _equipment.contains(e['id'])),
-                    ).entries)
-                      _section(group.key, [
-                        for (final e in group.value) ...[
-                          if (edit &&
-                              EquipmentCategory.group(e['category']) ==
-                                  EquipmentCategory.group(
-                                    EquipmentCategory.vessel,
-                                  ))
-                            TextFormField(
+                      _section('Koostaja ja meeskonna juht', [
+                        if (edit) ...[
+                          for (final author in [true, false])
+                            DropdownButtonFormField<String>(
                               key: ValueKey(
-                                'registration-${e['id']}-${_map(data['report'])['revision']}',
+                                'author-$author-${_map(data['report'])['revision']}',
                               ),
                               initialValue:
-                                  _registrations[e['id']] ??
-                                  e['registrationNumber'] ??
-                                  '',
-                              maxLength: 100,
+                                  (author ? _author : _leader).isEmpty ||
+                                      !authorOptions.any(
+                                        (m) =>
+                                            m['userId'] ==
+                                            (author ? _author : _leader),
+                                      )
+                                  ? ''
+                                  : (author ? _author : _leader),
+                              isExpanded: true,
                               decoration: InputDecoration(
-                                labelText:
-                                    '${e['name']} · registreerimisnumber',
+                                labelText: author
+                                    ? 'Aruande koostaja'
+                                    : 'Meeskonna juht',
                               ),
-                              enabled: !_saving,
-                              onChanged: (value) => setState(() {
-                                _registrations[e['id']] = value;
-                                _dirty = true;
-                              }),
-                            )
-                          else
-                            Text(
-                              '${e['name']}${(_registrations[e['id']] ?? e['registrationNumber'] ?? '').toString().isEmpty ? '' : ' · ${_registrations[e['id']] ?? e['registrationNumber']}'}',
+                              items: [
+                                const DropdownMenuItem(
+                                  value: '',
+                                  child: Text('Vali liige'),
+                                ),
+                                for (final m in authorOptions)
+                                  DropdownMenuItem(
+                                    value: m['userId'] as String,
+                                    child: Text(m['name'].toString()),
+                                  ),
+                              ],
+                              onChanged: _saving
+                                  ? null
+                                  : (v) => setState(() {
+                                      _dirty = true;
+                                      if (author) {
+                                        _author = v ?? '';
+                                      } else {
+                                        _leader = v ?? '';
+                                      }
+                                    }),
                             ),
+                        ] else ...[
+                          Text(
+                            'Koostaja: ${data['authorName'] ?? personName(_author)}',
+                          ),
+                          Text(
+                            'Juht: ${data['leaderName'] ?? personName(_leader)}',
+                          ),
                         ],
                       ]),
-                    _section('Sündmuse kokkuvõte', [
-                      if (edit)
-                        const Text(
-                          'Kirjelda olukorda ja tulemust. Logi tegevusi pole vaja ümber kirjutada. Isikuandmed lisa eraldi seotud isikute alla.',
-                        ),
-                      _field('Kokkuvõte', _summary, edit),
-                      _field('Tulemus', _outcome, edit),
-                    ]),
-                    _section('Operatiivlogi', [
-                      if (_maps(data['timeline']).isEmpty)
-                        const Text('Logikanded puuduvad.'),
-                      for (final e in _maps(data['timeline']))
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: Text(
-                            '${_date(e['occurredAt'] ?? e['createdAt'])} — ${e['title'] ?? ''}\n${e['text'] ?? e['description'] ?? ''}\n${e['type'] == 'system'
-                                ? 'Automaatne sündmuse kirje'
-                                : e['type'] == 'manualNote'
-                                ? 'Liikme kommentaar'
-                                : e['type'] == 'quickAction'
-                                ? 'Liikme kiirtegevus'
-                                : e['type'] == 'summarySaved'
-                                ? 'Kokkuvõtte täiendus'
-                                : 'Staatuse kanne'}${e['latitude'] == null ? '' : ' · GPS: ${e['latitude']}, ${e['longitude']}'}',
+                      _section('Kinnitatud meeskond', [
+                        if (_maps(
+                          data['crew'],
+                        ).any((m) => m['levelAtConfirmation'] != true))
+                          const Text(
+                            'Vanemate osalemiste juures kuvatakse liikme praegune merepääste aste.',
                           ),
-                        ),
-                    ]),
-                    if (edit)
-                      _section('Seotud isikud · piiratud ligipääs', [
-                        const Text(
-                          'Nähtav ainult ühingu adminile ja II astme merepäästjale.',
-                        ),
-                        for (var i = 0; i < _persons.length; i++)
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(_persons[i]['name']),
-                            subtitle: Text(_persons[i]['role']),
-                            onTap: _saving ? null : () => _person(index: i),
-                            trailing: IconButton(
-                              tooltip: 'Eemalda isik aruandest',
-                              onPressed: _saving
-                                  ? null
-                                  : () => setState(() {
-                                      _persons.removeAt(i);
-                                      _dirty = true;
-                                    }),
-                              icon: const Icon(Icons.remove_circle_outline),
+                        if (_maps(data['crew']).isEmpty)
+                          const Text('Osalejaid pole veel kinnitatud.'),
+                        for (final m in _maps(data['crew']))
+                          Text(
+                            '${m['name']} · ${m['level'] == 'level2'
+                                ? 'II aste'
+                                : m['level'] == 'level1'
+                                ? 'I aste'
+                                : 'Aste märkimata'}${m['hours'] == null ? '' : ' · ${m['hours']} t'}',
+                          ),
+                        if (edit)
+                          OutlinedButton.icon(
+                            onPressed: _saving || _dirty
+                                ? null
+                                : () async {
+                                    await Navigator.push(
+                                      context,
+                                      MaterialPageRoute<void>(
+                                        builder: (_) => CalloutAttendanceScreen(
+                                          organizationId: widget.organizationId,
+                                          calloutId: widget.calloutId,
+                                        ),
+                                      ),
+                                    );
+                                    if (mounted) await _load();
+                                  },
+                            icon: const Icon(Icons.people_outline),
+                            label: const Text(
+                              'Lisa / muuda ja kinnita osalejad',
                             ),
                           ),
-                        OutlinedButton.icon(
-                          onPressed: _saving ? null : () => _person(),
-                          icon: const Icon(Icons.person_add_outlined),
-                          label: const Text('Lisa seotud isik'),
-                        ),
-                      ]),
-                    if (edit)
-                      _section('Sündmuse manused', [
-                        CalloutAttachments(
-                          organizationId: widget.organizationId,
-                          calloutId: widget.calloutId,
-                          items: _maps(data['attachments']),
-                          enabled: !_dirty && !_saving,
-                          onChanged: _load,
-                        ),
                         if (_dirty)
                           const Text(
-                            'Salvesta aruande muudatused enne manuse lisamist.',
+                            'Salvesta aruande muudatused enne osalejate vaate avamist.',
                           ),
                       ]),
-                    _section('Ettepanekud ja tähelepanekud', [
-                      _field('Ettepanekud / tähelepanekud', _suggestions, edit),
-                    ]),
-                    if (edit && data['operationLogId'] == null)
-                      const Text(
-                        'Ava sündmuse operatiivlogi, et saaksid aruande salvestada.',
-                      ),
+                      if (edit)
+                        _section('Seo kasutatud varustus', [
+                          ExpansionTile(
+                            title: Text('Valitud ${_equipment.length} eset'),
+                            children: [
+                              for (final group
+                                  in EquipmentCategory.groupEquipment(
+                                    _maps(data['equipment']),
+                                  ).entries) ...[
+                                ListTile(title: Text(group.key)),
+                                for (final e in group.value)
+                                  CheckboxListTile(
+                                    title: Text('${e['name']}'),
+                                    value: _equipment.contains(e['id']),
+                                    onChanged: _saving
+                                        ? null
+                                        : (value) => setState(() {
+                                            _dirty = true;
+                                            if (value == true) {
+                                              _equipment.add(e['id']);
+                                            } else {
+                                              _equipment.remove(e['id']);
+                                            }
+                                          }),
+                                  ),
+                              ],
+                            ],
+                          ),
+                        ]),
+                      for (final group in EquipmentCategory.groupEquipment(
+                        _maps(
+                          data['equipment'],
+                        ).where((e) => _equipment.contains(e['id'])),
+                      ).entries)
+                        _section(group.key, [
+                          for (final e in group.value) ...[
+                            if (edit &&
+                                EquipmentCategory.group(e['category']) ==
+                                    EquipmentCategory.group(
+                                      EquipmentCategory.vessel,
+                                    ))
+                              TextFormField(
+                                key: ValueKey(
+                                  'registration-${e['id']}-${_map(data['report'])['revision']}',
+                                ),
+                                initialValue:
+                                    _registrations[e['id']] ??
+                                    e['registrationNumber'] ??
+                                    '',
+                                maxLength: 100,
+                                decoration: InputDecoration(
+                                  labelText:
+                                      '${e['name']} · registreerimisnumber',
+                                ),
+                                enabled: !_saving,
+                                onChanged: (value) => setState(() {
+                                  _registrations[e['id']] = value;
+                                  _dirty = true;
+                                }),
+                              )
+                            else
+                              Text(
+                                '${e['name']}${(_registrations[e['id']] ?? e['registrationNumber'] ?? '').toString().isEmpty ? '' : ' · ${_registrations[e['id']] ?? e['registrationNumber']}'}',
+                              ),
+                          ],
+                        ]),
+                      _section('Sündmuse kokkuvõte', [
+                        if (edit)
+                          const Text(
+                            'Kirjelda olukorda ja tulemust. Logi tegevusi pole vaja ümber kirjutada. Isikuandmed lisa eraldi seotud isikute alla.',
+                          ),
+                        _field('Kokkuvõte', _summary, edit),
+                        _field('Tulemus', _outcome, edit),
+                      ]),
+                      _section('Operatiivlogi', [
+                        if (_maps(data['timeline']).isEmpty)
+                          const Text('Logikanded puuduvad.'),
+                        for (final e in _maps(data['timeline']))
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Text(
+                              '${_date(e['occurredAt'] ?? e['createdAt'])} — ${e['title'] ?? ''}\n${e['text'] ?? e['description'] ?? ''}\n${e['type'] == 'system'
+                                  ? 'Automaatne sündmuse kirje'
+                                  : e['type'] == 'manualNote'
+                                  ? 'Liikme kommentaar'
+                                  : e['type'] == 'quickAction'
+                                  ? 'Liikme kiirtegevus'
+                                  : e['type'] == 'summarySaved'
+                                  ? 'Kokkuvõtte täiendus'
+                                  : 'Staatuse kanne'}${e['latitude'] == null ? '' : ' · GPS: ${e['latitude']}, ${e['longitude']}'}',
+                            ),
+                          ),
+                      ]),
+                      if (edit)
+                        _section('Seotud isikud · piiratud ligipääs', [
+                          const Text(
+                            'Nähtav ainult ühingu adminile ja II astme merepäästjale.',
+                          ),
+                          for (var i = 0; i < _persons.length; i++)
+                            ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(_persons[i]['name']),
+                              subtitle: Text(_persons[i]['role']),
+                              onTap: _saving ? null : () => _person(index: i),
+                              trailing: IconButton(
+                                tooltip: 'Eemalda isik aruandest',
+                                onPressed: _saving
+                                    ? null
+                                    : () => setState(() {
+                                        _persons.removeAt(i);
+                                        _dirty = true;
+                                      }),
+                                icon: const Icon(Icons.remove_circle_outline),
+                              ),
+                            ),
+                          OutlinedButton.icon(
+                            onPressed: _saving ? null : () => _person(),
+                            icon: const Icon(Icons.person_add_outlined),
+                            label: const Text('Lisa seotud isik'),
+                          ),
+                        ]),
+                      if (edit)
+                        _section('Sündmuse manused', [
+                          CalloutAttachments(
+                            organizationId: widget.organizationId,
+                            calloutId: widget.calloutId,
+                            items: _maps(data['attachments']),
+                            enabled: !_dirty && !_saving,
+                            onChanged: _load,
+                          ),
+                          if (_dirty)
+                            const Text(
+                              'Salvesta aruande muudatused enne manuse lisamist.',
+                            ),
+                        ]),
+                      _section('Ettepanekud ja tähelepanekud', [
+                        _field(
+                          'Ettepanekud / tähelepanekud',
+                          _suggestions,
+                          edit,
+                        ),
+                      ]),
+                      if (edit && data['operationLogId'] == null)
+                        const Text(
+                          'Ava sündmuse operatiivlogi, et saaksid aruande salvestada.',
+                        ),
+                    ],
                   ],
-                ],
-              ),
+                ),
+        ),
       ),
     );
   }

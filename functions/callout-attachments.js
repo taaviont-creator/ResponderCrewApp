@@ -16,6 +16,7 @@ function createAttachmentHandlers({db,bucket,timestamp}) {
  return {
   upload:async request=>{
    const actor=await authorize(db,request),d=request.data;
+// eslint-disable-next-line no-control-regex -- Intentionally reject/remove control characters from untrusted input.
    if(!validId(d.requestId) || typeof d.name!=='string' || !d.name.trim() || d.name.length>160 || /[\\/\x00-\x1f]/.test(d.name) ||
       typeof d.base64!=='string' || d.base64.length>Math.ceil(MAX_BYTES/3)*4 || d.base64.length%4!==0)throw new HttpsError('invalid-argument','Kontrolli faili nime ja suurust (kuni 8 MB).');
    const contentType=types[d.name.split('.').pop().toLowerCase()];

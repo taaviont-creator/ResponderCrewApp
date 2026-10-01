@@ -1,8 +1,49 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:respondcrew_app/screens/platform_management_screen.dart';
+import 'package:respondcrew_app/screens/center_sharing_screen.dart';
 
 void main() {
+  for (final failedPage in [false, true]) {
+    testWidgets(
+      'center requests load every page without publishing partial results: failure=$failedPage',
+      (tester) async {
+        final cursors = <Object?>[];
+        await tester.pumpWidget(
+          MaterialApp(
+            home: CenterSharingScreen(
+              call: (name, args) async {
+                cursors.add(args['cursor']);
+                if (failedPage && args['cursor'] != null) {
+                  throw Exception('access revoked');
+                }
+                return {
+                  'entries': [
+                    {
+                      'organizationId': args['cursor'] ?? 'first',
+                      'name': args['cursor'] ?? 'First',
+                      'centerId': 'tross',
+                      'approved': false,
+                      'revision': 1,
+                    },
+                  ],
+                  'nextCursor': args['cursor'] == null ? 'Second' : null,
+                };
+              },
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(cursors, [null, 'Second']);
+        expect(find.text('First'), failedPage ? findsNothing : findsOneWidget);
+        expect(find.text('Second'), failedPage ? findsNothing : findsOneWidget);
+        if (failedPage) {
+          expect(find.textContaining('laadimine ebaõnnestus'), findsOneWidget);
+        }
+        await tester.pumpWidget(const SizedBox());
+      },
+    );
+  }
   testWidgets(
     'platform sections expose pending organizations, center approvals and access management on a narrow screen',
     (tester) async {

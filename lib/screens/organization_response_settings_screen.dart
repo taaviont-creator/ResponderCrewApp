@@ -1,3 +1,5 @@
+import 'dart:convert';
+import '../navigation/navigation_protection.dart';
 import '../widgets/app_layout.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
@@ -34,6 +36,56 @@ class _OrganizationResponseSettingsScreenState
   late final _service = widget.service ?? OrganizationResponseSettingsService();
   List<Map<String, dynamic>> _vessels = [];
   bool _loading = true, _saving = false, _loaded = false, _conflict = false;
+  String? _savedSignature;
+  String get _signature => jsonEncode([
+    _contact.text,
+    _phone.text,
+    _minimum.text,
+    for (final service in _enabled.keys)
+      [
+        _enabled[service],
+        _departure[service]!.text,
+        (_selected[service]!.toList()..sort()),
+      ],
+  ]);
+  bool get _dirty => _savedSignature != null && _savedSignature != _signature;
+  Future<bool> _confirmLeave() async {
+    if (_saving) return false;
+    if (!_dirty) return true;
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Salvestamata muudatused'),
+        content: const Text(
+          'Ühingu teenuste ja kontakti muudatused on salvestamata.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Jätka täitmist'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'discard'),
+            child: const Text('Lahku salvestamata'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, 'save'),
+            child: const Text('Salvesta ja jätka'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return false;
+    if (choice == 'save') {
+      await _save();
+      return mounted && !_dirty && _error == null;
+    }
+    if (choice != 'discard') return false;
+    setState(() => _savedSignature = _signature);
+    await WidgetsBinding.instance.endOfFrame;
+    return mounted;
+  }
+
   int _revision = 0;
   int? _sarMinimum;
   String? _error;
@@ -90,6 +142,7 @@ class _OrganizationResponseSettingsScreenState
           .whereType<Map>()
           .map((v) => Map<String, dynamic>.from(v))
           .toList();
+      _savedSignature = _signature;
       _loaded = true;
       _conflict = false;
     } catch (e) {
@@ -152,6 +205,7 @@ class _OrganizationResponseSettingsScreenState
       );
       if (!mounted) return;
       _revision = revision;
+      _savedSignature = _signature;
       widget.onSaved?.call();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Ühingu teenuste seaded salvestatud.')),
@@ -303,6 +357,7 @@ class _OrganizationResponseSettingsScreenState
           )
         : Form(
             key: _form,
+            onChanged: () => setState(() {}),
             child: ListView(
               shrinkWrap: widget.embedded,
               physics: widget.embedded
@@ -375,12 +430,23 @@ class _OrganizationResponseSettingsScreenState
               ],
             ),
           );
-    if (widget.embedded) return body;
-    return PopScope(
-      canPop: !_saving,
-      child: AppScaffold(
-        appBar: AppBar(title: const Text('Teenused ja kontakt')),
-        body: body,
+    return NavigationLeaveGuard(
+      confirmLeave: _confirmLeave,
+      child: PopScope(
+        canPop: !_saving && !_dirty,
+        onPopInvokedWithResult: (didPop, result) async {
+          if (!didPop &&
+              await NavigationProtection.confirm() &&
+              context.mounted) {
+            Navigator.pop(context);
+          }
+        },
+        child: widget.embedded
+            ? body
+            : AppScaffold(
+                appBar: AppBar(title: const Text('Teenused ja kontakt')),
+                body: body,
+              ),
       ),
     );
   }
