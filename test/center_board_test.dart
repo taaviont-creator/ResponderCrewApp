@@ -28,6 +28,52 @@ Map<String, dynamic> board() {
 }
 
 void main() {
+  test('all pages load atomically with conservative access expiry', () async {
+    final cursors = <String?>[];
+    final result = await loadCenterBoardPages((cursor) async {
+      cursors.add(cursor);
+      return {
+        'items': [
+          {'id': cursor ?? 'first'},
+        ],
+        'serverNowMs': 100,
+        'accessValidUntilMs': cursor == null ? 200 : 300,
+        'nextCursor': cursor == null ? 'second' : null,
+      };
+    });
+    expect(cursors, [null, 'second']);
+    expect((result['items'] as List).length, 2);
+    expect(result['accessValidUntilMs'], 200);
+  });
+  test('failed or repeated next page never returns a partial map', () async {
+    for (final revoke in [false, true]) {
+      var calls = 0;
+      final result = loadCenterBoardPages((cursor) async {
+        calls++;
+        if (revoke && cursor != null) {
+          throw FirebaseFunctionsException(
+            code: 'permission-denied',
+            message: 'revoked',
+          );
+        }
+        return {
+          'items': [
+            {'id': 'first'},
+          ],
+          'serverNowMs': 100,
+          'nextCursor': 'same',
+        };
+      });
+      await expectLater(
+        result,
+        throwsA(
+          revoke ? isA<FirebaseFunctionsException>() : isA<FormatException>(),
+        ),
+      );
+      expect(calls, 2);
+    }
+  });
+
   test('malformed optional legacy lists do not discard the board', () {
     final item = CenterBoardItem.fromMap({
       'id': 'old',

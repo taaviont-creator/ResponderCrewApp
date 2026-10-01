@@ -1,3 +1,4 @@
+import '../navigation/navigation_protection.dart';
 import 'notification_settings_screen.dart';
 import '../widgets/app_layout.dart';
 import 'organization_readiness_screen.dart';
@@ -117,6 +118,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final _organizationStreams =
       <String, Stream<DocumentSnapshot<Map<String, dynamic>>>>{};
   String? _pendingCalloutId;
+  CalloutNotificationOpenEvent? _deferredCallout;
   var _selectedNavigationIndex = 0;
   bool _savingAvailability = false;
 
@@ -174,10 +176,12 @@ class _HomeScreenState extends State<HomeScreen> {
   ) async {
     if (!mounted) return;
 
+    setState(() => _deferredCallout = event);
     try {
-      await _setActiveCommand(event.organizationId);
+      if (!await _setActiveCommand(event.organizationId)) return;
     } catch (_) {
       if (!mounted) return;
+      if (_deferredCallout == event) setState(() => _deferredCallout = null);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Selle väljakutse ühing ei ole enam aktiivne.'),
@@ -189,6 +193,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!mounted) return;
     _contentNavigatorKey.currentState?.popUntil((route) => route.isFirst);
     setState(() {
+      if (_deferredCallout == event) _deferredCallout = null;
       _pendingCalloutId = event.calloutId;
       _pendingNotificationPage = null;
       _selectedNavigationIndex = 1;
@@ -215,7 +220,7 @@ class _HomeScreenState extends State<HomeScreen> {
         }
         return;
       }
-      await _setActiveCommand(event.organizationId);
+      if (!await _setActiveCommand(event.organizationId)) return;
       if (!mounted) return;
       _contentNavigatorKey.currentState?.popUntil((route) => route.isFirst);
       setState(() {
@@ -253,7 +258,7 @@ class _HomeScreenState extends State<HomeScreen> {
           (user.uid != event.memberUserId && !admin)) {
         throw StateError('Access denied');
       }
-      await _setActiveCommand(event.organizationId);
+      if (!await _setActiveCommand(event.organizationId)) return;
       if (!mounted) return;
       setState(() {
         _selectedNavigationIndex = 4;
@@ -298,7 +303,7 @@ class _HomeScreenState extends State<HomeScreen> {
               event.organizationId) {
         throw StateError('Not an organization admin');
       }
-      await _setActiveCommand(event.organizationId);
+      if (!await _setActiveCommand(event.organizationId)) return;
       if (!mounted) return;
       setState(() {
         _selectedNavigationIndex = 4;
@@ -322,10 +327,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _signOut() async {
-    await FirebaseAuth.instance.signOut();
+    if (await NavigationProtection.confirm()) {
+      await FirebaseAuth.instance.signOut();
+    }
   }
 
-  Future<void> _setActiveCommand(String commandId) async {
+  Future<bool> _setActiveCommand(String commandId) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw Exception('Not authenticated');
     final organizationId = commandId.trim();
@@ -350,11 +357,13 @@ class _HomeScreenState extends State<HomeScreen> {
       throw Exception('Sul puudub selle ühingu aktiivne liikmelisus');
     }
 
+    if (!await NavigationProtection.confirm() || !mounted) return false;
     await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
       'activeOrganizationId': organizationId,
       'activeCommandId': organizationId,
       'commandId': organizationId,
     }, SetOptions(merge: true));
+    return true;
   }
 
   Future<void> _copyJoinCode(String joinCode) async {
@@ -554,7 +563,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     try {
-      await _setActiveCommand(selectedCommandId);
+      if (!await _setActiveCommand(selectedCommandId)) return;
 
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -2414,14 +2423,35 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
                   });
                 }
-                return MainNavigationShell(
-                  key: ValueKey('${user.uid}:$selectedOrganizationId'),
-                  navigatorKey: _contentNavigatorKey,
-                  currentIndex: _selectedNavigationIndex,
-                  onDestinationSelected: (index) {
-                    setState(() => _selectedNavigationIndex = index);
-                  },
-                  child: screens[_selectedNavigationIndex],
+                return Column(
+                  children: [
+                    if (_deferredCallout != null)
+                      MaterialBanner(
+                        content: const Text(
+                          'Väljakutse ootab avamist. Lõpeta või salvesta pooleliolev töö.',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => _handleCalloutNotificationOpen(
+                              _deferredCallout!,
+                            ),
+                            child: const Text('Ava väljakutse'),
+                          ),
+                        ],
+                      ),
+                    Expanded(
+                      key: const ValueKey('organization-content'),
+                      child: MainNavigationShell(
+                        key: ValueKey('${user.uid}:$selectedOrganizationId'),
+                        navigatorKey: _contentNavigatorKey,
+                        currentIndex: _selectedNavigationIndex,
+                        onDestinationSelected: (index) {
+                          setState(() => _selectedNavigationIndex = index);
+                        },
+                        child: screens[_selectedNavigationIndex],
+                      ),
+                    ),
+                  ],
                 );
               },
             );

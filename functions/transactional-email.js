@@ -5,6 +5,7 @@ const SMTP_HOST = 'smtp.zone.eu';
 const platformRoles = ['platformAdmin', 'platformOwner'];
 const orgOf = data => data?.organizationId || data?.commandId;
 const millis = value => value?.toMillis?.() ?? 0;
+// eslint-disable-next-line no-control-regex -- Intentionally reject/remove control characters from untrusted input.
 const safeText = value => String(value || '').replace(/[\r\n\u0000-\u001f\u007f]/g, ' ').slice(0, 200);
 const validEmail = value => typeof value === 'string' && value.length <= 254 &&
   /^[^\s@<>;,]+@[^\s@<>;,]+\.[^\s@<>;,]+$/.test(value);

@@ -17,12 +17,13 @@ class CenterBoardService extends ChangeNotifier {
     unawaited(refresh());
   }
   factory CenterBoardService.firebase(String centerId) => CenterBoardService(
-    load: () async {
-      final result = await FirebaseFunctions.instanceFor(
-        region: 'europe-north1',
-      ).httpsCallable('getCenterReadinessBoard').call({'centerId': centerId});
+    load: () => loadCenterBoardPages((cursor) async {
+      final result =
+          await FirebaseFunctions.instanceFor(region: 'europe-north1')
+              .httpsCallable('getCenterReadinessBoard')
+              .call({'centerId': centerId, 'pageSize': 25, 'cursor': ?cursor});
       return Map<String, dynamic>.from(result.data as Map);
-    },
+    }),
   );
   final Future<Map<String, dynamic>> Function() load;
   final _elapsed = Stopwatch()..start();
@@ -123,4 +124,50 @@ class CenterBoardService extends ChangeNotifier {
     _lastAttempt.stop();
     super.dispose();
   }
+}
+
+/// Assemble complete pages before publishing; failed/revoked pages never leak a partial board.
+Future<Map<String, dynamic>> loadCenterBoardPages(
+  Future<Map<String, dynamic>> Function(String? cursor) loadPage,
+) async {
+  final elapsed = Stopwatch()..start();
+  final items = <String, Map<String, dynamic>>{};
+  final seen = <String>{};
+  String? cursor;
+  int? expiry;
+  Map<String, dynamic> page;
+  do {
+    page = await loadPage(cursor);
+    if (elapsed.elapsed >= const Duration(seconds: 40)) {
+      throw TimeoutException('Board pagination timed out');
+    }
+    if (page['items'] is! List ||
+        page['serverNowMs'] is! int ||
+        (page['serverNowMs'] as int).abs() > 8640000000000000) {
+      throw const FormatException('Invalid board page');
+    }
+    final until = page['accessValidUntilMs'];
+    if (until != null && (until is! int || until.abs() > 8640000000000000)) {
+      throw const FormatException('Invalid access expiry');
+    }
+    if (until is int && (expiry == null || until < expiry)) expiry = until;
+    for (final raw in page['items'] as List) {
+      if (raw is! Map ||
+          raw['id'] is! String ||
+          (raw['id'] as String).isEmpty) {
+        throw const FormatException('Invalid board item');
+      }
+      items[raw['id'] as String] = Map<String, dynamic>.from(raw);
+    }
+    final next = page['nextCursor'];
+    if (next != null && (next is! String || next.isEmpty || !seen.add(next))) {
+      throw const FormatException('Invalid or repeated cursor');
+    }
+    cursor = next as String?;
+  } while (cursor != null);
+  return {
+    ...page,
+    'items': items.values.toList(),
+    'accessValidUntilMs': expiry,
+  };
 }

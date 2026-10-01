@@ -47,19 +47,39 @@ class _CenterSharingScreenState extends State<CenterSharingScreen> {
       _error = null;
     });
     try {
-      final data = await _call(
-        _platform ? 'getCenterSharingRequests' : 'getOrganizationCenterSharing',
-        {if (!_platform) 'organizationId': widget.organizationId},
-      );
+      Map<String, dynamic> data;
+      final entries = <Map<String, dynamic>>[];
+      final cursors = <String>{};
+      String? cursor;
+      do {
+        data = await _call(
+          _platform
+              ? 'getCenterSharingRequests'
+              : 'getOrganizationCenterSharing',
+          _platform
+              ? {'pageSize': 50, 'cursor': ?cursor}
+              : {'organizationId': widget.organizationId},
+        );
+        if (!mounted) return;
+        entries.addAll(
+          (data['entries'] as List).whereType<Map>().map(
+            (e) => Map<String, dynamic>.from(e),
+          ),
+        );
+        final next = data['nextCursor'];
+        if (next != null &&
+            (next is! String || next.isEmpty || !cursors.add(next))) {
+          throw const FormatException('Invalid cursor');
+        }
+        cursor = next as String?;
+      } while (_platform && cursor != null);
       if (mounted) {
         _positionReady = data['positionReady'] as bool?;
-        _entries = (data['entries'] as List? ?? [])
-            .whereType<Map>()
-            .map((e) => Map<String, dynamic>.from(e))
-            .toList();
+        _entries = entries;
       }
     } catch (_) {
       if (mounted) {
+        _entries = [];
         _error =
             'Jagamise seadete laadimine ebaõnnestus. Kontrolli ühendust ja õigust.';
       }

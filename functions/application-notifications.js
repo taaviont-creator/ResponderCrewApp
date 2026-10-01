@@ -4,6 +4,7 @@ const {organizationDocs} = require('./statistics-handlers');
 const {deliverOnce} = require('./transactional-email');
 const {deliveryId,platformRole} = require('./personal-notifications');
 const pending = d => d?.role === 'member' && d.status === 'pending' && d.isActive === false;
+// eslint-disable-next-line no-control-regex -- Intentionally reject/remove control characters from untrusted input.
 const safe = value => String(value || '').replace(/[\r\n\u0000-\u001f\u007f]/g,' ').slice(0,200);
 const validEmail = s => typeof s === 'string' && /^[^\s@<>;,]+@[^\s@<>;,]+\.[^\s@<>;,]+$/.test(s) && s.length <= 254;
 

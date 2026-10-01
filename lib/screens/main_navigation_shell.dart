@@ -1,3 +1,4 @@
+import '../navigation/navigation_protection.dart';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
@@ -26,6 +27,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
     if (_switching) return;
     _switching = true;
     try {
+      if (!await NavigationProtection.confirm() || !mounted) return;
       final navigator = _navigatorKey.currentState;
       while (navigator != null && navigator.canPop()) {
         final revision = _routeObserver.revision;

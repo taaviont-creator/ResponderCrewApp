@@ -1,3 +1,4 @@
+import 'navigation_protection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../auth/auth_gate.dart';
@@ -22,14 +23,17 @@ class AppRouter extends RouterDelegate<String>
   String _path = '/';
   @override
   String get currentConfiguration => _path;
-  void navigate(String path) {
+  void navigate(String path) async {
+    if (path == _path || !await NavigationProtection.confirm()) return;
     _path = path;
     notifyListeners();
   }
 
   @override
   Future<void> setNewRoutePath(String configuration) async {
-    _path = configuration;
+    if (configuration == _path || await NavigationProtection.confirm()) {
+      _path = configuration;
+    }
   }
 
   @override

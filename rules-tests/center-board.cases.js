@@ -64,6 +64,33 @@ module.exports=({getEnv,serverDb,serverRequire})=>{
       await assertFails(setDoc(doc(client,'organizationCenterPublication/approved-org_merevalvekeskus'),{approved:true}));
     }
   });
+  test('center board paginates over 25 organizations, ignores pending and checks access on every page', async()=>{
+    const {db,h,publish}=await setup();await publish();
+    const batch=db.batch();
+    for(let i=0;i<53;i++) {
+      const org='page-'+String(i).padStart(3,'0');
+      batch.set(db.doc(`commands/${org}`),{status:'approved',name:org});
+      batch.set(db.doc(`organizationResponseSettings/${org}`),{services:{sar:{enabled:true,departureMinutes:15,vesselIds:[]}}});
+      batch.set(db.doc(`organizationCenterPublication/${org}_merevalvekeskus`),{organizationId:org,centerId:'merevalvekeskus',requested:true,approved:true});
+      batch.set(db.doc(`organizationCenterPublication/pending-${org}`),{organizationId:org,centerId:'merevalvekeskus',requested:true,approved:false});
+    }
+    await batch.commit();
+    const read=cursor=>h.getCenterReadinessBoard(req({centerId:'merevalvekeskus',pageSize:25,cursor},'center'));
+    const ids=[];let cursor=null,pages=0;
+    do {const result=await read(cursor);pages++;ids.push(...result.items.map(x=>x.id));cursor=result.nextCursor;} while(cursor);
+    assert.equal(pages,3);assert.equal(ids.length,54);assert.equal(new Set(ids).size,54);
+    const sharingRows=[];cursor=null;pages=0;
+    do {
+      const result=await h.getCenterSharingRequests(req({pageSize:50,cursor},'platform-only'));
+      sharingRows.push(...result.entries);cursor=result.nextCursor;pages++;
+    } while(cursor);
+    assert.equal(sharingRows.length,107);assert.equal(pages,3);
+    await assert.rejects(h.getCenterSharingRequests(req({},'platform-only')),{code:'resource-exhausted'});
+    await assert.rejects(h.getCenterSharingRequests(req({pageSize:50},'org-admin')),{code:'permission-denied'});
+    const first=await read(null);
+    await db.doc('centerAccess/center/grants/merevalvekeskus').update({active:false});
+    await assert.rejects(read(first.nextCursor),{code:'permission-denied'});
+  });
   test('center sharing: no forced approval without consent, revision guard, foreign org prevention and audited withdrawal',async()=>{
     const {db,h,publish,board}=await setup();
     await assert.rejects(h.reviewOrganizationCenterSharing(req(sharing(),'platform-only')),{code:'failed-precondition'});

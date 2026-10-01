@@ -1,3 +1,4 @@
+import '../navigation/navigation_protection.dart';
 import '../widgets/app_layout.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -184,7 +185,11 @@ class _AppContextScreenState extends State<AppContextScreen>
                       ),
                       IconButton(
                         tooltip: 'Logi välja',
-                        onPressed: () => FirebaseAuth.instance.signOut(),
+                        onPressed: () async {
+                          if (await NavigationProtection.confirm()) {
+                            await FirebaseAuth.instance.signOut();
+                          }
+                        },
                         icon: const Icon(Icons.logout),
                       ),
                     ],

@@ -6,7 +6,7 @@
     "node": "22"
   },
   "scripts": {
-    "lint": "echo \"No lint configured\""
+    "lint": "eslint . --max-warnings 0"
   },
   "dependencies": {
     "firebase-admin": "^13.0.0",
@@ -14,5 +14,10 @@
     "luxon": "^3.7.2",
     "nodemailer": "^10.0.12"
   },
-  "private": true
+  "private": true,
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
+    "globals": "^16.5.0"
+  }
 }
