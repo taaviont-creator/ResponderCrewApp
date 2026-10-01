@@ -3,12 +3,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
-import 'auth/auth_gate.dart';
+import 'navigation/app_router.dart';
+import 'navigation/url_strategy.dart';
 import 'services/callout_alarm_notification_service.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  configureUrlStrategy();
   CalloutAlarmNotificationService.registerBackgroundHandler();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const MyApp());
@@ -24,15 +26,29 @@ Future<void> _initializeCalloutAlarmNotifications() async {
   }
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
   @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  final _router = AppRouter();
+
+  @override
+  void dispose() {
+    _router.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return MaterialApp.router(
       title: 'RespondCrew',
       theme: AppTheme.maritime,
-      home: const AuthGate(),
+      routerDelegate: _router,
+      routeInformationParser: const AppRouteParser(),
     );
   }
 }

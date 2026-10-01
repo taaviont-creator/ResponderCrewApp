@@ -1,3 +1,4 @@
+import '../widgets/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/operation_log_model.dart';
@@ -82,7 +83,7 @@ class _ReportState extends State<OperationLogReportScreen> {
                       attendanceHistory: history.data!,
                     )
                   : '';
-              return Scaffold(
+              return AppScaffold(
                 appBar: AppBar(
                   title: const Text('Logi väljavõte'),
                   actions: [

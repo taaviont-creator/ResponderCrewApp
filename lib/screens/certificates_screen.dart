@@ -1,3 +1,4 @@
+import '../widgets/app_layout.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -43,16 +44,18 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
     if (!mounted) return;
 
     if (members.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Liikmeid ei leitud.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Liikmeid ei leitud.')));
       return;
     }
 
     final titleController = TextEditingController(text: existing?.title);
     final issuerController = TextEditingController(text: existing?.issuer);
     final issuedAtController = TextEditingController(text: existing?.issuedAt);
-    final expiresAtController = TextEditingController(text: existing?.expiresAt);
+    final expiresAtController = TextEditingController(
+      text: existing?.expiresAt,
+    );
     final noteController = TextEditingController(text: existing?.note);
     var selectedMember = members.first;
     var selectedType = existing?.type ?? CertificateType.other;
@@ -63,16 +66,16 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) {
           return AlertDialog(
-            title: Text(existing == null ? 'Lisa tunnistus' : 'Muuda tunnistust'),
+            title: Text(
+              existing == null ? 'Lisa tunnistus' : 'Muuda tunnistust',
+            ),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<_MemberOption>(
                     initialValue: selectedMember,
-                    decoration: const InputDecoration(
-                      labelText: 'Liige',
-                    ),
+                    decoration: const InputDecoration(labelText: 'Liige'),
                     items: members.map((member) {
                       return DropdownMenuItem<_MemberOption>(
                         value: member,
@@ -87,16 +90,12 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
                   const SizedBox(height: 8),
                   TextField(
                     controller: titleController,
-                    decoration: const InputDecoration(
-                      labelText: 'Nimetus',
-                    ),
+                    decoration: const InputDecoration(labelText: 'Nimetus'),
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     initialValue: selectedType,
-                    decoration: const InputDecoration(
-                      labelText: 'Tüüp',
-                    ),
+                    decoration: const InputDecoration(labelText: 'Tüüp'),
                     items: CertificateType.values.map((type) {
                       return DropdownMenuItem<String>(
                         value: type,
@@ -119,9 +118,7 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
                   const SizedBox(height: 8),
                   TextField(
                     controller: issuerController,
-                    decoration: const InputDecoration(
-                      labelText: 'Väljastaja',
-                    ),
+                    decoration: const InputDecoration(labelText: 'Väljastaja'),
                   ),
                   const SizedBox(height: 8),
                   TextField(
@@ -142,9 +139,7 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     initialValue: selectedStatus,
-                    decoration: const InputDecoration(
-                      labelText: 'Staatus',
-                    ),
+                    decoration: const InputDecoration(labelText: 'Staatus'),
                     items: CertificateStatus.values.map((status) {
                       return DropdownMenuItem<String>(
                         value: status,
@@ -159,9 +154,7 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
                   const SizedBox(height: 8),
                   TextField(
                     controller: noteController,
-                    decoration: const InputDecoration(
-                      labelText: 'Märkus',
-                    ),
+                    decoration: const InputDecoration(labelText: 'Märkus'),
                     maxLines: 2,
                   ),
                 ],
@@ -176,8 +169,16 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
                 onPressed: () {
                   final text = expiresAtController.text.trim();
                   final date = DateTime.tryParse(text);
-                  if (titleController.text.trim().isEmpty || date == null || date.toIso8601String().substring(0, 10) != text) {
-                    ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Sisesta nimetus ja kehtiv aegumiskuupäev kujul AAAA-KK-PP.')));
+                  if (titleController.text.trim().isEmpty ||
+                      date == null ||
+                      date.toIso8601String().substring(0, 10) != text) {
+                    ScaffoldMessenger.of(this.context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Sisesta nimetus ja kehtiv aegumiskuupäev kujul AAAA-KK-PP.',
+                        ),
+                      ),
+                    );
                     return;
                   }
                   Navigator.pop(context, true);
@@ -193,7 +194,15 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
     final shouldCreate = await Navigator.of(context).push(route);
     await route.completed;
     if (shouldCreate != true || !mounted) {
-      for (final controller in [titleController, issuerController, issuedAtController, expiresAtController, noteController]) { controller.dispose(); }
+      for (final controller in [
+        titleController,
+        issuerController,
+        issuedAtController,
+        expiresAtController,
+        noteController,
+      ]) {
+        controller.dispose();
+      }
       return;
     }
     final title = titleController.text.trim();
@@ -216,18 +225,24 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
       );
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tunnistus salvestatud.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Tunnistus salvestatud.')));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Tunnistuse salvestamine ebaõnnestus.'),
-        ),
+        const SnackBar(content: Text('Tunnistuse salvestamine ebaõnnestus.')),
       );
     } finally {
-      for (final controller in [titleController, issuerController, issuedAtController, expiresAtController, noteController]) { controller.dispose(); }
+      for (final controller in [
+        titleController,
+        issuerController,
+        issuedAtController,
+        expiresAtController,
+        noteController,
+      ]) {
+        controller.dispose();
+      }
     }
   }
 
@@ -241,8 +256,10 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
       final uid = (membership['userId'] ?? '').toString();
       if (uid != (widget.targetUserId ?? widget.currentUid)) continue;
 
-      final userSnapshot =
-          await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final userSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
       final userData = userSnapshot.data() ?? <String, dynamic>{};
       final name = (userData['name'] ?? '').toString();
       final email = (userData['email'] ?? '').toString();
@@ -266,14 +283,13 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
       userId: widget.targetUserId ?? widget.currentUid,
     );
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Tunnistused'),
-      ),
+    return AppScaffold(
+      appBar: AppBar(title: const Text('Tunnistused')),
       floatingActionButton: widget.canManageCertificates
-          ? FloatingActionButton(
+          ? FloatingActionButton.extended(
               onPressed: () => _showAddCertificateDialog(),
-              child: const Icon(Icons.add),
+              icon: const Icon(Icons.add),
+              label: const Text('Lisa tunnistus'),
             )
           : null,
       body: StreamBuilder<List<CertificateModel>>(
@@ -330,8 +346,9 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
 
   Widget _buildAttentionCertificateTile(CertificateModel certificate) {
     final displayStatus = _certificateDisplayStatus(certificate);
-    final ownerPrefix =
-        widget.canManageCertificates ? '${certificate.userName}: ' : '';
+    final ownerPrefix = widget.canManageCertificates
+        ? '${certificate.userName}: '
+        : '';
     final expiryText = displayStatus == _unknownCertificateExpiryStatus
         ? ''
         : ' - ${_certificateExpiryText(certificate)}';
@@ -358,7 +375,13 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       title: Text(certificate.title),
-      trailing: widget.canManageCertificates ? IconButton(tooltip: 'Muuda tunnistust', icon: const Icon(Icons.edit_outlined), onPressed: () => _showAddCertificateDialog(certificate)) : null,
+      trailing: widget.canManageCertificates
+          ? IconButton(
+              tooltip: 'Muuda tunnistust',
+              icon: const Icon(Icons.edit_outlined),
+              onPressed: () => _showAddCertificateDialog(certificate),
+            )
+          : null,
       subtitle: Text(
         widget.canManageCertificates
             ? '${certificate.userName}\n${subtitleParts.join(' - ')}'
@@ -443,10 +466,7 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
 }
 
 class _MemberOption {
-  const _MemberOption({
-    required this.uid,
-    required this.name,
-  });
+  const _MemberOption({required this.uid, required this.name});
 
   final String uid;
   final String name;

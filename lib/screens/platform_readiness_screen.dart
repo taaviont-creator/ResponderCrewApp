@@ -1,3 +1,4 @@
+import '../widgets/app_layout.dart';
 import 'package:flutter/material.dart';
 
 import '../models/platform_readiness_model.dart';
@@ -27,22 +28,23 @@ class PlatformReadinessScreen extends StatefulWidget {
 class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
   final _platformReadinessService = PlatformReadinessService();
 
-  Future<void> _showSettingsDialog({
-    PlatformReadinessSummary? summary,
-  }) async {
+  Future<void> _showSettingsDialog({PlatformReadinessSummary? summary}) async {
     final organizationId = widget.activeOrganizationId;
     if (organizationId == null || organizationId.isEmpty) return;
 
     final regionController = TextEditingController(text: summary?.region ?? '');
-    final contactNameController =
-        TextEditingController(text: summary?.contactName ?? '');
-    final contactPhoneController =
-        TextEditingController(text: summary?.contactPhone ?? '');
+    final contactNameController = TextEditingController(
+      text: summary?.contactName ?? '',
+    );
+    final contactPhoneController = TextEditingController(
+      text: summary?.contactPhone ?? '',
+    );
     final minimumCrewController = TextEditingController(
       text: (summary?.minimumCrewRequired ?? 0).toString(),
     );
-    final criticalIssuesController =
-        TextEditingController(text: summary?.criticalIssues ?? '');
+    final criticalIssuesController = TextEditingController(
+      text: summary?.criticalIssues ?? '',
+    );
 
     var primaryVesselStatus =
         summary?.primaryVesselStatus ?? ReadinessEquipmentStatus.unknown;
@@ -55,7 +57,7 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) {
           return AlertDialog(
-            title: const Text('Ühingu reageerimisvalmiduse seaded'),
+            title: const Text('Ühingu valmiduse seaded'),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -76,8 +78,9 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     initialValue: primaryVesselStatus,
-                    decoration:
-                        const InputDecoration(labelText: 'Põhialuse staatus'),
+                    decoration: const InputDecoration(
+                      labelText: 'Põhialuse staatus',
+                    ),
                     items: ReadinessEquipmentStatus.values.map((status) {
                       return DropdownMenuItem<String>(
                         value: status,
@@ -92,8 +95,9 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     initialValue: equipmentStatus,
-                    decoration:
-                        const InputDecoration(labelText: 'Varustuse staatus'),
+                    decoration: const InputDecoration(
+                      labelText: 'Varustuse staatus',
+                    ),
                     items: ReadinessEquipmentStatus.values.map((status) {
                       return DropdownMenuItem<String>(
                         value: status,
@@ -113,14 +117,14 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
                   const SizedBox(height: 8),
                   TextField(
                     controller: contactNameController,
-                    decoration:
-                        const InputDecoration(labelText: 'Kontaktisik'),
+                    decoration: const InputDecoration(labelText: 'Kontaktisik'),
                   ),
                   const SizedBox(height: 8),
                   TextField(
                     controller: contactPhoneController,
-                    decoration:
-                        const InputDecoration(labelText: 'Kontakttelefon'),
+                    decoration: const InputDecoration(
+                      labelText: 'Kontakttelefon',
+                    ),
                   ),
                   const SizedBox(height: 8),
                   TextField(
@@ -140,8 +144,9 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
               ),
               ElevatedButton(
                 onPressed: () {
-                  final minimumCrew =
-                      int.tryParse(minimumCrewController.text.trim());
+                  final minimumCrew = int.tryParse(
+                    minimumCrewController.text.trim(),
+                  );
                   if (minimumCrew == null || minimumCrew < 0) {
                     setDialogState(
                       () => minimumCrewError = 'Sisesta korrektne arv.',
@@ -161,8 +166,7 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
     if (shouldSave != true) return;
 
     try {
-      final minimumCrewRequired =
-          int.parse(minimumCrewController.text.trim());
+      final minimumCrewRequired = int.parse(minimumCrewController.text.trim());
 
       await _platformReadinessService.saveOrganizationSettings(
         organizationId: organizationId,
@@ -179,7 +183,7 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ühingu reageerimisvalmiduse seaded salvestatud')),
+        const SnackBar(content: Text('Ühingu valmiduse seaded salvestatud')),
       );
     } catch (_) {
       if (!mounted) return;
@@ -198,8 +202,8 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
   @override
   Widget build(BuildContext context) {
     if (!widget.isPlatformAdmin && !widget.canManageOwnSummary) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Ühingu reageerimisvalmiduse seaded')),
+      return AppScaffold(
+        appBar: AppBar(title: const Text('Ühingu valmiduse seaded')),
         body: const Center(
           child: Text('See vaade on ainult administraatorile'),
         ),
@@ -210,22 +214,23 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
     final summariesStream = widget.isPlatformAdmin
         ? _platformReadinessService.streamAllSummaries()
         : activeOrganizationId == null || activeOrganizationId.isEmpty
-            ? Stream<List<PlatformReadinessSummary>>.value(
-                const <PlatformReadinessSummary>[],
-              )
-            : _platformReadinessService.streamOrganizationSummary(
-                organizationId: activeOrganizationId,
-              );
+        ? Stream<List<PlatformReadinessSummary>>.value(
+            const <PlatformReadinessSummary>[],
+          )
+        : _platformReadinessService.streamOrganizationSummary(
+            organizationId: activeOrganizationId,
+          );
 
-    return Scaffold(
+    return AppScaffold(
       appBar: AppBar(
         title: Text(
           widget.isPlatformAdmin
               ? 'Ühingute valmisoleku seaded'
-              : 'Ühingu reageerimisvalmiduse seaded',
+              : 'Ühingu valmiduse seaded',
         ),
       ),
-      floatingActionButton: widget.canManageOwnSummary &&
+      floatingActionButton:
+          widget.canManageOwnSummary &&
               activeOrganizationId != null &&
               activeOrganizationId.isNotEmpty
           ? FloatingActionButton(
@@ -242,14 +247,14 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
 
           if (snapshot.hasError) {
             return const Center(
-              child: Text('Ühingu reageerimisvalmiduse seadete laadimine ebaõnnestus.'),
+              child: Text('Ühingu valmiduse seadete laadimine ebaõnnestus.'),
             );
           }
 
           final summaries = snapshot.data ?? const <PlatformReadinessSummary>[];
           if (summaries.isEmpty) {
             return const Center(
-              child: Text('Ühingu reageerimisvalmiduse seadeid ei ole lisatud'),
+              child: Text('Ühingu valmiduse seadeid ei ole lisatud'),
             );
           }
 
@@ -259,7 +264,8 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
             separatorBuilder: (_, _) => const Divider(height: 1),
             itemBuilder: (context, index) {
               final summary = summaries[index];
-              final canEdit = widget.canManageOwnSummary &&
+              final canEdit =
+                  widget.canManageOwnSummary &&
                   summary.organizationId == widget.activeOrganizationId;
               final details = <String>[
                 summary.minimumCrewRequired > 0
@@ -274,10 +280,7 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
                 if (summary.region.isNotEmpty) summary.region,
                 if (summary.contactName.isNotEmpty ||
                     summary.contactPhone.isNotEmpty)
-                  'Kontakt: ${[
-                    if (summary.contactName.isNotEmpty) summary.contactName,
-                    if (summary.contactPhone.isNotEmpty) summary.contactPhone,
-                  ].join(' · ')}',
+                  'Kontakt: ${[if (summary.contactName.isNotEmpty) summary.contactName, if (summary.contactPhone.isNotEmpty) summary.contactPhone].join(' · ')}',
                 if (summary.criticalIssues.isNotEmpty)
                   'Probleemid: ${summary.criticalIssues}',
               ];

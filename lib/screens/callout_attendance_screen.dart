@@ -1,3 +1,4 @@
+import '../widgets/app_layout.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
@@ -49,10 +50,7 @@ class _CalloutAttendanceScreenState extends State<CalloutAttendanceScreen> {
         continue;
       }
       if (d.id != '${uid}_${widget.organizationId}') continue;
-      members[uid] = {
-        ...m,
-        'attendance': attendance[uid],
-      };
+      members[uid] = {...m, 'attendance': attendance[uid]};
     }
     return members.values.toList()..sort(
       (a, b) => (a['displayName'] as String? ?? '').compareTo(
@@ -62,7 +60,7 @@ class _CalloutAttendanceScreenState extends State<CalloutAttendanceScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) => AppScaffold(
     appBar: AppBar(title: const Text('Väljakutse osalejad')),
     body: FutureBuilder<List<Map<String, dynamic>>>(
       future: _future,

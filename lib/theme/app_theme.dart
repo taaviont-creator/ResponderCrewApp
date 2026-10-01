@@ -29,9 +29,9 @@ abstract final class AppColors {
 
 abstract final class AppTheme {
   static const double screenPadding = 16;
-  static const double sectionSpacing = 24;
+  static const double sectionSpacing = 20;
   static const double itemSpacing = 12;
-  static const double cardRadius = 16;
+  static const double cardRadius = 12;
   static const double controlRadius = 8;
   static const double minimumTouchTarget = 48;
   static const double primaryActionHeight = 56;
@@ -94,19 +94,19 @@ abstract final class AppTheme {
       ),
       titleMedium: TextStyle(
         fontSize: 16,
-        height: 1.5,
+        height: 1.4,
         fontWeight: FontWeight.w700,
         color: AppColors.textPrimary,
       ),
       bodyLarge: TextStyle(
         fontSize: 18,
-        height: 1.55,
+        height: 1.4,
         fontWeight: FontWeight.w400,
         color: AppColors.textPrimary,
       ),
       bodyMedium: TextStyle(
         fontSize: 16,
-        height: 1.5,
+        height: 1.4,
         fontWeight: FontWeight.w400,
         color: AppColors.textPrimary,
       ),
@@ -151,7 +151,7 @@ abstract final class AppTheme {
       cardTheme: CardThemeData(
         color: AppColors.surface,
         surfaceTintColor: Colors.transparent,
-        elevation: 1,
+        elevation: 0,
         margin: EdgeInsets.zero,
         shadowColor: const Color(0x14001E40),
         shape: RoundedRectangleBorder(
@@ -220,6 +220,38 @@ abstract final class AppTheme {
           foregroundColor: AppColors.deepSeaBlue,
           textStyle: textTheme.labelLarge,
         ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          minimumSize: const Size(48, minimumTouchTarget),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(controlRadius),
+          ),
+          textStyle: textTheme.labelLarge,
+        ),
+      ),
+      listTileTheme: const ListTileThemeData(
+        minVerticalPadding: 8,
+        titleTextStyle: TextStyle(
+          fontSize: 16,
+          height: 1.35,
+          fontWeight: FontWeight.w600,
+          color: AppColors.textPrimary,
+        ),
+        subtitleTextStyle: TextStyle(
+          fontSize: 14,
+          height: 1.4,
+          color: AppColors.textSecondary,
+        ),
+        contentPadding: EdgeInsets.symmetric(horizontal: 12),
+      ),
+      expansionTileTheme: const ExpansionTileThemeData(
+        shape: Border(),
+        collapsedShape: Border(),
+        tilePadding: EdgeInsets.symmetric(horizontal: 12),
+      ),
+      dialogTheme: const DialogThemeData(
+        constraints: BoxConstraints(maxWidth: 560),
       ),
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
         backgroundColor: AppColors.orange,

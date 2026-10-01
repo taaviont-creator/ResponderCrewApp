@@ -38,12 +38,20 @@ class _VesselStatusCardState extends State<VesselStatusCard> {
         );
       }
       if (!snapshot.hasData) return const LinearProgressIndicator();
-      final vessels = snapshot.data!
-          .where(
-            (item) =>
-                !item.isPersonal && item.category == EquipmentCategory.vessel,
-          )
-          .toList();
+      final vessels =
+          snapshot.data!
+              .where(
+                (item) =>
+                    !item.isPersonal &&
+                    (item.category == EquipmentCategory.vessel ||
+                        item.status != EquipmentStatus.ok),
+              )
+              .toList()
+            ..sort(
+              (a, b) => (a.status == EquipmentStatus.ok ? 1 : 0).compareTo(
+                b.status == EquipmentStatus.ok ? 1 : 0,
+              ),
+            );
       if (vessels.isEmpty) return const SizedBox.shrink();
       const labels = {
         'ok': 'Korras',
@@ -52,12 +60,14 @@ class _VesselStatusCardState extends State<VesselStatusCard> {
         'outOfService': 'Kasutusest väljas',
       };
       return AppSectionCard(
-        title: 'Aluste seisund',
+        title: 'Aluste ja varustuse seisund',
         leading: const Icon(Icons.sailing_outlined),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            for (final vessel in vessels)
+            if (vessels.length > 3)
+              Text('${vessels.length} alust või hoiatust · kuvatakse 3'),
+            for (final vessel in vessels.take(3))
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 6),
                 child: Text(

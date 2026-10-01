@@ -1,3 +1,4 @@
+import '../widgets/app_layout.dart';
 import '../widgets/callout_test_status_control.dart';
 import 'dart:async';
 import '../widgets/callout_response_controls.dart';
@@ -62,20 +63,35 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _canConfirmAttendance = CalloutAttendanceService().canManage(organizationId: widget.organizationId, userId: widget.currentUid);
-    _logStream = _operationLogService.streamLogForCallout(calloutId: widget.callout.id, organizationId: widget.organizationId);
+    _canConfirmAttendance = CalloutAttendanceService().canManage(
+      organizationId: widget.organizationId,
+      userId: widget.currentUid,
+    );
+    _logStream = _operationLogService.streamLogForCallout(
+      calloutId: widget.callout.id,
+      organizationId: widget.organizationId,
+    );
     _calloutSubscription = _calloutService
         .streamCallout(
           calloutId: widget.callout.id,
           organizationId: widget.organizationId,
         )
-        .listen((callout) {
-      if (!mounted) return;
-      if (callout == null) { setState(() => _calloutReadFailed = true); return; }
-      setState(() { _liveCallout = callout; _calloutReadFailed = false; });
-    }, onError: (Object _) {
-      if (mounted) setState(() => _calloutReadFailed = true);
-    });
+        .listen(
+          (callout) {
+            if (!mounted) return;
+            if (callout == null) {
+              setState(() => _calloutReadFailed = true);
+              return;
+            }
+            setState(() {
+              _liveCallout = callout;
+              _calloutReadFailed = false;
+            });
+          },
+          onError: (Object _) {
+            if (mounted) setState(() => _calloutReadFailed = true);
+          },
+        );
   }
 
   @override
@@ -91,9 +107,7 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(
-          isClosing ? 'Lõpeta sündmus' : 'Tühista väljakutse',
-        ),
+        title: Text(isClosing ? 'Lõpeta sündmus' : 'Tühista väljakutse'),
         content: Text(
           isClosing
               ? 'Kas soovid väljakutse "${_callout.title}" lõpetada?'
@@ -125,9 +139,7 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            isClosing
-                ? 'Väljakutse lõpetatud'
-                : 'Väljakutse tühistatud',
+            isClosing ? 'Väljakutse lõpetatud' : 'Väljakutse tühistatud',
           ),
         ),
       );
@@ -154,7 +166,8 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
 
     setState(() => _isOpeningOperationLog = true);
     try {
-      final log = existingLog ??
+      final log =
+          existingLog ??
           await _operationLogService.startFromCallout(
             callout: _callout,
             organizationId: widget.organizationId,
@@ -190,7 +203,7 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AppScaffold(
       appBar: AppBar(
         title: const Text('Väljakutse info'),
         actions: [
@@ -200,7 +213,10 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
               enabled: !_isUpdatingStatus && !_calloutReadFailed,
               onSelected: _updateCalloutStatus,
               itemBuilder: (context) => const [
-                PopupMenuItem(value: CalloutStatus.closed, child: Text('Lõpeta sündmus')),
+                PopupMenuItem(
+                  value: CalloutStatus.closed,
+                  child: Text('Lõpeta sündmus'),
+                ),
                 PopupMenuItem(
                   value: CalloutStatus.cancelled,
                   child: Text('Tühista väljakutse'),
@@ -212,31 +228,95 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
       body: ListView(
         padding: const EdgeInsets.all(AppTheme.screenPadding),
         children: [
-          if (_calloutReadFailed) const AppSectionCard(child: Text('Väljakutse värskendamine ebaõnnestus. Kuvatakse viimati saadud andmed. Kontrolli ühendust.')),
-          CalloutResponseControls(key: ValueKey(_callout.id), calloutId: _callout.id,
-            organizationId: widget.organizationId, userId: widget.currentUid, userName: widget.currentUserName,
-            active: _isActive, enabled: !_calloutReadFailed),
+          if (_calloutReadFailed)
+            const AppSectionCard(
+              child: Text(
+                'Väljakutse värskendamine ebaõnnestus. Kuvatakse viimati saadud andmed. Kontrolli ühendust.',
+              ),
+            ),
+          CalloutResponseControls(
+            key: ValueKey(_callout.id),
+            calloutId: _callout.id,
+            organizationId: widget.organizationId,
+            userId: widget.currentUid,
+            userName: widget.currentUserName,
+            active: _isActive,
+            enabled: !_calloutReadFailed,
+          ),
           const SizedBox(height: 12),
-          if (_callout.isTest) const ListTile(leading: Icon(Icons.science_outlined), title: Text('Test-/proovisündmus'), subtitle: Text('Ei kuulu ametlikku statistikasse.')),
+          if (_callout.isTest)
+            const ListTile(
+              leading: Icon(Icons.science_outlined),
+              title: Text('Test-/proovisündmus'),
+              subtitle: Text('Ei kuulu ametlikku statistikasse.'),
+            ),
           _buildOverviewCard(),
           const SizedBox(height: AppTheme.itemSpacing),
           _buildDescriptionCard(),
           const SizedBox(height: AppTheme.itemSpacing),
-          if (_callout.status == CalloutStatus.closed) const AppSectionCard(child: Text('Väljakutse on lõpetatud. Lisa või täienda nüüd operatiivlogi kokkuvõtet ja kinnita osalejad. Neid saab muuta ka hiljem.')),
+          if (_callout.status == CalloutStatus.closed)
+            const AppSectionCard(
+              child: Text(
+                'Väljakutse on lõpetatud. Lisa või täienda nüüd operatiivlogi kokkuvõtet ja kinnita osalejad. Neid saab muuta ka hiljem.',
+              ),
+            ),
           _buildOperationLogAction(),
-          FilledButton.icon(icon: const Icon(Icons.description_outlined), label: const Text('Sündmuse aruanne'), onPressed: () => Navigator.push(context, MaterialPageRoute<void>(builder: (_) => CalloutReportScreen(organizationId: widget.organizationId, calloutId: _callout.id)))),
-          CalloutTestStatusControl(key: ValueKey('${widget.organizationId}-${widget.callout.id}'), callout: _callout, organizationId: widget.organizationId, userId: widget.currentUid),
-          if (widget.canManageCallouts) OutlinedButton.icon(icon: const Icon(Icons.edit_outlined), label: const Text('Täienda sündmuse andmeid'), onPressed: () => showDialog<void>(context: context, builder: (_) => CalloutEditDialog(callout: _callout, organizationId: widget.organizationId))),
+          FilledButton.icon(
+            icon: const Icon(Icons.description_outlined),
+            label: const Text('Sündmuse aruanne'),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(
+                builder: (_) => CalloutReportScreen(
+                  organizationId: widget.organizationId,
+                  calloutId: _callout.id,
+                ),
+              ),
+            ),
+          ),
+          CalloutTestStatusControl(
+            key: ValueKey('${widget.organizationId}-${widget.callout.id}'),
+            callout: _callout,
+            organizationId: widget.organizationId,
+            userId: widget.currentUid,
+          ),
+          if (widget.canManageCallouts)
+            OutlinedButton.icon(
+              icon: const Icon(Icons.edit_outlined),
+              label: const Text('Täienda sündmuse andmeid'),
+              onPressed: () => showDialog<void>(
+                context: context,
+                builder: (_) => CalloutEditDialog(
+                  callout: _callout,
+                  organizationId: widget.organizationId,
+                ),
+              ),
+            ),
           const SizedBox(height: AppTheme.itemSpacing),
           if (widget.canManageCallouts) ...[
             _buildResponseSummary(),
             const SizedBox(height: AppTheme.sectionSpacing),
           ],
           if (_callout.status != CalloutStatus.cancelled)
-            StreamBuilder<bool>(stream: _canConfirmAttendance, builder: (context, snapshot) {
-              if (snapshot.data != true) return const SizedBox.shrink();
-              return OutlinedButton.icon(icon: const Icon(Icons.fact_check_outlined), label: const Text('Lisa / muuda ja kinnita osalejad'), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CalloutAttendanceScreen(organizationId: widget.organizationId, calloutId: _callout.id))));
-            }),
+            StreamBuilder<bool>(
+              stream: _canConfirmAttendance,
+              builder: (context, snapshot) {
+                if (snapshot.data != true) return const SizedBox.shrink();
+                return OutlinedButton.icon(
+                  icon: const Icon(Icons.fact_check_outlined),
+                  label: const Text('Lisa / muuda ja kinnita osalejad'),
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => CalloutAttendanceScreen(
+                        organizationId: widget.organizationId,
+                        calloutId: _callout.id,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
           const SizedBox(height: AppTheme.sectionSpacing),
         ],
       ),
@@ -247,39 +327,52 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
     return StreamBuilder<OperationLogModel?>(
       stream: _logStream,
       builder: (context, snapshot) {
-        if (snapshot.hasError) return const AppSectionCard(child: Text('Logi laadimine ebaõnnestus. Kontrolli ühendust.'));
-        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+        if (snapshot.hasError) {
+          return const AppSectionCard(
+            child: Text('Logi laadimine ebaõnnestus. Kontrolli ühendust.'),
+          );
+        }
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
           return const AppSectionCard(child: LinearProgressIndicator());
         }
         final existingLog = snapshot.data;
-        final canOpenOrStart = existingLog != null || widget.canStartOperationLog;
+        final canOpenOrStart =
+            existingLog != null || widget.canStartOperationLog;
         if (!canOpenOrStart) return const SizedBox.shrink();
 
         return AppSectionCard(
-          title: 'Operatiivlogi',
-          leading: const Icon(Icons.assignment_outlined),
+          padding: const EdgeInsets.all(12),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                existingLog == null
-                    ? 'Operatiivlogi luuakse selle väljakutse põhjal.'
-                    : 'Väljakutsega seotud operatiivlogi on valmis avamiseks.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
+              if (existingLog != null)
+                StreamBuilder<List<OperationLogEventModel>>(
+                  stream: _eventStreams.putIfAbsent(
+                    existingLog.id,
+                    () => _operationLogService.streamLogEvents(
+                      operationLogId: existingLog.id,
+                      organizationId: widget.organizationId,
                     ),
-              ),
-              if (existingLog != null) StreamBuilder<List<OperationLogEventModel>>(
-                stream: _eventStreams.putIfAbsent(existingLog.id, () => _operationLogService.streamLogEvents(operationLogId: existingLog.id, organizationId: widget.organizationId)),
-                builder: (context, events) {
-                  if (events.hasError) return const Text('Väljasõidu aega ei õnnestunud laadida.');
-                  if (!events.hasData) return const LinearProgressIndicator();
-                  return CalloutDepartureTiming(callout: _callout, events: events.data!);
-                },
-              ),
-              const SizedBox(height: 12),
+                  ),
+                  builder: (context, events) {
+                    if (events.hasError) {
+                      return const Text(
+                        'Väljasõidu aega ei õnnestunud laadida.',
+                      );
+                    }
+                    if (!events.hasData) return const LinearProgressIndicator();
+                    return CalloutDepartureTiming(
+                      callout: _callout,
+                      events: events.data!,
+                    );
+                  },
+                ),
+              const SizedBox(height: 8),
               PrimaryActionButton(
-                label: existingLog == null ? 'Alusta operatiivlogi' : 'Ava operatiivlogi',
+                label: existingLog == null
+                    ? 'Alusta operatiivlogi'
+                    : 'Ava operatiivlogi',
                 icon: existingLog == null
                     ? Icons.playlist_add_outlined
                     : Icons.open_in_new,
@@ -376,7 +469,11 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
           );
         }
 
-        if (snapshot.hasError) return const AppSectionCard(child: Text('Meeskonna vastuste laadimine ebaõnnestus.'));
+        if (snapshot.hasError) {
+          return const AppSectionCard(
+            child: Text('Meeskonna vastuste laadimine ebaõnnestus.'),
+          );
+        }
         final details = snapshot.data;
         if (details == null) {
           return const AppSectionCard(
@@ -436,14 +533,22 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
                         : 'II astme tulija puudub',
                     type: hasSecondLevelComing
                         ? StatusBadgeType.ready
-                        : _callout.calloutType == CalloutType.tross ? StatusBadgeType.neutral : StatusBadgeType.delayed,
+                        : _callout.calloutType == CalloutType.tross
+                        ? StatusBadgeType.neutral
+                        : StatusBadgeType.delayed,
                   ),
                 ],
               ),
               if (_callout.calloutType == CalloutType.tross) ...[
                 const SizedBox(height: 12),
-                Text(comingCount == 0 ? 'Reageerijaid pole veel kinnitatud.' : 'Reageerimine ei kinnita pardalolekut.'),
-                const Text('SAR-i koosseisu- ja astmenõuded TROSSI aktiveerimist ei piira.'),
+                Text(
+                  comingCount == 0
+                      ? 'Reageerijaid pole veel kinnitatud.'
+                      : 'Reageerimine ei kinnita pardalolekut.',
+                ),
+                const Text(
+                  'SAR-i koosseisu- ja astmenõuded TROSSI aktiveerimist ei piira.',
+                ),
               ],
               if (widget.canManageCallouts) ...[
                 const SizedBox(height: 16),
@@ -488,7 +593,15 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
                     color: _responseColor(member.response),
                   ),
                   const SizedBox(width: 8),
-                  Expanded(child: Text('${member.displayName} · ${member.isSeaRescueLevel2 ? 'II aste' : member.seaRescueLevel == 'level1' ? 'I aste' : 'Aste puudub'}')),
+                  Expanded(
+                    child: Text(
+                      '${member.displayName} · ${member.isSeaRescueLevel2
+                          ? 'II aste'
+                          : member.seaRescueLevel == 'level1'
+                          ? 'I aste'
+                          : 'Aste puudub'}',
+                    ),
+                  ),
                   if (showDelay && member.responseMinutes != null)
                     Text('${member.responseMinutes} min'),
                 ],
@@ -585,20 +698,19 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
   }
 
   String _dateTime(DateTime value) {
-    final date = '${value.day.toString().padLeft(2, '0')}.'
+    final date =
+        '${value.day.toString().padLeft(2, '0')}.'
         '${value.month.toString().padLeft(2, '0')}.'
         '${value.year}';
-    final time = '${value.hour.toString().padLeft(2, '0')}:'
+    final time =
+        '${value.hour.toString().padLeft(2, '0')}:'
         '${value.minute.toString().padLeft(2, '0')}';
     return '$date kell $time';
   }
 }
 
 class _InfoLine extends StatelessWidget {
-  const _InfoLine({
-    required this.icon,
-    required this.text,
-  });
+  const _InfoLine({required this.icon, required this.text});
 
   final IconData icon;
   final String text;

@@ -78,6 +78,8 @@ void main() {
         ),
       ),
     );
+    await tester.tap(find.text('Filtrid ja järjestus'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Kõik astmed'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('II aste').last);

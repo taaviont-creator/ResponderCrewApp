@@ -1,3 +1,4 @@
+import '../widgets/app_layout.dart';
 import 'organization_readiness_screen.dart';
 import 'members_screen.dart';
 import 'package:flutter/foundation.dart';
@@ -18,13 +19,7 @@ import 'callouts_screen.dart';
 import 'certificates_screen.dart';
 import 'equipment_screen.dart';
 
-enum _NotificationFilter {
-  all,
-  unread,
-  callouts,
-  equipment,
-  readiness,
-}
+enum _NotificationFilter { all, unread, callouts, equipment, readiness }
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({
@@ -60,8 +55,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   void initState() {
     super.initState();
-    _alarmReadinessFuture =
-        _calloutAlarmNotificationService.getNotificationReadiness();
+    _alarmReadinessFuture = _calloutAlarmNotificationService
+        .getNotificationReadiness();
   }
 
   Future<void> _refreshAlarmReadiness() async {
@@ -80,16 +75,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       final message = readiness.notificationsAllowed
           ? 'Väljakutse teavitused on lubatud.'
           : 'Teavitused vajavad telefoni seadetes luba.';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     } catch (_) {
       if (!mounted) return;
       setState(() => _isRefreshingAlarmReadiness = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Teavituste lubamine ebaõnnestus.'),
-        ),
+        const SnackBar(content: Text('Teavituste lubamine ebaõnnestus.')),
       );
     }
   }
@@ -112,24 +105,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 children: [
                   TextField(
                     controller: titleController,
-                    decoration: const InputDecoration(
-                      labelText: 'Pealkiri',
-                    ),
+                    decoration: const InputDecoration(labelText: 'Pealkiri'),
                   ),
                   const SizedBox(height: 8),
                   TextField(
                     controller: messageController,
-                    decoration: const InputDecoration(
-                      labelText: 'Sõnum',
-                    ),
+                    decoration: const InputDecoration(labelText: 'Sõnum'),
                     maxLines: 3,
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     initialValue: selectedType,
-                    decoration: const InputDecoration(
-                      labelText: 'Tüüp',
-                    ),
+                    decoration: const InputDecoration(labelText: 'Tüüp'),
                     items: NotificationType.values.map((type) {
                       return DropdownMenuItem<String>(
                         value: type,
@@ -144,9 +131,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     initialValue: selectedPriority,
-                    decoration: const InputDecoration(
-                      labelText: 'Prioriteet',
-                    ),
+                    decoration: const InputDecoration(labelText: 'Prioriteet'),
                     items: NotificationPriority.values.map((priority) {
                       return DropdownMenuItem<String>(
                         value: priority,
@@ -189,9 +174,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       );
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Teavitus lisatud')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Teavitus lisatud')));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -239,9 +224,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Kõigi loetuks märkimine ebaõnnestus.'),
-        ),
+        const SnackBar(content: Text('Kõigi loetuks märkimine ebaõnnestus.')),
       );
     }
   }
@@ -277,7 +260,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     if (!mounted) return;
 
     const supportedRelatedTypes = {
-      'member_request', 'personalAvailability',
+      'member_request',
+      'personalAvailability',
       'callout',
       'equipment',
       'activity',
@@ -285,10 +269,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       'organizationReadiness',
       'certificate',
     };
-    final targetType =
-        supportedRelatedTypes.contains(notification.relatedType)
-            ? notification.relatedType!
-            : notification.type;
+    final targetType = supportedRelatedTypes.contains(notification.relatedType)
+        ? notification.relatedType!
+        : notification.type;
     Widget? targetScreen;
 
     switch (targetType) {
@@ -311,10 +294,21 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         );
         break;
       case 'member_request':
-        if (widget.canManageNotifications) targetScreen = MembersScreen(organizationId:widget.organizationId,currentUid:widget.currentUid,canManageRoles:true);
+        if (widget.canManageNotifications) {
+          targetScreen = MembersScreen(
+            organizationId: widget.organizationId,
+            currentUid: widget.currentUid,
+            canManageRoles: true,
+          );
+        }
         break;
       case 'personalAvailability':
-        targetScreen = AvailabilityScreen(organizationId:widget.organizationId,currentUid:widget.currentUid,currentUserName:widget.currentUserName,canViewOrganizationReadiness:widget.canManageNotifications);
+        targetScreen = AvailabilityScreen(
+          organizationId: widget.organizationId,
+          currentUid: widget.currentUid,
+          currentUserName: widget.currentUserName,
+          canViewOrganizationReadiness: widget.canManageNotifications,
+        );
         break;
       case 'availability':
       case 'organizationReadiness':
@@ -402,14 +396,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Teavitused'),
-      ),
+    return AppScaffold(
+      appBar: AppBar(title: const Text('Teavitused')),
       floatingActionButton: widget.canManageNotifications
-          ? FloatingActionButton(
+          ? FloatingActionButton.extended(
               onPressed: _showAddNotificationDialog,
-              child: const Icon(Icons.add),
+              icon: const Icon(Icons.add),
+              label: const Text('Lisa teavitus'),
             )
           : null,
       body: StreamBuilder<List<NotificationModel>>(
@@ -456,26 +449,32 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         !readNotificationIds.contains(notification.id),
                   )
                   .length;
-              final filteredNotifications = notifications.where((notification) {
-                switch (_selectedFilter) {
-                  case _NotificationFilter.unread:
-                    return !readNotificationIds.contains(notification.id);
-                  case _NotificationFilter.callouts:
-                    return notification.type == NotificationType.callout ||
-                        notification.relatedType == NotificationType.callout;
-                  case _NotificationFilter.equipment:
-                    return notification.type == NotificationType.equipment ||
-                        notification.relatedType == NotificationType.equipment;
-                  case _NotificationFilter.readiness:
-                    return notification.type == NotificationType.availability ||
-                        notification.type == NotificationType.minimumCrew ||
-                        notification.type == NotificationType.readiness ||
-                        notification.relatedType == 'availability' ||
-                        notification.relatedType == 'organizationReadiness';
-                  case _NotificationFilter.all:
-                    return true;
-                }
-              }).toList(growable: false);
+              final filteredNotifications = notifications
+                  .where((notification) {
+                    switch (_selectedFilter) {
+                      case _NotificationFilter.unread:
+                        return !readNotificationIds.contains(notification.id);
+                      case _NotificationFilter.callouts:
+                        return notification.type == NotificationType.callout ||
+                            notification.relatedType ==
+                                NotificationType.callout;
+                      case _NotificationFilter.equipment:
+                        return notification.type ==
+                                NotificationType.equipment ||
+                            notification.relatedType ==
+                                NotificationType.equipment;
+                      case _NotificationFilter.readiness:
+                        return notification.type ==
+                                NotificationType.availability ||
+                            notification.type == NotificationType.minimumCrew ||
+                            notification.type == NotificationType.readiness ||
+                            notification.relatedType == 'availability' ||
+                            notification.relatedType == 'organizationReadiness';
+                      case _NotificationFilter.all:
+                        return true;
+                    }
+                  })
+                  .toList(growable: false);
 
               return ListView(
                 padding: const EdgeInsets.fromLTRB(
@@ -515,8 +514,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     _buildEmptyCard(_emptyFilterMessage())
                   else
                     ...filteredNotifications.map((notification) {
-                      final isRead =
-                          readNotificationIds.contains(notification.id);
+                      final isRead = readNotificationIds.contains(
+                        notification.id,
+                      );
                       return Padding(
                         padding: const EdgeInsets.only(
                           bottom: AppTheme.itemSpacing,
@@ -556,9 +556,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       child: Text(
         'Olulised väljakutsed, valmisoleku muutused ja varustuse teated '
         'ühes vaates. Uusimad teavitused on eespool.',
-        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppColors.textSecondary,
-            ),
+        style: Theme.of(
+          context,
+        ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
       ),
     );
   }
@@ -588,15 +588,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         final message = isLoading
             ? 'Kontrollin seadme teavituste luba.'
             : snapshot.hasError
-                ? 'Teavituste olekut ei saanud kontrollida.'
-                : !supported
-                    ? 'Väljakutse teavitused ei ole selles seadmes toetatud.'
-                    : allowed
-                        ? 'Väljakutse alarmi teavitused on selles seadmes lubatud.'
-                        : readiness?.permissionStatus == 'denied'
-                            ? 'Teavitused on keelatud. Luba need telefoni seadetes.'
-                            : 'Luba teavitused, et saada väljakutse alarmid ka siis, '
-                                'kui rakendus ei ole avatud.';
+            ? 'Teavituste olekut ei saanud kontrollida.'
+            : !supported
+            ? 'Väljakutse teavitused ei ole selles seadmes toetatud.'
+            : allowed
+            ? 'Väljakutse alarmi teavitused on selles seadmes lubatud.'
+            : readiness?.permissionStatus == 'denied'
+            ? 'Teavitused on keelatud. Luba need telefoni seadetes.'
+            : 'Luba teavitused, et saada väljakutse alarmid ka siis, '
+                  'kui rakendus ei ole avatud.';
 
         return AppSectionCard(
           accentColor: allowed ? AppColors.ready : AppColors.equipmentWarning,
@@ -605,17 +605,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           subtitle: isLoading
               ? 'Kontrollin'
               : allowed
-                  ? 'Lubatud'
-                  : supported
-                      ? 'Vajab luba'
-                      : 'Pole toetatud',
+              ? 'Lubatud'
+              : supported
+              ? 'Vajab luba'
+              : 'Pole toetatud',
           trailing: StatusBadge(
             label: _alarmPermissionBadgeLabel(readiness, isLoading),
             type: allowed
                 ? StatusBadgeType.ready
                 : supported
-                    ? StatusBadgeType.equipmentWarning
-                    : StatusBadgeType.neutral,
+                ? StatusBadgeType.equipmentWarning
+                : StatusBadgeType.neutral,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -710,7 +710,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     required NotificationModel notification,
     required bool isRead,
   }) {
-    final isUrgent = notification.priority == NotificationPriority.high ||
+    final isUrgent =
+        notification.priority == NotificationPriority.high ||
         notification.priority == NotificationPriority.critical ||
         notification.type == NotificationType.callout;
     final organizationId = notification.organizationId.isNotEmpty
@@ -722,10 +723,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       label: 'Ava teavitus ${notification.title}',
       child: InkWell(
         borderRadius: BorderRadius.circular(AppTheme.cardRadius),
-        onTap: () => _openNotification(
-          notification: notification,
-          isRead: isRead,
-        ),
+        onTap: () =>
+            _openNotification(notification: notification, isRead: isRead),
         child: AppSectionCard(
           accentColor: _notificationAccentColor(notification, isRead),
           padding: const EdgeInsets.all(14),
@@ -748,9 +747,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                 : notification.title,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
+                            style: Theme.of(context).textTheme.titleMedium
                                 ?.copyWith(
                                   fontWeight: isRead
                                       ? FontWeight.w700
@@ -775,12 +772,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                               const SizedBox(height: 6),
                               Text(
                                 _shortDateTime(notification.createdAt!),
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .labelMedium
-                                    ?.copyWith(
-                                      color: AppColors.textSecondary,
-                                    ),
+                                style: Theme.of(context).textTheme.labelMedium
+                                    ?.copyWith(color: AppColors.textSecondary),
                               ),
                             ],
                           ],
@@ -793,8 +786,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                     const SizedBox(height: 10),
                     Wrap(
@@ -853,7 +846,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       const SizedBox(height: 4),
                       Text(
                         'Oluline teavitus',
-                        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        style: Theme.of(context).textTheme.labelMedium
+                            ?.copyWith(
                               color: AppColors.activeCallout,
                               fontWeight: FontWeight.w700,
                             ),
@@ -915,10 +909,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
-  Color _notificationAccentColor(
-    NotificationModel notification,
-    bool isRead,
-  ) {
+  Color _notificationAccentColor(NotificationModel notification, bool isRead) {
     if (isRead) return AppColors.border;
     if (notification.priority == NotificationPriority.critical) {
       return AppColors.critical;
@@ -990,7 +981,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
   String _notificationDestinationLabel(NotificationModel notification) {
     const supportedRelatedTypes = {
-      'member_request', 'personalAvailability',
+      'member_request',
+      'personalAvailability',
       'callout',
       'equipment',
       'activity',
@@ -998,10 +990,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       'organizationReadiness',
       'certificate',
     };
-    final targetType =
-        supportedRelatedTypes.contains(notification.relatedType)
-            ? notification.relatedType!
-            : notification.type;
+    final targetType = supportedRelatedTypes.contains(notification.relatedType)
+        ? notification.relatedType!
+        : notification.type;
 
     switch (targetType) {
       case 'callout':
@@ -1085,7 +1076,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final date = DateTime(value.year, value.month, value.day);
-    final time = '${value.hour.toString().padLeft(2, '0')}:'
+    final time =
+        '${value.hour.toString().padLeft(2, '0')}:'
         '${value.minute.toString().padLeft(2, '0')}';
 
     if (date == today) return time;

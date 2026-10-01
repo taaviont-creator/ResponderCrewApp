@@ -1,0 +1,12 @@
+{
+  "hosting": {
+    "public": "build/center-demo",
+    "ignore": ["**/.*", "**/node_modules/**"],
+    "rewrites": [{"source": "**", "destination": "/index.html"}],
+    "headers": [
+      {"source": "/index.html", "headers": [{"key": "Cache-Control", "value": "no-cache"}]},
+      {"source": "**/*.js", "headers": [{"key": "Cache-Control", "value": "no-cache"}]},
+      {"source": "**", "headers": [{"key": "X-Content-Type-Options", "value": "nosniff"}, {"key": "Referrer-Policy", "value": "strict-origin-when-cross-origin"}]}
+    ]
+  }
+}

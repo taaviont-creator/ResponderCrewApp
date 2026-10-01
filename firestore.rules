@@ -2808,6 +2808,26 @@ service cloud.firestore {
     match /callouts/{calloutId}/changeHistory/{entryId} {
       allow read: if signedIn() && isActiveMember(resource.data.organizationId);
     }
+    // Center grants are independent of organization roles. Clients may watch
+    // only their own grants for invalidation; all changes use audited callables.
+    match /centerAccess/{userId}/grants/{centerId} {
+      allow read: if signedIn() && request.auth.uid == userId;
+      allow write: if false;
+    }
+    // The foundation does not expose operational data. Future projections need
+    // their own publication authorization; platformAdmin is not a bypass.
+    match /centers/{centerId} { allow read, write: if false; }
+    match /centerViews/{document=**} { allow read, write: if false; }
+    match /unitReadiness/{document=**} { allow read, write: if false; }
+    // Unit management is authorized inside transactions, including global
+    // resource reservations. No client (including platformAdmin) may bypass it.
+    match /rescueBases/{id} { allow read, write: if false; }
+    match /responseUnits/{id} { allow read, write: if false; }
+    match /unitRoster/{id} { allow read, write: if false; }
+    match /unitEquipment/{id} { allow read, write: if false; }
+    match /resourceAllocations/{id} { allow read, write: if false; }
+    match /vesselIdentities/{id} { allow read, write: if false; }
+
     match /platformAudit/{entryId} {
       allow read: if isPlatformAdmin();
     }

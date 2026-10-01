@@ -46,6 +46,14 @@ function serverDb() {
 }
 after(async () => { if (serverApp) await serverRequire('firebase-admin/app').deleteApp(serverApp); });
 
+require('./center-access.cases')({getEnv: () => testEnv, serverDb, serverRequire});
+require('./response-units.cases')({getEnv: () => testEnv, serverDb, serverRequire});
+require('./organization-map-location.cases')({getEnv: () => testEnv, serverDb, serverRequire});
+require('./organization-response-settings.cases')({getEnv: () => testEnv, serverDb, serverRequire});
+require('./center-board.cases')({getEnv: () => testEnv, serverDb, serverRequire});
+require('./center-confirmation.cases')({getEnv: () => testEnv, serverDb, serverRequire});
+require('./center-completion.cases')({getEnv: () => testEnv, serverDb, serverRequire});
+
 before(async () => {
   testEnv = await initializeTestEnvironment({
     projectId,

@@ -1,3 +1,4 @@
+import '../widgets/app_layout.dart';
 import '../widgets/upcoming_activities.dart';
 import 'package:flutter/material.dart';
 
@@ -8,7 +9,7 @@ import '../services/equipment_service.dart';
 import '../widgets/pending_member_requests_notice.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_section_card.dart';
-import '../widgets/primary_action_button.dart';
+import '../widgets/dashboard_quick_actions.dart';
 import '../widgets/status_badge.dart';
 
 class AdminHomeDashboard extends StatelessWidget {
@@ -26,6 +27,7 @@ class AdminHomeDashboard extends StatelessWidget {
     required this.onOpenCallout,
     required this.onOpenMembers,
     required this.onOpenEquipment,
+    required this.onOpenActivities,
     required this.onOpenNotifications,
   });
 
@@ -41,31 +43,54 @@ class AdminHomeDashboard extends StatelessWidget {
   final ValueChanged<String> onOpenCallout;
   final VoidCallback onOpenMembers;
   final VoidCallback onOpenEquipment;
+  final VoidCallback onOpenActivities;
   final VoidCallback onOpenNotifications;
 
   final EquipmentService _equipmentService = EquipmentService();
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(AppTheme.screenPadding),
-      children: [
-        ActiveCalloutsCard(key: ValueKey(organizationId), organizationId: organizationId, userId: currentUid, userName: currentUserName, onOpen: onOpenCallout),
+    return ResponsiveSections(
+      header: [
+        ActiveCalloutsCard(
+          key: ValueKey(organizationId),
+          organizationId: organizationId,
+          userId: currentUid,
+          userName: currentUserName,
+          onOpen: onOpenCallout,
+        ),
+      ],
+      primary: [
         topHeader,
         const SizedBox(height: 16),
-        CrewReadinessCard( onOpenDetails: onOpenReadiness, organizationId: organizationId, currentUid: currentUid),
+        CrewReadinessCard(
+          memberPreviewLimit: 3,
+          onOpenDetails: onOpenReadiness,
+          organizationId: organizationId,
+          currentUid: currentUid,
+        ),
         const SizedBox(height: 16),
-        PendingMemberRequestsNotice(organizationId: organizationId, currentUid: currentUid),
-        Text('Kiirtegevused', style: Theme.of(context).textTheme.titleLarge),
-        PrimaryActionButton(label: 'Loo väljakutse', icon: Icons.campaign_outlined,
-          style: PrimaryActionButtonStyle.danger, onPressed: onCreateCallout),
-        const SizedBox(height: 8),
-        OutlinedButton.icon(onPressed: onCreateActivity, icon: const Icon(Icons.event_available), label: const Text('Lisa tegevus / koolitus')),
+        PendingMemberRequestsNotice(
+          organizationId: organizationId,
+          currentUid: currentUid,
+        ),
+      ],
+      secondary: [
+        DashboardQuickActions(
+          onCreateCallout: onCreateCallout,
+          onCreateActivity: onCreateActivity,
+        ),
+        SectionHeading(
+          title: 'Lähiaja tegevused ja koolitused',
+          onOpen: onOpenActivities,
+        ),
+        UpcomingActivities(
+          key: ValueKey(organizationId),
+          organizationId: organizationId,
+          userId: currentUid,
+        ),
         const SizedBox(height: 16),
-        Text('Lähiaja tegevused ja koolitused', style: Theme.of(context).textTheme.titleLarge),
-        UpcomingActivities(key: ValueKey(organizationId), organizationId: organizationId, userId: currentUid),
-        const SizedBox(height: 16),
-        _SectionTitle(title: 'Alused ja varustus', onOpen: onOpenEquipment),
+        SectionHeading(title: 'Alused ja varustus', onOpen: onOpenEquipment),
         const SizedBox(height: 8),
         _buildEquipmentAlerts(),
         const SizedBox(height: 16),
@@ -84,13 +109,25 @@ class AdminHomeDashboard extends StatelessWidget {
           return const _PreviewLoadingCard();
         }
 
-        if (snapshot.hasError) return const AppSectionCard(child: Text('Aluste ja varustuse seisundit ei õnnestunud laadida.'));
-        final alerts = (snapshot.data ?? const <EquipmentModel>[])
-            .where(
-              (item) =>
-                  !item.isPersonal && (item.category == EquipmentCategory.vessel || item.status != EquipmentStatus.ok),
-            )
-            .toList();
+        if (snapshot.hasError) {
+          return const AppSectionCard(
+            child: Text('Aluste ja varustuse seisundit ei õnnestunud laadida.'),
+          );
+        }
+        final alerts =
+            (snapshot.data ?? const <EquipmentModel>[])
+                .where(
+                  (item) =>
+                      !item.isPersonal &&
+                      (item.category == EquipmentCategory.vessel ||
+                          item.status != EquipmentStatus.ok),
+                )
+                .toList()
+              ..sort(
+                (a, b) => (a.status == EquipmentStatus.ok ? 1 : 0).compareTo(
+                  b.status == EquipmentStatus.ok ? 1 : 0,
+                ),
+              );
 
         if (alerts.isEmpty) {
           return const _EmptyPreviewCard(
@@ -102,17 +139,27 @@ class AdminHomeDashboard extends StatelessWidget {
         return AppSectionCard(
           padding: EdgeInsets.zero,
           accentColor: alerts.any((item) => item.status != EquipmentStatus.ok)
-              ? AppColors.equipmentWarning : null,
+              ? AppColors.equipmentWarning
+              : null,
           child: Column(
             children: [
-              for (var index = 0;
-                  index < alerts.length;
-                  index++) ...[
+              if (alerts.length > 3)
+                ListTile(
+                  title: Text(
+                    '${alerts.length} alust või hoiatust · kuvatakse 3',
+                  ),
+                  onTap: onOpenEquipment,
+                ),
+              for (
+                var index = 0;
+                index < alerts.length.clamp(0, 3);
+                index++
+              ) ...[
                 _EquipmentAlertTile(
                   item: alerts[index],
                   onTap: onOpenEquipment,
                 ),
-                if (index < alerts.length - 1)
+                if (index < alerts.length.clamp(0, 3) - 1)
                   const Divider(height: 1),
               ],
             ],
@@ -121,50 +168,18 @@ class AdminHomeDashboard extends StatelessWidget {
       },
     );
   }
-
-}
-
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({
-    required this.title,
-    required this.onOpen,
-  });
-
-  final String title;
-  final VoidCallback onOpen;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            title,
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-        ),
-        IconButton(
-          onPressed: onOpen,
-          icon: const Icon(Icons.arrow_forward),
-          tooltip: 'Ava kõik',
-        ),
-      ],
-    );
-  }
 }
 
 class _EquipmentAlertTile extends StatelessWidget {
-  const _EquipmentAlertTile({
-    required this.item,
-    required this.onTap,
-  });
+  const _EquipmentAlertTile({required this.item, required this.onTap});
 
   final EquipmentModel item;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final isCritical = item.status == EquipmentStatus.broken ||
+    final isCritical =
+        item.status == EquipmentStatus.broken ||
         item.status == EquipmentStatus.outOfService;
 
     return InkWell(
@@ -193,19 +208,22 @@ class _EquipmentAlertTile extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 12),
-            Flexible(child: StatusBadge(
-              label: switch (item.status) {
-                EquipmentStatus.ok => 'Korras',
-                EquipmentStatus.needsMaintenance => 'Vajab hooldust',
-                EquipmentStatus.broken => 'Rikkis',
-                EquipmentStatus.outOfService => 'Kasutusest väljas',
-                _ => 'Seisund teadmata',
-              },
-              type: isCritical
-                  ? StatusBadgeType.critical
-                  : item.status == EquipmentStatus.ok
-                      ? StatusBadgeType.ready : StatusBadgeType.equipmentWarning,
-            )),
+            Flexible(
+              child: StatusBadge(
+                label: switch (item.status) {
+                  EquipmentStatus.ok => 'Korras',
+                  EquipmentStatus.needsMaintenance => 'Vajab hooldust',
+                  EquipmentStatus.broken => 'Rikkis',
+                  EquipmentStatus.outOfService => 'Kasutusest väljas',
+                  _ => 'Seisund teadmata',
+                },
+                type: isCritical
+                    ? StatusBadgeType.critical
+                    : item.status == EquipmentStatus.ok
+                    ? StatusBadgeType.ready
+                    : StatusBadgeType.equipmentWarning,
+              ),
+            ),
           ],
         ),
       ),
@@ -214,10 +232,7 @@ class _EquipmentAlertTile extends StatelessWidget {
 }
 
 class _EmptyPreviewCard extends StatelessWidget {
-  const _EmptyPreviewCard({
-    required this.icon,
-    required this.message,
-  });
+  const _EmptyPreviewCard({required this.icon, required this.message});
 
   final IconData icon;
   final String message;
@@ -232,9 +247,9 @@ class _EmptyPreviewCard extends StatelessWidget {
           Expanded(
             child: Text(
               message,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
             ),
           ),
         ],

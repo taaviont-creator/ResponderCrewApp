@@ -1,3 +1,4 @@
+import '../widgets/app_layout.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
@@ -64,7 +65,7 @@ class _NotificationSettingsScreenState
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) => AppScaffold(
     appBar: AppBar(title: const Text('Teavituste seaded')),
     body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: _stream,
@@ -100,78 +101,88 @@ class _NotificationSettingsScreenState
               ),
             if (_saving != null) const LinearProgressIndicator(),
             const Divider(),
-            const Text(
-              'SAR-häire telefonis',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const Text(
-              'Luba RespondCrew teavitused ja SAR-häire kanali heli, vibratsioon ning lukustuskuva teavitus. Trossi mereabi ja valmiduse muutused kasutavad eraldi tavalisemaid teavitusi.',
-            ),
-            OutlinedButton(
-              onPressed: () async {
-                try {
-                  await CalloutAlarmNotificationService.instance
-                      .requestPermissionAndRefreshRegistration();
-                } catch (_) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Kontrolli telefoni teavitusluba ja ühendust.',
-                        ),
-                      ),
-                    );
-                  }
-                }
-              },
-              child: const Text('Kontrolli / luba teavitused'),
-            ),
-            if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) ...[
-              OutlinedButton(
-                onPressed: () => _deviceSettings('openSarChannel'),
-                child: const Text('Ava SAR-häire telefoni seaded'),
+            if (kIsWeb)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Text(
+                  'SAR-häire heli ja lukustuskuva teavitused seadista RespondCrew telefoniäpis.',
+                ),
+              ),
+            if (!kIsWeb) ...[
+              const Text(
+                'SAR-häire telefonis',
+                style: TextStyle(fontWeight: FontWeight.bold),
               ),
               const Text(
-                '„Mitte segada“ režiimis sõltub heli sinu telefoni lubatud eranditest. Soovi korral luba Androidi seadetes RespondCrew SAR-kanalile erand. Rakendus ise režiimi ega sinu helivalikuid ei muuda.',
+                'Luba RespondCrew teavitused ja SAR-häire kanali heli, vibratsioon ning lukustuskuva teavitus. Trossi mereabi ja valmiduse muutused kasutavad eraldi tavalisemaid teavitusi.',
               ),
-              TextButton(
-                onPressed: () => _deviceSettings('openDndSettings'),
-                child: const Text('Ava „Mitte segada“ seaded'),
+              OutlinedButton(
+                onPressed: () async {
+                  try {
+                    await CalloutAlarmNotificationService.instance
+                        .requestPermissionAndRefreshRegistration();
+                  } catch (_) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Kontrolli telefoni teavitusluba ja ühendust.',
+                          ),
+                        ),
+                      );
+                    }
+                  }
+                },
+                child: const Text('Kontrolli / luba teavitused'),
+              ),
+              if (!kIsWeb &&
+                  defaultTargetPlatform == TargetPlatform.android) ...[
+                OutlinedButton(
+                  onPressed: () => _deviceSettings('openSarChannel'),
+                  child: const Text('Ava SAR-häire telefoni seaded'),
+                ),
+                const Text(
+                  '„Mitte segada“ režiimis sõltub heli sinu telefoni lubatud eranditest. Soovi korral luba Androidi seadetes RespondCrew SAR-kanalile erand. Rakendus ise režiimi ega sinu helivalikuid ei muuda.',
+                ),
+                TextButton(
+                  onPressed: () => _deviceSettings('openDndSettings'),
+                  child: const Text('Ava „Mitte segada“ seaded'),
+                ),
+              ],
+              OutlinedButton(
+                onPressed: () async {
+                  try {
+                    final shown = await CalloutAlarmNotificationService.instance
+                        .showLocalTestAlarmNotification();
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            shown
+                                ? 'Seadme testteavitus saadetud.'
+                                : 'Teavitusluba puudub.',
+                          ),
+                        ),
+                      );
+                    }
+                  } catch (_) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Testteavitust ei saanud näidata. Kontrolli telefoni teavituste seadeid.',
+                          ),
+                        ),
+                      );
+                    }
+                  }
+                },
+                child: const Text('Proovi selles telefonis SAR-heli'),
+              ),
+              const Text(
+                'Seadme proov kontrollib kohalikku heli. Push-teate saabumist proovi eraldi väljakutsega ka taustal ja lukustatud ekraaniga.',
               ),
             ],
-            OutlinedButton(
-              onPressed: () async {
-                try {
-                  final shown = await CalloutAlarmNotificationService.instance
-                      .showLocalTestAlarmNotification();
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          shown
-                              ? 'Seadme testteavitus saadetud.'
-                              : 'Teavitusluba puudub.',
-                        ),
-                      ),
-                    );
-                  }
-                } catch (_) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Testteavitust ei saanud näidata. Kontrolli telefoni teavituste seadeid.',
-                        ),
-                      ),
-                    );
-                  }
-                }
-              },
-              child: const Text('Proovi selles telefonis SAR-heli'),
-            ),
-            const Text(
-              'Seadme proov kontrollib kohalikku heli. Push-teate saabumist proovi eraldi väljakutsega ka taustal ja lukustatud ekraaniga.',
-            ),
           ],
         );
       },

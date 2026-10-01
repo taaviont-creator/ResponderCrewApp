@@ -1,3 +1,4 @@
+import '../widgets/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
@@ -81,7 +82,7 @@ class _ContributionFormScreenState extends State<ContributionFormScreen> {
   @override
   Widget build(BuildContext context) => PopScope(
     canPop: !_saving,
-    child: Scaffold(
+    child: AppScaffold(
       appBar: AppBar(title: const Text('Lisa panus')),
       body: AbsorbPointer(
         absorbing: _saving,

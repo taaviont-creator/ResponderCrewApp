@@ -1,3 +1,4 @@
+import '../widgets/app_layout.dart';
 import 'package:flutter/material.dart';
 
 import '../models/activity_model.dart';
@@ -22,6 +23,7 @@ class ActivitiesScreen extends StatefulWidget {
 }
 
 class _ActivitiesScreenState extends State<ActivitiesScreen> {
+  bool _showPast = false;
   final _activityService = ActivityService();
   final _memberNameFutures = <String, Future<String>>{};
 
@@ -172,9 +174,9 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
       final successMessage = selectedType == ActivityType.training
           ? 'Koolitus salvestatud.'
           : 'Tegevus salvestatud.';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(successMessage)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(successMessage)));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -219,9 +221,7 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
           } catch (_) {
             if (!context.mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Osalemist ei saanud salvestada.'),
-              ),
+              const SnackBar(content: Text('Osalemist ei saanud salvestada.')),
             );
           }
         }
@@ -249,7 +249,8 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
                 children: [
                   ChoiceChip(
                     label: const Text('Osalen'),
-                    selected: selectedStatus ==
+                    selected:
+                        selectedStatus ==
                         ActivityParticipationStatus.registered,
                     onSelected: (_) => updateParticipation(
                       ActivityParticipationStatus.registered,
@@ -257,7 +258,8 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
                   ),
                   ChoiceChip(
                     label: const Text('Ei saa osaleda'),
-                    selected: selectedStatus ==
+                    selected:
+                        selectedStatus ==
                         ActivityParticipationStatus.cannotAttend,
                     onSelected: (_) => updateParticipation(
                       ActivityParticipationStatus.cannotAttend,
@@ -287,9 +289,9 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
         hours: hours,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Osalemine kinnitatud.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Osalemine kinnitatud.')));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -332,7 +334,8 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
                   final hours = rawValue.isEmpty
                       ? null
                       : double.tryParse(normalizedValue);
-                  if (rawValue.isNotEmpty && (hours == null || !hours.isFinite || hours < 0)) {
+                  if (rawValue.isNotEmpty &&
+                      (hours == null || !hours.isFinite || hours < 0)) {
                     setDialogState(() {
                       hoursError = 'Sisesta korrektne tundide arv.';
                     });
@@ -406,8 +409,9 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
       future: _memberDisplayName(participant.userId),
       builder: (context, snapshot) {
         final displayName = snapshot.data ?? 'Liige';
-        final attendanceLabel =
-            _attendanceConfirmationLabel(participant.attendanceStatus);
+        final attendanceLabel = _attendanceConfirmationLabel(
+          participant.attendanceStatus,
+        );
 
         return Padding(
           padding: const EdgeInsets.only(bottom: 8),
@@ -416,9 +420,9 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
             children: [
               Text(
                 displayName,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 2),
               Text(
@@ -464,14 +468,13 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Tegevused ja koolitused'),
-      ),
+    return AppScaffold(
+      appBar: AppBar(title: const Text('Tegevused ja koolitused')),
       floatingActionButton: widget.canManageActivities
-          ? FloatingActionButton(
+          ? FloatingActionButton.extended(
               onPressed: _showAddActivityDialog,
-              child: const Icon(Icons.add),
+              icon: const Icon(Icons.add),
+              label: const Text('Lisa tegevus'),
             )
           : null,
       body: StreamBuilder<bool>(
@@ -487,51 +490,66 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
               organizationId: widget.organizationId,
             ),
             builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-          if (snapshot.hasError) {
-            return const Center(
-              child: Text('Tegevuste laadimine ebaõnnestus.'),
-            );
-          }
+              if (snapshot.hasError) {
+                return const Center(
+                  child: Text('Tegevuste laadimine ebaõnnestus.'),
+                );
+              }
 
-          final activities = snapshot.data ?? const <ActivityModel>[];
-          final upcomingActivities = activities
-              .where((activity) {
-                final startDate = _activityStartDate(activity);
-                return startDate == null ||
-                    !startDate.isBefore(DateTime.now());
-              })
-              .toList(growable: false)
-            ..sort(_compareUpcomingActivities);
-          final pastActivities = activities
-              .where((activity) {
-                final startDate = _activityStartDate(activity);
-                return startDate != null && startDate.isBefore(DateTime.now());
-              })
-              .toList(growable: false)
-            ..sort(_comparePastActivities);
+              final activities = snapshot.data ?? const <ActivityModel>[];
+              final upcomingActivities =
+                  activities
+                      .where((activity) {
+                        final startDate = _activityStartDate(activity);
+                        return startDate == null ||
+                            !startDate.isBefore(DateTime.now());
+                      })
+                      .toList(growable: false)
+                    ..sort(_compareUpcomingActivities);
+              final pastActivities =
+                  activities
+                      .where((activity) {
+                        final startDate = _activityStartDate(activity);
+                        return startDate != null &&
+                            startDate.isBefore(DateTime.now());
+                      })
+                      .toList(growable: false)
+                    ..sort(_comparePastActivities);
 
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              _buildActivitySection(
-                title: 'Tulemas',
-                activities: upcomingActivities,
-                canConfirmParticipation: canConfirmParticipation,
-                emptyText: 'Tulevasi tegevusi või koolitusi ei ole.',
-              ),
-              const SizedBox(height: 24),
-              _buildActivitySection(
-                title: 'Toimunud',
-                activities: pastActivities,
-                canConfirmParticipation: canConfirmParticipation,
-                emptyText: 'Toimunud tegevusi või koolitusi ei ole.',
-              ),
-            ],
-          );
+              return ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      ChoiceChip(
+                        label: Text('Tulemas (${upcomingActivities.length})'),
+                        selected: !_showPast,
+                        onSelected: (_) => setState(() => _showPast = false),
+                      ),
+                      ChoiceChip(
+                        label: Text('Toimunud (${pastActivities.length})'),
+                        selected: _showPast,
+                        onSelected: (_) => setState(() => _showPast = true),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _buildActivitySection(
+                    title: _showPast ? 'Toimunud' : 'Tulemas',
+                    activities: _showPast ? pastActivities : upcomingActivities,
+                    canConfirmParticipation: canConfirmParticipation,
+                    emptyText: _showPast
+                        ? 'Toimunud tegevusi või koolitusi ei ole.'
+                        : 'Tulevasi tegevusi või koolitusi ei ole.',
+                  ),
+                ],
+              );
             },
           );
         },
@@ -548,10 +566,7 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
+        Text(title, style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
         if (activities.isEmpty)
           Padding(
@@ -593,7 +608,7 @@ class _ActivitiesScreenState extends State<ActivitiesScreen> {
             activity.description.isEmpty
                 ? subtitleParts.join(' - ')
                 : '${subtitleParts.join(' - ')}\n'
-                    '${activity.description}',
+                      '${activity.description}',
           ),
         ),
         _buildActivityParticipationControls(activity: activity),

@@ -77,3 +77,10 @@ serviceAccountKey.json
 # Logs
 *.log
 local_structure.txt
+
+# Local Firebase Hosting cache
+.firebase/
+
+# Local tooling sessions, credentials and verification output
+.local-cache/
+.local-config/

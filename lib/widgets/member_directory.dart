@@ -114,36 +114,50 @@ class _MemberDirectoryState extends State<MemberDirectory> {
           onChanged: (value) => setState(() => _query = value),
         ),
         const SizedBox(height: 12),
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
+        ExpansionTile(
+          tilePadding: EdgeInsets.zero,
+          title: Text(
+            _level == 'all' && _sort == 'name'
+                ? 'Filtrid ja järjestus'
+                : 'Filtrid ja järjestus · muudetud',
+          ),
           children: [
-            DropdownButton<String>(isExpanded: true, itemHeight: null,
-              value: _level,
-              items: const [
-                DropdownMenuItem(value: 'all', child: Text('Kõik astmed')),
-                DropdownMenuItem(
-                  value: SeaRescueLevel.none,
-                  child: Text('Aste määramata'),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                DropdownButton<String>(
+                  isExpanded: true,
+                  itemHeight: null,
+                  value: _level,
+                  items: const [
+                    DropdownMenuItem(value: 'all', child: Text('Kõik astmed')),
+                    DropdownMenuItem(
+                      value: SeaRescueLevel.none,
+                      child: Text('Aste määramata'),
+                    ),
+                    DropdownMenuItem(
+                      value: SeaRescueLevel.level1,
+                      child: Text('I aste'),
+                    ),
+                    DropdownMenuItem(
+                      value: SeaRescueLevel.level2,
+                      child: Text('II aste'),
+                    ),
+                  ],
+                  onChanged: (value) => setState(() => _level = value!),
                 ),
-                DropdownMenuItem(
-                  value: SeaRescueLevel.level1,
-                  child: Text('I aste'),
-                ),
-                DropdownMenuItem(
-                  value: SeaRescueLevel.level2,
-                  child: Text('II aste'),
+                DropdownButton<String>(
+                  isExpanded: true,
+                  itemHeight: null,
+                  value: _sort,
+                  items: const [
+                    DropdownMenuItem(value: 'name', child: Text('Nime järgi')),
+                    DropdownMenuItem(value: 'role', child: Text('Adminid ees')),
+                  ],
+                  onChanged: (value) => setState(() => _sort = value!),
                 ),
               ],
-              onChanged: (value) => setState(() => _level = value!),
-            ),
-            DropdownButton<String>(isExpanded: true, itemHeight: null,
-              value: _sort,
-              items: const [
-                DropdownMenuItem(value: 'name', child: Text('Nime järgi')),
-                DropdownMenuItem(value: 'role', child: Text('Adminid ees')),
-              ],
-              onChanged: (value) => setState(() => _sort = value!),
             ),
           ],
         ),
@@ -153,97 +167,79 @@ class _MemberDirectoryState extends State<MemberDirectory> {
             padding: EdgeInsets.all(16),
             child: Text('Otsingule vastavaid liikmeid ei leitud.'),
           ),
-        for (final member in members)
-          Card(
-            margin: const EdgeInsets.only(top: 12),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(16),
-              onTap: () => widget.onOpen(member.id),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          child: Text(
-                            member.name.trim().isEmpty
-                                ? '?'
-                                : member.name
-                                      .trim()
-                                      .substring(0, 1)
-                                      .toUpperCase(),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '${member.name}${member.isSelf ? ' · Mina' : ''}',
-                                style: Theme.of(context).textTheme.titleMedium,
-                              ),
-                              Text(
-                                MembershipRole.isOrgAdmin(member.role)
-                                    ? 'Ühingu admin'
-                                    : 'Liige',
-                              ),
-                            ],
-                          ),
-                        ),
-                        const Icon(Icons.chevron_right),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '${member.level == SeaRescueLevel.level2
-                          ? 'II aste'
-                          : member.level == SeaRescueLevel.level1
-                          ? 'I aste'
-                          : 'Aste määramata'} · ${member.status}',
-                    ),
-                    if (member.isSelf)
-                      TextButton.icon(
-                        onPressed: () => widget.onOpen(member.id),
-                        icon: const Icon(Icons.edit_outlined),
-                        label: const Text('Minu andmed'),
-                      )
-                    else
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          IconButton(
-                            tooltip: 'Helista: ${member.name}',
-                            constraints: const BoxConstraints(
-                              minWidth: 48,
-                              minHeight: 48,
-                            ),
-                            onPressed: widget.busyUserId != null
-                                ? null
-                                : () => widget.onContact(member.id, false),
-                            icon: const Icon(Icons.phone_outlined),
-                          ),
-                          IconButton(
-                            tooltip: 'SMS: ${member.name}',
-                            constraints: const BoxConstraints(
-                              minWidth: 48,
-                              minHeight: 48,
-                            ),
-                            onPressed: widget.busyUserId != null
-                                ? null
-                                : () => widget.onContact(member.id, true),
-                            icon: const Icon(Icons.sms_outlined),
-                          ),
-                        ],
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+        for (final member in members) _memberRow(context, member),
       ],
+    );
+  }
+
+  Widget _memberRow(BuildContext context, DirectoryMember member) {
+    final largeText = MediaQuery.textScalerOf(context).scale(14) > 20;
+    final level = member.level == SeaRescueLevel.level2
+        ? 'II aste'
+        : member.level == SeaRescueLevel.level1
+        ? 'I aste'
+        : 'Aste määramata';
+    final details = InkWell(
+      onTap: () => widget.onOpen(member.id),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 48),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${member.name}${member.isSelf ? ' · Mina' : ''}',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            Text(
+              '${MembershipRole.isOrgAdmin(member.role) ? 'Ühingu admin' : 'Liige'} · $level',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            Text(member.status, style: Theme.of(context).textTheme.bodySmall),
+          ],
+        ),
+      ),
+    );
+    final actions = member.isSelf
+        ? TextButton(
+            onPressed: () => widget.onOpen(member.id),
+            child: const Text('Minu andmed'),
+          )
+        : Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final sms in [false, true])
+                IconButton(
+                  tooltip: '${sms ? 'SMS' : 'Helista'}: ${member.name}',
+                  constraints: const BoxConstraints(
+                    minWidth: 48,
+                    minHeight: 48,
+                  ),
+                  onPressed: widget.busyUserId != null
+                      ? null
+                      : () => widget.onContact(member.id, sms),
+                  icon: Icon(sms ? Icons.sms_outlined : Icons.phone_outlined),
+                ),
+            ],
+          );
+    return Card(
+      margin: const EdgeInsets.only(top: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(child: details),
+                if (!largeText) ...[const SizedBox(width: 4), actions],
+              ],
+            ),
+            if (largeText)
+              Align(alignment: Alignment.centerRight, child: actions),
+          ],
+        ),
+      ),
     );
   }
 }

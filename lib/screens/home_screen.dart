@@ -1,9 +1,11 @@
+import 'notification_settings_screen.dart';
+import '../widgets/app_layout.dart';
 import 'organization_readiness_screen.dart';
+import 'organization_center_settings_screen.dart';
 import '../widgets/platform_pending_badge.dart';
 import '../models/information_notification_open.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import '../widgets/organization_create_dialog.dart';
-import '../widgets/organization_duty_control.dart';
 import '../widgets/home_absence_preview.dart';
 import '../widgets/minimum_crew_control.dart';
 import '../widgets/member_permission_settings.dart';
@@ -72,14 +74,12 @@ class _HomePermissions {
 
   bool get canManageOrganization => isOrganizationAdmin;
   bool get canManageMembers => canManageOrganization;
-  bool get canManageOrganizationEquipment =>
-      isOrganizationAdmin;
-  bool get canManageOrganizationSettings =>
-      isOrganizationAdmin;
-  bool get canCreateCallout => canManageOrganization || allowMembersToStartOperationLog;
+  bool get canManageOrganizationEquipment => isOrganizationAdmin;
+  bool get canManageOrganizationSettings => isOrganizationAdmin;
+  bool get canCreateCallout =>
+      canManageOrganization || allowMembersToStartOperationLog;
   bool get canManageCertificates => canManageOrganization;
-  bool get canViewOrganizationReadiness =>
-      isOrganizationAdmin;
+  bool get canViewOrganizationReadiness => isOrganizationAdmin;
   bool get canManageNotifications => canManageOrganization;
   bool get canCreateActivity =>
       canManageOrganization || allowMembersToCreateActivities;
@@ -110,9 +110,12 @@ class _HomeScreenState extends State<HomeScreen> {
   StreamSubscription<InformationNotificationOpen>? _informationSubscription;
   // Keep root subscriptions stable: acknowledging a deep link must not replace
   // the navigator with a loading scaffold and discard its just-opened detail.
-  final _userStreams = <String, Stream<DocumentSnapshot<Map<String, dynamic>>>>{};
-  final _membershipStreams = <String, Stream<List<QueryDocumentSnapshot<Map<String, dynamic>>>>>{};
-  final _organizationStreams = <String, Stream<DocumentSnapshot<Map<String, dynamic>>>>{};
+  final _userStreams =
+      <String, Stream<DocumentSnapshot<Map<String, dynamic>>>>{};
+  final _membershipStreams =
+      <String, Stream<List<QueryDocumentSnapshot<Map<String, dynamic>>>>>{};
+  final _organizationStreams =
+      <String, Stream<DocumentSnapshot<Map<String, dynamic>>>>{};
   String? _pendingCalloutId;
   var _selectedNavigationIndex = 0;
   bool _savingAvailability = false;
@@ -122,13 +125,19 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
 
     final notificationService = CalloutAlarmNotificationService.instance;
-    _informationSubscription = notificationService.informationOpenEvents.listen((event) => unawaited(_handleInformationOpen(event)));
-    _certificateSubscription = notificationService.certificateOpenEvents.listen((event) => unawaited(_handleCertificateOpen(event)));
-    _memberRequestSubscription = notificationService.memberRequestOpenEvents.listen((event) {
-      unawaited(_handleMemberRequestOpen(event));
-    });
-    _calloutOpenSubscription =
-        notificationService.calloutOpenEvents.listen((event) {
+    _informationSubscription = notificationService.informationOpenEvents.listen(
+      (event) => unawaited(_handleInformationOpen(event)),
+    );
+    _certificateSubscription = notificationService.certificateOpenEvents.listen(
+      (event) => unawaited(_handleCertificateOpen(event)),
+    );
+    _memberRequestSubscription = notificationService.memberRequestOpenEvents
+        .listen((event) {
+          unawaited(_handleMemberRequestOpen(event));
+        });
+    _calloutOpenSubscription = notificationService.calloutOpenEvents.listen((
+      event,
+    ) {
       unawaited(_handleCalloutNotificationOpen(event));
     });
 
@@ -138,9 +147,10 @@ class _HomeScreenState extends State<HomeScreen> {
       final certificate = notificationService.takePendingCertificate();
       if (certificate != null) unawaited(_handleCertificateOpen(certificate));
       final memberRequest = notificationService.takePendingMemberRequest();
-      if (memberRequest != null) unawaited(_handleMemberRequestOpen(memberRequest));
-      final pendingEvent =
-          notificationService.takePendingCalloutOpenEvent();
+      if (memberRequest != null) {
+        unawaited(_handleMemberRequestOpen(memberRequest));
+      }
+      final pendingEvent = notificationService.takePendingCalloutOpenEvent();
       if (pendingEvent != null) {
         unawaited(_handleCalloutNotificationOpen(pendingEvent));
       }
@@ -170,9 +180,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Selle väljakutse ühing ei ole enam aktiivne.',
-          ),
+          content: Text('Selle väljakutse ühing ei ole enam aktiivne.'),
         ),
       );
       return;
@@ -192,38 +200,81 @@ class _HomeScreenState extends State<HomeScreen> {
     if (user == null || !mounted) return;
     try {
       if (event.type == 'platformApplication') {
-        final profile = await FirebaseFirestore.instance.doc('users/${user.uid}').get();
-        if (!PlatformRole.isPlatformAdmin(profile.data()?['systemRole'])) throw StateError('No platform access');
-        if (mounted) await Navigator.of(context,rootNavigator:true).push(MaterialPageRoute<void>(builder:(_) => const PlatformManagementScreen()));
+        final profile = await FirebaseFirestore.instance
+            .doc('users/${user.uid}')
+            .get();
+        if (!PlatformRole.isPlatformAdmin(profile.data()?['systemRole'])) {
+          throw StateError('No platform access');
+        }
+        if (mounted) {
+          await Navigator.of(context, rootNavigator: true).push(
+            MaterialPageRoute<void>(
+              builder: (_) => const PlatformManagementScreen(),
+            ),
+          );
+        }
         return;
       }
       await _setActiveCommand(event.organizationId);
       if (!mounted) return;
       _contentNavigatorKey.currentState?.popUntil((route) => route.isFirst);
-      setState(() { _pendingNotificationPage = null; _pendingCalloutId = null;
-        _selectedNavigationIndex = event.type == 'personalAvailability' ? 2 : 3; });
-    } catch (_) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Selle teavituse vaadet ei saa praegu avada.'))); }
+      setState(() {
+        _pendingNotificationPage = null;
+        _pendingCalloutId = null;
+        _selectedNavigationIndex = event.type == 'personalAvailability' ? 2 : 3;
+      });
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Selle teavituse vaadet ei saa praegu avada.'),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _handleCertificateOpen(CertificateReminderOpen event) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null || !mounted) return;
     try {
-      final snapshot = await FirebaseFirestore.instance.collection('memberships').doc(
-        _membershipService.membershipId(userId: user.uid, organizationId: event.organizationId)).get();
+      final snapshot = await FirebaseFirestore.instance
+          .collection('memberships')
+          .doc(
+            _membershipService.membershipId(
+              userId: user.uid,
+              organizationId: event.organizationId,
+            ),
+          )
+          .get();
       final membership = snapshot.data() ?? {};
       final admin = _membershipService.isOrgAdmin(membership);
-      if (!_membershipService.isActiveMembership(membership) || (user.uid != event.memberUserId && !admin)) throw StateError('Access denied');
+      if (!_membershipService.isActiveMembership(membership) ||
+          (user.uid != event.memberUserId && !admin)) {
+        throw StateError('Access denied');
+      }
       await _setActiveCommand(event.organizationId);
       if (!mounted) return;
       setState(() {
         _selectedNavigationIndex = 4;
-        _pendingNotificationPage = (event.organizationId, CertificatesScreen(
-          organizationId: event.organizationId, currentUid: user.uid,
-          targetUserId: event.memberUserId, canManageCertificates: admin));
+        _pendingNotificationPage = (
+          event.organizationId,
+          CertificatesScreen(
+            organizationId: event.organizationId,
+            currentUid: user.uid,
+            targetUserId: event.memberUserId,
+            canManageCertificates: admin,
+          ),
+        );
       });
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selle liikme tunnistusi ei saa praegu avada.')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Selle liikme tunnistusi ei saa praegu avada.'),
+          ),
+        );
+      }
     }
   }
 
@@ -231,25 +282,42 @@ class _HomeScreenState extends State<HomeScreen> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null || !mounted) return;
     try {
-      final membership = await FirebaseFirestore.instance.collection('memberships')
-          .doc(_membershipService.membershipId(userId: user.uid,
-            organizationId: event.organizationId)).get();
+      final membership = await FirebaseFirestore.instance
+          .collection('memberships')
+          .doc(
+            _membershipService.membershipId(
+              userId: user.uid,
+              organizationId: event.organizationId,
+            ),
+          )
+          .get();
       if (!_membershipService.isOrgAdmin(membership.data() ?? {}) ||
-          _membershipService.organizationIdFromMembership(membership.data() ?? {}) != event.organizationId) {
+          _membershipService.organizationIdFromMembership(
+                membership.data() ?? {},
+              ) !=
+              event.organizationId) {
         throw StateError('Not an organization admin');
       }
       await _setActiveCommand(event.organizationId);
       if (!mounted) return;
       setState(() {
         _selectedNavigationIndex = 4;
-        _pendingNotificationPage = (event.organizationId, MembersScreen(
-          organizationId: event.organizationId, currentUid: user.uid, canManageRoles: true));
+        _pendingNotificationPage = (
+          event.organizationId,
+          MembersScreen(
+            organizationId: event.organizationId,
+            currentUid: user.uid,
+            canManageRoles: true,
+          ),
+        );
       });
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Selle ühingu liitumistaotlusi ei saa praegu avada.'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Selle ühingu liitumistaotlusi ei saa praegu avada.'),
+        ),
+      );
     }
   }
 
@@ -267,10 +335,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final membershipSnapshot = await FirebaseFirestore.instance
         .collection('memberships')
-        .doc(_membershipService.membershipId(
-          userId: user.uid,
-          organizationId: organizationId,
-        ))
+        .doc(
+          _membershipService.membershipId(
+            userId: user.uid,
+            organizationId: organizationId,
+          ),
+        )
         .get();
     final membership = membershipSnapshot.data();
     if (membership == null ||
@@ -291,9 +361,9 @@ class _HomeScreenState extends State<HomeScreen> {
     await Clipboard.setData(ClipboardData(text: joinCode));
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Liitumiskood kopeeritud')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Liitumiskood kopeeritud')));
   }
 
   Future<void> _showJoinCommandDialog() async {
@@ -344,19 +414,26 @@ class _HomeScreenState extends State<HomeScreen> {
       final message = error is JoinCommandException
           ? error.message
           : error is FirebaseException &&
-                  (error.code == 'unavailable' ||
-                      error.code == 'deadline-exceeded')
-              ? 'Ühendus puudub. Kontrolli internetti ja proovi uuesti.'
-              : 'Liitumistaotlust ei saanud saata. Proovi uuesti või võta ühendust ühingu administraatoriga.';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+                (error.code == 'unavailable' ||
+                    error.code == 'deadline-exceeded')
+          ? 'Ühendus puudub. Kontrolli internetti ja proovi uuesti.'
+          : 'Liitumistaotlust ei saanud saata. Proovi uuesti või võta ühendust ühingu administraatoriga.';
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
   Future<void> _showCreateCommandDialog() async {
-    final created = await showDialog<bool>(context: context, builder: (_) => const OrganizationCreateDialog());
-    if (created == true && mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ühingu taotlus saadetud kinnitamisele.')));
+    final created = await showDialog<bool>(
+      context: context,
+      builder: (_) => const OrganizationCreateDialog(),
+    );
+    if (created == true && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ühingu taotlus saadetud kinnitamisele.')),
+      );
+    }
   }
 
   Future<void> _showSwitchOrganizationDialog({
@@ -366,12 +443,19 @@ class _HomeScreenState extends State<HomeScreen> {
     final items = <Map<String, String>>[];
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid != null) {
-      final profile = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final profile = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
       if (PlatformRole.isPlatformAdmin(profile.data()?['systemRole'])) {
-        items.add({'commandId':'__platform_context__','commandName':'RespondCrew haldus','available':'yes','status':'Platvormihaldus'});
+        items.add({
+          'commandId': '__platform_context__',
+          'commandName': 'RespondCrew haldus',
+          'available': 'yes',
+          'status': 'Platvormihaldus',
+        });
       }
     }
-
 
     for (final membershipDoc in membershipDocs) {
       final membership = membershipDoc.data();
@@ -392,8 +476,14 @@ class _HomeScreenState extends State<HomeScreen> {
         items.add({
           'commandId': commandId,
           'commandName': commandName,
-          'available': _membershipService.isActiveMembership(membership) && commandData?['status'] == 'approved' ? 'yes' : 'no',
-          'status': commandData?['status'] == 'pending' ? 'Ühing ootab platvormi halduri kinnitust' : 'Liikmesus ootab kinnitust',
+          'available':
+              _membershipService.isActiveMembership(membership) &&
+                  commandData?['status'] == 'approved'
+              ? 'yes'
+              : 'no',
+          'status': commandData?['status'] == 'pending'
+              ? 'Ühing ootab platvormi halduri kinnitust'
+              : 'Liikmesus ootab kinnitust',
         });
       } catch (_) {
         items.add({
@@ -426,11 +516,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     return ListTile(
                       title: Text(commandName),
-                      leading: commandId == '__platform_context__' ? const PlatformPendingBadge() : null,
-                      subtitle: item['available'] == 'yes' ? null : Text(item['status']!),
-                      trailing:
-                          isSelected ? const Icon(Icons.check_circle) : null,
-                      onTap: item['available'] == 'yes' ? () => Navigator.pop(context, commandId) : null,
+                      leading: commandId == '__platform_context__'
+                          ? const PlatformPendingBadge()
+                          : null,
+                      subtitle: item['available'] == 'yes'
+                          ? null
+                          : Text(item['status']!),
+                      trailing: isSelected
+                          ? const Icon(Icons.check_circle)
+                          : null,
+                      onTap: item['available'] == 'yes'
+                          ? () => Navigator.pop(context, commandId)
+                          : null,
                     );
                   },
                 ),
@@ -446,18 +543,23 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (selectedCommandId == null || selectedCommandId.isEmpty) return;
     if (selectedCommandId == '__platform_context__') {
-      if (mounted) await Navigator.of(context, rootNavigator: true).push(MaterialPageRoute<void>(builder: (_) => const PlatformManagementScreen()));
+      if (mounted) {
+        await Navigator.of(context, rootNavigator: true).push(
+          MaterialPageRoute<void>(
+            builder: (_) => const PlatformManagementScreen(),
+          ),
+        );
+      }
       return;
     }
-
 
     try {
       await _setActiveCommand(selectedCommandId);
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Aktiivne ühing muudetud')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Aktiivne ühing muudetud')));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -499,13 +601,19 @@ class _HomeScreenState extends State<HomeScreen> {
       await _commandService.leaveCommand(commandId: commandId);
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Lahkusid ühingust')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Lahkusid ühingust')));
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error is FirebaseFunctionsException ? error.message ?? 'Ühingust lahkumine ebaõnnestus.' : 'Ühingust lahkumine ebaõnnestus.')),
+        SnackBar(
+          content: Text(
+            error is FirebaseFunctionsException
+                ? error.message ?? 'Ühingust lahkumine ebaõnnestus.'
+                : 'Ühingust lahkumine ebaõnnestus.',
+          ),
+        ),
       );
     }
   }
@@ -515,9 +623,11 @@ class _HomeScreenState extends State<HomeScreen> {
     required String? currentActiveCommandId,
     required String? currentCommandName,
   }) {
-    final organizationCount =
-        _organizationIdsFromMembershipDocs(membershipDocs).length;
-    final canSelectOrganization = organizationCount > 0 &&
+    final organizationCount = _organizationIdsFromMembershipDocs(
+      membershipDocs,
+    ).length;
+    final canSelectOrganization =
+        organizationCount > 0 &&
         (organizationCount > 1 ||
             currentActiveCommandId == null ||
             currentActiveCommandId.isEmpty);
@@ -557,28 +667,13 @@ class _HomeScreenState extends State<HomeScreen> {
         },
         itemBuilder: (context) => [
           if (canSelectOrganization)
-            const PopupMenuItem(
-              value: 'switch',
-              child: Text('Vaheta ühingut'),
-            ),
-          const PopupMenuItem(
-            value: 'join',
-            child: Text('Liitu koodiga'),
-          ),
-          const PopupMenuItem(
-            value: 'create',
-            child: Text('Loo ühing'),
-          ),
+            const PopupMenuItem(value: 'switch', child: Text('Vaheta ühingut')),
+          const PopupMenuItem(value: 'join', child: Text('Liitu koodiga')),
+          const PopupMenuItem(value: 'create', child: Text('Loo ühing')),
           if (currentActiveCommandId != null &&
               currentActiveCommandId.isNotEmpty)
-            const PopupMenuItem(
-              value: 'leave',
-              child: Text('Lahku ühingust'),
-            ),
-          const PopupMenuItem(
-            value: 'signOut',
-            child: Text('Logi välja'),
-          ),
+            const PopupMenuItem(value: 'leave', child: Text('Lahku ühingust')),
+          const PopupMenuItem(value: 'signOut', child: Text('Logi välja')),
         ],
       ),
     ];
@@ -590,8 +685,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final organizationIds = <String>{};
 
     for (final membershipDoc in membershipDocs) {
-      final organizationId =
-          _membershipService.organizationIdFromMembership(membershipDoc.data());
+      final organizationId = _membershipService.organizationIdFromMembership(
+        membershipDoc.data(),
+      );
       if (organizationId != null && organizationId.isNotEmpty) {
         organizationIds.add(organizationId);
       }
@@ -603,19 +699,23 @@ class _HomeScreenState extends State<HomeScreen> {
   List<QueryDocumentSnapshot<Map<String, dynamic>>> _activeMembershipDocs(
     List<QueryDocumentSnapshot<Map<String, dynamic>>> membershipDocs,
   ) {
-    return membershipDocs.where((membershipDoc) {
-      final membership = membershipDoc.data();
-      return _membershipService.isActiveMembership(membership) &&
-          _membershipService.organizationIdFromMembership(membership) != null;
-    }).toList(growable: false);
+    return membershipDocs
+        .where((membershipDoc) {
+          final membership = membershipDoc.data();
+          return _membershipService.isActiveMembership(membership) &&
+              _membershipService.organizationIdFromMembership(membership) !=
+                  null;
+        })
+        .toList(growable: false);
   }
 
   bool _hasPendingMembership(
     List<QueryDocumentSnapshot<Map<String, dynamic>>> membershipDocs,
   ) {
     return membershipDocs.any((membershipDoc) {
-      final status =
-          (membershipDoc.data()['status'] ?? '').toString().toLowerCase();
+      final status = (membershipDoc.data()['status'] ?? '')
+          .toString()
+          .toLowerCase();
       return status == 'pending' ||
           status == 'awaitingapproval' ||
           status == 'waitingapproval';
@@ -645,14 +745,26 @@ class _HomeScreenState extends State<HomeScreen> {
     required List<QueryDocumentSnapshot<Map<String, dynamic>>> membershipDocs,
     Widget? availabilityControl,
   }) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      HomeGreeting(displayName: displayName,
-        role: MembershipRole.isOrgAdmin(membershipRole) ? 'Ühingu admin' : 'Liige'),
-      if (availabilityControl != null) ...[
-        const SizedBox(height: 16),
-        Card(child: Padding(padding: const EdgeInsets.all(16), child: availabilityControl)),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        HomeGreeting(
+          displayName: displayName,
+          role: MembershipRole.isOrgAdmin(membershipRole)
+              ? 'Ühingu admin'
+              : 'Liige',
+        ),
+        if (availabilityControl != null) ...[
+          const SizedBox(height: 12),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: availabilityControl,
+            ),
+          ),
+        ],
       ],
-    ]);
+    );
   }
 
   Widget _buildMissingOrganizationState({
@@ -662,7 +774,8 @@ class _HomeScreenState extends State<HomeScreen> {
     String? message,
   }) {
     final effectiveTitle = title ?? 'Aktiivne ühing puudub.';
-    final effectiveMessage = message ??
+    final effectiveMessage =
+        message ??
         (hasMemberships
             ? 'Vali aktiivne ühing, et mooduleid kasutada.'
             : 'Vali või liitu ühinguga, et mooduleid kasutada.');
@@ -672,10 +785,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            effectiveTitle,
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
+          Text(effectiveTitle, style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
           Text(effectiveMessage),
           const SizedBox(height: 16),
@@ -721,24 +831,22 @@ class _HomeScreenState extends State<HomeScreen> {
     final message = isRejected
         ? 'Vali teine ühing või loo uus taotlus.'
         : 'Ühing ootab platvormi halduri kinnitust. '
-            'Pärast kinnitamist saad rakendust kasutada.';
+              'Pärast kinnitamist saad rakendust kasutada.';
 
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (organizationName != null && organizationName.trim().isNotEmpty) ...[
+          if (organizationName != null &&
+              organizationName.trim().isNotEmpty) ...[
             Text(
               organizationName,
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 12),
           ],
-          Text(
-            title,
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
+          Text(title, style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
           Text(message),
           const SizedBox(height: 16),
@@ -894,9 +1002,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   SwitchListTile(
-                    title: const Text(
-                      'Liikmed võivad näha statistikat',
-                    ),
+                    title: const Text('Liikmed võivad näha statistikat'),
                     value: allowMembersToViewStatistics,
                     onChanged: (value) => _updateMemberPermissions(
                       organizationId: commandId,
@@ -907,7 +1013,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           allowMembersToStartOperationLog,
                     ),
                   ),
-
                 ],
               ),
             ),
@@ -919,7 +1024,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 16),
             OutlinedButton.icon(
               icon: const Icon(Icons.health_and_safety),
-              label: const Text('Ühingu reageerimisvalmiduse seaded'),
+              label: const Text('Ühingu valmiduse seaded'),
               onPressed: () {
                 _pushPage(
                   context,
@@ -953,10 +1058,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
           if (commandId != null && commandId.isNotEmpty) ...[
             const SizedBox(height: 16),
-            Text(
-              'Moodulid',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
+            Text('Moodulid', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
@@ -989,8 +1091,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         currentUserName: displayName,
                         canManageCallouts: permissions.canCreateCallout,
                         canCloseCallouts: permissions.canCloseCallout,
-                        canStartOperationLog:
-                            permissions.canStartOperationLog,
+                        canStartOperationLog: permissions.canStartOperationLog,
                       ),
                     ),
                   ),
@@ -1042,8 +1143,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         currentUserName: displayName,
                         canViewCalloutResponseSummary:
                             permissions.canManageOrganization,
-                        canStartOperationLog:
-                            permissions.canStartOperationLog,
+                        canStartOperationLog: permissions.canStartOperationLog,
                       ),
                     ),
                   ),
@@ -1102,8 +1202,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             currentUserName: displayName,
                             canManageNotifications:
                                 permissions.canManageNotifications,
-                            canCreateActivities:
-                                permissions.canCreateActivity,
+                            canCreateActivities: permissions.canCreateActivity,
                             canStartOperationLog:
                                 permissions.canStartOperationLog,
                           ),
@@ -1148,24 +1247,86 @@ class _HomeScreenState extends State<HomeScreen> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Text(
-          'Ühing',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        const SizedBox(height: 8),
-        Card(
-          child: Column(
-            children: [
-              ListTile(
-                leading: const Icon(Icons.apartment_outlined),
+        SettingsGroup(
+          title: 'Ühing',
+          icon: Icons.apartment_outlined,
+          subtitle: 'Nimi, kontaktid ja load',
+          initiallyExpanded: true,
+          children: [
+            StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+              stream: FirebaseFirestore.instance
+                  .collection('commands')
+                  .doc(organizationId)
+                  .snapshots(),
+              builder: (context, snapshot) => ListTile(
                 title: Text(
-                  commandName?.trim().isNotEmpty == true
-                      ? commandName!.trim()
-                      : 'Nimi puudub',
+                  snapshot.data?.data()?['name'] as String? ??
+                      commandName ??
+                      'Ühingu andmed',
+                ),
+                subtitle: const Text('Ühingu andmed ja kontaktid'),
+                trailing: permissions.canManageOrganizationSettings
+                    ? const Icon(Icons.edit_outlined)
+                    : null,
+                onTap:
+                    permissions.canManageOrganizationSettings && hasOrganization
+                    ? () => editOrganizationProfile(context, organizationId)
+                    : null,
+              ),
+            ),
+            if (permissions.canManageOrganizationSettings && hasOrganization)
+              ListTile(
+                leading: const Icon(Icons.description_outlined),
+                title: const Text('Ühingu load ja tunnistused'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => _pushPage(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (_) => OrganizationPermitsScreen(
+                      organizationId: organizationId,
+                      currentUid: user.uid,
+                    ),
+                  ),
                 ),
               ),
-              if (hasJoinCode) ...[
-                const Divider(height: 1),
+          ],
+        ),
+        if (permissions.canManageOrganizationSettings && hasOrganization) ...[
+          SettingsGroup(
+            title: 'Reageerimine ja keskuste kaart',
+            icon: Icons.shield_outlined,
+            subtitle: 'Koosseis, teenused, alused ja kaardi nähtavus',
+            children: [
+              if (permissions.canManageOrganization)
+                _buildMinimumCrewSettingsCard(
+                  organizationId: organizationId,
+                  organizationName: commandName,
+                  currentUid: user.uid,
+                ),
+              ListTile(
+                leading: const Icon(Icons.map_outlined),
+                title: const Text('Keskuste kaart'),
+                subtitle: const Text(
+                  'Asukoht, SAR ja Trossi mereabi, alused, kontakt',
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => _pushPage(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (_) => OrganizationCenterSettingsScreen(
+                      organizationId: organizationId,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          SettingsGroup(
+            title: 'Liikmed ja õigused',
+            icon: Icons.manage_accounts_outlined,
+            subtitle: 'Liitumine ja liikmetele lubatud tegevused',
+            children: [
+              if (hasJoinCode)
                 ListTile(
                   leading: const Icon(Icons.key_outlined),
                   title: const Text('Liitumiskood'),
@@ -1176,49 +1337,36 @@ class _HomeScreenState extends State<HomeScreen> {
                     tooltip: 'Kopeeri kood',
                   ),
                 ),
-              ],
+              _buildMemberPermissionSettingsCard(
+                organizationId: organizationId,
+                allowMembersToCreateActivities: allowMembersToCreateActivities,
+                allowMembersToViewStatistics: allowMembersToViewStatistics,
+                allowMembersToStartOperationLog:
+                    allowMembersToStartOperationLog,
+              ),
             ],
           ),
-        ),
-        if (permissions.canManageOrganizationSettings && hasOrganization) ...[
-          Card(child:ListTile(
-            leading:const Icon(Icons.business_outlined), title:const Text('Ühingu andmed ja kontaktid'),
-            trailing:const Icon(Icons.edit_outlined), onTap:()=>editOrganizationProfile(context,organizationId),
-          )),
-          OrganizationDutyControl(key: ValueKey(organizationId), organizationId: organizationId),
-          Card(child: ListTile(
-            leading: const Icon(Icons.description_outlined),
-            title: const Text('Ühingu load ja tunnistused'),
-            subtitle: const Text('Raadioside- ja muud ühingule väljastatud load'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => _pushPage(context, MaterialPageRoute<void>(builder: (_) => OrganizationPermitsScreen(
-              organizationId: organizationId, currentUid: user.uid))),
-          )),
-          if (permissions.canManageOrganization) ...[
-            const SizedBox(height: 16),
-            Text(
-              'Ühingu reageerimisvalmiduse seaded',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            _buildMinimumCrewSettingsCard(
-              organizationId: organizationId,
-              organizationName: commandName,
-              currentUid: user.uid,
-            ),
-          ],
-          const SizedBox(height: 16),
-          Text(
-            'Liikmete õigused',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 8),
-          _buildMemberPermissionSettingsCard(
-            organizationId: organizationId,
-            allowMembersToCreateActivities: allowMembersToCreateActivities,
-            allowMembersToViewStatistics: allowMembersToViewStatistics,
-            allowMembersToStartOperationLog:
-                allowMembersToStartOperationLog,
+          SettingsGroup(
+            title: 'Teavitused',
+            icon: Icons.notifications_outlined,
+            subtitle: 'Sinu teavitused selles ühingus',
+            children: [
+              ListTile(
+                title: const Text('Minu teavituste seaded'),
+                subtitle: const Text('Valmiduse teated ja telefoni SAR-häire'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => _pushPage(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (_) => NotificationSettingsScreen(
+                      organizationId: organizationId,
+                      userId: user.uid,
+                      isAdmin: isOrganizationAdmin,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ],
@@ -1233,10 +1381,16 @@ class _HomeScreenState extends State<HomeScreen> {
   }) {
     return MemberPermissionSettings(
       key: ValueKey(organizationId),
-      settings: FirebaseFirestore.instance.collection('commands').doc(organizationId)
-          .snapshots().map((snapshot) => snapshot.data() ?? <String, dynamic>{}),
+      settings: FirebaseFirestore.instance
+          .collection('commands')
+          .doc(organizationId)
+          .snapshots()
+          .map((snapshot) => snapshot.data() ?? <String, dynamic>{}),
       save: (field, value) => _commandService.updateMemberPermission(
-        organizationId: organizationId, field: field, value: value),
+        organizationId: organizationId,
+        field: field,
+        value: value,
+      ),
     );
   }
 
@@ -1261,18 +1415,25 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Widget _buildMinimumCrewSettingsCard({required String organizationId, required String? organizationName, required String currentUid}) =>
-    MinimumCrewControl(key: ValueKey(organizationId), organizationId: organizationId, organizationName: organizationName, currentUid: currentUid);
-
-  Widget _buildReadinessSummary({
+  Widget _buildMinimumCrewSettingsCard({
     required String organizationId,
-  }) {
+    required String? organizationName,
+    required String currentUid,
+  }) => MinimumCrewControl(
+    key: ValueKey(organizationId),
+    organizationId: organizationId,
+    organizationName: organizationName,
+    currentUid: currentUid,
+  );
+
+  Widget _buildReadinessSummary({required String organizationId}) {
     return StreamBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
       stream: _membershipService.streamActiveMembershipsForOrganization(
         organizationId,
       ),
       builder: (context, membershipsSnapshot) {
-        final activeMemberships = membershipsSnapshot.data ??
+        final activeMemberships =
+            membershipsSnapshot.data ??
             const <QueryDocumentSnapshot<Map<String, dynamic>>>[];
 
         return StreamBuilder<List<AvailabilityModel>>(
@@ -1299,9 +1460,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   builder: (context, rulesSnapshot) {
                     final now = DateTime.now();
-                    final periods = periodsSnapshot.data ??
+                    final periods =
+                        periodsSnapshot.data ??
                         const <PlannedUnavailabilityModel>[];
-                    final rules = rulesSnapshot.data ??
+                    final rules =
+                        rulesSnapshot.data ??
                         const <PlannedUnavailabilityRuleModel>[];
                     var onDutyCount = 0;
                     var delayedCount = 0;
@@ -1310,8 +1473,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     for (final membershipDoc in activeMemberships) {
                       final membershipData = membershipDoc.data();
-                      final userId =
-                          (membershipData['userId'] ?? '').toString();
+                      final userId = (membershipData['userId'] ?? '')
+                          .toString();
                       final availability = availabilityByUserId[userId];
                       final manualStatus =
                           availability?.status ?? AvailabilityStatus.offDuty;
@@ -1338,18 +1501,22 @@ class _HomeScreenState extends State<HomeScreen> {
                     }
 
                     return StreamBuilder<List<PlatformReadinessSummary>>(
-                      stream: _platformReadinessService.streamOrganizationSummary(
-                        organizationId: organizationId,
-                      ),
+                      stream: _platformReadinessService
+                          .streamOrganizationSummary(
+                            organizationId: organizationId,
+                          ),
                       builder: (context, readinessSnapshot) {
-                        final summaries = readinessSnapshot.data ??
+                        final summaries =
+                            readinessSnapshot.data ??
                             const <PlatformReadinessSummary>[];
-                        final summary =
-                            summaries.isEmpty ? null : summaries.first;
+                        final summary = summaries.isEmpty
+                            ? null
+                            : summaries.first;
                         final minimumCrewRequired =
                             summary?.minimumCrewRequired ?? 0;
                         final readiness = ResponseReadiness.evaluate(
-                          organizationPaused: summary?.dutyPaused ?? false,                          minimumCrewRequired: minimumCrewRequired,
+                          organizationPaused: summary?.dutyPaused ?? false,
+                          minimumCrewRequired: minimumCrewRequired,
                           onDutyCount: onDutyCount,
                           secondLevelOnDutyCount:
                               effectiveOnDutySecondLevelCount,
@@ -1362,60 +1529,56 @@ class _HomeScreenState extends State<HomeScreen> {
 
                         return Card(
                           child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('Valmisoleku kokkuvõte'),
-                            const SizedBox(height: 8),
-                            Wrap(
-                              spacing: 12,
-                              runSpacing: 8,
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('Valves: $onDutyCount'),
-                                Text('Hilinemisega: $delayedCount'),
-                                Text('Mitte valves: $offDutyCount'),
+                                const Text('Valmisoleku kokkuvõte'),
+                                const SizedBox(height: 8),
+                                Wrap(
+                                  spacing: 12,
+                                  runSpacing: 8,
+                                  children: [
+                                    Text('Valves: $onDutyCount'),
+                                    Text('Hilinemisega: $delayedCount'),
+                                    Text('Mitte valves: $offDutyCount'),
+                                    Text(
+                                      'II aste valves: '
+                                      '$effectiveOnDutySecondLevelCount',
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
                                 Text(
-                                  'II aste valves: '
-                                  '$effectiveOnDutySecondLevelCount',
+                                  responseReady
+                                      ? 'Ühing on reageerimisvalmis'
+                                      : 'Ühing ei ole reageerimisvalmis',
+                                  style: Theme.of(context).textTheme.bodyMedium
+                                      ?.copyWith(
+                                        color: readinessColor,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                ),
+                                if (!secondLevelMet) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'II astme merepäästja puudub',
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(color: Colors.red[700]),
+                                  ),
+                                ],
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Valves liikmete arv arvestab aktiivseid '
+                                  'planeeritud valveväliseid aegu.',
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(color: Colors.grey[700]),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 8),
-                            Text(
-                              responseReady
-                                  ? 'Ühing on reageerimisvalmis'
-                                  : 'Ühing ei ole reageerimisvalmis',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
-                                  ?.copyWith(
-                                    color: readinessColor,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                            ),
-                            if (!secondLevelMet) ...[
-                              const SizedBox(height: 4),
-                              Text(
-                                'II astme merepäästja puudub',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(color: Colors.red[700]),
-                              ),
-                            ],
-                            const SizedBox(height: 8),
-                            Text(
-                              'Valves liikmete arv arvestab aktiivseid '
-                              'planeeritud valveväliseid aegu.',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(color: Colors.grey[700]),
-                            ),
-                          ],
-                        ),
-                      ),
+                          ),
+                        );
+                      },
                     );
                   },
                 );
@@ -1423,8 +1586,6 @@ class _HomeScreenState extends State<HomeScreen> {
             );
           },
         );
-      },
-    );
       },
     );
   }
@@ -1453,8 +1614,15 @@ class _HomeScreenState extends State<HomeScreen> {
         organizationId: organizationId,
       ),
       builder: (context, snapshot) {
-        if (snapshot.hasError) return const Text('Valmisolekut ei õnnestunud laadida. Kontrolli ühendust.');
-        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) return const LinearProgressIndicator();
+        if (snapshot.hasError) {
+          return const Text(
+            'Valmisolekut ei õnnestunud laadida. Kontrolli ühendust.',
+          );
+        }
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
+          return const LinearProgressIndicator();
+        }
         final availability = snapshot.data;
         final status = availability?.status ?? AvailabilityStatus.offDuty;
         final responseMinutes = availability?.responseMinutes ?? 15;
@@ -1476,7 +1644,11 @@ class _HomeScreenState extends State<HomeScreen> {
           } catch (_) {
             if (!context.mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Valmisoleku muutmine ebaõnnestus. Kontrolli ühendust.')),
+              const SnackBar(
+                content: Text(
+                  'Valmisoleku muutmine ebaõnnestus. Kontrolli ühendust.',
+                ),
+              ),
             );
           } finally {
             if (mounted) setState(() => _savingAvailability = false);
@@ -1493,20 +1665,28 @@ class _HomeScreenState extends State<HomeScreen> {
                 organizationId: organizationId,
               ),
               builder: (context, rulesSnapshot) {
-                if (periodsSnapshot.hasError || rulesSnapshot.hasError) return const Text('Planeeritud valveväliseid aegu ei õnnestunud laadida. Valmisolekut ei saa kinnitada.');
-                if (!periodsSnapshot.hasData || !rulesSnapshot.hasData) return const LinearProgressIndicator();
+                if (periodsSnapshot.hasError || rulesSnapshot.hasError) {
+                  return const Text(
+                    'Planeeritud valveväliseid aegu ei õnnestunud laadida. Valmisolekut ei saa kinnitada.',
+                  );
+                }
+                if (!periodsSnapshot.hasData || !rulesSnapshot.hasData) {
+                  return const LinearProgressIndicator();
+                }
                 final now = DateTime.now();
-                final periods = periodsSnapshot.data ??
+                final periods =
+                    periodsSnapshot.data ??
                     const <PlannedUnavailabilityModel>[];
-                final rules = rulesSnapshot.data ??
+                final rules =
+                    rulesSnapshot.data ??
                     const <PlannedUnavailabilityRuleModel>[];
                 final hasActiveSchedule =
                     EffectiveAvailability.isPlannedUnavailable(
-                  userId: user.uid,
-                  periods: periods,
-                  rules: rules,
-                  now: now,
-                );
+                      userId: user.uid,
+                      periods: periods,
+                      rules: rules,
+                      now: now,
+                    );
                 final content = Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -1514,12 +1694,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       'Minu staatus',
                       style: Theme.of(context).textTheme.labelLarge,
                     ),
-                    if (_savingAvailability) const Text('Salvestan valmisolekut… Serveri kinnitus on ootel.'),
+                    if (_savingAvailability)
+                      const Text(
+                        'Salvestan valmisolekut… Serveri kinnitus on ootel.',
+                      ),
                     if (hasActiveSchedule) ...[
                       const SizedBox(height: 6),
-                      const Text(
-                        'Planeeritud valveväline aeg on aktiivne',
-                      ),
+                      const Text('Planeeritud valveväline aeg on aktiivne'),
                       const Text('Nähtav staatus: Mitte valves'),
                       Text(
                         'Käsitsi valitud staatus: '
@@ -1527,28 +1708,27 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ],
                     const SizedBox(height: 8),
-                    PersonalStatusChoices(status: status, minutes: responseMinutes,
-                      saving: _savingAvailability, plannedUnavailable: hasActiveSchedule,
-                      onSelect: (value) => updateAvailability(value,
-                        minutes: value == AvailabilityStatus.delayed ? responseMinutes : null)),
+                    PersonalStatusChoices(
+                      status: status,
+                      minutes: responseMinutes,
+                      saving: _savingAvailability,
+                      plannedUnavailable: hasActiveSchedule,
+                      onSelect: (value) => updateAvailability(
+                        value,
+                        minutes: value == AvailabilityStatus.delayed
+                            ? responseMinutes
+                            : null,
+                      ),
+                    ),
                     if (!hasActiveSchedule &&
                         status == AvailabilityStatus.delayed) ...[
                       const SizedBox(height: 8),
                       DropdownButton<int>(
                         value: responseMinutes,
                         items: const [
-                          DropdownMenuItem(
-                            value: 15,
-                            child: Text('15 min'),
-                          ),
-                          DropdownMenuItem(
-                            value: 30,
-                            child: Text('30 min'),
-                          ),
-                          DropdownMenuItem(
-                            value: 60,
-                            child: Text('60 min'),
-                          ),
+                          DropdownMenuItem(value: 15, child: Text('15 min')),
+                          DropdownMenuItem(value: 30, child: Text('30 min')),
+                          DropdownMenuItem(value: 60, child: Text('60 min')),
                         ],
                         onChanged: (value) {
                           if (value == null || _savingAvailability) return;
@@ -1560,11 +1740,23 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ],
                     const SizedBox(height: 8),
-                    HomeAbsencePreview(userId: user.uid, periods: periods, rules: rules,
-                      onPlan: () => _pushPage(context, MaterialPageRoute<void>(
-                        builder: (_) => AvailabilityScreen(organizationId: organizationId,
-                          currentUid: user.uid, currentUserName: memberName,
-                          canViewOrganizationReadiness: false, openPlanningOnStart: true)))),
+                    HomeAbsencePreview(
+                      userId: user.uid,
+                      periods: periods,
+                      rules: rules,
+                      onPlan: () => _pushPage(
+                        context,
+                        MaterialPageRoute<void>(
+                          builder: (_) => AvailabilityScreen(
+                            organizationId: organizationId,
+                            currentUid: user.uid,
+                            currentUserName: memberName,
+                            canViewOrganizationReadiness: false,
+                            openPlanningOnStart: true,
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 );
                 if (compact) return content;
@@ -1610,25 +1802,27 @@ class _HomeScreenState extends State<HomeScreen> {
     final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      return const Scaffold(
+      return const AppScaffold(
         body: Center(child: Text('Pole sisselogitud kasutajat')),
       );
     }
 
-    final userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
+    final userDoc = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid);
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       key: ValueKey(user.uid),
       stream: _userStreams.putIfAbsent(user.uid, userDoc.snapshots),
       builder: (context, userSnapshot) {
         if (userSnapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
+          return const AppScaffold(
             body: Center(child: CircularProgressIndicator()),
           );
         }
 
         if (userSnapshot.hasError) {
-          return Scaffold(
+          return AppScaffold(
             appBar: AppBar(title: const Text('RespondCrew')),
             body: const Center(
               child: Text('Kasutaja profiili laadimine ebaõnnestus.'),
@@ -1638,28 +1832,29 @@ class _HomeScreenState extends State<HomeScreen> {
 
         final userData = userSnapshot.data?.data();
         if (userData == null) {
-          return Scaffold(
+          return AppScaffold(
             appBar: AppBar(title: const Text('RespondCrew')),
-            body: const Center(
-              child: Text('Kasutaja profiili ei leitud.'),
-            ),
+            body: const Center(child: Text('Kasutaja profiili ei leitud.')),
           );
         }
 
         final name = _stringValue(userData['name']) ?? '';
 
-        final isPlatformAdmin =
-            PlatformRole.isPlatformAdmin(userData['systemRole']);
+        final isPlatformAdmin = PlatformRole.isPlatformAdmin(
+          userData['systemRole'],
+        );
 
         final displayName = name.isEmpty ? (user.email ?? 'kasutaja') : name;
 
-        return StreamBuilder<
-            List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
-          stream: _membershipStreams.putIfAbsent(user.uid, () => _membershipService.streamMembershipsForUser(user.uid)),
+        return StreamBuilder<List<QueryDocumentSnapshot<Map<String, dynamic>>>>(
+          stream: _membershipStreams.putIfAbsent(
+            user.uid,
+            () => _membershipService.streamMembershipsForUser(user.uid),
+          ),
           builder: (context, membershipsSnapshot) {
             if (membershipsSnapshot.connectionState ==
                 ConnectionState.waiting) {
-              return Scaffold(
+              return AppScaffold(
                 appBar: AppBar(
                   title: const Text('RespondCrew'),
                   actions: _buildAppBarActions(
@@ -1673,7 +1868,7 @@ class _HomeScreenState extends State<HomeScreen> {
             }
 
             if (membershipsSnapshot.hasError) {
-              return Scaffold(
+              return AppScaffold(
                 appBar: AppBar(
                   title: const Text('RespondCrew'),
                   actions: _buildAppBarActions(
@@ -1688,22 +1883,28 @@ class _HomeScreenState extends State<HomeScreen> {
               );
             }
 
-            final allMembershipDocs = membershipsSnapshot.data ??
+            final allMembershipDocs =
+                membershipsSnapshot.data ??
                 <QueryDocumentSnapshot<Map<String, dynamic>>>[];
             final membershipDocs = _activeMembershipDocs(allMembershipDocs);
-            final visibleMembershipDocs = allMembershipDocs.where((doc) =>
-              _membershipService.isActiveMembership(doc.data()) || doc.data()['status'] == 'pending').toList();
+            final visibleMembershipDocs = allMembershipDocs
+                .where(
+                  (doc) =>
+                      _membershipService.isActiveMembership(doc.data()) ||
+                      doc.data()['status'] == 'pending',
+                )
+                .toList();
 
             String? activeCommandId;
             String? myMembershipRole;
             String? mySeaRescueLevel;
 
             if (membershipDocs.isNotEmpty) {
-              final requestedOrganizationId =
-                  _membershipService.resolveActiveOrganizationId(
-                userData: userData,
-                memberships: membershipDocs,
-              );
+              final requestedOrganizationId = _membershipService
+                  .resolveActiveOrganizationId(
+                    userData: userData,
+                    memberships: membershipDocs,
+                  );
               final activeMembership = requestedOrganizationId == null
                   ? null
                   : _membershipService.membershipForOrganizationId(
@@ -1723,30 +1924,32 @@ class _HomeScreenState extends State<HomeScreen> {
               myMembershipRole = null;
             }
 
-            final isOrganizationAdmin =
-                MembershipRole.isOrgAdmin(myMembershipRole);
-            final canSeeJoinCode =
-                isOrganizationAdmin;
+            final isOrganizationAdmin = MembershipRole.isOrgAdmin(
+              myMembershipRole,
+            );
+            final canSeeJoinCode = isOrganizationAdmin;
 
             if (activeCommandId == null || activeCommandId.isEmpty) {
-              final hasPendingMembership =
-                  _hasPendingMembership(allMembershipDocs);
-              final hasDisabledMembership =
-                  _hasDisabledMembership(allMembershipDocs);
+              final hasPendingMembership = _hasPendingMembership(
+                allMembershipDocs,
+              );
+              final hasDisabledMembership = _hasDisabledMembership(
+                allMembershipDocs,
+              );
               final missingOrganizationTitle = hasPendingMembership
                   ? 'Ootad kinnitust.'
                   : hasDisabledMembership
-                      ? 'Sinu liikmelisus ei ole aktiivne.'
-                      : null;
+                  ? 'Sinu liikmelisus ei ole aktiivne.'
+                  : null;
               final missingOrganizationMessage = hasPendingMembership
                   ? 'Liitumistaotluse kinnitab ühingu administraator, '
-                      'uue ühingu kinnitab platvormi haldur. '
-                      'Pärast kinnitamist saad rakendust kasutada.'
+                        'uue ühingu kinnitab platvormi haldur. '
+                        'Pärast kinnitamist saad rakendust kasutada.'
                   : hasDisabledMembership
-                      ? 'Vali teine ühing, liitu koodiga või loo uus taotlus.'
-                      : null;
+                  ? 'Vali teine ühing, liitu koodiga või loo uus taotlus.'
+                  : null;
 
-              return Scaffold(
+              return AppScaffold(
                 appBar: AppBar(
                   title: const Text('RespondCrew'),
                   actions: _buildAppBarActions(
@@ -1784,18 +1987,24 @@ class _HomeScreenState extends State<HomeScreen> {
             }
 
             final String selectedOrganizationId = activeCommandId;
-            final organizationCount =
-                _organizationIdsFromMembershipDocs(visibleMembershipDocs).length;
+            final organizationCount = _organizationIdsFromMembershipDocs(
+              visibleMembershipDocs,
+            ).length;
 
             return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
               key: ValueKey(selectedOrganizationId),
-              stream: _organizationStreams.putIfAbsent(selectedOrganizationId, () => FirebaseFirestore.instance
-                  .collection('commands').doc(selectedOrganizationId).snapshots()),
+              stream: _organizationStreams.putIfAbsent(
+                selectedOrganizationId,
+                () => FirebaseFirestore.instance
+                    .collection('commands')
+                    .doc(selectedOrganizationId)
+                    .snapshots(),
+              ),
               builder: (context, commandSnapshot) {
                 if (commandSnapshot.connectionState ==
                         ConnectionState.waiting &&
                     !commandSnapshot.hasData) {
-                  return Scaffold(
+                  return AppScaffold(
                     appBar: AppBar(
                       title: const Text('RespondCrew'),
                       actions: _buildAppBarActions(
@@ -1811,33 +2020,34 @@ class _HomeScreenState extends State<HomeScreen> {
                 final commandData = commandSnapshot.data?.data();
                 final commandName = commandData?['name'] as String?;
                 final joinCode = commandData?['joinCode'] as String?;
-                final commandStatus =
-                    (commandData?['status'] ?? '')
-                        .toString()
-                        .trim()
-                        .toLowerCase();
+                final commandStatus = (commandData?['status'] ?? '')
+                    .toString()
+                    .trim()
+                    .toLowerCase();
                 final organizationIsBlocked =
-                    commandStatus == 'pending' || commandStatus == 'rejected' || commandStatus == 'suspended';
+                    commandStatus == 'pending' ||
+                    commandStatus == 'rejected' ||
+                    commandStatus == 'suspended';
                 final allowMembersToCreateActivities =
                     commandData?['allowMembersToCreateActivities'] == true;
                 final allowMembersToViewStatistics =
                     commandData?['allowMembersToViewStatistics'] == true;
-                final allowMembersToStartOperationLog =
-                    SeaRescueLevel.isLevel2(mySeaRescueLevel);
+                final allowMembersToStartOperationLog = SeaRescueLevel.isLevel2(
+                  mySeaRescueLevel,
+                );
 
                 final permissions = _HomePermissions(
                   isPlatformAdmin: isPlatformAdmin,
                   isOrganizationAdmin: isOrganizationAdmin,
                   allowMembersToCreateActivities:
                       allowMembersToCreateActivities,
-                  allowMembersToViewStatistics:
-                      allowMembersToViewStatistics,
+                  allowMembersToViewStatistics: allowMembersToViewStatistics,
                   allowMembersToStartOperationLog:
                       allowMembersToStartOperationLog,
                 );
 
                 if (organizationIsBlocked) {
-                  return Scaffold(
+                  return AppScaffold(
                     appBar: AppBar(
                       title: const Text('RespondCrew'),
                       actions: _buildAppBarActions(
@@ -1859,29 +2069,60 @@ class _HomeScreenState extends State<HomeScreen> {
                   );
                 }
 
-                void openNotifications() => _pushPage(context, MaterialPageRoute<void>(builder: (_) => NotificationsScreen(
-                    organizationId: selectedOrganizationId,
-                    currentUid: user.uid,
-                    currentUserName: displayName,
-                    canManageNotifications: permissions.canManageNotifications,
-                    canCreateActivities: permissions.canCreateActivity,
-                    canStartOperationLog: permissions.canStartOperationLog,
-                  )));
-                final homeContent = Scaffold(
+                void openNotifications() => _pushPage(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (_) => NotificationsScreen(
+                      organizationId: selectedOrganizationId,
+                      currentUid: user.uid,
+                      currentUserName: displayName,
+                      canManageNotifications:
+                          permissions.canManageNotifications,
+                      canCreateActivities: permissions.canCreateActivity,
+                      canStartOperationLog: permissions.canStartOperationLog,
+                    ),
+                  ),
+                );
+                final homeContent = AppScaffold(
+                  contentMaxWidth: 1280,
                   appBar: AppBar(
-                    title: HomeOrganizationTitle(name: commandName ?? 'Ühing',
-                      onSwitch: organizationCount > 1 || isPlatformAdmin ? () => _showSwitchOrganizationDialog(
-                        membershipDocs: visibleMembershipDocs, currentActiveCommandId: selectedOrganizationId) : null),
-                    actions: [IconButton(tooltip: 'Teavitused', icon: const Icon(Icons.notifications_outlined), onPressed: openNotifications),
-                    ..._buildAppBarActions(
-                      membershipDocs: visibleMembershipDocs,
-                      currentActiveCommandId: selectedOrganizationId,
-                      currentCommandName: commandName,
-                    )],
+                    title: HomeOrganizationTitle(
+                      name: commandName ?? 'Ühing',
+                      onSwitch: organizationCount > 1 || isPlatformAdmin
+                          ? () => _showSwitchOrganizationDialog(
+                              membershipDocs: visibleMembershipDocs,
+                              currentActiveCommandId: selectedOrganizationId,
+                            )
+                          : null,
+                    ),
+                    actions: [
+                      IconButton(
+                        tooltip: 'Teavitused',
+                        icon: const Icon(Icons.notifications_outlined),
+                        onPressed: openNotifications,
+                      ),
+                      ..._buildAppBarActions(
+                        membershipDocs: visibleMembershipDocs,
+                        currentActiveCommandId: selectedOrganizationId,
+                        currentCommandName: commandName,
+                      ),
+                    ],
                   ),
                   body: permissions.canManageOrganization
                       ? AdminHomeDashboard(
-                          onOpenReadiness: () => setState(() => _selectedNavigationIndex = 3),
+                          onOpenActivities: () => _pushPage(
+                            context,
+                            MaterialPageRoute<void>(
+                              builder: (_) => ActivitiesScreen(
+                                organizationId: selectedOrganizationId,
+                                currentUid: user.uid,
+                                canManageActivities:
+                                    permissions.canCreateActivity,
+                              ),
+                            ),
+                          ),
+                          onOpenReadiness: () =>
+                              setState(() => _selectedNavigationIndex = 3),
                           organizationId: selectedOrganizationId,
                           currentUid: user.uid,
                           currentUserName: displayName,
@@ -1909,8 +2150,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   currentUserName: displayName,
                                   canManageCallouts:
                                       permissions.canCreateCallout,
-                                  canCloseCallouts:
-                                      permissions.canCloseCallout,
+                                  canCloseCallouts: permissions.canCloseCallout,
                                   canStartOperationLog:
                                       permissions.canStartOperationLog,
                                   openCreateOnLoad: true,
@@ -1946,10 +2186,20 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             );
                           },
-                          onOpenMembers: () => _pushPage(context, MaterialPageRoute<void>(builder: (_) => MembersScreen(
-                            organizationId: selectedOrganizationId, currentUid: user.uid,
-                            canManageRoles: permissions.canManageMembers))),
-                          onOpenCallout: (id) => setState(() { _pendingCalloutId = id; _selectedNavigationIndex = 1; }),
+                          onOpenMembers: () => _pushPage(
+                            context,
+                            MaterialPageRoute<void>(
+                              builder: (_) => MembersScreen(
+                                organizationId: selectedOrganizationId,
+                                currentUid: user.uid,
+                                canManageRoles: permissions.canManageMembers,
+                              ),
+                            ),
+                          ),
+                          onOpenCallout: (id) => setState(() {
+                            _pendingCalloutId = id;
+                            _selectedNavigationIndex = 1;
+                          }),
                           onOpenCallouts: () {
                             setState(() => _selectedNavigationIndex = 1);
                           },
@@ -1971,13 +2221,51 @@ class _HomeScreenState extends State<HomeScreen> {
                           },
                         )
                       : MemberHomeDashboard(
-                          onOpenReadiness: () => setState(() => _selectedNavigationIndex = 3),
-                          onCreateCallout: permissions.canCreateCallout ? () => _pushPage(context, MaterialPageRoute<void>(builder: (_) => CalloutsScreen(
-                            organizationId: selectedOrganizationId, currentUid: user.uid, currentUserName: displayName,
-                            canManageCallouts: permissions.canCreateCallout, canCloseCallouts: permissions.canCloseCallout,
-                            canStartOperationLog: permissions.canStartOperationLog, openCreateOnLoad: true))) : null,
-                          onCreateActivity: permissions.canCreateActivity ? () => _pushPage(context, MaterialPageRoute<void>(builder: (_) => ActivitiesScreen(
-                            organizationId: selectedOrganizationId, currentUid: user.uid, canManageActivities: true, openCreateOnLoad: true))) : null,
+                          onOpenEquipment: () => _pushPage(
+                            context,
+                            MaterialPageRoute<void>(
+                              builder: (_) => EquipmentScreen(
+                                organizationId: selectedOrganizationId,
+                                currentUid: user.uid,
+                                canManageEquipment:
+                                    permissions.canManageOrganizationEquipment,
+                              ),
+                            ),
+                          ),
+                          onOpenReadiness: () =>
+                              setState(() => _selectedNavigationIndex = 3),
+                          onCreateCallout: permissions.canCreateCallout
+                              ? () => _pushPage(
+                                  context,
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => CalloutsScreen(
+                                      organizationId: selectedOrganizationId,
+                                      currentUid: user.uid,
+                                      currentUserName: displayName,
+                                      canManageCallouts:
+                                          permissions.canCreateCallout,
+                                      canCloseCallouts:
+                                          permissions.canCloseCallout,
+                                      canStartOperationLog:
+                                          permissions.canStartOperationLog,
+                                      openCreateOnLoad: true,
+                                    ),
+                                  ),
+                                )
+                              : null,
+                          onCreateActivity: permissions.canCreateActivity
+                              ? () => _pushPage(
+                                  context,
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => ActivitiesScreen(
+                                      organizationId: selectedOrganizationId,
+                                      currentUid: user.uid,
+                                      canManageActivities: true,
+                                      openCreateOnLoad: true,
+                                    ),
+                                  ),
+                                )
+                              : null,
                           organizationId: selectedOrganizationId,
                           currentUid: user.uid,
                           currentUserName: displayName,
@@ -1995,10 +2283,20 @@ class _HomeScreenState extends State<HomeScreen> {
                               compact: true,
                             ),
                           ),
-                          onOpenMembers: () => _pushPage(context, MaterialPageRoute<void>(builder: (_) => MembersScreen(
-                            organizationId: selectedOrganizationId, currentUid: user.uid,
-                            canManageRoles: permissions.canManageMembers))),
-                          onOpenCallout: (id) => setState(() { _pendingCalloutId = id; _selectedNavigationIndex = 1; }),
+                          onOpenMembers: () => _pushPage(
+                            context,
+                            MaterialPageRoute<void>(
+                              builder: (_) => MembersScreen(
+                                organizationId: selectedOrganizationId,
+                                currentUid: user.uid,
+                                canManageRoles: permissions.canManageMembers,
+                              ),
+                            ),
+                          ),
+                          onOpenCallout: (id) => setState(() {
+                            _pendingCalloutId = id;
+                            _selectedNavigationIndex = 1;
+                          }),
                           onOpenCallouts: () {
                             setState(() => _selectedNavigationIndex = 1);
                           },
@@ -2037,14 +2335,20 @@ class _HomeScreenState extends State<HomeScreen> {
                     },
                   ),
                   AvailabilityScreen(
-                      organizationId: selectedOrganizationId,
-                      organizationName: commandName,
-                      membershipRole: myMembershipRole,
-                      currentUid: user.uid,
-                      currentUserName: displayName,
-                      canViewOrganizationReadiness: permissions.canViewOrganizationReadiness,
-                    ),
-                  OrganizationReadinessScreen(organizationId: selectedOrganizationId, organizationName: commandName, membershipRole: myMembershipRole, currentUid: user.uid),
+                    organizationId: selectedOrganizationId,
+                    organizationName: commandName,
+                    membershipRole: myMembershipRole,
+                    currentUid: user.uid,
+                    currentUserName: displayName,
+                    canViewOrganizationReadiness:
+                        permissions.canViewOrganizationReadiness,
+                  ),
+                  OrganizationReadinessScreen(
+                    organizationId: selectedOrganizationId,
+                    organizationName: commandName,
+                    membershipRole: myMembershipRole,
+                    currentUid: user.uid,
+                  ),
                   MenuScreen(
                     onOpenNotifications: openNotifications,
                     organizationId: selectedOrganizationId,
@@ -2060,12 +2364,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       _pushPage(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => Scaffold(
-                            appBar: AppBar(
-                              title: const Text(
-                                'Ühingu seaded',
-                              ),
-                            ),
+                          builder: (_) => AppScaffold(
+                            appBar: AppBar(title: const Text('Ühingu seaded')),
                             body: _buildOrganizationSettingsContent(
                               user: user,
                               commandId: selectedOrganizationId,
@@ -2087,9 +2387,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     },
                     onSwitchOrganization: organizationCount > 1
                         ? () => _showSwitchOrganizationDialog(
-                              membershipDocs: visibleMembershipDocs,
-                              currentActiveCommandId: selectedOrganizationId,
-                            )
+                            membershipDocs: visibleMembershipDocs,
+                            currentActiveCommandId: selectedOrganizationId,
+                          )
                         : null,
                   ),
                 ];
@@ -2099,14 +2399,19 @@ class _HomeScreenState extends State<HomeScreen> {
                   _contentNavigatorKey = GlobalKey<NavigatorState>();
                 }
                 final pendingPage = _pendingNotificationPage;
-                if (pendingPage != null && pendingPage.$1 == selectedOrganizationId) {
+                if (pendingPage != null &&
+                    pendingPage.$1 == selectedOrganizationId) {
                   WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (!mounted || _pendingNotificationPage != pendingPage) return;
+                    if (!mounted || _pendingNotificationPage != pendingPage) {
+                      return;
+                    }
                     final navigator = _contentNavigatorKey.currentState;
                     if (navigator == null) return;
                     _pendingNotificationPage = null;
                     navigator.popUntil((route) => route.isFirst);
-                    navigator.push(MaterialPageRoute<void>(builder: (_) => pendingPage.$2));
+                    navigator.push(
+                      MaterialPageRoute<void>(builder: (_) => pendingPage.$2),
+                    );
                   });
                 }
                 return MainNavigationShell(

@@ -1,0 +1,2194 @@
+{
+  "normal": {
+    "sar": [
+      {
+        "id": "north",
+        "name": "Näidis · Põhjarannik",
+        "latitude": 59.45,
+        "longitude": 26.5,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "ready",
+        "reasons": [],
+        "minimum": 3,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "west",
+        "name": "Näidis · Läänerannik",
+        "latitude": 58.39,
+        "longitude": 24.5,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unavailable",
+        "reasons": [
+          "Valves 1/3 reageerijat.",
+          "Valves olev II astme merepäästja puudub."
+        ],
+        "minimum": 3,
+        "onDutyCount": 1,
+        "secondLevelCount": 0,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "island",
+        "name": "Näidis · Saare baas",
+        "latitude": 58.25,
+        "longitude": 22.45,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "delayed",
+        "reasons": [
+          "Valves 0/3 reageerijat.",
+          "Valves olev II astme merepäästja puudub."
+        ],
+        "minimum": 3,
+        "onDutyCount": 0,
+        "secondLevelCount": 0,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": 1800000,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "east",
+        "name": "Näidis · Idarannik",
+        "latitude": 59.4,
+        "longitude": 27.6,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unavailable",
+        "reasons": [
+          "Ühing on valvest maas."
+        ],
+        "minimum": 3,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "unknown",
+        "name": "Näidis · Kontrollimata",
+        "latitude": 58.95,
+        "longitude": 23.55,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unknown",
+        "reasons": [
+          "Pädevuste ja ressursside kontroll vajab lõpetamist."
+        ],
+        "minimum": 3,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "missing",
+        "name": "Näidis · Asukoht lisamata",
+        "latitude": null,
+        "longitude": null,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "ready",
+        "reasons": [],
+        "minimum": 3,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "broken",
+        "name": "Näidis · Remondis alus",
+        "latitude": 59.42,
+        "longitude": 24.7,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "broken"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unavailable",
+        "reasons": [
+          "Kasutatav alus puudub."
+        ],
+        "minimum": 3,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      }
+    ],
+    "tross": [
+      {
+        "id": "north",
+        "name": "Näidis · Põhjarannik",
+        "latitude": 59.45,
+        "longitude": 26.5,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "ready",
+        "reasons": [],
+        "minimum": 1,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "west",
+        "name": "Näidis · Läänerannik",
+        "latitude": 58.39,
+        "longitude": 24.5,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "ready",
+        "reasons": [],
+        "minimum": 1,
+        "onDutyCount": 1,
+        "secondLevelCount": 0,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "island",
+        "name": "Näidis · Saare baas",
+        "latitude": 58.25,
+        "longitude": 22.45,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "delayed",
+        "reasons": [
+          "Valves 0/1 reageerijat."
+        ],
+        "minimum": 1,
+        "onDutyCount": 0,
+        "secondLevelCount": 0,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": 1800000,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "east",
+        "name": "Näidis · Idarannik",
+        "latitude": 59.4,
+        "longitude": 27.6,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unavailable",
+        "reasons": [
+          "Ühing on valvest maas."
+        ],
+        "minimum": 1,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "unknown",
+        "name": "Näidis · Kontrollimata",
+        "latitude": 58.95,
+        "longitude": 23.55,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unknown",
+        "reasons": [
+          "Pädevuste ja ressursside kontroll vajab lõpetamist."
+        ],
+        "minimum": 1,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "missing",
+        "name": "Näidis · Asukoht lisamata",
+        "latitude": null,
+        "longitude": null,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "ready",
+        "reasons": [],
+        "minimum": 1,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "broken",
+        "name": "Näidis · Remondis alus",
+        "latitude": 59.42,
+        "longitude": 24.7,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "broken"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unavailable",
+        "reasons": [
+          "Kasutatav alus puudub."
+        ],
+        "minimum": 1,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      }
+    ]
+  },
+  "absence": {
+    "sar": [
+      {
+        "id": "north",
+        "name": "Näidis · Põhjarannik",
+        "latitude": 59.45,
+        "longitude": 26.5,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unavailable",
+        "reasons": [
+          "Valves 2/3 reageerijat.",
+          "Valves olev II astme merepäästja puudub."
+        ],
+        "minimum": 3,
+        "onDutyCount": 2,
+        "secondLevelCount": 0,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "west",
+        "name": "Näidis · Läänerannik",
+        "latitude": 58.39,
+        "longitude": 24.5,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unavailable",
+        "reasons": [
+          "Valves 1/3 reageerijat.",
+          "Valves olev II astme merepäästja puudub."
+        ],
+        "minimum": 3,
+        "onDutyCount": 1,
+        "secondLevelCount": 0,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "island",
+        "name": "Näidis · Saare baas",
+        "latitude": 58.25,
+        "longitude": 22.45,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "delayed",
+        "reasons": [
+          "Valves 0/3 reageerijat.",
+          "Valves olev II astme merepäästja puudub."
+        ],
+        "minimum": 3,
+        "onDutyCount": 0,
+        "secondLevelCount": 0,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": 1800000,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "east",
+        "name": "Näidis · Idarannik",
+        "latitude": 59.4,
+        "longitude": 27.6,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unavailable",
+        "reasons": [
+          "Ühing on valvest maas."
+        ],
+        "minimum": 3,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "unknown",
+        "name": "Näidis · Kontrollimata",
+        "latitude": 58.95,
+        "longitude": 23.55,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unknown",
+        "reasons": [
+          "Pädevuste ja ressursside kontroll vajab lõpetamist."
+        ],
+        "minimum": 3,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "missing",
+        "name": "Näidis · Asukoht lisamata",
+        "latitude": null,
+        "longitude": null,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "ready",
+        "reasons": [],
+        "minimum": 3,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "broken",
+        "name": "Näidis · Remondis alus",
+        "latitude": 59.42,
+        "longitude": 24.7,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "broken"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unavailable",
+        "reasons": [
+          "Kasutatav alus puudub."
+        ],
+        "minimum": 3,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      }
+    ],
+    "tross": [
+      {
+        "id": "north",
+        "name": "Näidis · Põhjarannik",
+        "latitude": 59.45,
+        "longitude": 26.5,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "ready",
+        "reasons": [],
+        "minimum": 1,
+        "onDutyCount": 2,
+        "secondLevelCount": 0,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "west",
+        "name": "Näidis · Läänerannik",
+        "latitude": 58.39,
+        "longitude": 24.5,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "ready",
+        "reasons": [],
+        "minimum": 1,
+        "onDutyCount": 1,
+        "secondLevelCount": 0,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "island",
+        "name": "Näidis · Saare baas",
+        "latitude": 58.25,
+        "longitude": 22.45,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "delayed",
+        "reasons": [
+          "Valves 0/1 reageerijat."
+        ],
+        "minimum": 1,
+        "onDutyCount": 0,
+        "secondLevelCount": 0,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": 1800000,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "east",
+        "name": "Näidis · Idarannik",
+        "latitude": 59.4,
+        "longitude": 27.6,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unavailable",
+        "reasons": [
+          "Ühing on valvest maas."
+        ],
+        "minimum": 1,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "unknown",
+        "name": "Näidis · Kontrollimata",
+        "latitude": 58.95,
+        "longitude": 23.55,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unknown",
+        "reasons": [
+          "Pädevuste ja ressursside kontroll vajab lõpetamist."
+        ],
+        "minimum": 1,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "missing",
+        "name": "Näidis · Asukoht lisamata",
+        "latitude": null,
+        "longitude": null,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "ready",
+        "reasons": [],
+        "minimum": 1,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "broken",
+        "name": "Näidis · Remondis alus",
+        "latitude": 59.42,
+        "longitude": 24.7,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "broken"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unavailable",
+        "reasons": [
+          "Kasutatav alus puudub."
+        ],
+        "minimum": 1,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      }
+    ]
+  },
+  "delay": {
+    "sar": [
+      {
+        "id": "north",
+        "name": "Näidis · Põhjarannik",
+        "latitude": 59.45,
+        "longitude": 26.5,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "delayed",
+        "reasons": [
+          "Valves 0/3 reageerijat.",
+          "Valves olev II astme merepäästja puudub."
+        ],
+        "minimum": 3,
+        "onDutyCount": 0,
+        "secondLevelCount": 0,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": 1800000,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "west",
+        "name": "Näidis · Läänerannik",
+        "latitude": 58.39,
+        "longitude": 24.5,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unavailable",
+        "reasons": [
+          "Valves 1/3 reageerijat.",
+          "Valves olev II astme merepäästja puudub."
+        ],
+        "minimum": 3,
+        "onDutyCount": 1,
+        "secondLevelCount": 0,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "island",
+        "name": "Näidis · Saare baas",
+        "latitude": 58.25,
+        "longitude": 22.45,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "delayed",
+        "reasons": [
+          "Valves 0/3 reageerijat.",
+          "Valves olev II astme merepäästja puudub."
+        ],
+        "minimum": 3,
+        "onDutyCount": 0,
+        "secondLevelCount": 0,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": 1800000,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "east",
+        "name": "Näidis · Idarannik",
+        "latitude": 59.4,
+        "longitude": 27.6,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unavailable",
+        "reasons": [
+          "Ühing on valvest maas."
+        ],
+        "minimum": 3,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "unknown",
+        "name": "Näidis · Kontrollimata",
+        "latitude": 58.95,
+        "longitude": 23.55,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unknown",
+        "reasons": [
+          "Pädevuste ja ressursside kontroll vajab lõpetamist."
+        ],
+        "minimum": 3,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "missing",
+        "name": "Näidis · Asukoht lisamata",
+        "latitude": null,
+        "longitude": null,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "ready",
+        "reasons": [],
+        "minimum": 3,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "broken",
+        "name": "Näidis · Remondis alus",
+        "latitude": 59.42,
+        "longitude": 24.7,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "broken"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unavailable",
+        "reasons": [
+          "Kasutatav alus puudub."
+        ],
+        "minimum": 3,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      }
+    ],
+    "tross": [
+      {
+        "id": "north",
+        "name": "Näidis · Põhjarannik",
+        "latitude": 59.45,
+        "longitude": 26.5,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "delayed",
+        "reasons": [
+          "Valves 0/1 reageerijat."
+        ],
+        "minimum": 1,
+        "onDutyCount": 0,
+        "secondLevelCount": 0,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": 1800000,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "west",
+        "name": "Näidis · Läänerannik",
+        "latitude": 58.39,
+        "longitude": 24.5,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "ready",
+        "reasons": [],
+        "minimum": 1,
+        "onDutyCount": 1,
+        "secondLevelCount": 0,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "island",
+        "name": "Näidis · Saare baas",
+        "latitude": 58.25,
+        "longitude": 22.45,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "delayed",
+        "reasons": [
+          "Valves 0/1 reageerijat."
+        ],
+        "minimum": 1,
+        "onDutyCount": 0,
+        "secondLevelCount": 0,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": 1800000,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "east",
+        "name": "Näidis · Idarannik",
+        "latitude": 59.4,
+        "longitude": 27.6,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unavailable",
+        "reasons": [
+          "Ühing on valvest maas."
+        ],
+        "minimum": 1,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "unknown",
+        "name": "Näidis · Kontrollimata",
+        "latitude": 58.95,
+        "longitude": 23.55,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unknown",
+        "reasons": [
+          "Pädevuste ja ressursside kontroll vajab lõpetamist."
+        ],
+        "minimum": 1,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "missing",
+        "name": "Näidis · Asukoht lisamata",
+        "latitude": null,
+        "longitude": null,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "ready",
+        "reasons": [],
+        "minimum": 1,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "broken",
+        "name": "Näidis · Remondis alus",
+        "latitude": 59.42,
+        "longitude": 24.7,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "broken"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unavailable",
+        "reasons": [
+          "Kasutatav alus puudub."
+        ],
+        "minimum": 1,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      }
+    ]
+  },
+  "paused": {
+    "sar": [
+      {
+        "id": "north",
+        "name": "Näidis · Põhjarannik",
+        "latitude": 59.45,
+        "longitude": 26.5,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unavailable",
+        "reasons": [
+          "Ühing on valvest maas."
+        ],
+        "minimum": 3,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "west",
+        "name": "Näidis · Läänerannik",
+        "latitude": 58.39,
+        "longitude": 24.5,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unavailable",
+        "reasons": [
+          "Valves 1/3 reageerijat.",
+          "Valves olev II astme merepäästja puudub."
+        ],
+        "minimum": 3,
+        "onDutyCount": 1,
+        "secondLevelCount": 0,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "island",
+        "name": "Näidis · Saare baas",
+        "latitude": 58.25,
+        "longitude": 22.45,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "delayed",
+        "reasons": [
+          "Valves 0/3 reageerijat.",
+          "Valves olev II astme merepäästja puudub."
+        ],
+        "minimum": 3,
+        "onDutyCount": 0,
+        "secondLevelCount": 0,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": 1800000,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "east",
+        "name": "Näidis · Idarannik",
+        "latitude": 59.4,
+        "longitude": 27.6,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unavailable",
+        "reasons": [
+          "Ühing on valvest maas."
+        ],
+        "minimum": 3,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "unknown",
+        "name": "Näidis · Kontrollimata",
+        "latitude": 58.95,
+        "longitude": 23.55,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unknown",
+        "reasons": [
+          "Pädevuste ja ressursside kontroll vajab lõpetamist."
+        ],
+        "minimum": 3,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "missing",
+        "name": "Näidis · Asukoht lisamata",
+        "latitude": null,
+        "longitude": null,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "ready",
+        "reasons": [],
+        "minimum": 3,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "broken",
+        "name": "Näidis · Remondis alus",
+        "latitude": 59.42,
+        "longitude": 24.7,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "broken"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unavailable",
+        "reasons": [
+          "Kasutatav alus puudub."
+        ],
+        "minimum": 3,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      }
+    ],
+    "tross": [
+      {
+        "id": "north",
+        "name": "Näidis · Põhjarannik",
+        "latitude": 59.45,
+        "longitude": 26.5,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unavailable",
+        "reasons": [
+          "Ühing on valvest maas."
+        ],
+        "minimum": 1,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "west",
+        "name": "Näidis · Läänerannik",
+        "latitude": 58.39,
+        "longitude": 24.5,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "ready",
+        "reasons": [],
+        "minimum": 1,
+        "onDutyCount": 1,
+        "secondLevelCount": 0,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "island",
+        "name": "Näidis · Saare baas",
+        "latitude": 58.25,
+        "longitude": 22.45,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "delayed",
+        "reasons": [
+          "Valves 0/1 reageerijat."
+        ],
+        "minimum": 1,
+        "onDutyCount": 0,
+        "secondLevelCount": 0,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": 1800000,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "east",
+        "name": "Näidis · Idarannik",
+        "latitude": 59.4,
+        "longitude": 27.6,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unavailable",
+        "reasons": [
+          "Ühing on valvest maas."
+        ],
+        "minimum": 1,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "unknown",
+        "name": "Näidis · Kontrollimata",
+        "latitude": 58.95,
+        "longitude": 23.55,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unknown",
+        "reasons": [
+          "Pädevuste ja ressursside kontroll vajab lõpetamist."
+        ],
+        "minimum": 1,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "missing",
+        "name": "Näidis · Asukoht lisamata",
+        "latitude": null,
+        "longitude": null,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "ready",
+        "reasons": [],
+        "minimum": 1,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "broken",
+        "name": "Näidis · Remondis alus",
+        "latitude": 59.42,
+        "longitude": 24.7,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "broken"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unavailable",
+        "reasons": [
+          "Kasutatav alus puudub."
+        ],
+        "minimum": 1,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      }
+    ]
+  },
+  "broken": {
+    "sar": [
+      {
+        "id": "north",
+        "name": "Näidis · Põhjarannik",
+        "latitude": 59.45,
+        "longitude": 26.5,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "broken"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unavailable",
+        "reasons": [
+          "Kasutatav alus puudub."
+        ],
+        "minimum": 3,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "west",
+        "name": "Näidis · Läänerannik",
+        "latitude": 58.39,
+        "longitude": 24.5,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unavailable",
+        "reasons": [
+          "Valves 1/3 reageerijat.",
+          "Valves olev II astme merepäästja puudub."
+        ],
+        "minimum": 3,
+        "onDutyCount": 1,
+        "secondLevelCount": 0,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "island",
+        "name": "Näidis · Saare baas",
+        "latitude": 58.25,
+        "longitude": 22.45,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "delayed",
+        "reasons": [
+          "Valves 0/3 reageerijat.",
+          "Valves olev II astme merepäästja puudub."
+        ],
+        "minimum": 3,
+        "onDutyCount": 0,
+        "secondLevelCount": 0,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": 1800000,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "east",
+        "name": "Näidis · Idarannik",
+        "latitude": 59.4,
+        "longitude": 27.6,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unavailable",
+        "reasons": [
+          "Ühing on valvest maas."
+        ],
+        "minimum": 3,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "unknown",
+        "name": "Näidis · Kontrollimata",
+        "latitude": 58.95,
+        "longitude": 23.55,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unknown",
+        "reasons": [
+          "Pädevuste ja ressursside kontroll vajab lõpetamist."
+        ],
+        "minimum": 3,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "missing",
+        "name": "Näidis · Asukoht lisamata",
+        "latitude": null,
+        "longitude": null,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "ready",
+        "reasons": [],
+        "minimum": 3,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "broken",
+        "name": "Näidis · Remondis alus",
+        "latitude": 59.42,
+        "longitude": 24.7,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "broken"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unavailable",
+        "reasons": [
+          "Kasutatav alus puudub."
+        ],
+        "minimum": 3,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      }
+    ],
+    "tross": [
+      {
+        "id": "north",
+        "name": "Näidis · Põhjarannik",
+        "latitude": 59.45,
+        "longitude": 26.5,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "broken"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unavailable",
+        "reasons": [
+          "Kasutatav alus puudub."
+        ],
+        "minimum": 1,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "west",
+        "name": "Näidis · Läänerannik",
+        "latitude": 58.39,
+        "longitude": 24.5,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "ready",
+        "reasons": [],
+        "minimum": 1,
+        "onDutyCount": 1,
+        "secondLevelCount": 0,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "island",
+        "name": "Näidis · Saare baas",
+        "latitude": 58.25,
+        "longitude": 22.45,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "delayed",
+        "reasons": [
+          "Valves 0/1 reageerijat."
+        ],
+        "minimum": 1,
+        "onDutyCount": 0,
+        "secondLevelCount": 0,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": 1800000,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "east",
+        "name": "Näidis · Idarannik",
+        "latitude": 59.4,
+        "longitude": 27.6,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unavailable",
+        "reasons": [
+          "Ühing on valvest maas."
+        ],
+        "minimum": 1,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "unknown",
+        "name": "Näidis · Kontrollimata",
+        "latitude": 58.95,
+        "longitude": 23.55,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unknown",
+        "reasons": [
+          "Pädevuste ja ressursside kontroll vajab lõpetamist."
+        ],
+        "minimum": 1,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "missing",
+        "name": "Näidis · Asukoht lisamata",
+        "latitude": null,
+        "longitude": null,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "ready",
+        "reasons": [],
+        "minimum": 1,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "broken",
+        "name": "Näidis · Remondis alus",
+        "latitude": 59.42,
+        "longitude": 24.7,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "broken"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unavailable",
+        "reasons": [
+          "Kasutatav alus puudub."
+        ],
+        "minimum": 1,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      }
+    ]
+  },
+  "expired": {
+    "sar": [
+      {
+        "id": "north",
+        "name": "Näidis · Põhjarannik",
+        "latitude": 59.45,
+        "longitude": 26.5,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unknown",
+        "reasons": [
+          "Valmiduskinnitus puudub või on aegunud."
+        ],
+        "minimum": 3,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "west",
+        "name": "Näidis · Läänerannik",
+        "latitude": 58.39,
+        "longitude": 24.5,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unavailable",
+        "reasons": [
+          "Valves 1/3 reageerijat.",
+          "Valves olev II astme merepäästja puudub."
+        ],
+        "minimum": 3,
+        "onDutyCount": 1,
+        "secondLevelCount": 0,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "island",
+        "name": "Näidis · Saare baas",
+        "latitude": 58.25,
+        "longitude": 22.45,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "delayed",
+        "reasons": [
+          "Valves 0/3 reageerijat.",
+          "Valves olev II astme merepäästja puudub."
+        ],
+        "minimum": 3,
+        "onDutyCount": 0,
+        "secondLevelCount": 0,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": 1800000,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "east",
+        "name": "Näidis · Idarannik",
+        "latitude": 59.4,
+        "longitude": 27.6,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unavailable",
+        "reasons": [
+          "Ühing on valvest maas."
+        ],
+        "minimum": 3,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "unknown",
+        "name": "Näidis · Kontrollimata",
+        "latitude": 58.95,
+        "longitude": 23.55,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unknown",
+        "reasons": [
+          "Pädevuste ja ressursside kontroll vajab lõpetamist."
+        ],
+        "minimum": 3,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "missing",
+        "name": "Näidis · Asukoht lisamata",
+        "latitude": null,
+        "longitude": null,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "ready",
+        "reasons": [],
+        "minimum": 3,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "broken",
+        "name": "Näidis · Remondis alus",
+        "latitude": 59.42,
+        "longitude": 24.7,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "broken"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unavailable",
+        "reasons": [
+          "Kasutatav alus puudub."
+        ],
+        "minimum": 3,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 15,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      }
+    ],
+    "tross": [
+      {
+        "id": "north",
+        "name": "Näidis · Põhjarannik",
+        "latitude": 59.45,
+        "longitude": 26.5,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unknown",
+        "reasons": [
+          "Valmiduskinnitus puudub või on aegunud."
+        ],
+        "minimum": 1,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "west",
+        "name": "Näidis · Läänerannik",
+        "latitude": 58.39,
+        "longitude": 24.5,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "ready",
+        "reasons": [],
+        "minimum": 1,
+        "onDutyCount": 1,
+        "secondLevelCount": 0,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "island",
+        "name": "Näidis · Saare baas",
+        "latitude": 58.25,
+        "longitude": 22.45,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "delayed",
+        "reasons": [
+          "Valves 0/1 reageerijat."
+        ],
+        "minimum": 1,
+        "onDutyCount": 0,
+        "secondLevelCount": 0,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": 1800000,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "east",
+        "name": "Näidis · Idarannik",
+        "latitude": 59.4,
+        "longitude": 27.6,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unavailable",
+        "reasons": [
+          "Ühing on valvest maas."
+        ],
+        "minimum": 1,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "unknown",
+        "name": "Näidis · Kontrollimata",
+        "latitude": 58.95,
+        "longitude": 23.55,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unknown",
+        "reasons": [
+          "Pädevuste ja ressursside kontroll vajab lõpetamist."
+        ],
+        "minimum": 1,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "missing",
+        "name": "Näidis · Asukoht lisamata",
+        "latitude": null,
+        "longitude": null,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "ok"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "ready",
+        "reasons": [],
+        "minimum": 1,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      },
+      {
+        "id": "broken",
+        "name": "Näidis · Remondis alus",
+        "latitude": 59.42,
+        "longitude": 24.7,
+        "vessels": [
+          {
+            "name": "Näidispaat",
+            "status": "broken"
+          }
+        ],
+        "contactName": "Näidiskontakt",
+        "contactPhone": "",
+        "status": "unavailable",
+        "reasons": [
+          "Kasutatav alus puudub."
+        ],
+        "minimum": 1,
+        "onDutyCount": 3,
+        "secondLevelCount": 1,
+        "departureMinutes": 60,
+        "expectedReadyAtMs": null,
+        "computedAtMs": 0,
+        "confirmedAtMs": -60000,
+        "freshUntilMs": 90000
+      }
+    ]
+  }
+}
