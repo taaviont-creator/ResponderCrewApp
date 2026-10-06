@@ -6,7 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/notification_model.dart';
 
 class NotificationService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  FirebaseFirestore get _firestore => FirebaseFirestore.instance;
 
   CollectionReference<Map<String, dynamic>> get _notifications =>
       _firestore.collection('notifications');
@@ -223,43 +223,40 @@ class NotificationService {
     required String organizationId,
   }) async {
     _requireOrganizationId(organizationId);
-    final unreadNotifications = notifications.where((notification) {
-      final notificationOrganizationId = notification.organizationId.isNotEmpty
-          ? notification.organizationId
-          : notification.commandId;
-      return notificationOrganizationId == organizationId &&
-          !readNotificationIds.contains(notification.id);
-    }).toList(growable: false);
+    final unreadIds = notifications
+        .where((notification) {
+          final notificationOrganizationId =
+              notification.organizationId.isNotEmpty
+              ? notification.organizationId
+              : notification.commandId;
+          return notificationOrganizationId == organizationId &&
+              !readNotificationIds.contains(notification.id);
+        })
+        .map((notification) => notification.id)
+        .toSet()
+        .toList(growable: false);
 
-    const batchSize = 450;
-    for (var start = 0;
-        start < unreadNotifications.length;
-        start += batchSize) {
-      final end = (start + batchSize < unreadNotifications.length)
-          ? start + batchSize
-          : unreadNotifications.length;
-      final batch = _firestore.batch();
-
-      for (final notification in unreadNotifications.sublist(start, end)) {
-        final readId = '${notification.id}_$userId';
-        batch.set(
-          _notificationReads.doc(readId),
-          {
-            'id': readId,
-            'notificationId': notification.id,
-            'userId': userId,
-            'organizationId': organizationId,
-            // TODO: Remove commandId after all notification reads use
-            // organizationId.
-            'commandId': organizationId,
-            'readAt': FieldValue.serverTimestamp(),
-            'createdAt': FieldValue.serverTimestamp(),
-          },
-          SetOptions(merge: true),
-        );
-      }
-
-      await batch.commit();
+    // Each receipt checks its source and membership in Security Rules. An
+    // atomic batch shares a 20-document access budget, regardless of its write
+    // limit. Independent writes retain the existing per-receipt checks.
+    const concurrency = 4;
+    for (var start = 0; start < unreadIds.length; start += concurrency) {
+      final end = (start + concurrency < unreadIds.length)
+          ? start + concurrency
+          : unreadIds.length;
+      // Wait for all in-flight writes before reporting an error. Completed
+      // receipts remain saved and a retry can skip them using the read stream.
+      await Future.wait(
+        unreadIds
+            .sublist(start, end)
+            .map(
+              (id) => markAsRead(
+                notificationId: id,
+                userId: userId,
+                organizationId: organizationId,
+              ),
+            ),
+      );
     }
   }
 
