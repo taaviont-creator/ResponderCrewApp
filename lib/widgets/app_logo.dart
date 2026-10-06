@@ -10,12 +10,14 @@ class AppLogo extends StatelessWidget {
   Widget build(BuildContext context) => ClipRRect(
     borderRadius: BorderRadius.circular(size / 10),
     child: Image.asset(
-      'assets/branding/respondcrew-logo.png',
+      size <= 64
+          ? 'assets/branding/compact/logo.png'
+          : 'assets/branding/display/logo.png',
       width: size,
       height: size,
       fit: BoxFit.contain,
-      // Mipmapped sampling preserves thin lines when reducing the 1024px
-      // artwork. `high` uses bicubic sampling and aliases at these scales.
+      // Pre-sized density variants avoid reducing the 1024px master by a
+      // large factor in the browser. Medium handles any remaining scaling.
       filterQuality: FilterQuality.medium,
       excludeFromSemantics: true,
     ),

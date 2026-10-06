@@ -27,6 +27,24 @@ Future<void> main() async {
   final source = img.decodePng(
     File('assets/branding/respondcrew-logo.png').readAsBytesSync(),
   )!;
+  // Flutter picks the matching density variant, including on the web where
+  // cacheWidth/cacheHeight do not control image decoding.
+  for (final entry in {'display': 160, 'compact': 44}.entries) {
+    for (final density in [1, 2, 3, 4]) {
+      final variant = density == 1 ? '' : '$density.0x/';
+      final file = File('assets/branding/${entry.key}/${variant}logo.png');
+      file.parent.createSync(recursive: true);
+      file.writeAsBytesSync(
+        img.encodePng(
+          img.copyResize(
+            source,
+            width: entry.value * density,
+            interpolation: img.Interpolation.average,
+          ),
+        ),
+      );
+    }
+  }
   for (final size in [192, 512]) {
     final canvas = img.Image(width: size, height: size);
     img.fill(canvas, color: img.ColorRgb8(18, 54, 74));

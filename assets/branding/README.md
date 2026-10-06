@@ -1,7 +1,9 @@
 # RespondCrew logo
 
 `respondcrew-logo.png` is the original logo supplied by the project owner.
-Keep this master unchanged; the login screen and desktop navigation use it.
+Keep this master unchanged. The login screen and desktop navigation use generated
+160px/44px display copies with 1x–4x density variants to avoid browser aliasing
+when reducing the detailed master at runtime.
 
 Regenerate Android, iOS, Windows and web icons from the repository root:
 
