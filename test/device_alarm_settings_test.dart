@@ -49,12 +49,12 @@ void main() {
   testWidgets(
     'device settings refresh on resume and open specific system settings',
     (tester) async {
-          var allowed = false;
+      var allowed = false;
       final calls = <String>[];
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(DeviceAlarmSettings.channel, (call) async {
             calls.add(call.method);
-            if (call.method == 'getSettings')
+            if (call.method == 'getSettings') {
               return <String, dynamic>{
                 'notificationsEnabled': true,
                 'channelExists': true,
@@ -65,6 +65,7 @@ void main() {
                 'soundVolume': 0,
                 'soundVolumeMax': 15,
               };
+            }
             return null;
           });
       await tester.pumpWidget(
@@ -96,7 +97,7 @@ void main() {
   testWidgets(
     'narrow large-text view schedules and cancels only the device test',
     (tester) async {
-          tester.view.physicalSize = const Size(360, 800);
+      tester.view.physicalSize = const Size(360, 800);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
