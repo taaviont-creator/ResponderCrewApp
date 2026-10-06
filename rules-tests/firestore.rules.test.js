@@ -1594,3 +1594,20 @@ for (const recurring of [false, true]) {
     await assertFails(updateDoc(ref, {status: 'active', updatedAt: serverTimestamp()}));
   });
 }
+
+test('device alarm capability is optional, Android-only, and editable only by token owner', async () => {
+  const db = testEnv.authenticatedContext(memberId).firestore();
+  const ref = doc(db, 'userDeviceTokens', `${memberId}_alarm-test`);
+  const token = {userId:memberId, token:'alarm-test', platform:'android', app:'respondcrew',
+    enabled:true, createdAt:serverTimestamp(), updatedAt:serverTimestamp()};
+  await assertSucceeds(setDoc(ref, token));
+  await assertSucceeds(updateDoc(ref, {nativeSarAlarm:true, updatedAt:serverTimestamp()}));
+  await assertFails(updateDoc(ref, {nativeSarAlarm:'true', updatedAt:serverTimestamp()}));
+  await assertFails(updateDoc(ref, {platform:'ios', updatedAt:serverTimestamp()}));
+  await assertSucceeds(updateDoc(ref, {platform:'ios', nativeSarAlarm:false, updatedAt:serverTimestamp()}));
+  const otherDb = testEnv.authenticatedContext(otherUserId).firestore();
+  await assertFails(updateDoc(doc(otherDb, 'userDeviceTokens', `${memberId}_alarm-test`),
+    {nativeSarAlarm:false, updatedAt:serverTimestamp()}));
+  await assertFails(setDoc(doc(db,'userDeviceTokens',`${memberId}_invalid-alarm`),
+    {...token, platform:'ios', nativeSarAlarm:true}));
+});

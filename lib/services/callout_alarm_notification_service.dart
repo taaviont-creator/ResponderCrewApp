@@ -13,6 +13,8 @@ import '../firebase_options.dart';
 import '../models/member_request_notification.dart';
 import '../models/certificate_reminder_open.dart';
 import 'device_token_service.dart';
+import '../models/sar_notification_policy.dart';
+import 'package:timezone/timezone.dart' as tz;
 
 const _calloutAlarmChannel = AndroidNotificationChannel(
   'sar_alarm_v2',
@@ -100,6 +102,14 @@ Future<void> calloutAlarmMessagingBackgroundHandler(
   RemoteMessage message,
 ) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // New Android clients render the data-only SAR message themselves. Legacy
+  // notification payloads remain OS-rendered, so never display those twice.
+  if (defaultTargetPlatform == TargetPlatform.android &&
+      message.notification == null && isNativeSarDelivery(message.data)) {
+    final service = CalloutAlarmNotificationService.instance;
+    await service._initializeLocalNotifications();
+    await service._showForegroundCalloutNotification(message);
+  }
 }
 
 class CalloutAlarmNotificationService with WidgetsBindingObserver {
@@ -245,7 +255,13 @@ class CalloutAlarmNotificationService with WidgetsBindingObserver {
     );
   }
 
-  Future<bool> showLocalTestAlarmNotification() async {
+  static const localTestId = 903100;
+
+  Future<void> cancelLocalTestAlarm() => _localNotifications.cancel(id: localTestId);
+
+  Future<bool> scheduleLocalTestAlarm() => showLocalTestAlarmNotification(delay: const Duration(seconds: 10));
+
+  Future<bool> showLocalTestAlarmNotification({Duration delay = Duration.zero}) async {
     if (!_supportsClientNotifications) return false;
 
     if (!_initialized) {
@@ -267,6 +283,8 @@ class CalloutAlarmNotificationService with WidgetsBindingObserver {
         sound: RawResourceAndroidNotificationSound('sar_alarm'),
         enableVibration: true,
         category: AndroidNotificationCategory.alarm,
+        fullScreenIntent: true,
+        visibility: NotificationVisibility.private,
       ),
       iOS: DarwinNotificationDetails(
         presentAlert: true,
@@ -275,13 +293,19 @@ class CalloutAlarmNotificationService with WidgetsBindingObserver {
       ),
     );
 
-    await _localNotifications.show(
-      id: DateTime.now().millisecondsSinceEpoch.remainder(100000),
-      title: 'Testteavitus',
-      body: 'See on v\u00e4ljakutse alarmi test selles seadmes.',
-      notificationDetails: details,
-      payload: 'local_callout_alarm_test',
-    );
+    if (delay > Duration.zero) {
+      await _localNotifications.zonedSchedule(
+        id: localTestId,
+        scheduledDate: tz.TZDateTime.from(DateTime.now().add(delay), tz.UTC),
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        title: 'SAR-proovihäire', body: 'See on ainult selle telefoni proovihäire.',
+        notificationDetails: details, payload: 'local_callout_alarm_test',
+      );
+    } else {
+      await _localNotifications.show(id: localTestId, title: 'SAR-proovihäire',
+        body: 'See on ainult selle telefoni proovihäire.', notificationDetails: details,
+        payload: 'local_callout_alarm_test');
+    }
     return true;
   }
 
@@ -413,8 +437,8 @@ class CalloutAlarmNotificationService with WidgetsBindingObserver {
     if (!_isCalloutMessage(message)) return;
 
     final notification = message.notification;
-    final title = notification?.title ?? 'Väljakutse';
-    final body = notification?.body ?? 'Uus väljakutse';
+    final title = notification?.title ?? message.data['title'] ?? 'Väljakutse';
+    final body = notification?.body ?? message.data['body'] ?? 'Uus väljakutse';
 
     final tross = message.data['calloutType'] == 'tross';
     final details = NotificationDetails(
@@ -428,6 +452,10 @@ class CalloutAlarmNotificationService with WidgetsBindingObserver {
         sound: tross ? null : const RawResourceAndroidNotificationSound('sar_alarm'),
         enableVibration: true,
         category: tross ? AndroidNotificationCategory.event : AndroidNotificationCategory.alarm,
+        fullScreenIntent: !tross,
+        tag: message.data['calloutId'],
+        onlyAlertOnce: true,
+        visibility: NotificationVisibility.private,
       ),
       iOS: DarwinNotificationDetails(
         presentAlert: true,
@@ -440,11 +468,11 @@ class CalloutAlarmNotificationService with WidgetsBindingObserver {
         CalloutNotificationOpenEvent.fromData(message.data);
 
     await _localNotifications.show(
-      id: message.hashCode,
+      id: calloutNotificationId(openEvent?.organizationId ?? "", openEvent?.calloutId ?? message.messageId ?? ""),
       title: title,
       body: body,
       notificationDetails: details,
-      payload: openEvent?.toPayload(),
+      payload: openEvent == null ? null : jsonEncode({...jsonDecode(openEvent.toPayload()) as Map<String, dynamic>, 'sarAlarm': !tross}),
     );
   }
 

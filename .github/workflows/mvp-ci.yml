@@ -54,6 +54,9 @@ jobs:
       - name: Run Flutter tests
         run: flutter test
 
+      - name: Compile Android integration without packaging an APK
+        run: cd android && ./gradlew :app:compileDebugKotlin --no-daemon
+
       - name: Build Android debug APK
         if: github.event_name == 'workflow_dispatch' && inputs.build_android_apk
         run: flutter build apk --debug

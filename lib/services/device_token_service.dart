@@ -38,6 +38,7 @@ class DeviceTokenService {
       'updatedAt': FieldValue.serverTimestamp(),
       'enabled': true,
       'app': 'respondcrew',
+      'nativeSarAlarm': platform == 'android',
     };
 
     final snapshot = await doc.get();
