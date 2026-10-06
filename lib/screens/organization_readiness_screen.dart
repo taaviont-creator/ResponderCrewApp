@@ -30,32 +30,46 @@ class OrganizationReadinessScreen extends StatelessWidget {
         ),
         if (MembershipRole.isOrgAdmin(membershipRole)) ...[
           const SizedBox(height: 12),
-          MinimumCrewControl(
-            key: ValueKey('minimum-$organizationId'),
-            organizationId: organizationId,
-            organizationName: organizationName,
-            currentUid: currentUid,
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.admin_panel_settings_outlined),
+                    title: Text(
+                      'Ühingu valve juhtimine',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    subtitle: const Text('Admini valikud kogu ühingule'),
+                  ),
+                  MinimumCrewControl(
+                    key: ValueKey('minimum-$organizationId'),
+                    organizationId: organizationId,
+                    organizationName: organizationName,
+                    currentUid: currentUid,
+                  ),
+                  OrganizationDutyControl(
+                    key: ValueKey('duty-$organizationId'),
+                    organizationId: organizationId,
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
         const SizedBox(height: 16),
-        OrganizationPlanning(
-          key: ValueKey('planning-$organizationId'),
-          organizationId: organizationId,
-        ),
-        if (MembershipRole.isOrgAdmin(membershipRole)) ...[
-          const SizedBox(height: 16),
-          ExpansionTile(
-            title: const Text('Ühingu valve juhtimine'),
-            subtitle: const Text('Ühingu seaded, mitte sinu isiklik staatus'),
-            leading: const Icon(Icons.admin_panel_settings_outlined),
-            children: [
-              OrganizationDutyControl(
-                key: ValueKey('duty-$organizationId'),
-                organizationId: organizationId,
-              ),
-            ],
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: OrganizationPlanning(
+              key: ValueKey('planning-$organizationId'),
+              organizationId: organizationId,
+            ),
           ),
-        ],
+        ),
       ],
     ),
   );

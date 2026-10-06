@@ -4,10 +4,37 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/activity_model.dart';
 import '../models/membership_model.dart';
 import '../models/notification_model.dart';
+import '../models/activity_schedule.dart';
+import 'membership_service.dart';
+
+class ActivityMember {
+  const ActivityMember(this.id, this.name);
+  final String id, name;
+}
 
 class ActivityService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  FirebaseFirestore get _firestore => FirebaseFirestore.instance;
+  FirebaseAuth get _auth => FirebaseAuth.instance;
+
+  Stream<List<ActivityMember>> streamActiveMembers(String organizationId) {
+    final memberships = MembershipService();
+    return memberships
+        .streamActiveMembershipsForOrganization(organizationId)
+        .map((docs) {
+          final members = docs
+              .map(
+                (d) => ActivityMember(
+                  d.data()['userId'] as String,
+                  memberships.safeDisplayNameFromMembership(d.data()),
+                ),
+              )
+              .toList();
+          members.sort(
+            (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+          );
+          return members;
+        });
+  }
 
   CollectionReference<Map<String, dynamic>> get _activities =>
       _firestore.collection('activities');
@@ -18,10 +45,7 @@ class ActivityService {
   CollectionReference<Map<String, dynamic>> get _notifications =>
       _firestore.collection('notifications');
 
-  String participantId({
-    required String activityId,
-    required String userId,
-  }) {
+  String participantId({required String activityId, required String userId}) {
     return '${activityId}_$userId';
   }
 
@@ -39,19 +63,18 @@ class ActivityService {
         )
         .snapshots()
         .map((snapshot) {
-      final activities =
-          snapshot.docs.map(ActivityModel.fromFirestore).toList();
+          final activities = snapshot.docs
+              .map(ActivityModel.fromFirestore)
+              .toList();
 
-      activities.sort((a, b) {
-        final aTime =
-            a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final bTime =
-            b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        return bTime.compareTo(aTime);
-      });
+          activities.sort((a, b) {
+            final aTime = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+            final bTime = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+            return bTime.compareTo(aTime);
+          });
 
-      return activities;
-    });
+          return activities;
+        });
   }
 
   Stream<ActivityParticipantModel?> streamMyParticipation({
@@ -64,13 +87,16 @@ class ActivityService {
         .doc(participantId(activityId: activityId, userId: userId))
         .snapshots()
         .map((snapshot) {
-      if (!snapshot.exists) return null;
-      final participant = ActivityParticipantModel.fromFirestore(snapshot);
-      final participantOrganizationId = participant.organizationId.isNotEmpty
-          ? participant.organizationId
-          : participant.commandId;
-      return participantOrganizationId == organizationId ? participant : null;
-    });
+          if (!snapshot.exists) return null;
+          final participant = ActivityParticipantModel.fromFirestore(snapshot);
+          final participantOrganizationId =
+              participant.organizationId.isNotEmpty
+              ? participant.organizationId
+              : participant.commandId;
+          return participantOrganizationId == organizationId
+              ? participant
+              : null;
+        });
   }
 
   Stream<List<ActivityParticipantModel>> streamUserParticipations({
@@ -95,28 +121,30 @@ class ActivityService {
         )
         .snapshots()
         .map((snapshot) {
-      final participants = snapshot.docs
-          .map(ActivityParticipantModel.fromFirestore)
-          .where((participant) {
-        final participantOrganizationId = participant.organizationId.isNotEmpty
-            ? participant.organizationId
-            : participant.commandId;
-        return participant.userId == trimmedUserId &&
-            participantOrganizationId == trimmedOrganizationId;
-      }).toList();
+          final participants = snapshot.docs
+              .map(ActivityParticipantModel.fromFirestore)
+              .where((participant) {
+                final participantOrganizationId =
+                    participant.organizationId.isNotEmpty
+                    ? participant.organizationId
+                    : participant.commandId;
+                return participant.userId == trimmedUserId &&
+                    participantOrganizationId == trimmedOrganizationId;
+              })
+              .toList();
 
-      participants.sort((a, b) {
-        final aTime = a.confirmedAt ?? a.updatedAt ?? a.createdAt;
-        final bTime = b.confirmedAt ?? b.updatedAt ?? b.createdAt;
-        if (aTime == null && bTime == null) {
-          return a.activityId.compareTo(b.activityId);
-        }
-        if (aTime == null) return 1;
-        if (bTime == null) return -1;
-        return bTime.compareTo(aTime);
-      });
-      return participants;
-    });
+          participants.sort((a, b) {
+            final aTime = a.confirmedAt ?? a.updatedAt ?? a.createdAt;
+            final bTime = b.confirmedAt ?? b.updatedAt ?? b.createdAt;
+            if (aTime == null && bTime == null) {
+              return a.activityId.compareTo(b.activityId);
+            }
+            if (aTime == null) return 1;
+            if (bTime == null) return -1;
+            return bTime.compareTo(aTime);
+          });
+          return participants;
+        });
   }
 
   Stream<bool> streamCanConfirmParticipation({
@@ -133,15 +161,15 @@ class ActivityService {
         .doc('${trimmedUserId}_$trimmedOrganizationId')
         .snapshots()
         .map((snapshot) {
-      final membership = snapshot.data();
-      return membership != null &&
-          _isActiveMembership(membership) &&
-          _membershipIsForOrganization(
-            membership: membership,
-            organizationId: trimmedOrganizationId,
-          ) &&
-          MembershipRole.isOrgAdmin(membership['role']);
-    });
+          final membership = snapshot.data();
+          return membership != null &&
+              _isActiveMembership(membership) &&
+              _membershipIsForOrganization(
+                membership: membership,
+                organizationId: trimmedOrganizationId,
+              ) &&
+              MembershipRole.isOrgAdmin(membership['role']);
+        });
   }
 
   Stream<List<ActivityParticipantModel>> streamActivityParticipants({
@@ -160,27 +188,31 @@ class ActivityService {
         .where('organizationId', isEqualTo: trimmedOrganizationId)
         .snapshots()
         .map((snapshot) {
-      final participants = snapshot.docs
-          .map(ActivityParticipantModel.fromFirestore)
-          .where((participant) {
-        final participantOrganizationId = participant.organizationId.isNotEmpty
-            ? participant.organizationId
-            : participant.commandId;
-        return participant.activityId == trimmedActivityId &&
-            participantOrganizationId == trimmedOrganizationId;
-      }).toList();
+          final participants = snapshot.docs
+              .map(ActivityParticipantModel.fromFirestore)
+              .where((participant) {
+                final participantOrganizationId =
+                    participant.organizationId.isNotEmpty
+                    ? participant.organizationId
+                    : participant.commandId;
+                return participant.activityId == trimmedActivityId &&
+                    participantOrganizationId == trimmedOrganizationId;
+              })
+              .toList();
 
-      participants.sort((a, b) => a.userId.compareTo(b.userId));
-      return participants;
-    });
+          participants.sort((a, b) => a.userId.compareTo(b.userId));
+          return participants;
+        });
   }
 
   Future<String> loadParticipantDisplayName(String userId) async {
     final trimmedUserId = userId.trim();
     if (trimmedUserId.isEmpty) return 'Liige';
 
-    final userSnapshot =
-        await _firestore.collection('users').doc(trimmedUserId).get();
+    final userSnapshot = await _firestore
+        .collection('users')
+        .doc(trimmedUserId)
+        .get();
     final userData = userSnapshot.data() ?? <String, dynamic>{};
     final name = (userData['name'] ?? '').toString().trim();
     final email = (userData['email'] ?? '').toString().trim();
@@ -195,6 +227,7 @@ class ActivityService {
     required String description,
     required String type,
     required String startTime,
+    String endTime = '',
     required String location,
     required String createdBy,
   }) async {
@@ -209,9 +242,7 @@ class ActivityService {
       throw Exception('Pealkiri on kohustuslik.');
     }
 
-    if (startTime.trim().isEmpty) {
-      throw Exception('Kuupäev on kohustuslik.');
-    }
+    final times = _validatedTimes(startTime, endTime);
 
     if (!ActivityType.values.contains(type)) {
       throw Exception('Tegevuse tüüp ei ole toetatud.');
@@ -222,7 +253,7 @@ class ActivityService {
     final batch = _firestore.batch();
     final trimmedTitle = title.trim();
     final trimmedDescription = description.trim();
-    final trimmedStartTime = startTime.trim();
+    final trimmedStartTime = times.$1;
     final trimmedLocation = location.trim();
 
     batch.set(activityDoc, {
@@ -234,7 +265,7 @@ class ActivityService {
       'description': trimmedDescription,
       'type': type,
       'startTime': trimmedStartTime,
-      'endTime': '',
+      'endTime': times.$2,
       'location': trimmedLocation,
       'createdBy': trimmedCreatedBy,
       'createdAt': FieldValue.serverTimestamp(),
@@ -258,6 +289,57 @@ class ActivityService {
     });
 
     await batch.commit();
+  }
+
+  (String, String) _validatedTimes(String start, String end) {
+    final starts = ActivitySchedule.parse(start);
+    final ends = end.trim().isEmpty ? null : ActivitySchedule.parse(end);
+    if (starts == null || (end.trim().isNotEmpty && ends == null)) {
+      throw ArgumentError('Vali korrektne kuupäev ja kellaaeg.');
+    }
+    if (ends != null && !ends.isAfter(starts)) {
+      throw ArgumentError('Lõpuaeg peab olema algusajast hilisem.');
+    }
+    return (
+      starts.toUtc().toIso8601String(),
+      ends?.toUtc().toIso8601String() ?? '',
+    );
+  }
+
+  Future<void> updateActivity({
+    required ActivityModel activity,
+    required String title,
+    required String description,
+    required String type,
+    required String startTime,
+    required String endTime,
+    required String location,
+    required String updatedBy,
+  }) async {
+    final org = activity.organizationId.isNotEmpty
+        ? activity.organizationId
+        : activity.commandId;
+    await _ensureCanConfirmParticipation(
+      organizationId: org,
+      confirmedBy: updatedBy,
+    );
+    await _ensureActivityBelongsToOrganization(
+      activityId: activity.id,
+      organizationId: org,
+    );
+    if (title.trim().isEmpty || !ActivityType.values.contains(type)) {
+      throw ArgumentError('Kontrolli pealkirja ja tegevuse tüüpi.');
+    }
+    final times = _validatedTimes(startTime, endTime);
+    await _activities.doc(activity.id).update({
+      'title': title.trim(),
+      'description': description.trim(),
+      'type': type,
+      'startTime': times.$1,
+      'endTime': times.$2,
+      'location': location.trim(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   }
 
   Future<void> setMyParticipation({
@@ -317,7 +399,7 @@ class ActivityService {
     if (!ActivityAttendanceStatus.values.contains(attendanceStatus)) {
       throw Exception('Osalemise kinnituse staatus ei ole toetatud.');
     }
-    if (hours != null && hours < 0) {
+    if (hours != null && (!hours.isFinite || hours < 0)) {
       throw Exception('Tundide arv ei saa olla negatiivne.');
     }
 
@@ -332,8 +414,17 @@ class ActivityService {
 
     final id = participantId(activityId: activityId, userId: trimmedUserId);
     final participantRef = _participants.doc(id);
-    final participantSnapshot = await participantRef.get();
-    final participantData = participantSnapshot.data();
+    // A missing document cannot be read on behalf of another member. Scope the
+    // query to the administrator's organization, including non-respondents.
+    final existing = await _participants
+        .where('organizationId', isEqualTo: trimmedOrganizationId)
+        .where('activityId', isEqualTo: activityId)
+        .where('userId', isEqualTo: trimmedUserId)
+        .get();
+    final participantData = existing.docs
+        .where((d) => d.id == id)
+        .firstOrNull
+        ?.data();
     if (participantData == null) {
       await participantRef.set({
         'id': id,
@@ -354,7 +445,9 @@ class ActivityService {
       return;
     } else {
       final participantOrganizationId =
-          (participantData['organizationId'] ?? participantData['commandId'] ?? '')
+          (participantData['organizationId'] ??
+                  participantData['commandId'] ??
+                  '')
               .toString()
               .trim();
       if (participantOrganizationId != trimmedOrganizationId ||
@@ -395,15 +488,14 @@ class ActivityService {
         .doc('${currentUser.uid}_$trimmedOrganizationId')
         .get();
     final membership = membershipSnapshot.data();
-    final membershipIsActive = membership != null &&
+    final membershipIsActive =
+        membership != null &&
         ((membership['status'] == 'active') ||
             (membership['isActive'] == true)) &&
         (!membership.containsKey('status') ||
             membership['status'] == 'active') &&
-        (!membership.containsKey('isActive') ||
-            membership['isActive'] == true);
-    if (membership == null ||
-        !membershipIsActive) {
+        (!membership.containsKey('isActive') || membership['isActive'] == true);
+    if (membership == null || !membershipIsActive) {
       throw Exception('Sul puudub õigus tegevust lisada.');
     }
 
@@ -417,8 +509,10 @@ class ActivityService {
 
     if (MembershipRole.isOrgAdmin(membership['role'])) return;
 
-    final commandSnapshot =
-        await _firestore.collection('commands').doc(trimmedOrganizationId).get();
+    final commandSnapshot = await _firestore
+        .collection('commands')
+        .doc(trimmedOrganizationId)
+        .get();
     if (commandSnapshot.data()?['allowMembersToCreateActivities'] != true) {
       throw Exception('Sul puudub õigus tegevust lisada.');
     }
@@ -480,10 +574,10 @@ class ActivityService {
   bool _isActiveMembership(Map<String, dynamic> membership) {
     final hasActiveMarker =
         membership['status'] == 'active' || membership['isActive'] == true;
-    final statusIsActive = !membership.containsKey('status') ||
-        membership['status'] == 'active';
-    final flagIsActive = !membership.containsKey('isActive') ||
-        membership['isActive'] == true;
+    final statusIsActive =
+        !membership.containsKey('status') || membership['status'] == 'active';
+    final flagIsActive =
+        !membership.containsKey('isActive') || membership['isActive'] == true;
     return hasActiveMarker && statusIsActive && flagIsActive;
   }
 }

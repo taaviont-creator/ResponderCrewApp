@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'activity_schedule.dart';
 
 class ActivityType {
   static const training = 'training';
@@ -47,11 +48,7 @@ class ActivityAttendanceStatus {
   static const confirmed = 'confirmed';
   static const absent = 'absent';
 
-  static const values = {
-    notConfirmed,
-    confirmed,
-    absent,
-  };
+  static const values = {notConfirmed, confirmed, absent};
 }
 
 class ActivityModel {
@@ -82,6 +79,50 @@ class ActivityModel {
   final String createdBy;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+
+  DateTime? get startsAt => ActivitySchedule.parse(startTime);
+  DateTime? get endsAt => ActivitySchedule.parse(endTime);
+  bool occursOn(DateTime day) {
+    final start = startsAt;
+    if (start == null) return false;
+    final from = ActivitySchedule.fromSelection(day, 0, 0)!;
+    final until = ActivitySchedule.fromSelection(
+      DateTime(day.year, day.month, day.day + 1),
+      0,
+      0,
+    )!;
+    final end = endsAt;
+    return end != null && end.isAfter(start)
+        ? start.isBefore(until) && end.isAfter(from)
+        : ActivitySchedule.sameDay(start, day);
+  }
+
+  double? get durationHours {
+    final start = startsAt, end = endsAt;
+    return start != null && end != null && end.isAfter(start)
+        ? end.difference(start).inMinutes / 60
+        : null;
+  }
+
+  bool isUpcomingOrOngoing(DateTime now) {
+    final start = startsAt;
+    if (start == null) return false;
+    final end = endsAt;
+    if (end != null && end.isAfter(start)) return end.isAfter(now);
+    // Date-only legacy activities remain visible throughout their day.
+    if (RegExp(
+      r'^(?:\d{4}-\d{2}-\d{2}|\d{1,2}\.\d{1,2}\.\d{4})$',
+    ).hasMatch(startTime.trim())) {
+      return !DateTime(start.year, start.month, start.day).isBefore(
+        DateTime(
+          ActivitySchedule.inEstonia(now).year,
+          ActivitySchedule.inEstonia(now).month,
+          ActivitySchedule.inEstonia(now).day,
+        ),
+      );
+    }
+    return !start.isBefore(now);
+  }
 
   factory ActivityModel.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> document,

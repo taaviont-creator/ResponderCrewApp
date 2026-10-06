@@ -4,6 +4,57 @@ import 'package:respondcrew_app/screens/center_sharing_screen.dart';
 
 void main() {
   testWidgets(
+    'disabled sharing is not shown as active even when earlier approval remains',
+    (tester) async {
+      var requested = false;
+      final calls = <String>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: CenterSharingScreen(
+              organizationId: 'org',
+              embedded: true,
+              call: (method, data) async {
+                calls.add(method);
+                if (method == 'setOrganizationCenterSharing') {
+                  expect(data['organizationId'], 'org');
+                  expect(data['centerId'], 'tross');
+                  expect(data['expectedRevision'], 4);
+                  requested = data['enabled'] == true;
+                  return {};
+                }
+                return {
+                  'positionReady': true,
+                  'entries': [
+                    {
+                      'centerId': 'tross',
+                      'name': 'Ühing',
+                      'requested': requested,
+                      'approved': true,
+                      'revision': 4,
+                    },
+                  ],
+                };
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Trossi keskus'), findsOneWidget);
+      expect(find.text('Jagamine välja lülitatud'), findsOneWidget);
+      expect(find.text('Jagamine kinnitatud'), findsNothing);
+      await tester.tap(find.byType(SwitchListTile));
+      await tester.pumpAndSettle();
+      expect(find.text('Jagamine kinnitatud'), findsOneWidget);
+      expect(calls, [
+        'getOrganizationCenterSharing',
+        'setOrganizationCenterSharing',
+        'getOrganizationCenterSharing',
+      ]);
+    },
+  );
+  testWidgets(
     'inline visibility explains absent map point and pending approval without another page',
     (tester) async {
       tester.view.physicalSize = const Size(320, 1000);

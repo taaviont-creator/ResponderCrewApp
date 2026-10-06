@@ -127,7 +127,8 @@ void main() {
       await open(tester, service, org: 'org-b');
       await tester.tap(find.text('Salvesta'));
       await tester.pumpAndSettle();
-      expect(service.loads, ['org-a', 'org-b']);
+      // Initial display loads automatically; tapping a failed load retries it.
+      expect(service.loads, ['org-a', 'org-a', 'org-b']);
       expect(service.writes.single['organizationId'], 'org-b');
     },
   );
