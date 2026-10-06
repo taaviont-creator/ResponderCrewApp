@@ -151,6 +151,7 @@ class _GeofenceCardState extends State<GeofenceCard>
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(

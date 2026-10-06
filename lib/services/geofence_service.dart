@@ -15,27 +15,38 @@ import '../models/geofence_region.dart';
 @pragma('vm:entry-point')
 Future<void> respondCrewGeofenceCallback(GeofenceCallbackParams event) async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  // Never log callback parameters: the native event can contain personal GPS.
-  final sessions = event.geofences
-      .map((g) => g.id.split(':'))
-      .where((p) => p.length == 3 && p[0] == 'rcg')
-      .map((p) => p[1])
-      .toSet();
-  for (final session in sessions) {
-    try {
-      await GeofenceService().sample(session);
-    } catch (_) {
-      // A stale sample is never replayed. Next callback/resume obtains a new fix.
-      await SharedPreferencesAsync().setString(
-        'rcg-error:$session',
-        'Piirkonna edastamine ebaõnnestus. Ava valmisolek ja kontrolli ühendust.',
-      );
+  const budget = MethodChannel('respondcrew/geofence-budget');
+  final ios = defaultTargetPlatform == TargetPlatform.iOS;
+  if (ios) await budget.invokeMethod<bool>('begin');
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    // Never log callback parameters: the native event can contain personal GPS.
+    final sessions = event.geofences
+        .map((g) => g.id.split(':'))
+        .where((p) => p.length == 3 && p[0] == 'rcg')
+        .map((p) => p[1])
+        .toSet();
+    for (final session in sessions) {
+      try {
+        await GeofenceService(background: true).sample(session);
+      } catch (_) {
+        // A stale sample is never replayed. Next callback/resume obtains a new fix.
+        await SharedPreferencesAsync().setString(
+          'rcg-error:$session',
+          'Piirkonna edastamine ebaõnnestus. Ava valmisolek ja kontrolli ühendust.',
+        );
+      }
     }
+  } finally {
+    if (ios) await budget.invokeMethod<void>('end');
   }
 }
 
 class GeofenceService with WidgetsBindingObserver {
+  GeofenceService({this.background = false});
+  final bool background;
   static bool get supported =>
       !kIsWeb &&
       {
@@ -54,7 +65,9 @@ class GeofenceService with WidgetsBindingObserver {
     final result = await FirebaseFunctions.instanceFor(region: 'europe-north1')
         .httpsCallable(
           'geofenceReadiness',
-          options: HttpsCallableOptions(timeout: const Duration(seconds: 25)),
+          options: HttpsCallableOptions(
+            timeout: Duration(seconds: background ? 10 : 25),
+          ),
         )
         .call<Map<String, dynamic>>({
           'organizationId': org,
@@ -259,11 +272,16 @@ class GeofenceService with WidgetsBindingObserver {
       return null;
     }
     final org = local['organizationId'] as String;
-    final latest = await call(org, 'get');
-    final state = latest['state'] as Map?;
-    if (state?['enabled'] != true || state?['sessionId'] != session) {
-      await removeLocal(session);
-      return null;
+    // Background execution is bounded by the OS. The event endpoint rechecks
+    // membership, consent, configuration and session atomically; no preflight
+    // network request is needed there.
+    if (!background) {
+      final latest = await call(org, 'get');
+      final state = latest['state'] as Map?;
+      if (state?['enabled'] != true || state?['sessionId'] != session) {
+        await removeLocal(session);
+        return null;
+      }
     }
     final config = Map<String, dynamic>.from(local['config'] as Map);
     String zone = 'unknown';
@@ -273,7 +291,7 @@ class GeofenceService with WidgetsBindingObserver {
         final position = await Geolocator.getCurrentPosition(
           locationSettings: const LocationSettings(
             accuracy: LocationAccuracy.high,
-            timeLimit: Duration(seconds: 12),
+            timeLimit: Duration(seconds: 8),
           ),
         );
         if (DateTime.now().difference(position.timestamp).abs() <
@@ -296,11 +314,19 @@ class GeofenceService with WidgetsBindingObserver {
       }
     }
     if (await localSession(session) == null) return null;
-    final result = await call(org, 'event', {
-      'sessionId': session,
-      'zone': zone,
-      'observedAtMs': at,
-    });
+    Map<String, dynamic> result;
+    try {
+      result = await call(org, 'event', {
+        'sessionId': session,
+        'zone': zone,
+        'observedAtMs': at,
+      });
+    } on FirebaseFunctionsException catch (error) {
+      if ({'permission-denied', 'unauthenticated'}.contains(error.code)) {
+        await removeLocal(session);
+      }
+      rethrow;
+    }
     if (result['stopped'] == true) {
       await removeLocal(session);
       return null;
