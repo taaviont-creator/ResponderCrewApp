@@ -1,0 +1,12 @@
+flutter_launcher_icons:
+  image_path: assets/branding/respondcrew-logo.png
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  web:
+    generate: true
+    background_color: "#F5F8FA"
+    theme_color: "#12364A"
+  windows:
+    generate: true
+    icon_size: 256

@@ -1,6 +1,7 @@
 import '../navigation/navigation_protection.dart';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_logo.dart';
 
 class MainNavigationShell extends StatefulWidget {
   const MainNavigationShell({
@@ -85,12 +86,19 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
                 onDestinationSelected: _select,
                 leading: const Padding(
                   padding: EdgeInsets.all(16),
-                  child: Text(
-                    'RespondCrew',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.navy,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      AppLogo(size: 36),
+                      SizedBox(width: 8),
+                      Text(
+                        'RespondCrew',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.navy,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 destinations: [

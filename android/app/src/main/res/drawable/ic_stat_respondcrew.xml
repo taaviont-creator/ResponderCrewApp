@@ -1,0 +1,7 @@
+<!-- A white anchor silhouette for Android notification status bars. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M17,15l2,0c-0.6,2.2 -2.9,4 -6,4.4L13,12l3,0l0,-2l-3,0l0,-1.2c1.2,-0.4 2,-1.5 2,-2.8c0,-1.7 -1.3,-3 -3,-3s-3,1.3 -3,3c0,1.3 0.8,2.4 2,2.8L11,10L8,10l0,2l3,0l0,7.4c-3.1,-0.4 -5.4,-2.2 -6,-4.4l2,0l-3,-3l-3,3l2,0c0.8,3.7 4.5,6.5 9,6.5s8.2,-2.8 9,-6.5l2,0l-3,-3zM12,5a1,1 0,1 1,0 2a1,1 0,1 1,0 -2" />
+</vector>
