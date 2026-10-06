@@ -189,7 +189,7 @@ void main() {
     'organization pause retains reason and member contacts; busy contact disables duplicate actions',
     (tester) async {
       await render(tester, paused: true, busy: 'a');
-      expect(find.text('Ühing on valvest maas'), findsWidgets);
+      expect(find.text('Ühing on valvest maas'), findsOneWidget);
       expect(find.text('Hooaeg läbi'), findsOneWidget);
       expect(find.text('Ühing on reageerimisvalmis'), findsNothing);
       expect(

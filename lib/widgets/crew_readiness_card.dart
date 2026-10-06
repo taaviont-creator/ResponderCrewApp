@@ -427,7 +427,7 @@ class CrewReadinessView extends StatelessWidget {
             : 'Ühing ei ole reageerimisvalmis',
         eligibleCount: eligibleCount,
         secondLevelCount: secondLevelCount,
-        missing: ready ? const [] : missing,
+        missing: ready || organizationPaused ? const [] : missing,
       );
     }
     return AppSectionCard(
