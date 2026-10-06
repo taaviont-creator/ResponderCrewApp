@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:image/image.dart' as img;
 
@@ -26,13 +27,33 @@ Future<void> main() async {
   final source = img.decodePng(
     File('assets/branding/respondcrew-logo.png').readAsBytesSync(),
   )!;
+  // Flutter picks the matching density variant, including on the web where
+  // cacheWidth/cacheHeight do not control image decoding.
+  for (final entry in {'display': 160, 'compact': 44}.entries) {
+    for (final density in [1, 2, 3, 4]) {
+      final variant = density == 1 ? '' : '$density.0x/';
+      final file = File('assets/branding/${entry.key}/${variant}logo.png');
+      file.parent.createSync(recursive: true);
+      file.writeAsBytesSync(
+        img.encodePng(
+          img.copyResize(
+            source,
+            width: entry.value * density,
+            interpolation: img.Interpolation.average,
+          ),
+        ),
+      );
+    }
+  }
   for (final size in [192, 512]) {
     final canvas = img.Image(width: size, height: size);
-    img.fill(canvas, color: img.ColorRgb8(58, 62, 63));
-    // Keep the entire supplied square inside the maskable icon's safe circle.
+    img.fill(canvas, color: img.ColorRgb8(18, 54, 74));
+    // The supplied badge already has transparent margins. At 88% its opaque
+    // artwork remains within radius 0.38 of the canvas (the safe radius is
+    // 0.40), without shrinking the entire square into the safe circle again.
     final artwork = img.copyResize(
       source,
-      width: (size * 0.56).floor(),
+      width: (size * 0.88).floor(),
       interpolation: img.Interpolation.average,
     );
     img.compositeImage(
@@ -46,7 +67,22 @@ Future<void> main() async {
     ).writeAsBytesSync(img.encodePng(canvas));
   }
   // Browsers downsample this higher resolution source for their tab icon.
-  File(
-    'web/favicon.png',
-  ).writeAsBytesSync(img.encodePng(img.copyResize(source, width: 48)));
+  File('web/favicon.png').writeAsBytesSync(
+    img.encodePng(
+      img.copyResize(
+        source,
+        width: 48,
+        interpolation: img.Interpolation.average,
+      ),
+    ),
+  );
+  // Let browsers refresh the previous small/masked icons after deployment.
+  final manifestFile = File('web/manifest.json');
+  final manifest = jsonDecode(manifestFile.readAsStringSync()) as Map;
+  for (final icon in manifest['icons'] as List) {
+    icon['src'] = '${(icon['src'] as String).split('?').first}?v=2';
+  }
+  manifestFile.writeAsStringSync(
+    '${const JsonEncoder.withIndent('    ').convert(manifest)}\n',
+  );
 }

@@ -81,6 +81,8 @@ flutter:
   uses-material-design: true
   assets:
     - assets/branding/respondcrew-logo.png
+    - assets/branding/display/logo.png
+    - assets/branding/compact/logo.png
     - assets/center-demo.json
     - assets/fonts/NotoSans-Regular.ttf
     - assets/fonts/NotoSans-Bold.ttf
