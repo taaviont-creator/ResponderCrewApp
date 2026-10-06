@@ -89,7 +89,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      AppLogo(size: 36),
+                      AppLogo(size: 44),
                       SizedBox(width: 8),
                       Text(
                         'RespondCrew',

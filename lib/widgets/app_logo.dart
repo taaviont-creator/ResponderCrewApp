@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 /// The supplied brand artwork; adjacent headings provide its accessible name.
 class AppLogo extends StatelessWidget {
-  const AppLogo({super.key, this.size = 112});
+  const AppLogo({super.key, this.size = 160});
 
   final double size;
 
@@ -14,7 +14,9 @@ class AppLogo extends StatelessWidget {
       width: size,
       height: size,
       fit: BoxFit.contain,
-      filterQuality: FilterQuality.high,
+      // Mipmapped sampling preserves thin lines when reducing the 1024px
+      // artwork. `high` uses bicubic sampling and aliases at these scales.
+      filterQuality: FilterQuality.medium,
       excludeFromSemantics: true,
     ),
   );
