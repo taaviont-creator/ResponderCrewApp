@@ -32,6 +32,7 @@ function createCertificateReminderJob({db, messaging, loadTokens, logger, now = 
       const page = await query.get();
       for (const document of page.docs) {
         const certificate = document.data();
+        if (certificate.archived === true || certificate.noExpiry === true) continue;
         const stage = expiryStage(certificate.expiresAt, now());
         if (!stage || certificate.status === 'missing' || !certificate.userId) continue;
         const org = orgId(certificate);

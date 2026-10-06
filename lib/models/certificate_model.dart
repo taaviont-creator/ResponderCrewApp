@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'calendar_date.dart';
 
 class CertificateType {
   static const firstAid = 'firstAid';
@@ -26,12 +27,7 @@ class CertificateStatus {
   static const expired = 'expired';
   static const missing = 'missing';
 
-  static const values = {
-    valid,
-    expiringSoon,
-    expired,
-    missing,
-  };
+  static const values = {valid, expiringSoon, expired, missing};
 }
 
 class CertificateModel {
@@ -51,6 +47,9 @@ class CertificateModel {
     required this.createdBy,
     this.createdAt,
     this.updatedAt,
+    this.number = '',
+    this.noExpiry = false,
+    this.archived = false,
   });
 
   final String id;
@@ -68,6 +67,29 @@ class CertificateModel {
   final String createdBy;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final String number;
+  final bool noExpiry, archived;
+
+  String displayStatusAt(DateTime now) {
+    if (status == CertificateStatus.missing) return status;
+    if (noExpiry) return CertificateStatus.valid;
+    final expiry = parseCalendarDate(expiresAt);
+    if (expiry == null) return 'unknownExpiry';
+    final today = DateTime(now.year, now.month, now.day);
+    if (expiry.isBefore(today)) return CertificateStatus.expired;
+    if (!expiry.isAfter(DateTime(today.year, today.month, today.day + 30))) {
+      return CertificateStatus.expiringSoon;
+    }
+    return CertificateStatus.valid;
+  }
+
+  String get validityLabel => switch (displayStatusAt(DateTime.now())) {
+    CertificateStatus.missing => 'Puudub',
+    CertificateStatus.expired => 'Aegunud',
+    CertificateStatus.expiringSoon => 'Aegumas',
+    'unknownExpiry' => 'Kehtivusaeg teadmata',
+    _ => noExpiry ? 'Tähtajatu' : 'Kehtiv',
+  };
 
   factory CertificateModel.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> document,
@@ -90,6 +112,9 @@ class CertificateModel {
       createdBy: _stringValue(data['createdBy']),
       createdAt: _dateTimeValue(data['createdAt']),
       updatedAt: _dateTimeValue(data['updatedAt']),
+      number: _stringValue(data['number']),
+      noExpiry: data['noExpiry'] == true,
+      archived: data['archived'] == true,
     );
   }
 
@@ -107,6 +132,9 @@ class CertificateModel {
       'expiresAt': expiresAt,
       'status': status,
       'note': note,
+      'number': number,
+      'noExpiry': noExpiry,
+      'archived': archived,
       'createdBy': createdBy,
       'createdAt': createdAt == null ? null : Timestamp.fromDate(createdAt!),
       'updatedAt': updatedAt == null ? null : Timestamp.fromDate(updatedAt!),

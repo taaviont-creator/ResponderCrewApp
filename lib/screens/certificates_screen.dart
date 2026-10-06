@@ -1,3 +1,5 @@
+import '../widgets/certificate_editor.dart';
+import '../widgets/app_date_field.dart';
 import '../widgets/app_layout.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -50,200 +52,29 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
       return;
     }
 
-    final titleController = TextEditingController(text: existing?.title);
-    final issuerController = TextEditingController(text: existing?.issuer);
-    final issuedAtController = TextEditingController(text: existing?.issuedAt);
-    final expiresAtController = TextEditingController(
-      text: existing?.expiresAt,
-    );
-    final noteController = TextEditingController(text: existing?.note);
-    var selectedMember = members.first;
-    var selectedType = existing?.type ?? CertificateType.other;
-    var selectedStatus = existing?.status ?? CertificateStatus.valid;
-
-    final route = DialogRoute<bool>(
+    await showDialog<bool>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            title: Text(
-              existing == null ? 'Lisa tunnistus' : 'Muuda tunnistust',
-            ),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  DropdownButtonFormField<_MemberOption>(
-                    initialValue: selectedMember,
-                    decoration: const InputDecoration(labelText: 'Liige'),
-                    items: members.map((member) {
-                      return DropdownMenuItem<_MemberOption>(
-                        value: member,
-                        child: Text(member.name),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value == null) return;
-                      setDialogState(() => selectedMember = value);
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: titleController,
-                    decoration: const InputDecoration(labelText: 'Nimetus'),
-                  ),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedType,
-                    decoration: const InputDecoration(labelText: 'Tüüp'),
-                    items: CertificateType.values.map((type) {
-                      return DropdownMenuItem<String>(
-                        value: type,
-                        child: Text(_certificateTypeLabel(type)),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value == null) return;
-                      setDialogState(() => selectedType = value);
-                    },
-                  ),
-                  const SizedBox(height: 4),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Merepäästja aste määratakse liikme profiilis eraldi.',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: issuerController,
-                    decoration: const InputDecoration(labelText: 'Väljastaja'),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: issuedAtController,
-                    decoration: const InputDecoration(
-                      labelText: 'Väljastatud',
-                      hintText: 'nt 2026-05-20',
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: expiresAtController,
-                    decoration: const InputDecoration(
-                      labelText: 'Kehtib kuni',
-                      hintText: 'nt 2027-05-20',
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedStatus,
-                    decoration: const InputDecoration(labelText: 'Staatus'),
-                    items: CertificateStatus.values.map((status) {
-                      return DropdownMenuItem<String>(
-                        value: status,
-                        child: Text(_certificateStatusLabel(status)),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value == null) return;
-                      setDialogState(() => selectedStatus = value);
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: noteController,
-                    decoration: const InputDecoration(labelText: 'Märkus'),
-                    maxLines: 2,
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Katkesta'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  final text = expiresAtController.text.trim();
-                  final date = DateTime.tryParse(text);
-                  if (titleController.text.trim().isEmpty ||
-                      date == null ||
-                      date.toIso8601String().substring(0, 10) != text) {
-                    ScaffoldMessenger.of(this.context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Sisesta nimetus ja kehtiv aegumiskuupäev kujul AAAA-KK-PP.',
-                        ),
-                      ),
-                    );
-                    return;
-                  }
-                  Navigator.pop(context, true);
-                },
-                child: const Text('Salvesta'),
-              ),
-            ],
-          );
-        },
+      barrierDismissible: false,
+      builder: (_) => CertificateEditor(
+        existing: existing,
+        save: (draft) => _certificateService.addCertificate(
+          certificateId: existing?.id,
+          organizationId: widget.organizationId,
+          userId: existing?.userId ?? members.first.uid,
+          userName: existing?.userName ?? members.first.name,
+          title: draft.title,
+          type: draft.type,
+          issuer: draft.issuer,
+          issuedAt: draft.issuedAt,
+          expiresAt: draft.expiresAt,
+          status: draft.status,
+          note: draft.note,
+          number: draft.number,
+          noExpiry: draft.noExpiry,
+          createdBy: widget.currentUid,
+        ),
       ),
     );
-
-    final shouldCreate = await Navigator.of(context).push(route);
-    await route.completed;
-    if (shouldCreate != true || !mounted) {
-      for (final controller in [
-        titleController,
-        issuerController,
-        issuedAtController,
-        expiresAtController,
-        noteController,
-      ]) {
-        controller.dispose();
-      }
-      return;
-    }
-    final title = titleController.text.trim();
-    final expiresAt = expiresAtController.text.trim();
-
-    try {
-      await _certificateService.addCertificate(
-        certificateId: existing?.id,
-        organizationId: widget.organizationId,
-        userId: selectedMember.uid,
-        userName: selectedMember.name,
-        title: title,
-        type: selectedType,
-        issuer: issuerController.text,
-        issuedAt: issuedAtController.text,
-        expiresAt: expiresAt,
-        status: selectedStatus,
-        note: noteController.text,
-        createdBy: widget.currentUid,
-      );
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Tunnistus salvestatud.')));
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tunnistuse salvestamine ebaõnnestus.')),
-      );
-    } finally {
-      for (final controller in [
-        titleController,
-        issuerController,
-        issuedAtController,
-        expiresAtController,
-        noteController,
-      ]) {
-        controller.dispose();
-      }
-    }
   }
 
   Future<List<_MemberOption>> _loadMemberOptions() async {
@@ -434,35 +265,18 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
   }
 
   String _certificateExpiryText(CertificateModel certificate) {
+    if (certificate.noExpiry) return 'Tähtajatu';
     final expiresAt = certificate.expiresAt.trim();
-    final parsedExpiry = DateTime.tryParse(expiresAt);
+    final parsedExpiry = parseCalendarDate(expiresAt);
     if (expiresAt.isEmpty || parsedExpiry == null) {
       return 'Aegumiskuupäev teadmata';
     }
 
-    return 'Kehtib kuni $expiresAt';
+    return 'Kehtib kuni ${calendarDateLabel(parsedExpiry)}';
   }
 
-  String _certificateDisplayStatus(CertificateModel certificate) {
-    final expiresAt = certificate.expiresAt.trim();
-    final parsedExpiry = DateTime.tryParse(expiresAt);
-    if (expiresAt.isEmpty || parsedExpiry == null) {
-      return _unknownCertificateExpiryStatus;
-    }
-
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final expiryDate = DateTime(
-      parsedExpiry.year,
-      parsedExpiry.month,
-      parsedExpiry.day,
-    );
-    if (expiryDate.isBefore(today)) return CertificateStatus.expired;
-    if (!expiryDate.isAfter(today.add(const Duration(days: 30)))) {
-      return CertificateStatus.expiringSoon;
-    }
-    return certificate.status;
-  }
+  String _certificateDisplayStatus(CertificateModel certificate) =>
+      certificate.displayStatusAt(DateTime.now());
 }
 
 class _MemberOption {

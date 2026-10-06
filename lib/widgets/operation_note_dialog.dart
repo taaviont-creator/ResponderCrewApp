@@ -1,3 +1,4 @@
+import 'app_date_field.dart';
 import 'package:flutter/material.dart';
 import '../models/operation_log_report.dart';
 
@@ -20,14 +21,14 @@ class _OperationNoteDialogState extends State<OperationNoteDialog> {
   }
 
   Future<void> _pickTime() async {
-    final day = await showDatePicker(
+    final day = await showAppDatePicker(
       context: context,
       initialDate: _time,
       firstDate: DateTime(2000),
       lastDate: DateTime.now(),
     );
     if (day == null || !mounted) return;
-    final time = await showTimePicker(
+    final time = await showAppTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(_time),
     );

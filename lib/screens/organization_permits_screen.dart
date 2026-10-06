@@ -1,3 +1,4 @@
+import '../widgets/app_date_field.dart';
 import '../widgets/app_layout.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -168,21 +169,6 @@ class _PermitEditorState extends State<_PermitEditor> {
     }
   }
 
-  Future<void> _pickDate(String key) async {
-    final initial = DateTime.tryParse(_fields[key]!.text) ?? DateTime.now();
-    final date = await showDatePicker(
-      context: context,
-      initialDate: initial,
-      firstDate: DateTime(1900),
-      lastDate: DateTime(2200),
-    );
-    if (date != null && mounted) {
-      setState(
-        () => _fields[key]!.text = date.toIso8601String().substring(0, 10),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) => AppScaffold(
     appBar: AppBar(
@@ -205,32 +191,22 @@ class _PermitEditorState extends State<_PermitEditor> {
           }.entries)
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
-              child: TextFormField(
-                controller: _fields[entry.key],
-                enabled: !_saving,
-                readOnly: entry.key.endsWith('At'),
-                onTap: entry.key.endsWith('At')
-                    ? () => _pickDate(entry.key)
-                    : null,
-                decoration: InputDecoration(
-                  labelText: entry.value,
-                  suffixIcon: entry.key.endsWith('At')
-                      ? IconButton(
-                          tooltip: 'Tühjenda kuupäev',
-                          onPressed: _saving
-                              ? null
-                              : () =>
-                                    setState(() => _fields[entry.key]!.clear()),
-                          icon: const Icon(Icons.clear),
-                        )
-                      : null,
-                ),
-                maxLength: entry.key == 'note' ? 2000 : 200,
-                validator: (value) =>
-                    entry.key == 'title' && (value ?? '').trim().isEmpty
-                    ? 'Sisesta nimetus.'
-                    : null,
-              ),
+              child: entry.key.endsWith('At')
+                  ? AppDateTextField(
+                      controller: _fields[entry.key]!,
+                      label: entry.value,
+                      enabled: !_saving,
+                    )
+                  : TextFormField(
+                      controller: _fields[entry.key],
+                      enabled: !_saving,
+                      decoration: InputDecoration(labelText: entry.value),
+                      maxLength: entry.key == 'note' ? 2000 : 200,
+                      validator: (value) =>
+                          entry.key == 'title' && (value ?? '').trim().isEmpty
+                          ? 'Sisesta nimetus.'
+                          : null,
+                    ),
             ),
           FilledButton(
             onPressed: _saving ? null : _save,

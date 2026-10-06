@@ -1169,6 +1169,29 @@ test('organization permits are admin-managed and cannot change organization or c
   await assertFails(updateDoc(doc(admin,'organizationPermits/permit'),{title:'',updatedAt:serverTimestamp()}));
 });
 
+test('certificate calendar metadata preserves admin/owner scope and validates lifetime and archive fields', async () => {
+  const admin = testEnv.authenticatedContext(orgAdminId).firestore();
+  const owner = testEnv.authenticatedContext(activeMemberId).firestore();
+  const peer = testEnv.authenticatedContext(targetMemberId).firestore();
+  const value = {id: 'calendar-cert', organizationId, commandId: organizationId,
+    userId: activeMemberId, userName: 'Member', title: 'Radio', type: 'radio', issuer: 'Issuer',
+    issuedAt: '2025-01-01', expiresAt: '2027-01-01', status: 'valid', note: '', createdBy: orgAdminId};
+  const ref = doc(admin, 'certificates/calendar-cert');
+  await assertSucceeds(setDoc(ref, value));
+  await assertSucceeds(getDoc(doc(owner, 'certificates/calendar-cert')));
+  await assertFails(getDoc(doc(peer, 'certificates/calendar-cert')));
+  await assertSucceeds(updateDoc(ref, {number: 'ABC-123', noExpiry: false}));
+  await assertFails(updateDoc(ref, {number: 123}));
+  await assertFails(updateDoc(ref, {number: 'a'.repeat(101)}));
+  await assertFails(updateDoc(ref, {noExpiry: true}));
+  await assertSucceeds(updateDoc(ref, {noExpiry: true, expiresAt: ''}));
+  await assertFails(updateDoc(ref, {archived: 'true'}));
+  await assertSucceeds(updateDoc(ref, {archived: true}));
+  await assertFails(updateDoc(doc(owner, 'certificates/calendar-cert'), {archived: false}));
+  await assertFails(updateDoc(ref, {userId: targetMemberId}));
+  await assertFails(updateDoc(ref, {organizationId: otherOrganizationId, commandId: otherOrganizationId}));
+});
+
 test('certificate reminders are server-only, recipient-private and can be marked read', async () => {
   await testEnv.withSecurityRulesDisabled(async context => {
     await setDoc(doc(context.firestore(),'certificateReminders/reminder'),{id:'reminder',organizationId,commandId:organizationId,recipientUserId:activeMemberId,memberUserId:activeMemberId,title:'Tunnistus aegub'});
