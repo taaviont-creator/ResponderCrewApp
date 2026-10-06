@@ -55,3 +55,32 @@ töölaua nimest profiili avamist, Vaata täpsemalt otseteed ning admini seadete
 
 Reeglite kontroll kasutas Firebase'i ametlikke [arvuteisenduse](https://firebase.google.com/docs/reference/rules/rules.Integer)
 ja [stringitöötluse](https://firebase.google.com/docs/reference/rules/rules.String) kirjeldusi.
+
+## 06.10.2026 — isiklik valmisolek ja ühine mittevalve planeerimine
+
+- Katseveebis kinnitatud kuvamisviga: staatuse valik kasutab `LayoutBuilder`-it,
+  kuid senine `AppSectionCard` küsis sellelt `IntrinsicHeight` kaudu sisemist
+  kõrgust. Nupud lõigati kaardi serva taha. Isikliku valmisoleku kaardid kasutavad
+  nüüd tavalist sisule vastava kõrgusega paigutust; jagatud kaardikomponent ei muutu.
+- „Minu staatus“ kuvab otse kolm staatuse valikut. Korduv selgituskast eemaldati;
+  aktiivse mittevalve korral kuvatakse lühike põhjus ja valvesse märkimine on blokeeritud.
+- Ühekordsed ja iganädalased mittevalved on ühes „Minu mittevalved“ nimekirjas,
+  järjestatud alguse / järgmise korduse järgi. Mõlemal säilivad muutmine ja tühistamine.
+- Üks „Lisa aeg“ avab vormi, kus „Kordumine“ on „Ei kordu“ või „Igal nädalal“.
+  Ühekordsel valitakse kuupäev ja kellaaeg kalendrist; kordusel nädalapäevad ja kellaajad.
+  Ajad sisestatakse ja kuvatakse Eesti ajas, nagu serveri valmisolekuarvutuses.
+- Vorm säilitab andmed salvestusvea korral ning takistab topeltsalvestust ja sulgemist
+  poolelioleva salvestuse ajal. Laadimisviga ei näita ekslikku tühja nimekirja ega staatust.
+- Andmevood seotakse ühinguga ning neid ei looda iga kella-/filtrimuudatuse korral uuesti.
+  Ühingu vahetamisel eemaldatakse eelmise ühingu vaateandmed.
+
+Andmemudel, Firestore/Storage reeglid, Functions ja õigused ei muutu; migratsiooni pole.
+Olemasolevad `plannedUnavailability` ja `plannedUnavailabilityRules` jäävad andmeallikateks.
+Olemasoleva planeeringu muutmine säilitab tüübi ja dokumendi ID. Tüübi vahetamiseks saab
+vana planeeringu tühistada ja lisada uue. Iganädalane üle südaöö ajavahemik jääb senise
+mudeli piiranguks; selles muudatuses öiseid kordusi ega uut kordusmudelit ei lisatud.
+
+Kontroll: 209 Flutteri testi, neist 13 uut regressioonitesti; 320 px vaade ja suurendatud
+tekst, aktiivse mittevalve mõju, mõlema tüübi loomine/muutmine, vigased ajad,
+salvestusveast taastumine, topeltsalvestuse tõkestamine, ühinguvahetus ja laadimisvead.
+APK-d selles muudatuses ei koostata.
