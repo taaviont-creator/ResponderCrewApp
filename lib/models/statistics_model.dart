@@ -27,11 +27,13 @@ class ContributionReport {
       dutyHistoryPending = data['dutyHistoryPending'] == true,
       undatedCount = (data['undatedCount'] as num?)?.toInt() ?? 0,
       canManage = data['canManage'] == true,
-      canRecord = data['canRecord'] == true;
+      canRecord =
+          data['canSubmitContribution'] == true || data['canRecord'] == true,
+      canCreateActivities = data['canCreateActivities'] == true;
   final Map<String, dynamic> events;
   final List<MemberContribution> members;
   final DateTime? trackingStartedAt;
-  final bool dutyHistoryPending, canManage, canRecord;
+  final bool dutyHistoryPending, canManage, canRecord, canCreateActivities;
   final int undatedCount;
   num total(String field) =>
       members.fold<num>(0, (sum, member) => sum + member.number(field));

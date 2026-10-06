@@ -35,6 +35,33 @@ const targetMemberId = 'target-member';
 const otherOrganizationId = 'other-org';
 const membershipId = `${memberId}_${organizationId}`;
 
+test('contribution workflow: own pending work, admin confirmation, separate scheduling and one statistics entry', async () => {
+  const assert = require('node:assert/strict');
+  const {createRecordContributionHandler,createStatisticsHandler}=serverRequire('./statistics-handlers');
+  const db=serverDb(),now=()=>Date.parse('2026-10-07T12:00:00Z');
+  const record=createRecordContributionHandler({db,now,timestamp:()=>new Date(now())});
+  const data={organizationId,requestId:'workflow',title:'Paadi puhastamine',description:'Pesin teki',type:'maintenance',date:'2026-10-06',hours:2.5,memberIds:[activeMemberId]};
+  await record({auth:{uid:activeMemberId},data});await record({auth:{uid:activeMemberId},data});
+  const client=testEnv.authenticatedContext(activeMemberId).firestore(),admin=testEnv.authenticatedContext(orgAdminId).firestore();
+  const activityPath='activities/contribution_workflow',participantPath=`activityParticipants/contribution_workflow_${activeMemberId}`;
+  const activity=(await assertSucceeds(getDoc(doc(client,activityPath)))).data();
+  assert.equal(activity.entryKind,'contribution');assert.equal(activity.description,'Pesin teki');
+  await assertSucceeds(getDoc(doc(client,participantPath)));
+  await assertSucceeds(getDocs(query(collection(admin,'activityParticipants'),where('organizationId','==',organizationId))));
+  await assertFails(updateDoc(doc(client,participantPath),{attendanceStatus:'confirmed',confirmedBy:activeMemberId,confirmedAt:serverTimestamp(),updatedAt:serverTimestamp()}));
+  await assertFails(updateDoc(doc(client,participantPath),{status:'attending',updatedAt:serverTimestamp()}));
+  await assertFails(updateDoc(doc(admin,activityPath),{entryKind:'scheduled'}));
+  await assertFails(getDoc(doc(testEnv.authenticatedContext(otherUserId).firestore(),activityPath)));
+  await assert.rejects(record({auth:{uid:activeMemberId},data:{...data,requestId:'peer',memberIds:[targetMemberId]}}),{code:'permission-denied'});
+  const stats=createStatisticsHandler({db,now}),request={auth:{uid:orgAdminId},data:{organizationId,from:'2026-10-06',to:'2026-10-07'}};
+  const before=(await stats(request)).members.find(m=>m.userId===activeMemberId);assert.equal(before.contributionHours,0);assert.equal(before.pendingCount,1);
+  await assertSucceeds(updateDoc(doc(admin,participantPath),{attendanceStatus:'confirmed',hours:2.5,confirmedBy:orgAdminId,confirmedAt:serverTimestamp(),updatedAt:serverTimestamp()}));
+  const after=(await stats(request)).members.find(m=>m.userId===activeMemberId);assert.equal(after.contributionHours,2.5);assert.equal(after.entries.length,1);
+  await db.doc(`commands/${organizationId}`).update({allowMembersToCreateActivities:true});
+  for(const id of ['direct','contribution_direct']) await assertFails(setDoc(doc(client,'activities',id),{...activity,id,createdBy:activeMemberId,entryKind:id==='direct'?'contribution':'scheduled'}));
+  await assertFails(setDoc(doc(client,'activityParticipants',`contribution_workflow_${targetMemberId}`),{id:`contribution_workflow_${targetMemberId}`,organizationId,commandId:organizationId,activityId:'contribution_workflow',userId:targetMemberId,status:'attendedSelfReported',createdAt:serverTimestamp(),updatedAt:serverTimestamp()}));
+});
+
 let testEnv;
 const serverRequire = require('node:module').createRequire(path.resolve(__dirname, '../functions/package.json'));
 let serverApp;

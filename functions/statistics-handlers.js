@@ -33,14 +33,17 @@ function createStatisticsHandler({db,now=()=>Date.now()}) {
     const current=SOURCES.flatMap((source,i)=>snapshots[i].map(d=>({source,id:d.id,data:project(source,d.data()),version:millis(d.updateTime)})));
     const result=aggregate({organizationId:org,from,to,now:at,trackingStart:millis(settings.data()?.startedAt),current,history:data.statisticsHistory,
       memberships:data.memberships,activities:data.activities,participants:data.activityParticipants,callouts:data.callouts,responses:data.calloutResponses,attendance:data.calloutAttendance,dutyPauses:data.organizationDutyPauses});
-    return {...result,canManage:admin,canRecord:admin || organization.allowMembersToCreateActivities===true};
+    // Keep canRecord's legacy meaning for installed clients that also use it
+    // to show the scheduling action. New clients use separate capabilities.
+    return {...result,canManage:admin,canSubmitContribution:true,canRecord:admin || organization.allowMembersToCreateActivities===true,canCreateActivities:admin || organization.allowMembersToCreateActivities===true};
   };
 }
 function createRecordContributionHandler({db,timestamp,now=()=>Date.now()}) {
   return async request => {
-    const {org,admin,organization}=await access(db,request);
-    if(!admin && organization.allowMembersToCreateActivities!==true) throw new HttpsError('permission-denied','Panuse lisamise õigus puudub.');
+    const {org,admin}=await access(db,request);
     const {requestId,title,type,date,hours,memberIds}=request.data||{};
+    const description=request.data?.description??'';
+    if(typeof description!=='string' || description.length>2000) throw new HttpsError('invalid-argument','Kirjeldus võib olla kuni 2000 märki.');
     const day=DateTime.fromISO(typeof date==='string'?date:'',{zone:ZONE});
     if(!validId(requestId) || typeof title!=='string' || !title.trim() || title.length>200 || !Object.hasOwn(TYPES,type) || !/^\d{4}-\d{2}-\d{2}$/.test(date||'') || !day.isValid || +day>now() || typeof hours!=='number' || !Number.isFinite(hours) || hours<=0 || hours>24 || !Array.isArray(memberIds) || !memberIds.length || memberIds.length>50 || memberIds.some(id=>!validId(id))) throw new HttpsError('invalid-argument','Kontrolli panuse nimetust, kuupäeva, osalejaid ja tunde (kuni 24 t).');
     const users=[...new Set(memberIds)];
@@ -48,7 +51,7 @@ function createRecordContributionHandler({db,timestamp,now=()=>Date.now()}) {
     const id=`contribution_${requestId}`;
     return db.runTransaction(async tx=>{
       const fresh=await access({doc:path=>({get:()=>tx.get(db.doc(path))})},request);
-      if(fresh.admin!==admin || (!fresh.admin && fresh.organization.allowMembersToCreateActivities!==true)) throw new HttpsError('permission-denied','Panuse lisamise õigus muutus.');
+      if(fresh.admin!==admin) throw new HttpsError('permission-denied','Panuse lisamise õigus muutus.');
       const ref=db.doc(`activities/${id}`),existing=await tx.get(ref);
       if(existing.exists) {
         if(orgId(existing.data())!==org || existing.data().createdBy!==request.auth.uid) throw new HttpsError('already-exists','Panuse tunnus on kasutusel.');
@@ -56,7 +59,7 @@ function createRecordContributionHandler({db,timestamp,now=()=>Date.now()}) {
       }
       const members=await tx.getAll(...users.map(uid=>db.doc(`memberships/${uid}_${org}`)));
       if(members.some((m,i)=>!active(m.data()) || orgId(m.data())!==org || m.data()?.userId!==users[i])) throw new HttpsError('failed-precondition','Osaleja ei ole selle ühingu aktiivne liige.');
-      tx.create(ref,{id,organizationId:org,commandId:org,title:title.trim(),description:admin?'':'Liikme esitatud panus; osalemine ootab admini kinnitust.',type,
+      tx.create(ref,{id,organizationId:org,commandId:org,entryKind:'contribution',title:title.trim(),description:description.trim(),type,
         startTime:day.toISO(),endTime:'',location:'',createdBy:request.auth.uid,createdAt:timestamp(),updatedAt:timestamp()});
       for(const uid of users) {
         const participantId=`${id}_${uid}`;

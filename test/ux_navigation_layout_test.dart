@@ -187,9 +187,23 @@ void main() {
         ),
       );
       expect(find.text('Liikmed'), findsOneWidget);
+      expect(find.text('Panus'), findsOneWidget);
+      expect(find.text('Lisa panus'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.text('Varustus'),
+        160,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(find.text('Varustus'), findsOneWidget);
+      if (role == 'admin') {
+        await tester.scrollUntilVisible(
+          find.text('Statistika'),
+          160,
+          scrollable: find.byType(Scrollable).first,
+        );
+      }
       expect(
-        find.text('Panus ja statistika'),
+        find.text('Statistika'),
         role == 'admin' ? findsOneWidget : findsNothing,
       );
       if (role != 'member') {

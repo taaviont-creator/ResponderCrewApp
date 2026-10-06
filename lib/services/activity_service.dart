@@ -147,6 +147,20 @@ class ActivityService {
         });
   }
 
+  Stream<List<ActivityParticipantModel>> streamOrganizationParticipations(
+    String organizationId,
+  ) {
+    _requireOrganizationId(organizationId);
+    return _participants
+        .where('organizationId', isEqualTo: organizationId)
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map(ActivityParticipantModel.fromFirestore)
+              .toList(),
+        );
+  }
+
   Stream<bool> streamCanConfirmParticipation({
     required String organizationId,
     required String userId,

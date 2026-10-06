@@ -12,6 +12,7 @@ import 'operation_log_screen.dart';
 import 'platform_management_screen.dart';
 import 'self_profile_screen.dart';
 import 'statistics_screen.dart';
+import 'contribution_form_screen.dart';
 
 class MenuScreen extends StatelessWidget {
   const MenuScreen({
@@ -76,6 +77,34 @@ class MenuScreen extends StatelessWidget {
         primary: [
           const _MenuHeading('Ühingu töö'),
           _MenuEntry(
+            icon: Icons.volunteer_activism_outlined,
+            title: 'Panus',
+            subtitle: isOrganizationAdmin
+                ? 'Tehtud töö ja kinnitamine'
+                : 'Minu tehtud töö',
+            trailing: OutlinedButton.icon(
+              icon: const Icon(Icons.add),
+              label: const Text('Lisa panus'),
+              onPressed: () => _open(
+                context,
+                ContributionFormScreen(
+                  organizationId: organizationId,
+                  currentUid: currentUid,
+                  canManage: isOrganizationAdmin,
+                ),
+              ),
+            ),
+            onTap: () => _open(
+              context,
+              ActivitiesScreen(
+                organizationId: organizationId,
+                currentUid: currentUid,
+                canManageActivities: isOrganizationAdmin,
+                contributionsOnly: true,
+              ),
+            ),
+          ),
+          _MenuEntry(
             icon: Icons.group_outlined,
             title: 'Liikmed',
             subtitle: 'Profiilid, rollid ja tunnistused',
@@ -119,7 +148,7 @@ class MenuScreen extends StatelessWidget {
           _MenuEntry(
             icon: Icons.event_outlined,
             title: 'Tegevused ja koolitused',
-            subtitle: 'Osalemine ja kinnitatud tunnid',
+            subtitle: 'Planeeri ja märgi osalemine',
             onTap: () => _open(
               context,
               ActivitiesScreen(
@@ -132,7 +161,7 @@ class MenuScreen extends StatelessWidget {
           if (canViewStatistics)
             _MenuEntry(
               icon: Icons.insights_outlined,
-              title: 'Panus ja statistika',
+              title: 'Statistika',
               subtitle: 'Valveaeg ja osalemine',
               onTap: () => _open(
                 context,
@@ -220,11 +249,13 @@ class _MenuEntry extends StatelessWidget {
     required this.title,
     required this.subtitle,
     this.leading,
+    this.trailing,
     required this.onTap,
   });
 
   final IconData icon;
   final Widget? leading;
+  final Widget? trailing;
   final String title;
   final String subtitle;
   final VoidCallback? onTap;
@@ -234,7 +265,7 @@ class _MenuEntry extends StatelessWidget {
     leading: leading ?? Icon(icon, color: AppColors.navy),
     title: Text(title),
     subtitle: Text(subtitle),
-    trailing: const Icon(Icons.chevron_right),
+    trailing: trailing ?? const Icon(Icons.chevron_right),
     onTap: onTap,
   );
 }
