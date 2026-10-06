@@ -65,6 +65,7 @@ class ActivityModel {
     required this.createdBy,
     this.createdAt,
     this.updatedAt,
+    this.entryKind = 'scheduled',
   });
 
   final String id;
@@ -79,6 +80,11 @@ class ActivityModel {
   final String createdBy;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final String entryKind;
+
+  // Older contributions were already created by the same server endpoint.
+  bool get isContribution =>
+      entryKind == 'contribution' || id.startsWith('contribution_');
 
   DateTime? get startsAt => ActivitySchedule.parse(startTime);
   DateTime? get endsAt => ActivitySchedule.parse(endTime);
@@ -105,6 +111,7 @@ class ActivityModel {
   }
 
   bool isUpcomingOrOngoing(DateTime now) {
+    if (isContribution) return false;
     final start = startsAt;
     if (start == null) return false;
     final end = endsAt;
@@ -142,6 +149,7 @@ class ActivityModel {
       createdBy: _stringValue(data['createdBy']),
       createdAt: _dateTimeValue(data['createdAt']),
       updatedAt: _dateTimeValue(data['updatedAt']),
+      entryKind: _stringValue(data['entryKind'], fallback: 'scheduled'),
     );
   }
 
@@ -157,6 +165,7 @@ class ActivityModel {
       'endTime': endTime,
       'location': location,
       'createdBy': createdBy,
+      'entryKind': entryKind,
       'createdAt': createdAt == null ? null : Timestamp.fromDate(createdAt!),
       'updatedAt': updatedAt == null ? null : Timestamp.fromDate(updatedAt!),
     };

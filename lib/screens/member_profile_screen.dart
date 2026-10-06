@@ -549,18 +549,7 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
   );
 
   Future<void> _addContribution({bool training = false}) async {
-    ContributionReport? report;
-    try {
-      report = await _statistics;
-    } catch (_) {
-      /* Recording does not require statistics access. */
-    }
-    final settings = await _organization;
-    if (!mounted ||
-        (!widget.canManageRoles &&
-            settings['allowMembersToCreateActivities'] != true)) {
-      return;
-    }
+    if (!_isOwnProfile && !_canManageProfileMembership) return;
     final saved = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
@@ -568,15 +557,6 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
           organizationId: widget.organizationId,
           currentUid: widget.currentUid,
           canManage: _canManageProfileMembership,
-          members:
-              report?.members ??
-              [
-                MemberContribution({
-                  'userId': _targetUid,
-                  'name': _name,
-                  'active': true,
-                }),
-              ],
           initialMemberId: _targetUid,
           initialType: training ? 'training' : null,
         ),
@@ -588,22 +568,13 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
   }
 
   Widget _contributionButton({bool training = false}) =>
-      FutureBuilder<Map<String, dynamic>>(
-        future: _organization,
-        builder: (context, snapshot) {
-          final allowed =
-              _canManageProfileMembership ||
-              _isOwnProfile &&
-                  snapshot.data?['allowMembersToCreateActivities'] == true;
-          return allowed
-              ? OutlinedButton.icon(
-                  onPressed: () => _addContribution(training: training),
-                  icon: const Icon(Icons.add),
-                  label: Text(training ? 'Lisa koolitus' : 'Lisa panus'),
-                )
-              : const SizedBox.shrink();
-        },
-      );
+      _canManageProfileMembership || _isOwnProfile
+      ? OutlinedButton.icon(
+          onPressed: () => _addContribution(training: training),
+          icon: const Icon(Icons.add),
+          label: Text(training ? 'Lisa koolitus' : 'Lisa panus'),
+        )
+      : const SizedBox.shrink();
 
   Widget _buildTrainingSection() => _buildParticipationList(trainingOnly: true);
 
@@ -667,6 +638,7 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                   context,
                   MaterialPageRoute<void>(
                     builder: (_) => ActivitiesScreen(
+                      contributionsOnly: a.isContribution,
                       organizationId: widget.organizationId,
                       currentUid: widget.currentUid,
                       canManageActivities: _canManageProfileMembership,

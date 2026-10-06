@@ -89,7 +89,7 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Panus ja statistika'), findsOneWidget);
+      expect(find.text('Statistika'), findsOneWidget);
       expect(find.text('Panuse tunnid'), findsWidgets);
       expect(find.textContaining('Valveajalugu alates'), findsOneWidget);
       await tester.scrollUntilVisible(

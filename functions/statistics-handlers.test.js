@@ -9,6 +9,21 @@ function fixture(overrides={}) {
 }
 const req=data=>({auth:{uid:'a'},data:{organizationId:'org',...data}});
 const contribution={requestId:'unique',title:'Mowing',type:'groundskeeping',date:'2026-09-27',hours:2,memberIds:['a']};
+
+test('contributions are separate from scheduling, keep notes and count once only after confirmation',async()=>{
+ const f=fixture({'commands/org':{status:'approved',allowMembersToCreateActivities:false,allowMembersToViewStatistics:false}});
+ const data={...contribution,description:'  Puhastasin kai  '};
+ await f.record(req(data));await f.record(req(data));
+ const a=f.records['activities/contribution_unique'],p=f.records['activityParticipants/contribution_unique_a'];
+ assert.equal(a.entryKind,'contribution');assert.equal(a.description,'Puhastasin kai');assert.equal(f.writes.length,2);
+ const {aggregate}=require('./contribution-statistics');
+ const calculate=()=>aggregate({organizationId:'org',from:'2026-09-27',to:'2026-09-28',now:Date.parse('2026-09-28T12:00Z'),trackingStart:null,current:[],history:[],memberships:[member('a')],activities:[a],participants:[p],callouts:[],responses:[],attendance:[]}).members.find(m=>m.userId==='a');
+ assert.equal(calculate().contributionHours,0);assert.equal(calculate().pendingCount,1);
+ p.attendanceStatus='confirmed';assert.equal(calculate().contributionHours,2);assert.equal(calculate().categories.groundskeeping.hours,2);
+ p.attendanceStatus='absent';assert.equal(calculate().contributionHours,0);
+ await assert.rejects(f.record(req({...data,requestId:'peer',memberIds:['b']})),{code:'permission-denied'});
+ for(const extra of [{status:'pending'},{status:'removed'},{isActive:false},{organizationId:'other'}]) await assert.rejects(fixture({'memberships/a_org':member('a',extra)}).record(req(data)),{code:'permission-denied'});
+});
 test('stats authorization rejects anonymous, inactive, conflicting and other-org memberships',async()=>{
  await assert.rejects(access(fixture().db,{data:{organizationId:'org'}}),{code:'unauthenticated'});
  for(const override of [{status:'pending'},{status:'removed',isActive:true},{isActive:false},{commandId:'other'},{organizationId:'other'},{userId:'other'}]) {
@@ -26,11 +41,11 @@ test('member contribution is pending and may only name self; retries do not doub
 test('admin can confirm a group contribution; permission and target membership enforced',async()=>{
  const f=fixture({'memberships/a_org':member('a',{role:'orgAdmin'})});await f.record(req({...contribution,memberIds:['a','b','b']}));
  assert.equal(f.writes.length,3);assert.equal(f.records['activityParticipants/contribution_unique_b'].attendanceStatus,'confirmed');
- const blocked=fixture({'commands/org':{status:'approved'}});await assert.rejects(blocked.record(req(contribution)),{code:'permission-denied'});
+ const withoutScheduling=fixture({'commands/org':{status:'approved'}});await withoutScheduling.record(req(contribution));assert.equal(withoutScheduling.records['activityParticipants/contribution_unique_a'].attendanceStatus,'notConfirmed');
  const pending=fixture({'memberships/a_org':member('a',{role:'orgAdmin'}),'memberships/b_org':member('b',{status:'pending'})});await assert.rejects(pending.record(req({...contribution,memberIds:['b']})),{code:'failed-precondition'});assert.equal(pending.writes.length,0);
 });
 test('invalid contribution fields and cross-org idempotency collisions are rejected',async()=>{
- for(const invalid of [{hours:0},{hours:NaN},{hours:25},{date:'2027-01-01'},{date:{}},{type:'__proto__'},{title:''},{memberIds:[]},{requestId:'../bad'}]) await assert.rejects(fixture().record(req({...contribution,...invalid})),{code:'invalid-argument'});
+ for(const invalid of [{hours:0},{hours:NaN},{hours:25},{date:'2027-01-01'},{date:{}},{type:'__proto__'},{title:''},{memberIds:[]},{requestId:'../bad'},{description:{}},{description:'a'.repeat(2001)}]) await assert.rejects(fixture().record(req({...contribution,...invalid})),{code:'invalid-argument'});
  await assert.rejects(fixture({'activities/contribution_unique':{organizationId:'other',createdBy:'a'}}).record(req(contribution)),{code:'already-exists'});
 });
 test('admin confirms actual callout attendance; confirmation and hours can be corrected',async()=>{

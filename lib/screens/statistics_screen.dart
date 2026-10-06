@@ -98,7 +98,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         builder: (_) => ActivitiesScreen(
           organizationId: widget.organizationId,
           currentUid: widget.currentUid,
-          canManageActivities: report.canRecord,
+          canManageActivities: report.canCreateActivities,
         ),
       ),
     );
@@ -108,7 +108,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   @override
   Widget build(BuildContext context) => AppScaffold(
     appBar: AppBar(
-      title: const Text('Panus ja statistika'),
+      title: const Text('Statistika'),
       actions: [
         IconButton(
           icon: const Icon(Icons.info_outline),
@@ -283,11 +283,24 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                           ),
                         OutlinedButton(
                           onPressed: () => _activities(report),
-                          child: Text(
-                            report.canManage && report.total('pendingCount') > 0
-                                ? 'Kinnita osalemised (${report.total('pendingCount')})'
-                                : 'Tegevused',
-                          ),
+                          child: const Text('Tegevuste osalemised'),
+                        ),
+                        OutlinedButton(
+                          onPressed: () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ActivitiesScreen(
+                                  organizationId: widget.organizationId,
+                                  currentUid: widget.currentUid,
+                                  canManageActivities: report.canManage,
+                                  contributionsOnly: true,
+                                ),
+                              ),
+                            );
+                            if (mounted) _refresh();
+                          },
+                          child: const Text('Vaata panuseid'),
                         ),
                         TextButton.icon(
                           onPressed: () async {

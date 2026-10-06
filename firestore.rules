@@ -1590,6 +1590,8 @@ service cloud.firestore {
       let organizationId =
         organizationIdFromData(request.resource.data);
       return signedIn() &&
+        !activityId.matches('contribution_.*') &&
+        request.resource.data.get('entryKind', 'scheduled') == 'scheduled' &&
         request.resource.data.id == activityId &&
         request.resource.data.createdBy == request.auth.uid &&
         isValidActivityData(request.resource.data) &&
@@ -1604,6 +1606,7 @@ service cloud.firestore {
 
     function isActivityUpdate(activityId) {
       return signedIn() &&
+        request.resource.data.get('entryKind', 'scheduled') == resource.data.get('entryKind', 'scheduled') &&
         request.resource.data.id == resource.data.id &&
         request.resource.data.id == activityId &&
         request.resource.data.createdBy == resource.data.createdBy &&
@@ -1726,8 +1729,14 @@ service cloud.firestore {
         );
     }
 
+    function isRecordedContribution(activityId) {
+      return activityId.matches('contribution_.*') ||
+        get(/databases/$(database)/documents/activities/$(activityId)).data.get('entryKind', 'scheduled') == 'contribution';
+    }
+
     function isOwnActivityParticipationCreate(participantId) {
       return signedIn() &&
+        !isRecordedContribution(request.resource.data.activityId) &&
         request.resource.data.userId == request.auth.uid &&
         request.resource.data.id == participantId &&
         participantId == request.resource.data.activityId + '_' + request.auth.uid &&
@@ -1756,6 +1765,7 @@ service cloud.firestore {
 
     function isOwnActivityParticipationUpdate(participantId) {
       return signedIn() &&
+        !isRecordedContribution(resource.data.activityId) &&
         resource.data.userId == request.auth.uid &&
         request.resource.data.id == participantId &&
         participantId == resource.data.activityId + '_' + request.auth.uid &&
