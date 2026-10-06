@@ -51,12 +51,36 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   var _selectedFilter = _NotificationFilter.all;
   late Future<CalloutAlarmNotificationReadiness> _alarmReadinessFuture;
   var _isRefreshingAlarmReadiness = false;
+  var _isMarkingAllAsRead = false;
+  late Stream<List<NotificationModel>> _notificationsStream;
+  late Stream<Set<String>> _readsStream;
 
   @override
   void initState() {
     super.initState();
+    _initializeNotificationStreams();
     _alarmReadinessFuture = _calloutAlarmNotificationService
         .getNotificationReadiness();
+  }
+
+  void _initializeNotificationStreams() {
+    _notificationsStream = _notificationService.streamOrganizationNotifications(
+      organizationId: widget.organizationId,
+    );
+    _readsStream = _notificationService.streamMyReadNotificationIds(
+      userId: widget.currentUid,
+      organizationId: widget.organizationId,
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant NotificationsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.organizationId != widget.organizationId ||
+        oldWidget.currentUid != widget.currentUid) {
+      _initializeNotificationStreams();
+      _isMarkingAllAsRead = false;
+    }
   }
 
   Future<void> _refreshAlarmReadiness() async {
@@ -209,23 +233,38 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     required List<NotificationModel> notifications,
     required Set<String> readNotificationIds,
   }) async {
+    if (_isMarkingAllAsRead) return;
+    final organizationId = widget.organizationId;
+    final userId = widget.currentUid;
+    bool isCurrentContext() =>
+        mounted &&
+        widget.organizationId == organizationId &&
+        widget.currentUid == userId;
+    setState(() => _isMarkingAllAsRead = true);
     try {
       await _notificationService.markAllAsRead(
         notifications: notifications,
         readNotificationIds: readNotificationIds,
-        userId: widget.currentUid,
-        organizationId: widget.organizationId,
+        userId: userId,
+        organizationId: organizationId,
       );
 
-      if (!mounted) return;
+      if (!mounted || !isCurrentContext()) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Kõik teavitused märgitud loetuks')),
       );
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || !isCurrentContext()) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Kõigi loetuks märkimine ebaõnnestus.')),
+        const SnackBar(
+          content: Text(
+            'Kõiki teavitusi ei õnnestunud loetuks märkida. Proovi uuesti; '
+            'juba salvestatud märkimised säilivad.',
+          ),
+        ),
       );
+    } finally {
+      if (isCurrentContext()) setState(() => _isMarkingAllAsRead = false);
     }
   }
 
@@ -406,9 +445,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             )
           : null,
       body: StreamBuilder<List<NotificationModel>>(
-        stream: _notificationService.streamOrganizationNotifications(
-          organizationId: widget.organizationId,
-        ),
+        stream: _notificationsStream,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -426,10 +463,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           }
 
           return StreamBuilder<Set<String>>(
-            stream: _notificationService.streamMyReadNotificationIds(
-              userId: widget.currentUid,
-              organizationId: widget.organizationId,
-            ),
+            stream: _readsStream,
             builder: (context, readsSnapshot) {
               if (readsSnapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
@@ -495,17 +529,30 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   ),
                   const SizedBox(height: AppTheme.itemSpacing),
                   _buildFilterChips(unreadCount: unreadCount),
-                  if (unreadCount > 0) ...[
+                  if (unreadCount > 0 || _isMarkingAllAsRead) ...[
                     const SizedBox(height: 8),
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton.icon(
-                        onPressed: () => _markAllAsRead(
-                          notifications: notifications,
-                          readNotificationIds: readNotificationIds,
+                        onPressed: _isMarkingAllAsRead
+                            ? null
+                            : () => _markAllAsRead(
+                                notifications: notifications,
+                                readNotificationIds: readNotificationIds,
+                              ),
+                        icon: _isMarkingAllAsRead
+                            ? const SizedBox.square(
+                                dimension: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.done_all),
+                        label: Text(
+                          _isMarkingAllAsRead
+                              ? 'Märgin loetuks…'
+                              : 'Märgi kõik loetuks',
                         ),
-                        icon: const Icon(Icons.done_all),
-                        label: const Text('Märgi kõik loetuks'),
                       ),
                     ),
                   ],

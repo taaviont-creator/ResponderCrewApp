@@ -1540,6 +1540,38 @@ test('pack23 private inbox supports recipient-scoped query/read receipt but bloc
  await assertFails(getDoc(doc(client,'userNotifications/n')));
 });
 
+test('notification read bulk writes exceed atomic rules budget; independent writes support all inbox sources and retries', async () => {
+  const db = serverDb();
+  const client = testEnv.authenticatedContext(activeMemberId).firestore();
+  const sources = ['notifications', 'certificateReminders', 'userNotifications'];
+  const ids = Array.from({length: 60}, (_, i) => `bulk-read-${i}`);
+  await Promise.all(ids.map((id, i) => db.doc(`${sources[i % 3]}/${id}`).set({
+    id, organizationId, commandId: organizationId, recipientUserId: activeMemberId,
+    title: 'Test notification', message: 'Read receipt regression',
+  })));
+  const receipt = id => ({id: `${id}_${activeMemberId}`, notificationId: id,
+    userId: activeMemberId, organizationId, commandId: organizationId,
+    readAt: serverTimestamp(), createdAt: serverTimestamp()});
+  const ref = id => doc(client, `notificationReads/${id}_${activeMemberId}`);
+  const oversized = writeBatch(client);
+  ids.forEach(id => oversized.set(ref(id), receipt(id), {merge: true}));
+  await assertFails(oversized.commit());
+  assert.equal((await db.collection('notificationReads').get()).size, 0);
+  for (let start = 0; start < ids.length; start += 4) {
+    await Promise.all(ids.slice(start, start + 4).map(id =>
+      assertSucceeds(setDoc(ref(id), receipt(id), {merge: true}))));
+  }
+  assert.equal((await db.collection('notificationReads').get()).size, ids.length);
+  await assertSucceeds(setDoc(ref(ids[0]), receipt(ids[0]), {merge: true}));
+  await db.doc('userNotifications/other-recipient').set({organizationId,
+    commandId: organizationId, recipientUserId: targetMemberId});
+  await assertFails(setDoc(ref('other-recipient'), receipt('other-recipient')));
+  await assertFails(setDoc(ref(ids[0]), {...receipt(ids[0]),
+    organizationId: otherOrganizationId, commandId: otherOrganizationId}));
+  await assertFails(setDoc(doc(testEnv.authenticatedContext(targetMemberId).firestore(),
+    `notificationReads/${ids[0]}_${activeMemberId}`), receipt(ids[0])));
+});
+
 test('pack23 public login help is a single read-only document; no public collection enumeration',async()=>{
  const db=serverDb();await db.doc('publicAppInfo/login').set({guideText:'Guide'});
  const anonymous=testEnv.unauthenticatedContext().firestore();
