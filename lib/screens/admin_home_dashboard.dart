@@ -64,7 +64,7 @@ class AdminHomeDashboard extends StatelessWidget {
         topHeader,
         const SizedBox(height: 16),
         CrewReadinessCard(
-          memberPreviewLimit: 3,
+          memberPreviewLimit: 4,
           onOpenDetails: onOpenReadiness,
           organizationId: organizationId,
           currentUid: currentUid,

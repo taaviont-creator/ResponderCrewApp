@@ -234,10 +234,11 @@ class _CrewReadinessCardState extends State<CrewReadinessCard> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             content,
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Text('Vaata täpsemalt →'),
-            ),
+            if (widget.memberPreviewLimit == null)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Text('Vaata täpsemalt →'),
+              ),
           ],
         ),
       ),
@@ -318,6 +319,7 @@ class _CrewReadinessCardState extends State<CrewReadinessCard> {
       memberPreviewLimit: widget.memberPreviewLimit,
       onContact: _contact,
       onOpenMember: _openProfile,
+      onOpenDetails: widget.onOpenDetails,
     );
   }
 }
@@ -330,6 +332,7 @@ class CrewReadinessView extends StatelessWidget {
     required this.currentUid,
     required this.onContact,
     this.onOpenMember,
+    this.onOpenDetails,
     this.authoritative,
     this.organizationPaused = false,
     this.pauseReason = '',
@@ -350,6 +353,7 @@ class CrewReadinessView extends StatelessWidget {
   final int? memberPreviewLimit;
   final void Function(String, bool) onContact;
   final ValueChanged<String>? onOpenMember;
+  final VoidCallback? onOpenDetails;
   @override
   Widget build(BuildContext context) {
     final onDuty = members
@@ -406,6 +410,26 @@ class CrewReadinessView extends StatelessWidget {
     final visibleMembers = memberPreviewLimit == null
         ? ordered
         : ordered.take(memberPreviewLimit!).toList();
+    if (memberPreviewLimit != null) {
+      return _dashboardCard(
+        context,
+        visibleMembers: visibleMembers,
+        totalMembers: ordered.length,
+        statusColor: statusColor,
+        title: organizationPaused
+            ? 'Ühing on valvest maas'
+            : status == 'unknown'
+            ? 'Ühingu valmidus teadmata'
+            : status == 'delayed'
+            ? 'Ühing reageerib viivitusega'
+            : ready
+            ? 'Ühing on reageerimisvalmis'
+            : 'Ühing ei ole reageerimisvalmis',
+        eligibleCount: eligibleCount,
+        secondLevelCount: secondLevelCount,
+        missing: ready ? const [] : missing,
+      );
+    }
     return AppSectionCard(
       title: 'Ühingu valmidus',
       padding: const EdgeInsets.all(12),
@@ -461,6 +485,259 @@ class CrewReadinessView extends StatelessWidget {
               style: Theme.of(context).textTheme.bodySmall,
             ),
         ],
+      ),
+    );
+  }
+
+  Widget _dashboardCard(
+    BuildContext context, {
+    required List<DutyCrewMember> visibleMembers,
+    required int totalMembers,
+    required Color statusColor,
+    required String title,
+    required int eligibleCount,
+    required int secondLevelCount,
+    required List<String> missing,
+  }) {
+    final largeText = MediaQuery.textScalerOf(context).scale(14) > 20;
+    Widget summary(String text, bool met) => Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      decoration: BoxDecoration(
+        color: met ? AppColors.readySurface : AppColors.criticalSurface,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        text,
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+          color: met ? AppColors.ready : AppColors.critical,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+    return Card(
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppTheme.cardRadius),
+        side: BorderSide(color: statusColor.withValues(alpha: 0.3), width: 1.5),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.shield_outlined, color: statusColor, size: 22),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.titleMedium?.copyWith(color: statusColor),
+                  ),
+                ),
+                if (onOpenDetails != null && !largeText) ...[
+                  const SizedBox(width: 4),
+                  TextButton(
+                    onPressed: onOpenDetails,
+                    child: const Text('Detailid'),
+                  ),
+                ],
+              ],
+            ),
+            if (onOpenDetails != null && largeText)
+              TextButton(
+                onPressed: onOpenDetails,
+                child: const Text('Detailid'),
+              ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: [
+                summary(
+                  'Valves: $eligibleCount / $minimumCrew',
+                  eligibleCount >= minimumCrew,
+                ),
+                summary(
+                  'II aste: ${secondLevelCount > 0 ? 'olemas' : 'puudub'}',
+                  secondLevelCount > 0,
+                ),
+              ],
+            ),
+            if (missing.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(missing.join(' · '), style: TextStyle(color: statusColor)),
+            ],
+            if (organizationPaused && pauseReason.trim().isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(pauseReason),
+            ],
+            const SizedBox(height: 12),
+            if (visibleMembers.isEmpty)
+              const Text('Valves ega hilinemisega liikmeid praegu ei ole.')
+            else
+              LayoutBuilder(
+                builder: (context, bounds) => Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final member in visibleMembers)
+                      ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: bounds.maxWidth.clamp(0, 380),
+                        ),
+                        child: _memberPill(context, member),
+                      ),
+                  ],
+                ),
+              ),
+            if (visibleMembers.length < totalMembers) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Veel ${totalMembers - visibleMembers.length} liiget · vaata detaile',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _memberPill(BuildContext context, DutyCrewMember member) {
+    final delayed = member.status == AvailabilityStatus.delayed;
+    final offDuty = member.status == AvailabilityStatus.offDuty;
+    final color = delayed
+        ? AppColors.delayed
+        : offDuty
+        ? AppColors.offDuty
+        : AppColors.ready;
+    final background = delayed
+        ? AppColors.delayedSurface
+        : offDuty
+        ? AppColors.offDutySurface
+        : const Color(0xFFE8F5F2);
+    final level = member.level == SeaRescueLevel.level2
+        ? 'II aste'
+        : member.level == SeaRescueLevel.level1
+        ? 'I aste'
+        : null;
+    final status = delayed
+        ? (member.arrivalMinutes == null
+              ? 'Hilinemise aeg täpsustamata'
+              : 'Hilinemisega (+${member.arrivalMinutes} min)')
+        : offDuty
+        ? 'Mitte valves'
+        : 'Valves';
+    final largeText = MediaQuery.textScalerOf(context).scale(14) > 20;
+    final details = Semantics(
+      label: '${member.userId == currentUid ? 'Mina. ' : ''}$status',
+      child: InkWell(
+        onTap: onOpenMember == null ? null : () => onOpenMember!(member.userId),
+        borderRadius: BorderRadius.circular(20),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 48),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(
+                    member.name,
+                    style: Theme.of(
+                      context,
+                    ).textTheme.titleSmall?.copyWith(color: color),
+                  ),
+                  if (level != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceBlueStrong,
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                      child: Text(
+                        level,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: AppColors.actionBlue,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              if (delayed || offDuty)
+                Text(
+                  status,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: color),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    final actions = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          tooltip: 'Helista: ${member.name}',
+          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+          color: AppColors.actionBlue,
+          onPressed: busyUserId != null
+              ? null
+              : () => onContact(member.userId, false),
+          icon: const Icon(Icons.phone_outlined),
+        ),
+        IconButton(
+          tooltip: 'SMS: ${member.name}',
+          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+          color: color,
+          onPressed: busyUserId != null
+              ? null
+              : () => onContact(member.userId, true),
+          icon: const Icon(Icons.sms_outlined),
+        ),
+      ],
+    );
+    return Material(
+      key: ValueKey('crew-pill-${member.userId}'),
+      color: background,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(32),
+        side: BorderSide(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ExcludeSemantics(
+                  child: Icon(Icons.circle, size: 10, color: color),
+                ),
+                const SizedBox(width: 8),
+                Flexible(child: details),
+                if (!largeText) ...[const SizedBox(width: 4), actions],
+              ],
+            ),
+            if (largeText) actions,
+            if (busyUserId == member.userId)
+              const SizedBox(width: 96, child: LinearProgressIndicator()),
+          ],
+        ),
       ),
     );
   }

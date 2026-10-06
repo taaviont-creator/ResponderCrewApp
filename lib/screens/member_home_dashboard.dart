@@ -60,7 +60,7 @@ class _MemberHomeDashboardState extends State<MemberHomeDashboard> {
         widget.topHeader,
         const SizedBox(height: 16),
         CrewReadinessCard(
-          memberPreviewLimit: 3,
+          memberPreviewLimit: 4,
           onOpenDetails: widget.onOpenReadiness,
           organizationId: widget.organizationId,
           currentUid: widget.currentUid,

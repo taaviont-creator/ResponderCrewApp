@@ -242,8 +242,8 @@ void main() {
           ),
         ),
       );
-      expect(find.textContaining('Valves 8/3'), findsOneWidget);
-      expect(find.text('SAR-valmis'), findsOneWidget);
+      expect(find.text('Valves: 8 / 3'), findsOneWidget);
+      expect(find.text('Ühing on reageerimisvalmis'), findsOneWidget);
       expect(find.text('Liige 0'), findsOneWidget);
       expect(find.text('Liige 7'), findsNothing);
       expect(find.textContaining('Veel 4 liiget'), findsOneWidget);
