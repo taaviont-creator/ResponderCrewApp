@@ -1301,34 +1301,21 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         if (permissions.canManageOrganizationSettings && hasOrganization) ...[
-          SettingsGroup(
-            title: 'Reageerimine ja keskuste kaart',
-            icon: Icons.shield_outlined,
-            subtitle: 'Koosseis, teenused, alused ja kaardi nähtavus',
-            children: [
-              if (permissions.canManageOrganization)
-                _buildMinimumCrewSettingsCard(
-                  organizationId: organizationId,
-                  organizationName: commandName,
-                  currentUid: user.uid,
-                ),
-              ListTile(
-                leading: const Icon(Icons.map_outlined),
-                title: const Text('Keskuste kaart'),
-                subtitle: const Text(
-                  'Asukoht, SAR ja Trossi mereabi, alused, kontakt',
-                ),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => _pushPage(
-                  context,
-                  MaterialPageRoute<void>(
-                    builder: (_) => OrganizationCenterSettingsScreen(
-                      organizationId: organizationId,
-                    ),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.map_outlined),
+              title: const Text('Keskuste kaart'),
+              subtitle: const Text('Asukoht, teenused ja nähtavus keskustele'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => _pushPage(
+                context,
+                MaterialPageRoute<void>(
+                  builder: (_) => OrganizationCenterSettingsScreen(
+                    organizationId: organizationId,
                   ),
                 ),
               ),
-            ],
+            ),
           ),
           SettingsGroup(
             title: 'Liikmed ja õigused',

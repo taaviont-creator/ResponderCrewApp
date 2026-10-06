@@ -1,6 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/activity_model.dart';
-import '../models/operation_log_report.dart';
+import '../models/activity_schedule.dart';
 import '../services/activity_service.dart';
 
 class UpcomingActivities extends StatefulWidget {
@@ -8,21 +9,53 @@ class UpcomingActivities extends StatefulWidget {
     super.key,
     required this.organizationId,
     required this.userId,
+    this.service,
   });
   final String organizationId, userId;
+  final ActivityService? service;
   @override
   State<UpcomingActivities> createState() => _UpcomingActivitiesState();
 }
 
 class _UpcomingActivitiesState extends State<UpcomingActivities> {
-  final _service = ActivityService();
-  late final _activities = _service.streamOrganizationActivities(
-    organizationId: widget.organizationId,
-  );
-  late final _responses = _service.streamUserParticipations(
-    organizationId: widget.organizationId,
-    userId: widget.userId,
-  );
+  late final _service = widget.service ?? ActivityService();
+  late Stream<List<ActivityModel>> _activities;
+  late Stream<List<ActivityParticipantModel>> _responses;
+  Timer? _clock;
+  void _bind() {
+    _activities = _service.streamOrganizationActivities(
+      organizationId: widget.organizationId,
+    );
+    _responses = _service.streamUserParticipations(
+      organizationId: widget.organizationId,
+      userId: widget.userId,
+    );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _bind();
+    _clock = Timer.periodic(const Duration(minutes: 1), (_) => setState(() {}));
+  }
+
+  @override
+  void didUpdateWidget(UpcomingActivities oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.organizationId != widget.organizationId ||
+        oldWidget.userId != widget.userId) {
+      _bind();
+      _saving = null;
+      _error = null;
+    }
+  }
+
+  @override
+  void dispose() {
+    _clock?.cancel();
+    super.dispose();
+  }
+
   String? _saving, _error;
   Future<void> _respond(String activity, bool attend) async {
     setState(() {
@@ -51,6 +84,7 @@ class _UpcomingActivitiesState extends State<UpcomingActivities> {
 
   @override
   Widget build(BuildContext context) => StreamBuilder<List<ActivityModel>>(
+    key: ValueKey('${widget.organizationId}-${widget.userId}'),
     stream: _activities,
     builder: (context, activities) {
       if (activities.hasError) {
@@ -59,16 +93,8 @@ class _UpcomingActivitiesState extends State<UpcomingActivities> {
       if (!activities.hasData) return const LinearProgressIndicator();
       final now = DateTime.now();
       final upcoming =
-          activities.data!
-              .where(
-                (a) => DateTime.tryParse(a.startTime)?.isAfter(now) == true,
-              )
-              .toList()
-            ..sort(
-              (a, b) => DateTime.parse(
-                a.startTime,
-              ).compareTo(DateTime.parse(b.startTime)),
-            );
+          activities.data!.where((a) => a.isUpcomingOrOngoing(now)).toList()
+            ..sort((a, b) => a.startsAt!.compareTo(b.startsAt!));
       if (upcoming.isEmpty) {
         return const Text('Lähiajal tegevusi ega koolitusi ei ole.');
       }
@@ -91,11 +117,7 @@ class _UpcomingActivitiesState extends State<UpcomingActivities> {
                         activity.title,
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
-                      Text(
-                        operationLogEventTime(
-                          DateTime.tryParse(activity.startTime),
-                        ),
-                      ),
+                      Text(ActivitySchedule.format(activity.startsAt)),
                       if (activity.location.isNotEmpty) Text(activity.location),
                       if (responses.hasData)
                         Text(switch (responses.data!

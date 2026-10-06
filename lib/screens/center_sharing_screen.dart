@@ -131,10 +131,6 @@ class _CenterSharingScreenState extends State<CenterSharingScreen> {
               ? 'Kinnita ühingu taotlus pärast keskusega kokkuleppe kontrollimist. See ei anna keskuse kasutajatele adminiõigusi.'
               : 'Jaga ühingu nime, kinnitatud baasi asukohta, valmiduse koondinfot, aluseid ja eraldi sisestatud valvekontakti. Liikmete nimesid ega isiklikke planeeringuid ei jagata. Taotluse kinnitab platvormihaldur.',
         ),
-        if (!_platform)
-          const Text(
-            'Salvesta esmalt teenuste ja asukoha seaded. Jagamise peatamine lõpetab ligipääsu järgmisel serveripäringul.',
-          ),
         if (_busy) const LinearProgressIndicator(),
         if (_error != null)
           Text(
@@ -151,7 +147,11 @@ class _CenterSharingScreenState extends State<CenterSharingScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    row['name'] as String? ?? 'Ühing',
+                    _platform
+                        ? row['name'] as String? ?? 'Ühing'
+                        : row['centerId'] == 'tross'
+                        ? 'Trossi keskus'
+                        : 'Merevalvekeskus',
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   if (_platform)
@@ -161,10 +161,10 @@ class _CenterSharingScreenState extends State<CenterSharingScreen> {
                           : 'Merevalvekeskus',
                     ),
                   Text(
-                    row['approved'] == true
-                        ? 'Jagamine kinnitatud'
-                        : row['requested'] == false
+                    !_platform && row['requested'] != true
                         ? 'Jagamine välja lülitatud'
+                        : row['approved'] == true
+                        ? 'Jagamine kinnitatud'
                         : 'Platvormihalduri kinnituse ootel',
                   ),
                   if (_platform)
@@ -181,7 +181,7 @@ class _CenterSharingScreenState extends State<CenterSharingScreen> {
                   else
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Luban koondinfo jagamise'),
+                      title: const Text('Jaga selle keskusega'),
                       value: row['requested'] == true,
                       onChanged: _busy ? null : (value) => _change(row, value),
                     ),

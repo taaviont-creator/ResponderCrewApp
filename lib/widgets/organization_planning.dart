@@ -83,7 +83,7 @@ class _OrganizationPlanningState extends State<OrganizationPlanning> {
       const Text('Kõigi liikmete ajad Eesti aja järgi. Enda planeeringuid halda Valmisoleku lehel. Isiklikke märkusi ei jagata.'),
       CheckboxListTile(
         contentPadding: EdgeInsets.zero,
-        title: const Text('Näita tühistatud'),
+        title: const Text('Näita tühistatud mittevalveid'),
         value: _cancelled,
         onChanged: _loading
             ? null

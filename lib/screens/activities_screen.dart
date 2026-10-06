@@ -1,8 +1,11 @@
-import '../widgets/app_layout.dart';
 import 'package:flutter/material.dart';
-
 import '../models/activity_model.dart';
+import '../models/activity_schedule.dart';
 import '../services/activity_service.dart';
+import '../widgets/app_layout.dart';
+import '../widgets/activity_calendar.dart';
+import '../widgets/activity_editor.dart';
+import '../widgets/activity_attendance_row.dart';
 
 class ActivitiesScreen extends StatefulWidget {
   const ActivitiesScreen({
@@ -11,717 +14,390 @@ class ActivitiesScreen extends StatefulWidget {
     required this.currentUid,
     required this.canManageActivities,
     this.openCreateOnLoad = false,
+    this.service,
   });
-
-  final String organizationId;
-  final String currentUid;
-  final bool canManageActivities;
-  final bool openCreateOnLoad;
-
+  final String organizationId, currentUid;
+  final bool canManageActivities, openCreateOnLoad;
+  final ActivityService? service;
   @override
   State<ActivitiesScreen> createState() => _ActivitiesScreenState();
 }
 
 class _ActivitiesScreenState extends State<ActivitiesScreen> {
-  bool _showPast = false;
-  final _activityService = ActivityService();
-  final _memberNameFutures = <String, Future<String>>{};
+  late final _service = widget.service ?? ActivityService();
+  late Stream<List<ActivityModel>> _activities;
+  late Stream<bool> _canConfirm;
+  late Stream<List<ActivityMember>> _members;
+  late Stream<List<ActivityParticipantModel>> _myResponses;
+  bool _calendar = true, _showPast = false;
+  DateTime _selected = ActivitySchedule.inEstonia(DateTime.now());
+  String? _savingResponse;
+  void _bind() {
+    _activities = _service.streamOrganizationActivities(
+      organizationId: widget.organizationId,
+    );
+    _canConfirm = _service.streamCanConfirmParticipation(
+      organizationId: widget.organizationId,
+      userId: widget.currentUid,
+    );
+    _members = _service.streamActiveMembers(widget.organizationId);
+    _myResponses = _service.streamUserParticipations(
+      organizationId: widget.organizationId,
+      userId: widget.currentUid,
+    );
+  }
 
   @override
   void initState() {
     super.initState();
-    if (widget.canManageActivities && widget.openCreateOnLoad) {
+    _bind();
+    if (widget.openCreateOnLoad && widget.canManageActivities) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _showAddActivityDialog();
+        if (mounted) _edit();
       });
     }
   }
 
-  Future<void> _showAddActivityDialog() async {
-    final organizationId = widget.organizationId.trim();
-    if (organizationId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Tegevust ei saa lisada ilma aktiivse ühinguta.'),
-        ),
-      );
-      return;
+  @override
+  void didUpdateWidget(ActivitiesScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.organizationId != widget.organizationId ||
+        oldWidget.currentUid != widget.currentUid) {
+      _bind();
+      _savingResponse = null;
     }
+  }
 
-    if (!widget.canManageActivities) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sul puudub õigus tegevust lisada.')),
-      );
-      return;
-    }
-
-    final titleController = TextEditingController();
-    final startTimeController = TextEditingController();
-    final locationController = TextEditingController();
-    final descriptionController = TextEditingController();
-    var selectedType = ActivityType.training;
-    String? titleError;
-    String? startTimeError;
-
-    final shouldCreate = await showDialog<bool>(
+  Future<void> _edit([ActivityModel? activity]) async {
+    final saved = await showDialog<bool>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            title: const Text('Lisa tegevus/koolitus'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: titleController,
-                    onChanged: (value) {
-                      if (titleError != null && value.trim().isNotEmpty) {
-                        setDialogState(() => titleError = null);
-                      }
-                    },
-                    decoration: InputDecoration(
-                      labelText: 'Pealkiri',
-                      errorText: titleError,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedType,
-                    decoration: const InputDecoration(labelText: 'Tüüp'),
-                    items: ActivityType.values.map((type) {
-                      return DropdownMenuItem<String>(
-                        value: type,
-                        child: Text(_activityTypeLabel(type)),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value == null) return;
-                      setDialogState(() => selectedType = value);
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: startTimeController,
-                    onChanged: (value) {
-                      if (startTimeError != null && value.trim().isNotEmpty) {
-                        setDialogState(() => startTimeError = null);
-                      }
-                    },
-                    decoration: InputDecoration(
-                      labelText: 'Algusaeg',
-                      hintText: 'nt 2026-05-20 18:00',
-                      errorText: startTimeError,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: locationController,
-                    decoration: const InputDecoration(labelText: 'Asukoht'),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: descriptionController,
-                    decoration: const InputDecoration(labelText: 'Kirjeldus'),
-                    maxLines: 3,
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Katkesta'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  if (titleController.text.trim().isEmpty) {
-                    setDialogState(() {
-                      titleError = 'Pealkiri on kohustuslik.';
-                    });
-                    return;
-                  }
-                  if (startTimeController.text.trim().isEmpty) {
-                    setDialogState(() {
-                      startTimeError = 'Kuupäev on kohustuslik.';
-                    });
-                    return;
-                  }
-                  Navigator.pop(context, true);
-                },
-                child: const Text('Lisa'),
-              ),
-            ],
-          );
-        },
+      barrierDismissible: false,
+      builder: (_) => ActivityEditor(
+        service: _service,
+        organizationId: widget.organizationId,
+        userId: widget.currentUid,
+        activity: activity,
+        initialDay: _calendar ? _selected : null,
       ),
     );
-
-    if (shouldCreate != true) return;
-
-    try {
-      await _activityService.addActivity(
-        organizationId: organizationId,
-        title: titleController.text.trim(),
-        description: descriptionController.text.trim(),
-        type: selectedType,
-        startTime: startTimeController.text.trim(),
-        location: locationController.text.trim(),
-        createdBy: widget.currentUid.trim(),
-      );
-
-      if (!mounted) return;
-      final successMessage = selectedType == ActivityType.training
-          ? 'Koolitus salvestatud.'
-          : 'Tegevus salvestatud.';
+    if (saved == true && mounted) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text(successMessage)));
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tegevuse lisamine ebaõnnestus.')),
-      );
+      ).showSnackBar(const SnackBar(content: Text('Tegevus salvestatud.')));
     }
   }
 
-  Future<String> _memberDisplayName(String userId) {
-    return _memberNameFutures.putIfAbsent(
-      userId,
-      () => _activityService.loadParticipantDisplayName(userId),
-    );
-  }
-
-  Widget _buildActivityParticipationControls({
-    required ActivityModel activity,
-  }) {
-    return StreamBuilder<ActivityParticipantModel?>(
-      stream: _activityService.streamMyParticipation(
+  Future<void> _respond(ActivityModel activity, bool attending) async {
+    setState(() => _savingResponse = activity.id);
+    try {
+      await _service.setMyParticipation(
         activityId: activity.id,
         userId: widget.currentUid,
         organizationId: widget.organizationId,
-      ),
-      builder: (context, snapshot) {
-        final status = snapshot.data?.status;
-        final selectedStatus = _normalizedOwnParticipationStatus(status);
-        final statusText = _ownParticipationStatusLabel(selectedStatus);
-
-        Future<void> updateParticipation(String newStatus) async {
-          try {
-            await _activityService.setMyParticipation(
-              activityId: activity.id,
-              userId: widget.currentUid,
-              organizationId: widget.organizationId,
-              status: newStatus,
-            );
-            if (!context.mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Osalemine salvestatud.')),
-            );
-          } catch (_) {
-            if (!context.mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Osalemist ei saanud salvestada.')),
-            );
-          }
-        }
-
-        return Padding(
-          padding: const EdgeInsets.only(left: 16, right: 16, bottom: 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Minu osalemine',
-                style: Theme.of(context).textTheme.labelLarge,
-              ),
-              const SizedBox(height: 4),
-              Text(statusText),
-              const SizedBox(height: 4),
-              Text(
-                'Panusesse lähevad ainult admini kinnitatud osalemised ja tunnid.',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  ChoiceChip(
-                    label: const Text('Osalen'),
-                    selected:
-                        selectedStatus ==
-                        ActivityParticipationStatus.registered,
-                    onSelected: (_) => updateParticipation(
-                      ActivityParticipationStatus.registered,
-                    ),
-                  ),
-                  ChoiceChip(
-                    label: const Text('Ei saa osaleda'),
-                    selected:
-                        selectedStatus ==
-                        ActivityParticipationStatus.cannotAttend,
-                    onSelected: (_) => updateParticipation(
-                      ActivityParticipationStatus.cannotAttend,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> _confirmActivityParticipation({
-    required ActivityParticipantModel participant,
-    required String attendanceStatus,
-    double? hours,
-  }) async {
-    try {
-      await _activityService.confirmParticipation(
-        activityId: participant.activityId,
-        userId: participant.userId,
-        organizationId: widget.organizationId,
-        attendanceStatus: attendanceStatus,
-        confirmedBy: widget.currentUid,
-        hours: hours,
+        status: attending
+            ? ActivityParticipationStatus.attending
+            : ActivityParticipationStatus.notAttending,
       );
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Osalemine kinnitatud.')));
     } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Osalemist ei saanud kinnitada.')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Vastust ei saanud salvestada. Proovi uuesti.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _savingResponse = null);
     }
-  }
-
-  Future<_HoursInputResult?> _showHoursInputDialog(double? initialHours) async {
-    final hoursController = TextEditingController(
-      text: initialHours == null ? '' : initialHours.toString(),
-    );
-    String? hoursError;
-
-    final route = DialogRoute<_HoursInputResult>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            title: const Text('Kinnitatud tunnid'),
-            content: TextField(
-              controller: hoursController,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              decoration: InputDecoration(
-                labelText: 'Kinnitatud tunnid',
-                errorText: hoursError,
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Katkesta'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  final rawValue = hoursController.text.trim();
-                  final normalizedValue = rawValue.replaceAll(',', '.');
-                  final hours = rawValue.isEmpty
-                      ? null
-                      : double.tryParse(normalizedValue);
-                  if (rawValue.isNotEmpty &&
-                      (hours == null || !hours.isFinite || hours < 0)) {
-                    setDialogState(() {
-                      hoursError = 'Sisesta korrektne tundide arv.';
-                    });
-                    return;
-                  }
-
-                  Navigator.pop(context, _HoursInputResult(hours));
-                },
-                child: const Text('Kinnita'),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-
-    final result = await Navigator.of(context).push(route);
-    await route.completed;
-    hoursController.dispose();
-    return result;
-  }
-
-  Widget _buildActivityConfirmationControls({
-    required ActivityModel activity,
-    required bool canConfirmParticipation,
-  }) {
-    if (!canConfirmParticipation) return const SizedBox.shrink();
-
-    return StreamBuilder<List<ActivityParticipantModel>>(
-      stream: _activityService.streamActivityParticipants(
-        activityId: activity.id,
-        organizationId: widget.organizationId,
-      ),
-      builder: (context, snapshot) {
-        final participants =
-            snapshot.data ?? const <ActivityParticipantModel>[];
-
-        if (snapshot.connectionState == ConnectionState.waiting &&
-            participants.isEmpty) {
-          return const Padding(
-            padding: EdgeInsets.only(left: 16, right: 16, bottom: 8),
-            child: LinearProgressIndicator(),
-          );
-        }
-
-        return Padding(
-          padding: const EdgeInsets.only(left: 16, right: 16, bottom: 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Osalemise kinnitamine',
-                style: Theme.of(context).textTheme.labelLarge,
-              ),
-              const SizedBox(height: 8),
-              if (participants.isEmpty)
-                const Text('Osalemisi ei ole veel märgitud.')
-              else
-                ...participants.map(_buildParticipantConfirmationRow),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildParticipantConfirmationRow(
-    ActivityParticipantModel participant,
-  ) {
-    return FutureBuilder<String>(
-      future: _memberDisplayName(participant.userId),
-      builder: (context, snapshot) {
-        final displayName = snapshot.data ?? 'Liige';
-        final attendanceLabel = _attendanceConfirmationLabel(
-          participant.attendanceStatus,
-        );
-
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                displayName,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                'Liikme valik: '
-                '${_participationChoiceLabel(participant.status)}',
-              ),
-              const SizedBox(height: 2),
-              Text(attendanceLabel),
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  OutlinedButton(
-                    onPressed: () async {
-                      final hoursResult = await _showHoursInputDialog(
-                        participant.hours,
-                      );
-                      if (hoursResult == null) return;
-                      await _confirmActivityParticipation(
-                        participant: participant,
-                        attendanceStatus: ActivityAttendanceStatus.confirmed,
-                        hours: hoursResult.hours,
-                      );
-                    },
-                    child: const Text('Kinnita osales'),
-                  ),
-                  OutlinedButton(
-                    onPressed: () => _confirmActivityParticipation(
-                      participant: participant,
-                      attendanceStatus: ActivityAttendanceStatus.absent,
-                    ),
-                    child: const Text('Märgi puudus'),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
   }
 
   @override
-  Widget build(BuildContext context) {
-    return AppScaffold(
-      appBar: AppBar(title: const Text('Tegevused ja koolitused')),
-      floatingActionButton: widget.canManageActivities
-          ? FloatingActionButton.extended(
-              onPressed: _showAddActivityDialog,
-              icon: const Icon(Icons.add),
-              label: const Text('Lisa tegevus'),
-            )
-          : null,
-      body: StreamBuilder<bool>(
-        stream: _activityService.streamCanConfirmParticipation(
-          organizationId: widget.organizationId,
-          userId: widget.currentUid,
+  Widget build(BuildContext context) => AppScaffold(
+    contentMaxWidth: 850,
+    appBar: AppBar(title: const Text('Tegevused ja koolitused')),
+    floatingActionButton: widget.canManageActivities
+        ? FloatingActionButton.extended(
+            onPressed: _edit,
+            icon: const Icon(Icons.add),
+            label: const Text('Lisa tegevus'),
+          )
+        : null,
+    body: StreamBuilder<List<ActivityModel>>(
+      key: ValueKey(widget.organizationId),
+      stream: _activities,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return const Center(child: Text('Tegevuste laadimine ebaõnnestus.'));
+        }
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final all = snapshot.data!;
+        final now = DateTime.now();
+        final unknown = all.where((a) => a.startsAt == null).toList();
+        final upcoming = all.where((a) => a.isUpcomingOrOngoing(now)).toList()
+          ..sort((a, b) => a.startsAt!.compareTo(b.startsAt!));
+        final past =
+            all
+                .where((a) => a.startsAt != null && !a.isUpcomingOrOngoing(now))
+                .toList()
+              ..sort((a, b) => b.startsAt!.compareTo(a.startsAt!));
+        final dayActivities = all.where((a) => a.occursOn(_selected)).toList()
+          ..sort((a, b) => a.startsAt!.compareTo(b.startsAt!));
+        final shown = _calendar ? dayActivities : (_showPast ? past : upcoming);
+        return StreamBuilder<bool>(
+          stream: _canConfirm,
+          builder: (context, rights) =>
+              StreamBuilder<List<ActivityParticipantModel>>(
+                stream: _myResponses,
+                builder: (context, responses) => ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+                  children: [
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        ChoiceChip(
+                          label: const Text('Kalender'),
+                          selected: _calendar,
+                          onSelected: (_) => setState(() => _calendar = true),
+                        ),
+                        ChoiceChip(
+                          label: const Text('Nimekiri'),
+                          selected: !_calendar,
+                          onSelected: (_) => setState(() => _calendar = false),
+                        ),
+                      ],
+                    ),
+                    if (_calendar) ...[
+                      ActivityCalendar(
+                        activities: all,
+                        selectedDay: _selected,
+                        onSelected: (day) => setState(() => _selected = day),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        ActivitySchedule.date(_selected),
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ] else
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          ChoiceChip(
+                            label: Text('Tulemas (${upcoming.length})'),
+                            selected: !_showPast,
+                            onSelected: (_) =>
+                                setState(() => _showPast = false),
+                          ),
+                          ChoiceChip(
+                            label: Text('Toimunud (${past.length})'),
+                            selected: _showPast,
+                            onSelected: (_) => setState(() => _showPast = true),
+                          ),
+                        ],
+                      ),
+                    if (responses.hasError)
+                      const Text(
+                        'Sinu osalemisvastuseid ei õnnestunud laadida.',
+                      ),
+                    if (shown.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        child: Text(
+                          _calendar
+                              ? 'Sellel päeval tegevusi ega koolitusi ei ole.'
+                              : 'Tegevusi ega koolitusi ei ole.',
+                        ),
+                      ),
+                    for (final activity in shown)
+                      _card(activity, rights.data == true, responses),
+                    if (unknown.isNotEmpty)
+                      ExpansionTile(
+                        title: Text('Täpsustamata ajaga (${unknown.length})'),
+                        subtitle: const Text(
+                          'Need tegevused vajavad kalendrisse jõudmiseks korrektset aega.',
+                        ),
+                        children: [
+                          for (final activity in unknown)
+                            _card(activity, rights.data == true, responses),
+                        ],
+                      ),
+                  ],
+                ),
+              ),
+        );
+      },
+    ),
+  );
+  Widget _card(
+    ActivityModel activity,
+    bool admin,
+    AsyncSnapshot<List<ActivityParticipantModel>> responses,
+  ) {
+    final response = responses.data
+        ?.where((r) => r.activityId == activity.id)
+        .firstOrNull;
+    final attending = [
+      ActivityParticipationStatus.attending,
+      ActivityParticipationStatus.registered,
+    ].contains(response?.status);
+    final declined = [
+      ActivityParticipationStatus.notAttending,
+      ActivityParticipationStatus.cannotAttend,
+    ].contains(response?.status);
+    return Card(
+      child: ExpansionTile(
+        key: PageStorageKey('${widget.organizationId}-${activity.id}'),
+        title: Text(activity.title),
+        subtitle: Text(
+          '${activityTypeLabels[activity.type] ?? 'Tegevus'} · ${ActivitySchedule.format(activity.startsAt)}${activity.location.isEmpty ? '' : '\n${activity.location}'}',
         ),
-        builder: (context, confirmationSnapshot) {
-          final canConfirmParticipation = confirmationSnapshot.data ?? false;
-
-          return StreamBuilder<List<ActivityModel>>(
-            stream: _activityService.streamOrganizationActivities(
-              organizationId: widget.organizationId,
+        childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        children: [
+          if (activity.description.isNotEmpty)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(activity.description),
             ),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              if (snapshot.hasError) {
-                return const Center(
-                  child: Text('Tegevuste laadimine ebaõnnestus.'),
-                );
-              }
-
-              final activities = snapshot.data ?? const <ActivityModel>[];
-              final upcomingActivities =
-                  activities
-                      .where((activity) {
-                        final startDate = _activityStartDate(activity);
-                        return startDate == null ||
-                            !startDate.isBefore(DateTime.now());
-                      })
-                      .toList(growable: false)
-                    ..sort(_compareUpcomingActivities);
-              final pastActivities =
-                  activities
-                      .where((activity) {
-                        final startDate = _activityStartDate(activity);
-                        return startDate != null &&
-                            startDate.isBefore(DateTime.now());
-                      })
-                      .toList(growable: false)
-                    ..sort(_comparePastActivities);
-
-              return ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 4,
-                    children: [
-                      ChoiceChip(
-                        label: Text('Tulemas (${upcomingActivities.length})'),
-                        selected: !_showPast,
-                        onSelected: (_) => setState(() => _showPast = false),
-                      ),
-                      ChoiceChip(
-                        label: Text('Toimunud (${pastActivities.length})'),
-                        selected: _showPast,
-                        onSelected: (_) => setState(() => _showPast = true),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _buildActivitySection(
-                    title: _showPast ? 'Toimunud' : 'Tulemas',
-                    activities: _showPast ? pastActivities : upcomingActivities,
-                    canConfirmParticipation: canConfirmParticipation,
-                    emptyText: _showPast
-                        ? 'Toimunud tegevusi või koolitusi ei ole.'
-                        : 'Tulevasi tegevusi või koolitusi ei ole.',
-                  ),
-                ],
-              );
-            },
-          );
-        },
+          if (activity.endsAt != null)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text('Lõpp: ${ActivitySchedule.format(activity.endsAt)}'),
+            ),
+          if (activity.startsAt == null && activity.startTime.isNotEmpty)
+            Text('Sisestatud aeg: ${activity.startTime}'),
+          if (admin)
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () => _edit(activity),
+                icon: const Icon(Icons.edit_outlined),
+                label: const Text('Muuda tegevust'),
+              ),
+            ),
+          if (activity.isUpcomingOrOngoing(DateTime.now()))
+            Wrap(
+              spacing: 8,
+              children: [
+                ChoiceChip(
+                  label: const Text('Osalen'),
+                  selected: attending,
+                  onSelected:
+                      _savingResponse != null ||
+                          !responses.hasData ||
+                          responses.hasError
+                      ? null
+                      : (_) => _respond(activity, true),
+                ),
+                ChoiceChip(
+                  label: const Text('Ei osale'),
+                  selected: declined,
+                  onSelected:
+                      _savingResponse != null ||
+                          !responses.hasData ||
+                          responses.hasError
+                      ? null
+                      : (_) => _respond(activity, false),
+                ),
+              ],
+            ),
+          if (_savingResponse == activity.id) const LinearProgressIndicator(),
+          if (response?.attendanceStatus == ActivityAttendanceStatus.confirmed)
+            Text(
+              'Sinu osalemine on kinnitatud${response!.hours == null ? '' : ' · ${response.hours!.toStringAsFixed(1)} t'}',
+            ),
+          if (response?.attendanceStatus == ActivityAttendanceStatus.absent)
+            const Text('Sinu osalemine: ei osalenud'),
+          if (admin) _attendance(activity),
+        ],
       ),
     );
   }
 
-  Widget _buildActivitySection({
-    required String title,
-    required List<ActivityModel> activities,
-    required String emptyText,
-    required bool canConfirmParticipation,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(title, style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 8),
-        if (activities.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Text(emptyText),
-          )
-        else
-          ...activities.map(
-            (activity) => _buildActivityListItem(
-              activity,
-              canConfirmParticipation: canConfirmParticipation,
+  Widget _attendance(ActivityModel activity) =>
+      StreamBuilder<List<ActivityMember>>(
+        stream: _members,
+        builder: (context, members) =>
+            StreamBuilder<List<ActivityParticipantModel>>(
+              stream: _service.streamActivityParticipants(
+                activityId: activity.id,
+                organizationId: widget.organizationId,
+              ),
+              builder: (context, participants) {
+                if (members.hasError || participants.hasError) {
+                  return const Text('Osalejate laadimine ebaõnnestus.');
+                }
+                if (!members.hasData || !participants.hasData) {
+                  return const LinearProgressIndicator();
+                }
+                final rows = participants.data!;
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Divider(height: 24),
+                    Text(
+                      'Osalemise kinnitamine',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    const Text(
+                      'Märgi kohal olnud liikmed. Linnuke salvestatakse kohe.',
+                    ),
+                    for (final member in members.data!)
+                      _attendanceRow(
+                        activity,
+                        member,
+                        rows.where((p) => p.userId == member.id).firstOrNull,
+                      ),
+                    for (final old in rows.where(
+                      (p) => !members.data!.any((m) => m.id == p.userId),
+                    ))
+                      FutureBuilder<String>(
+                        future: _service.loadParticipantDisplayName(old.userId),
+                        builder: (context, name) => _attendanceRow(
+                          activity,
+                          ActivityMember(
+                            old.userId,
+                            '${name.data ?? 'Endine liige'} · mitteaktiivne',
+                          ),
+                          old,
+                          canEdit: false,
+                        ),
+                      ),
+                    if (members.data!.isEmpty && rows.isEmpty)
+                      const Text('Aktiivseid liikmeid ei ole.'),
+                  ],
+                );
+              },
             ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildActivityListItem(
-    ActivityModel activity, {
-    required bool canConfirmParticipation,
-  }) {
-    final kindLabel = _activityKindLabel(activity.type);
-    final typeLabel = _activityTypeLabel(activity.type);
-    final subtitleParts = [
-      kindLabel,
-      if (typeLabel != kindLabel) typeLabel,
-      if (activity.startTime.isNotEmpty) activity.startTime,
-      if (activity.location.isNotEmpty) activity.location,
-    ];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Divider(height: 1),
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          title: Text(activity.title),
-          subtitle: Text(
-            activity.description.isEmpty
-                ? subtitleParts.join(' - ')
-                : '${subtitleParts.join(' - ')}\n'
-                      '${activity.description}',
-          ),
-        ),
-        _buildActivityParticipationControls(activity: activity),
-        _buildActivityConfirmationControls(
-          activity: activity,
-          canConfirmParticipation: canConfirmParticipation,
-        ),
-        const SizedBox(height: 8),
-      ],
-    );
-  }
-
-  int _compareUpcomingActivities(ActivityModel a, ActivityModel b) {
-    final aTime = _activityStartDate(a);
-    final bTime = _activityStartDate(b);
-    if (aTime == null && bTime == null) return a.title.compareTo(b.title);
-    if (aTime == null) return 1;
-    if (bTime == null) return -1;
-    return aTime.compareTo(bTime);
-  }
-
-  int _comparePastActivities(ActivityModel a, ActivityModel b) {
-    final aTime = _activityStartDate(a);
-    final bTime = _activityStartDate(b);
-    if (aTime == null && bTime == null) return a.title.compareTo(b.title);
-    if (aTime == null) return 1;
-    if (bTime == null) return -1;
-    return bTime.compareTo(aTime);
-  }
-
-  DateTime? _activityStartDate(ActivityModel activity) {
-    final value = activity.startTime.trim();
-    if (value.isEmpty) return null;
-    return DateTime.tryParse(value) ??
-        DateTime.tryParse(value.replaceFirst(' ', 'T'));
-  }
-
-  String _activityKindLabel(String type) {
-    return type == ActivityType.training ? 'Koolitus' : 'Tegevus';
-  }
-
-  String? _normalizedOwnParticipationStatus(String? status) {
-    switch (status) {
-      case ActivityParticipationStatus.registered:
-      case ActivityParticipationStatus.attending:
-        return ActivityParticipationStatus.registered;
-      case ActivityParticipationStatus.cannotAttend:
-      case ActivityParticipationStatus.notAttending:
-        return ActivityParticipationStatus.cannotAttend;
-      default:
-        return null;
-    }
-  }
-
-  String _ownParticipationStatusLabel(String? status) {
-    switch (status) {
-      case ActivityParticipationStatus.registered:
-        return 'Sinu valik: Osalen';
-      case ActivityParticipationStatus.cannotAttend:
-        return 'Sinu valik: Ei saa osaleda';
-      default:
-        return 'Osalemine m\u00e4rkimata';
-    }
-  }
-
-  String _participationChoiceLabel(String status) {
-    switch (status) {
-      case ActivityParticipationStatus.registered:
-      case ActivityParticipationStatus.attending:
-        return 'Osalen';
-      case ActivityParticipationStatus.cannotAttend:
-      case ActivityParticipationStatus.notAttending:
-        return 'Ei saa osaleda';
-      default:
-        return 'Osalemine m\u00e4rkimata';
-    }
-  }
-
-  String _attendanceConfirmationLabel(String status) {
-    switch (status) {
-      case ActivityAttendanceStatus.confirmed:
-        return 'Kinnitatud: osales';
-      case ActivityAttendanceStatus.absent:
-        return 'Kinnitatud: puudus';
-      default:
-        return 'Kinnitamata';
-    }
-  }
-
-  String _activityTypeLabel(String type) {
-    switch (type) {
-      case ActivityType.training:
-        return 'Koolitus';
-      case ActivityType.meeting:
-        return 'Koosolek';
-      case ActivityType.repair:
-        return 'Remont';
-      case ActivityType.groundskeeping:
-        return 'Heakord / niitmine';
-      case ActivityType.maintenance:
-        return 'Hooldus';
-      case ActivityType.exercise:
-        return 'Harjutus';
-      case ActivityType.event:
-        return 'Sündmus';
-      default:
-        return 'Muu';
-    }
-  }
-}
-
-class _HoursInputResult {
-  const _HoursInputResult(this.hours);
-
-  final double? hours;
+      );
+  Widget _attendanceRow(
+    ActivityModel activity,
+    ActivityMember member,
+    ActivityParticipantModel? participant, {
+    bool canEdit = true,
+  }) => ActivityAttendanceRow(
+    key: ValueKey('${activity.id}-${member.id}'),
+    name: member.name,
+    responseLabel: switch (participant?.status) {
+      ActivityParticipationStatus.attending ||
+      ActivityParticipationStatus.registered => 'Plaanib osaleda',
+      ActivityParticipationStatus.notAttending ||
+      ActivityParticipationStatus.cannotAttend => 'Ei plaani osaleda',
+      _ => 'Osalemissoov märkimata',
+    },
+    canEdit: canEdit,
+    confirmed:
+        participant?.attendanceStatus == ActivityAttendanceStatus.confirmed,
+    hours: participant?.hours,
+    onSave: (checked, hours) => _service.confirmParticipation(
+      activityId: activity.id,
+      userId: member.id,
+      organizationId: widget.organizationId,
+      attendanceStatus: checked
+          ? ActivityAttendanceStatus.confirmed
+          : ActivityAttendanceStatus.absent,
+      confirmedBy: widget.currentUid,
+      hours: hours,
+    ),
+  );
 }

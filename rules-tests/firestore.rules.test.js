@@ -176,6 +176,31 @@ after(async () => {
   await testEnv.cleanup();
 });
 
+test('calendar editing and checkbox attendance keep admin and organization boundaries', async () => {
+  const admin = testEnv.authenticatedContext(orgAdminId).firestore();
+  const member = testEnv.authenticatedContext(activeMemberId).firestore();
+  const activityId = 'calendar-training';
+  const activity = {id:activityId, organizationId, commandId:organizationId,
+    title:'Koolitus', description:'', type:'training', startTime:'2026-10-06T11:00:00Z',
+    endTime:'2026-10-06T13:00:00Z', location:'Sadam', createdBy:orgAdminId,
+    createdAt:serverTimestamp(), updatedAt:serverTimestamp()};
+  await assertSucceeds(setDoc(doc(admin,'activities',activityId),activity));
+  await assertSucceeds(updateDoc(doc(admin,'activities',activityId),{startTime:'2026-10-07T11:00:00Z',updatedAt:serverTimestamp()}));
+  await assertFails(updateDoc(doc(member,'activities',activityId),{startTime:'2026-10-07T12:00:00Z',updatedAt:serverTimestamp()}));
+  const lookup = db => query(collection(db,'activityParticipants'),where('organizationId','==',organizationId),
+    where('activityId','==',activityId),where('userId','==',targetMemberId));
+  await assertSucceeds(getDocs(lookup(admin)));
+  await assertFails(getDocs(lookup(member)));
+  await assertFails(getDocs(query(collection(admin,'activityParticipants'),where('organizationId','==',otherOrganizationId))));
+  const id = `${activityId}_${targetMemberId}`;
+  const attendance = {id,activityId,userId:targetMemberId,organizationId,commandId:organizationId,
+    status:'notResponded',attendanceStatus:'confirmed',hours:2,confirmedBy:orgAdminId,
+    confirmedAt:serverTimestamp(),createdAt:serverTimestamp(),updatedAt:serverTimestamp()};
+  await assertSucceeds(setDoc(doc(admin,'activityParticipants',id),attendance));
+  await assertFails(updateDoc(doc(member,'activityParticipants',id),{attendanceStatus:'confirmed',confirmedBy:activeMemberId,confirmedAt:serverTimestamp(),updatedAt:serverTimestamp()}));
+  await assertSucceeds(updateDoc(doc(admin,'activityParticipants',id),{attendanceStatus:'absent',hours:null,confirmedBy:orgAdminId,confirmedAt:serverTimestamp(),updatedAt:serverTimestamp()}));
+});
+
 test('removed member cannot reactivate without admin approval', async () => {
   const firestore = testEnv.authenticatedContext(memberId).firestore();
 
