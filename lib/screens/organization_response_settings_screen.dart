@@ -262,12 +262,10 @@ class _OrganizationResponseSettingsScreenState
             if (enabled) ...[
               if (service == 'sar')
                 Text(
-                  'Miinimumkoosseis: ${(_sarMinimum ?? 0) > 0 ? _sarMinimum : 'seadistamata'} · vähemalt üks II astme merepäästja. Miinimumi muudad Ühingu valmiduse lehel.',
+                  'Miinimumkoosseis: ${(_sarMinimum ?? 0) > 0 ? _sarMinimum : 'seadistamata'} · vähemalt üks II aste',
                 ),
               if (service == 'tross') ...[
-                const Text(
-                  'Trossi tingimused on SAR-ist eraldi. Vähemalt üks sobiv reageerija ja kasutatav alus on vajalikud.',
-                ),
+                const SizedBox(height: 8),
                 TextFormField(
                   key: const ValueKey('tross-minimum'),
                   controller: _minimum,
@@ -278,6 +276,7 @@ class _OrganizationResponseSettingsScreenState
                   validator: (v) => _number(v, 50),
                 ),
               ],
+              const SizedBox(height: 12),
               TextFormField(
                 key: ValueKey('$service-departure'),
                 controller: _departure[service],
@@ -291,9 +290,6 @@ class _OrganizationResponseSettingsScreenState
               ),
               const SizedBox(height: 12),
               const Text('Teenuseks kasutatavad alused'),
-              const Text(
-                'Valik ei tähenda, et alus on praegu korras või teenus reageerimisvalmis.',
-              ),
               for (final vessel in _vessels)
                 CheckboxListTile(
                   key: ValueKey('$service-${vessel['id']}'),
@@ -365,10 +361,6 @@ class _OrganizationResponseSettingsScreenState
                   : null,
               padding: const EdgeInsets.all(12),
               children: [
-                const Text(
-                  'Vali pakutavad teenused ja alused. Hetkevalmidus arvutatakse ühingu valveoleku, meeskonna ja aluse seisundi järgi.',
-                ),
-                const SizedBox(height: 8),
                 AbsorbPointer(
                   absorbing: _saving,
                   child: Column(

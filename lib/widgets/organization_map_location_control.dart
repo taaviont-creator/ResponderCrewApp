@@ -71,7 +71,10 @@ class _OrganizationMapLocationControlState
       return 'Asukoht määramata · lisa koordinaadid';
     }
     final address = (_location!['address'] ?? '').toString().trim();
-    return '${address.isEmpty ? '' : '$address\n'}${lat.toStringAsFixed(5)}, ${lon.toStringAsFixed(5)}';
+    final coordinates = '${lat.toStringAsFixed(5)}, ${lon.toStringAsFixed(5)}';
+    final addressIsCoordinates =
+        address.replaceAll(' ', '') == coordinates.replaceAll(' ', '');
+    return '${address.isEmpty || addressIsCoordinates ? '' : '$address\n'}$coordinates';
   }
 
   Future<void> _edit() async {

@@ -97,10 +97,6 @@ class _OrganizationCenterSettingsScreenState
                 key: const PageStorageKey('center-status'),
                 padding: const EdgeInsets.all(16),
                 children: [
-                  const Text(
-                    'Kaart uueneb ühingu valveoleku, meeskonna ja aluse seisundi järgi.',
-                  ),
-                  const SizedBox(height: 12),
                   OrganizationCenterReadinessScreen(
                     key: ValueKey('status-$_revision'),
                     organizationId: widget.organizationId,
