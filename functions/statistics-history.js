@@ -9,6 +9,7 @@ function project(source, data) {
   const fields = {availability:['status'], memberships:['status','isActive','joinedAt','displayName'],
     plannedUnavailability:['status','startAt','endAt'], plannedUnavailabilityRules:['status','daysOfWeek','startMinute','endMinute']}[source];
   for (const field of fields || []) if (data[field] !== undefined) result[field] = ['joinedAt','startAt','endAt'].includes(field) ? millis(data[field]) : data[field];
+  if(source==='availability' && millis(data.geofenceAppliedAt)!=null && millis(data.geofenceAppliedAt)===millis(data.updatedAt)) result.geofenceUntil=millis(data.geofenceUntil);
   return result;
 }
 function createHistoryHandler({db, source}) {

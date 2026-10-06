@@ -9,6 +9,14 @@ const change=(source,sourceId,at,before,after)=>({organizationId:'org',userId:'u
 const base={organizationId:'org',from:'2026-09-01',to:'2026-09-01',now:start+12*3600000,trackingStart:start,current:[rec('memberships','u_org',member),rec('availability','u_org',manual('onDuty'))],history:[],memberships:[member],activities:[],participants:[],callouts:[],responses:[],attendance:[]};
 const hours=(options={})=>aggregate({...base,...options}).members[0];
 test('unchanged duty starts at tracking activation, never fabricates older hours',()=>{assert.equal(hours().dutyHours,12);assert.equal(hours({trackingStart:null}).dutyHours,null);assert.equal(hours({to:'2026-08-31',from:'2026-08-01'}).dutyHours,null);});
+
+test('geofence duty stops at evidence expiry even when cleanup has not yet run',()=>{
+ const a={...manual('onDuty'),geofenceUntil:start+3*3600000};
+ assert.equal(hours({current:[base.current[0],rec('availability','u_org',a)]}).dutyHours,3);
+ const projected=project('availability',{...a,updatedAt:new Date(start),geofenceAppliedAt:new Date(start)});
+ assert.equal(projected.geofenceUntil,a.geofenceUntil);
+ assert.equal(project('availability',{...a,updatedAt:new Date(start+1),geofenceAppliedAt:new Date(start)}).geofenceUntil,undefined);
+});
 test('manual changes replay in commit order; delayed duty remains separate',()=>{
  const at=start+4*3600000,end=start+8*3600000;
  const history=[change('availability','u_org',end,manual('delayed'),manual('offDuty')),change('availability','u_org',at,manual('onDuty'),manual('delayed'))];

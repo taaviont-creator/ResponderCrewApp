@@ -25,7 +25,7 @@ function evaluateReadiness({org,organization,settings,members,availability,perio
   const unavailable = new Set(unavailableMembers(scoped(periods),scoped(rules),now));
   const byUser = new Map(scoped(availability).filter(a => a.id === `${a.userId}_${org}`).map(a => [a.userId,a]));
   const crew = roster.map(m => {
-    const a = byUser.get(m.userId), manual = a?.status || 'offDuty';
+    const a = byUser.get(m.userId), manual = require('./geofence-policy').availabilityStatus(a,now);
     const status = unavailable.has(m.userId) || !['onDuty','delayed'].includes(manual) ? 'offDuty' : manual;
     return {userId:m.userId,name:m.displayName || 'Liige',level:m.seaRescueLevel || 'none',status,
       arrivalMinutes:status === 'delayed' && Number.isInteger(a?.responseMinutes) ? a.responseMinutes : null,

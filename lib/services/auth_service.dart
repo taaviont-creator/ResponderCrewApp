@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'geofence_service.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -21,5 +22,11 @@ class AuthService {
     );
   }
 
-  Future<void> signOut() => _auth.signOut();
+  Future<void> signOut() async {
+    try {
+      await GeofenceService.lifecycle.stopBeforeSignOut();
+    } finally {
+      await _auth.signOut();
+    }
+  }
 }

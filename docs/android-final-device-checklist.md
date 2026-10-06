@@ -100,3 +100,18 @@ häirete Apple'i entitlement pole lisatud; vaikset režiimi ega Focus't ei ület
 6. Kontrolli vana Androidi versiooni, iPhone'i ja Trossi tavateate säilimist.
 7. Kontrolli proovihäire tühistamist ning lukustamist enne selle saabumist;
    võrguühendust ei ole kohaliku proovi kuvamiseks vaja pärast ajastamist.
+
+## Asukohapõhise valmisoleku telefonikatse
+
+Vajab uut native rakenduse versiooni; veebist paigaldatud PWA ei sobi taustapiirkondade testiks. APK-d selle muudatuse käigus ei koostata.
+
+1. Admin määrab olemasoleva baasi asukoha ja lubab ühingu seadetes piirkonnaautomaatika. Liige annab Valmisolekus selgesõnalise nõusoleku ja täpse asukoha loa „Alati“. Androidil kontrollida energiasäästu; iOS-il taustavärskendust.
+2. Sisepiirkonnas sisselülitamine jätab staatuse mittevalvesse. Teavitus avab õige ühingu Valmisoleku. „Kinnitan: olen valves“ teeb uue asukohakontrolli ja alles siis muudab staatust.
+3. Väljuda sisepiirkonnast vahepealsesse piirkonda ning välispiirist välja: hilinemisega → mitte valves. Korrata lukustatud ekraaniga ja taustal; mõõta tegelik viivitus, mitte eeldada kohest üleminekut.
+4. Naastes ei teki automaatset rohelist staatust. Vajalik on kinnitus. Kiire edasi-tagasi liikumine ja ebatäpne GPS ei tohi anda põhjendamatut valvesolekut.
+5. Käsitsi mittevalve ja planeeritud/korduv mittevalve ei kao piirkonnavahetuse tõttu. Aktiivsel väljakutsel reageerides baasist lahkumine ei tohi muuta vastust ega automaatselt maha võtta; automaatika peatub ning vajab pärast väljakutset uut sisselülitamist.
+6. Proovida loa eemaldamist, asukohateenuse sulgemist, võrgu katkemist, telefoni taaskäivitust ja rakenduse sunnitud peatamist. Vaates näidatakse viimast kinnitust; puuduv uus info ei pikenda 24-tunnist kehtivust. Aegumine eemaldab automaatse valveaja ja saadab isikliku teate.
+7. Teises telefonis sisselülitamine muudab vana seansi kehtetuks. Teise kasutajaga sisselogimine ei tohi vana kasutaja staatust muuta. Ühingu seadete/asukoha muutmine peatab senise seansi.
+8. Kontrollida sama staatust isiklikus vaates, ühingu valmiduses, keskuste kaardil ja valveaja statistikas. Serverisse ei tohi ilmuda liikme koordinaate ega teekonda.
+
+Automatiseeritud kontrollid ei asenda neid Androidi/iPhone'i pärisseadme kontrolle.

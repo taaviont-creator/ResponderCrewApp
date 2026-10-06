@@ -84,3 +84,22 @@ Kontroll: 209 Flutteri testi, neist 13 uut regressioonitesti; 320 px vaade ja su
 tekst, aktiivse mittevalve mõju, mõlema tüübi loomine/muutmine, vigased ajad,
 salvestusveast taastumine, topeltsalvestuse tõkestamine, ühinguvahetus ja laadimisvead.
 APK-d selles muudatuses ei koostata.
+
+## Asukohapõhine valmisolek (6.10.2026)
+
+Valmisoleku lehele lisandub vabatahtlik piirkonnaautomaatika. Ühingu admin seadistab selle ühingu seadetes, kasutades olemasolevat kinnitatud `rescueBases` asukohta. Vaikimisi on funktsioon väljas; soovituslikud raadiused on 3 ja 8 km, vahepealse piirkonna hilinemine 15 minutit (valikud 15/30/60). Kaugus ei ole teekonna ega saabumisaja arvutus.
+
+Liige lubab automaatika ja telefoni täpse taustaasukoha ise. Sisepiirkonda jõudmine tekitab kinnituse küsimise, mitte automaatse valvesoleku. Vahepealses piirkonnas on staatus hilinemisega, väljas mitte valves. Ebapiisavalt täpne või puuduv asukoht ei anna automaatset valmidust. Käsitsi staatuse valimine peatab automaatika; olemasolevad ühekordsed ja korduvad mittevalved jäävad kõrgema prioriteediga. Aktiivsele väljakutsele reageerija/registreeritud osaleja automaatika peatatakse piirkonnateate töötlemisel ning tema staatus säilitatakse; väljakutse vastust ega osalejaid ei muudeta.
+
+Andmed ja õigused:
+- `organizationGeofenceSettings/{org}`: admini seadistus, raadiused, viivitus ja revisjon; kirjutamine ainult õigusi kontrolliva `geofenceReadiness` callable'i kaudu, haldusmuudatus auditlogis.
+- `geofenceStates/{uid_org}`: liikme nõusolek/seanss, piirkond, kinnituse vajadus ja serveri ajad. Loeb ainult vastav aktiivne liige; kliendikirjutamine keelatud. Üks seanss ühingu ja liikme kohta takistab mitme telefoni võistlust.
+- Olemasolev `availability` jääb staatuse ainsaks allikaks. Server lisab `geofenceAppliedAt` ja `geofenceUntil`; käsitsi salvestamine eemaldab need. Klient ei saa endale serveri kehtivusaega anda. Nii telefoni nimekirjad, ühine valmidusarvutus kui ka statistika arvestavad kehtivuse lõppu. Tundide ajalugu ei kopeeri piirkonda ega GPS-i.
+- Seanss kontrollib konfiguratsiooni versiooni, aktiivset liikmelisust, sündmuste järjestust ja kuni 3 minuti vanust mõõtmist. Vanu mõõtmisi ei mängita võrgu taastumisel uuesti ette. Uus kinnitus kasutab uut asukohamõõtmist.
+- Vaikne telefon ei tõesta igavesti valmidust: 24 tunni järel ilma uue asukohamõõtmiseta automaatne staatus aegub. Minutine `expireGeofenceReadiness` peatab seansi ka muudetud asukoha/seadete ja eemaldatud liikmelisuse korral. Aegumise piiri arvestavad lugemine ja statistika ka enne koristust. Naasmise ja aegumise isiklik teavitus kasutab olemasolevat teavituste postkasti ning avab Valmisoleku.
+
+Native teek `native_geofence` 1.3.1 (MIT) kasutab Androidi/iOS-i piirkonnajälgimist ja taustakutseid; asukohafiks võetakse piirkonnasündmusel, avamisel või liikme kontrollnupust. Pidevat GPS-jälgimist ega isikliku asukoha serverisse laadimist ei lisata. Androidi dwell-kutse kontrollib piirkonnas püsimist uuesti kahe minuti järel. Piiri lähedal arvestatakse mõõtmise ebatäpsust. Androidi taustatöö/reboot registreerimine ja iOS-i callback-registreerimine on lisatud. iOS-i rakenduse sihtversioon on nüüd vähemalt 14; telefoni maksimaalset raadiust ja taustavärskendust kontrollitakse enne sisselülitamist. Kuni kümme ühingut telefoni kohta (kaks piirkonda ühingu kohta). Brauser ei jälgi taustal piirkondi.
+
+OS võib sündmusi edasi lükata; sunnitud sulgemine, energiasääst, puuduv võrk või luba võivad edastamise takistada. Sellest ei tehta reaalajas jälgimise garantiid. Telefonitest on vajalik. Funktsioon on vaikimisi väljas, olemasolevaid liikmeid ega staatuseid ei migreerita. APK-d selles etapis ei koostata.
+
+Viited: [Androidi geofencing](https://developer.android.com/develop/sensors-and-location/location/geofencing), [Apple'i piirkonnajälgimine](https://developer.apple.com/documentation/corelocation/monitoring-the-user-s-proximity-to-geographic-regions), [native_geofence](https://pub.dev/packages/native_geofence).

@@ -5,11 +5,7 @@ class AvailabilityStatus {
   static const onDuty = 'onDuty';
   static const delayed = 'delayed';
 
-  static const values = {
-    offDuty,
-    onDuty,
-    delayed,
-  };
+  static const values = {offDuty, onDuty, delayed};
 }
 
 class AvailabilityModel {
@@ -18,21 +14,36 @@ class AvailabilityModel {
     required this.userId,
     required this.organizationId,
     required this.commandId,
-    required this.status,
-    required this.manualStatus,
+    required String status,
+    required String manualStatus,
     this.scheduledStatus,
     this.responseMinutes,
     this.note,
     this.createdAt,
     this.updatedAt,
-  });
+    this.geofenceAppliedAt,
+    this.geofenceUntil,
+  }) : _status = status,
+       _manualStatus = manualStatus;
 
   final String id;
   final String userId;
   final String organizationId;
   final String commandId;
-  final String status;
-  final String manualStatus;
+  final String _status;
+  final String _manualStatus;
+  final DateTime? geofenceAppliedAt;
+  final DateTime? geofenceUntil;
+  bool geofenceExpiredAt(DateTime now) =>
+      geofenceAppliedAt != null &&
+      geofenceAppliedAt == updatedAt &&
+      geofenceUntil != null &&
+      !now.isBefore(geofenceUntil!);
+  String get status =>
+      geofenceExpiredAt(DateTime.now()) ? AvailabilityStatus.offDuty : _status;
+  String get manualStatus => geofenceExpiredAt(DateTime.now())
+      ? AvailabilityStatus.offDuty
+      : _manualStatus;
   final String? scheduledStatus;
   final int? responseMinutes;
   final String? note;
@@ -64,6 +75,8 @@ class AvailabilityModel {
       note: _nullableStringValue(data['note']),
       createdAt: _dateTimeValue(data['createdAt']),
       updatedAt: _dateTimeValue(data['updatedAt']),
+      geofenceAppliedAt: _dateTimeValue(data['geofenceAppliedAt']),
+      geofenceUntil: _dateTimeValue(data['geofenceUntil']),
     );
   }
 

@@ -2,3 +2,4 @@
 CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements
 APS_ENVIRONMENT = production
 OTHER_LDFLAGS = $(inherited) -ObjC
+IPHONEOS_DEPLOYMENT_TARGET = 14.0

@@ -755,7 +755,14 @@ service cloud.firestore {
         isActiveMember(organizationIdFromData(request.resource.data)) &&
         isValidAvailabilityStatus(request.resource.data.status) &&
         hasValidAvailabilityResponse(request.resource.data) &&
-        hasValidDelayedResponse(request.resource.data);
+        hasValidDelayedResponse(request.resource.data) &&
+        // Only the server grants a geofence lease. Manual writes may clear it.
+        (!request.resource.data.keys().hasAny(['geofenceAppliedAt']) ||
+          request.resource.data.geofenceAppliedAt == null ||
+          (resource != null && request.resource.data.geofenceAppliedAt == resource.data.geofenceAppliedAt)) &&
+        (!request.resource.data.keys().hasAny(['geofenceUntil']) ||
+          request.resource.data.geofenceUntil == null ||
+          (resource != null && request.resource.data.geofenceUntil == resource.data.geofenceUntil));
     }
 
     function isValidPlannedUnavailabilityStatus(status) {
@@ -2665,6 +2672,13 @@ service cloud.firestore {
       allow read: if signedIn() &&
         isActiveMember(organizationIdFromData(resource.data));
       allow create, update: if isOwnAvailabilityWrite(availabilityId);
+    }
+
+    match /geofenceStates/{stateId} {
+      allow get: if signedIn() && resource.data.userId == request.auth.uid &&
+        stateId == request.auth.uid + '_' + resource.data.organizationId &&
+        isActiveMember(resource.data.organizationId);
+      // Own state is also returned by the callable; clients never write it.
     }
 
     match /plannedUnavailability/{periodId} {
