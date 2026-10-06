@@ -27,6 +27,18 @@ void main() {
         'report': {
           'status': 'completed',
           'equipmentIds': ['boat'],
+          'equipmentIncidents': [
+            {
+              'name': 'Raadiojaam',
+              'status': 'lost',
+              'description': 'Kukkus üle parda ja jäi kadunuks.',
+            },
+            {
+              'name': 'Kuivülikond',
+              'status': 'damaged',
+              'description': 'Varrukas rebenes.',
+            },
+          ],
           'suggestions': 'Täiendavat analüüsi ei vaja.',
         },
         'authorName': 'Koostaja Näidis',

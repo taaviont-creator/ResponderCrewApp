@@ -34,6 +34,8 @@ class EquipmentCategory {
   };
   static String normalize(Object? value) =>
       values.contains(value) ? value as String : other;
+  static bool isTechnique(Object? value) =>
+      {vessel, engine, trailer, vehicle, machinery}.contains(value);
   static String label(String value) => switch (normalize(value)) {
     vessel => 'Alus',
     engine => 'Mootor',

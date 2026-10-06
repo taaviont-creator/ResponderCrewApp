@@ -35,3 +35,30 @@ See on kitsas olemasolevate reeglite parandus, mitte kogu reeglistiku audit.
    üks kord. Kontrolli teise ühingu kontoga ligipääsu puudumist.
 
 Päris-seadme kontroll jääb pärast uue äpi paigaldamist tegemiseks.
+
+## 06.10.2026 — korduv avamine ja aruande varustuse juhtumid
+
+Logikaart hoidis ühekordse tellimusega õiguste andmevoogu alles ka pärast
+kokkupanemist. Uuesti avamine proovis sama voogu uuesti kuulata. Õiguste paneel
+omab nüüd andmevoogu ainult avatud paneeli eluea jooksul; uus avamine loob uue
+tellimuse. Õiguste vead jäävad suletuks, logi lugemisõigus ei laiene.
+
+Aruande uute kasutatud varustuse seoste valik piirdub kategooriatega `vessel`,
+`engine`, `trailer`, `vehicle`, `machinery`. Sama piirang kehtib serveris.
+Varem seotud muu/kategooriata varustus säilib vana aruande ajaloona ja selle
+seose saab eemaldada. Uusi kategooriata kirjeid ei oletata tehnikaks.
+
+`calloutReports.equipmentIncidents` on valikuline nimekiri (kuni 50 kirjet):
+`name` (kuni 200), `status` (`damaged` / `lost`), `description` (kuni 2000).
+Sisestada võib ka registrisse kandmata või isikliku varustuse juhtumi.
+Need on aruande faktid, mitte varustuse registri automaatsed olekumuudatused.
+Kirjed kuvatakse aruandes ja PDF-is. Senine revision-kontroll, reportHistory
+ja platformAudit jäävad kasutusse; muuta saavad ühingu admin ja II aste,
+lugeda aktiivne liige. Vana klient, mis uut välja ei saada, ei kustuta kirjeid.
+Firestore reegleid ega olemasolevaid dokumente ei migreerita.
+
+Regressioonid: esimese ja korduva avamise 360 px paigutus; tehnika valik;
+kaotatud raadio sisestamine ja salvestamine; liikme lugemisvaade; serveri
+õigused, kategooriad, vigane sisend, audit ja vanema kliendi ühilduvus.
+Telefonis kontrollida sama logi mitu korda avamist/sulgemist ning juhtumi
+salvestamist, uuesti avamist ja PDF-i. APK-d selles etapis ei koostata.

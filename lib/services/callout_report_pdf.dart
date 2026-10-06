@@ -117,6 +117,16 @@ Future<Uint8List> buildCalloutReportPdf(
       );
     }
   }
+  final incidents = _rows(report['equipmentIncidents']);
+  if (incidents.isNotEmpty) {
+    heading('Kahjustatud või kaotatud varustus');
+    for (final item in incidents) {
+      paragraph(
+        '${item['name']} · ${item['status'] == 'lost' ? 'Kaotatud' : 'Kahjustatud'}',
+      );
+      paragraph(item['description']);
+    }
+  }
   heading('Sündmuse kokkuvõte');
   paragraph(data['summary']);
   heading('Tulemus');

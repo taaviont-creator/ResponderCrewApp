@@ -166,10 +166,17 @@ void main() {
       );
       await tester.pumpAndSettle();
       await tester.scrollUntilVisible(
-        find.text('Isikukaitsevarustus'),
+        find.text('Varem aruandega seotud muu varustus'),
         300,
         scrollable: find.byType(Scrollable).first,
       );
+      await Scrollable.ensureVisible(
+        tester.element(find.text('Varem aruandega seotud muu varustus')),
+        alignment: 0.3,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Varem aruandega seotud muu varustus'));
+      await tester.pumpAndSettle();
       expect(find.text('Kuivülikond'), findsOneWidget);
       expect(find.text('Kasutatud alused ja tehnika'), findsNothing);
       expect(find.text('Meditsiinivarustus'), findsNothing);
