@@ -2444,7 +2444,8 @@ service cloud.firestore {
           'createdAt',
           'updatedAt',
           'enabled',
-          'app'
+          'app',
+          'nativeSarAlarm'
         ]) &&
         data.keys().hasAll([
           'userId',
@@ -2463,7 +2464,9 @@ service cloud.firestore {
         data.createdAt is timestamp &&
         data.updatedAt is timestamp &&
         data.enabled is bool &&
-        data.app == 'respondcrew';
+        data.app == 'respondcrew' &&
+        (!('nativeSarAlarm' in data) || (data.nativeSarAlarm is bool &&
+          (data.nativeSarAlarm == false || data.platform == 'android')));
     }
 
     function isOwnDeviceTokenCreate(tokenId) {
@@ -2486,7 +2489,8 @@ service cloud.firestore {
           'platform',
           'updatedAt',
           'enabled',
-          'app'
+          'app',
+          'nativeSarAlarm'
         ]);
     }
 

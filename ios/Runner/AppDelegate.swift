@@ -5,6 +5,7 @@ import UserNotifications
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   private var wakelockChannel: FlutterMethodChannel?
+  private var notificationChannel: FlutterMethodChannel?
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
@@ -15,6 +16,33 @@ import UserNotifications
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+    notificationChannel = FlutterMethodChannel(name: "respondcrew/notifications",
+      binaryMessenger: engineBridge.applicationRegistrar.messenger())
+    notificationChannel?.setMethodCallHandler { call, result in
+      switch call.method {
+      case "getSettings":
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+          DispatchQueue.main.async {
+            result([
+              "notificationsEnabled": settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional,
+              "channelSound": settings.soundSetting == .enabled
+            ])
+          }
+        }
+      case "openAppNotifications":
+        let address: String
+        if #available(iOS 16.0, *) { address = UIApplication.openNotificationSettingsURLString }
+        else { address = UIApplication.openSettingsURLString }
+        guard let url = URL(string: address) else {
+          result(FlutterError(code: "unavailable", message: "Seade pole saadaval", details: nil)); return
+        }
+        UIApplication.shared.open(url, options: [:]) { opened in
+          if opened { result(nil) }
+          else { result(FlutterError(code: "unavailable", message: "Seadet ei saanud avada", details: nil)) }
+        }
+      default: result(FlutterMethodNotImplemented)
+      }
+    }
     wakelockChannel = FlutterMethodChannel(
       name: "respondcrew/wakelock",
       binaryMessenger: engineBridge.applicationRegistrar.messenger()

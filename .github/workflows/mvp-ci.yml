@@ -54,6 +54,16 @@ jobs:
       - name: Run Flutter tests
         run: flutter test
 
+      - name: Set up Gradle for the Android compilation check
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '8.14'
+
+      - name: Compile Android integration without packaging an APK
+        run: |
+          printf 'sdk.dir=%s\nflutter.sdk=%s\n' "$ANDROID_HOME" "$FLUTTER_ROOT" > android/local.properties
+          gradle -p android :app:compileDebugKotlin --no-daemon
+
       - name: Build Android debug APK
         if: github.event_name == 'workflow_dispatch' && inputs.build_android_apk
         run: flutter build apk --debug

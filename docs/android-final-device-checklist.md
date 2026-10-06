@@ -42,3 +42,61 @@ Läbitud on ainult katse, mille kõik sammud on päriselt kontrollitud. Ebaõnne
 Varasem SMTP seadistamise takistus on lahendatud: saatmisvood ning saladuse seadistus on kirjeldatud [e-posti juhendis](transactional-email.md) ja [väljalaske kokkuvõttes](2026-09-release-completion.md). Kontrolli uue päriskutse ja uue ühingutaotlusega kirja tegelikku jõudmist õigesse postkasti. SMTP serveri vastuvõtmise kinnitus ei tõenda postkasti jõudmist.
 
 Seadmetestid jäävad kuni tegeliku läbimiseni märgituks „Tegemata”. Telefoni alarmi, heli, GPS-i ja taustakäitumist ei loeta veebikatse või automaattestidega kinnitatuks.
+
+## SAR-häire seadistuse täiendus (06.10.2026)
+
+Teavituste seadetes kuvatakse telefoni tegelik teavitusluba, SAR-kanali heli,
+helitugevus, kanali „Mitte segada“ erand ja Androidi täisekraanihäire luba.
+Read avavad vastava süsteemiseade; rakendusse naastes loetakse olek uuesti.
+DND-erand avab SAR-kanali seaded, mitte üldise loa, mida võiks ekslikult pidada
+heli lubamise kinnituseks. Olemasolevat `sar_alarm_v2` kanalit ega kasutaja
+valitud heli/erandeid ei lähtestata. Helitugevus vastab kanali tegelikule
+helivoole (olemasoleval kanalil tavaliselt teavituste, mitte äratuskella tugevus).
+
+Androidi lukustuskuva häire näitab ainult üldist SAR-teadet. Väljakutse andmed
+avanevad olemasoleva õiguste kontrolliga pärast telefoni avamist. Trossi
+teavitus ei kasuta täisekraanihäiret. Android otsustab tegeliku esitusviisi;
+luba ei tõesta, et seade igas aku-, võrgu- või DND-olukorras häiret esitab.
+Google Play levitamise eel tuleb täisekraanihäire kasutus deklareerida ja
+kontrollida selle vastavust poe nõuetele; luba ei ole kõikidel seadmetel vaikimisi olemas.
+
+Proovihäire ajastatakse operatsioonisüsteemis umbes 10 sekundi pärast ning seda
+saab tühistada. Android kasutab ebatäpset lubatud taustaajastust: täpsete alarmide
+luba ei küsita ja süsteem võib saabumist edasi lükata. Proov ei testi FCM-i ega
+loo ühingusse sündmust. Telefoni taaskäivituse järel lühiajalist proovi ei taastata.
+
+iPhone'is on teavituste ja heli olek ning süsteemiseadete otsetee. Kriitiliste
+häirete Apple'i entitlement pole lisatud; vaikset režiimi ega Focus't ei ületata.
+
+### Server ja ühilduvus
+
+- `userDeviceTokens.nativeSarAlarm` on vabatahtlik boolean. `true` lubatakse
+  ainult Androidi seadmekirjel; ainult selle omanik võib välja kirjutada.
+- `sendCalloutAlarmNotification` jagab saajad võimekuse järgi. Uus Android saab
+  kõrge prioriteediga data-only SAR-teate, mille kuvab ka taustaisolaadi käitleja.
+  Selle eluiga FCM-is on 5 minutit. Teised kliendid ja Tross säilitavad senise
+  süsteemiteavituse. Ühele saajale ei saadeta mõlemat varianti.
+- Eri sündmustel on eri stabiilsed teavituse ID-d, et PendingIntent ei suunaks
+  varasema sündmuse teavitust viimati saabunud sündmusele.
+- Avaldamise järjekord: testitud reeglid → Functions → uus telefoniversioon.
+  Vana versiooni taastamisel tuleb selle seadme võimekuslipp eemaldada või
+  seade uuesti registreerida; vana äpp ei tunne uut data-only SAR-teadet.
+- APK-d selle muudatuse käigus ei koostata. Androidi kood kompileeritakse
+  eraldi ilma APK pakendamiseta; iOS-i kontroll teeb CI.
+
+### Pärisseadme vastuvõtt — veel tegemata
+
+1. Keela/luba teavitused, SAR-kanal, heli ja DND-erand. Naase rakendusse:
+   näidatav olek peab vastama telefonile, mitte jääma vanaks.
+2. Kontrolli Android 14+ täisekraaniloa puudumist ja olemasolu. Lukusta telefon,
+   käivita viivitusega proov; ilma loata peab säilima lubatud tavateavitus.
+3. Lukustuskuval ei tohi nähtavale ilmuda ühingu ega sündmuse isikuandmed.
+   „Ava väljakutse“ peab vajadusel küsima telefoni avamist, mitte sellest mööduma.
+4. Loo proovühingus SAR äpi eesplaanil, taustal ja pärast protsessi tavalist
+   sulgumist. Kontrolli üht teadet, heli ja täpset sündmuse detaili. Androidi
+   sundpeatatud äpp ei ole toetatud taustaolek.
+5. Saada kaks eri prooviväljakutset ja ava esimese teavitus pärast teise saabumist.
+   Avanema peab esimene sündmus. Korda teises ühingus.
+6. Kontrolli vana Androidi versiooni, iPhone'i ja Trossi tavateate säilimist.
+7. Kontrolli proovihäire tühistamist ning lukustamist enne selle saabumist;
+   võrguühendust ei ole kohaliku proovi kuvamiseks vaja pärast ajastamist.

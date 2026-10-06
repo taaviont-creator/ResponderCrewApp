@@ -5,31 +5,52 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import android.view.WindowManager
 import android.content.Intent
-import android.os.Build
 import android.provider.Settings
+import android.os.Bundle
+import android.app.KeyguardManager
 
 class MainActivity : FlutterActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        showLockedAlarm(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        showLockedAlarm(intent)
+    }
+
+    private fun showLockedAlarm(intent: Intent) {
+        if (intent.action != "SELECT_NOTIFICATION" || intent.getBooleanExtra("alarmUnlocked", false)) return
+        val payload = intent.getStringExtra("payload")
+        val keyguard = getSystemService(KEYGUARD_SERVICE) as KeyguardManager
+        if (keyguard.isKeyguardLocked && SarAlarmActivity.isAlarmPayload(payload)) {
+            startActivity(Intent(this, SarAlarmActivity::class.java).putExtra("payload", payload))
+        }
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "respondcrew/notifications")
             .setMethodCallHandler { call, result ->
                 try {
-                    val intent = when (call.method) {
-                        "openSarChannel" -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
-                                .putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
-                                .putExtra(Settings.EXTRA_CHANNEL_ID, "sar_alarm_v2")
-                        } else Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
-                            .setData(android.net.Uri.parse("package:$packageName"))
-                        "openDndSettings" -> Intent("android.settings.ZEN_MODE_SETTINGS")
-                        else -> null
+                    if (call.method == "getSettings") {
+                        result.success(AlarmDeviceSettings.read(this))
+                        return@setMethodCallHandler
                     }
+                    val intent = AlarmDeviceSettings.intent(this, call.method)
                     if (intent == null) result.notImplemented()
                     else { startActivity(intent); result.success(null) }
                 } catch (_: android.content.ActivityNotFoundException) {
-                    startActivity(Intent(Settings.ACTION_SOUND_SETTINGS))
-                    result.success(null)
+                    try {
+                        startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                            android.net.Uri.parse("package:$packageName")))
+                        result.success(null)
+                    } catch (_: Exception) { result.error("unavailable", "Telefoni seadet ei saanud avada", null) }
+                } catch (_: SecurityException) {
+                    result.error("unavailable", "Telefoni seadet ei saanud avada", null)
                 }
             }
 

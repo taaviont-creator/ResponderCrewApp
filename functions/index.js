@@ -149,6 +149,7 @@ async function loadEnabledDeviceTokens(userIds) {
         token,
         userId,
         platform: stringValue(data.platform),
+        nativeSarAlarm: data.nativeSarAlarm === true,
         documentId: doc.id,
       });
     }
@@ -167,37 +168,38 @@ async function sendCalloutAlarm({
   let failureCount = 0;
   const staleTokenDocumentIds = new Map();
 
-  for (const tokenRecordChunk of chunkArray(
-    tokenRecords,
-    MAX_MULTICAST_TOKENS,
-  )) {
-    const message = require('./callout-notification-payload').calloutNotificationPayload({calloutId,organizationId,calloutType,
-      tokens:tokenRecordChunk.map(record=>record.token)});
+  const {calloutDeliveryGroups} = require('./callout-notification-payload');
+  for (const group of calloutDeliveryGroups(tokenRecords, calloutType)) {
+    for (const tokenRecordChunk of chunkArray(group.records, MAX_MULTICAST_TOKENS)) {
+      const message = require('./callout-notification-payload').calloutNotificationPayload({calloutId,organizationId,calloutType,
+        nativeSarAlarm: group.nativeSarAlarm, tokens:tokenRecordChunk.map(record=>record.token)});
 
-    const response = await messaging.sendEachForMulticast(message);
-    successCount += response.successCount;
-    failureCount += response.failureCount;
+      const response = await messaging.sendEachForMulticast(message);
+      successCount += response.successCount;
+      failureCount += response.failureCount;
 
-    response.responses.forEach((sendResponse, index) => {
-      if (sendResponse.success) return;
+      response.responses.forEach((sendResponse, index) => {
+        if (sendResponse.success) return;
 
-      const errorCode = sendResponse.error && sendResponse.error.code;
-      const tokenRecord = tokenRecordChunk[index];
+        const errorCode = sendResponse.error && sendResponse.error.code;
+        const tokenRecord = tokenRecordChunk[index];
 
-      const staleToken = isInvalidTokenError(errorCode);
-      if (staleToken && tokenRecord.documentId) {
-        staleTokenDocumentIds.set(tokenRecord.documentId, tokenRecord.token);
-      }
+        const staleToken = isInvalidTokenError(errorCode);
+        if (staleToken && tokenRecord.documentId) {
+          staleTokenDocumentIds.set(tokenRecord.documentId, tokenRecord.token);
+        }
 
-      logger.warn("Failed to send callout alarm push", {
-        calloutId,
-        organizationId,
-        errorCode,
-        userId: tokenRecord.userId,
-        platform: tokenRecord.platform,
-        staleToken,
+        logger.warn("Failed to send callout alarm push", {
+          calloutId,
+          organizationId,
+          errorCode,
+          userId: tokenRecord.userId,
+          platform: tokenRecord.platform,
+          staleToken,
+        });
       });
-    });
+    }
+
   }
 
   if (staleTokenDocumentIds.size > 0) {
