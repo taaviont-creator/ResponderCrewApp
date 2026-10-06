@@ -31,7 +31,7 @@ import UserNotifications
         }
       case "openAppNotifications":
         let address: String
-        if #available(iOS 15.4, *) { address = UIApplication.openNotificationSettingsURLString }
+        if #available(iOS 16.0, *) { address = UIApplication.openNotificationSettingsURLString }
         else { address = UIApplication.openSettingsURLString }
         guard let url = URL(string: address) else {
           result(FlutterError(code: "unavailable", message: "Seade pole saadaval", details: nil)); return
