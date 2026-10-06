@@ -41,4 +41,11 @@ test('daily job creates private inbox and sends once; renewal alerts again', asy
   assert.equal(sent[0].android.notification.channelId,'certificate_reminders');
   cert.expiresAt = '2026-10-27'; await job();
   assert.equal(stored.size,4);
+  cert.expiresAt = '2026-10-26';
+  cert.archived = true; await job();
+  assert.equal(stored.size,4);
+  cert.archived = false; cert.noExpiry = true; await job();
+  assert.equal(stored.size,4);
+  cert.noExpiry = false; await job();
+  assert.equal(stored.size,6);
 });

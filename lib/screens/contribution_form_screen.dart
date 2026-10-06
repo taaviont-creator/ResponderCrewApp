@@ -1,3 +1,4 @@
+import '../widgets/app_date_field.dart';
 import '../widgets/app_layout.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -12,10 +13,13 @@ class ContributionFormScreen extends StatefulWidget {
     required this.currentUid,
     required this.members,
     required this.canManage,
+    this.initialMemberId,
+    this.initialType,
   });
   final String organizationId, currentUid;
   final List<MemberContribution> members;
   final bool canManage;
+  final String? initialMemberId, initialType;
   @override
   State<ContributionFormScreen> createState() => _ContributionFormScreenState();
 }
@@ -27,9 +31,13 @@ class _ContributionFormScreenState extends State<ContributionFormScreen> {
       .collection('activities')
       .doc()
       .id;
-  late final Set<String> _members = {widget.currentUid};
+  late final Set<String> _members = {
+    widget.canManage
+        ? widget.initialMemberId ?? widget.currentUid
+        : widget.currentUid,
+  };
   DateTime _date = DateTime.now();
-  String _type = 'maintenance';
+  late String _type = widget.initialType ?? 'maintenance';
   String? _error;
   bool _saving = false;
   @override
@@ -83,7 +91,13 @@ class _ContributionFormScreenState extends State<ContributionFormScreen> {
   Widget build(BuildContext context) => PopScope(
     canPop: !_saving,
     child: AppScaffold(
-      appBar: AppBar(title: const Text('Lisa panus')),
+      appBar: AppBar(
+        title: Text(
+          widget.initialType == 'training'
+              ? 'Lisa läbitud koolitus'
+              : 'Lisa panus',
+        ),
+      ),
       body: AbsorbPointer(
         absorbing: _saving,
         child: Form(
@@ -116,21 +130,17 @@ class _ContributionFormScreenState extends State<ContributionFormScreen> {
                     .toList(),
                 onChanged: (v) => setState(() => _type = v!),
               ),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Kuupäev'),
-                subtitle: Text(statisticsDate(_date)),
-                trailing: const Icon(Icons.calendar_month),
-                onTap: () async {
-                  final date = await showDatePicker(
-                    context: context,
-                    initialDate: _date,
-                    firstDate: DateTime(2000),
-                    lastDate: DateTime.now(),
-                  );
-                  if (date != null && mounted) setState(() => _date = date);
+              const SizedBox(height: 16),
+              AppDateField(
+                label: 'Kuupäev',
+                value: _date,
+                firstDate: DateTime(2000),
+                lastDate: DateTime.now(),
+                onChanged: (date) {
+                  if (date != null) setState(() => _date = date);
                 },
               ),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: _hours,
                 keyboardType: const TextInputType.numberWithOptions(

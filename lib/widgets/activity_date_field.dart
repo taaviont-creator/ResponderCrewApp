@@ -1,3 +1,4 @@
+import 'app_date_field.dart';
 import 'package:flutter/material.dart';
 import '../models/activity_schedule.dart';
 
@@ -28,7 +29,7 @@ class ActivityDateField extends StatelessWidget {
               final initial = value != null
                   ? ActivitySchedule.inEstonia(value!)
                   : initialDate ?? ActivitySchedule.inEstonia(DateTime.now());
-              final day = await showDatePicker(
+              final day = await showAppDatePicker(
                 context: context,
                 initialDate: DateTime(initial.year, initial.month, initial.day),
                 firstDate: DateTime(1900),

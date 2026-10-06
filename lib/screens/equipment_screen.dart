@@ -1,3 +1,4 @@
+import '../widgets/app_date_field.dart';
 import '../widgets/app_layout.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -16,6 +17,8 @@ class EquipmentScreen extends StatefulWidget {
     required this.canManageEquipment,
     this.openOrganizationCreateOnLoad = false,
     this.initialView = 'shared',
+    this.openPersonalCreateOnLoad = false,
+    this.editOnOpen,
   });
 
   final String organizationId;
@@ -23,6 +26,8 @@ class EquipmentScreen extends StatefulWidget {
   final bool canManageEquipment;
   final bool openOrganizationCreateOnLoad;
   final String initialView;
+  final bool openPersonalCreateOnLoad;
+  final EquipmentModel? editOnOpen;
 
   @override
   State<EquipmentScreen> createState() => _EquipmentScreenState();
@@ -38,6 +43,16 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.openPersonalCreateOnLoad || widget.editOnOpen != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (widget.editOnOpen case final item?) {
+          _showEditEquipmentDialog(item);
+        } else {
+          _showAddEquipmentDialog(scope: EquipmentScope.personal);
+        }
+      });
+    }
     if (widget.canManageEquipment) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
@@ -155,12 +170,9 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
                     decoration: const InputDecoration(labelText: 'Asukoht'),
                   ),
                   const SizedBox(height: 8),
-                  TextField(
+                  AppDateTextField(
                     controller: nextMaintenanceDateController,
-                    decoration: const InputDecoration(
-                      labelText: 'Järgmine hooldus või kontroll',
-                      hintText: 'nt 2026-07-15',
-                    ),
+                    label: 'Järgmine hooldus või kontroll',
                   ),
                   const SizedBox(height: 8),
                   TextField(
@@ -323,12 +335,9 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
                     decoration: const InputDecoration(labelText: 'Asukoht'),
                   ),
                   const SizedBox(height: 8),
-                  TextField(
+                  AppDateTextField(
                     controller: nextMaintenanceDateController,
-                    decoration: const InputDecoration(
-                      labelText: 'Järgmine hooldus või kontroll',
-                      hintText: 'nt 2026-07-15',
-                    ),
+                    label: 'Järgmine hooldus või kontroll',
                   ),
                   const SizedBox(height: 8),
                   TextField(

@@ -1833,6 +1833,10 @@ service cloud.firestore {
         data.issuer is string &&
         data.issuedAt is string &&
         data.expiresAt is string &&
+        (!('number' in data) || (data.number is string && data.number.size() <= 100)) &&
+        (!('noExpiry' in data) || (data.noExpiry is bool &&
+          (!data.noExpiry || data.expiresAt == ''))) &&
+        (!('archived' in data) || data.archived is bool) &&
         data.note is string &&
         data.createdBy is string &&
         hasValidOrganizationReference(data) &&

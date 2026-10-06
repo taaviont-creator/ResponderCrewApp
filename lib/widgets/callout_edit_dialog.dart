@@ -1,3 +1,4 @@
+import 'app_date_field.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import '../models/callout_model.dart';
@@ -29,14 +30,14 @@ class _CalloutEditDialogState extends State<CalloutEditDialog> {
 
   Future<void> _pickTime(bool start) async {
     final current = start ? _start : _end ?? DateTime.now();
-    final date = await showDatePicker(
+    final date = await showAppDatePicker(
       context: context,
       initialDate: current,
       firstDate: DateTime(1970),
       lastDate: DateTime.now(),
     );
     if (date == null || !mounted) return;
-    final time = await showTimePicker(
+    final time = await showAppTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(current),
     );

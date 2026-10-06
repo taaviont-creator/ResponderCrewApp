@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/certificate_model.dart';
+import '../models/calendar_date.dart';
 
 class CertificateService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -22,17 +23,19 @@ class CertificateService {
         )
         .snapshots()
         .map((snapshot) {
-      final certificates =
-          snapshot.docs.map(CertificateModel.fromFirestore).toList();
+          final certificates = snapshot.docs
+              .map(CertificateModel.fromFirestore)
+              .where((c) => !c.archived)
+              .toList();
 
-      certificates.sort((a, b) {
-        final userCompare = a.userName.compareTo(b.userName);
-        if (userCompare != 0) return userCompare;
-        return a.title.compareTo(b.title);
-      });
+          certificates.sort((a, b) {
+            final userCompare = a.userName.compareTo(b.userName);
+            if (userCompare != 0) return userCompare;
+            return a.title.compareTo(b.title);
+          });
 
-      return certificates;
-    });
+          return certificates;
+        });
   }
 
   Stream<List<CertificateModel>> streamMyCertificates({
@@ -51,12 +54,14 @@ class CertificateService {
         )
         .snapshots()
         .map((snapshot) {
-      final certificates =
-          snapshot.docs.map(CertificateModel.fromFirestore).toList();
+          final certificates = snapshot.docs
+              .map(CertificateModel.fromFirestore)
+              .where((c) => !c.archived)
+              .toList();
 
-      certificates.sort((a, b) => a.title.compareTo(b.title));
-      return certificates;
-    });
+          certificates.sort((a, b) => a.title.compareTo(b.title));
+          return certificates;
+        });
   }
 
   Future<void> addCertificate({
@@ -72,6 +77,8 @@ class CertificateService {
     required String note,
     required String createdBy,
     String? certificateId,
+    String number = '',
+    bool noExpiry = false,
   }) async {
     _requireOrganizationId(
       organizationId,
@@ -81,7 +88,7 @@ class CertificateService {
       throw Exception('Nimetus on kohustuslik.');
     }
 
-    if (expiresAt.trim().isEmpty) {
+    if (!noExpiry && expiresAt.trim().isEmpty) {
       throw Exception('Aegumiskuupäev on kohustuslik.');
     }
 
@@ -93,11 +100,15 @@ class CertificateService {
       throw Exception('Unsupported certificate status: $status');
     }
 
-    final parsed = DateTime.tryParse(expiresAt.trim());
-    if (parsed == null || parsed.toIso8601String().substring(0, 10) != expiresAt.trim()) {
-      throw Exception('Sisesta kehtiv kuupäev kujul AAAA-KK-PP.');
+    final issued = parseCalendarDate(issuedAt);
+    final parsed = parseCalendarDate(expiresAt);
+    if (issued == null ||
+        (!noExpiry && (parsed == null || parsed.isBefore(issued)))) {
+      throw Exception('Vali kehtivad väljastamise ja aegumise kuupäevad.');
     }
-    final doc = certificateId == null ? _certificates.doc() : _certificates.doc(certificateId);
+    final doc = certificateId == null
+        ? _certificates.doc()
+        : _certificates.doc(certificateId);
 
     final data = <String, dynamic>{
       'id': doc.id,
@@ -109,16 +120,27 @@ class CertificateService {
       'title': title.trim(),
       'type': type,
       'issuer': issuer.trim(),
-      'issuedAt': issuedAt.trim(),
-      'expiresAt': expiresAt.trim(),
+      'issuedAt': calendarDateIso(issued),
+      'expiresAt': noExpiry ? '' : calendarDateIso(parsed!),
+      'number': number.trim(),
+      'noExpiry': noExpiry,
       'status': status,
       'note': note.trim(),
       if (certificateId == null) 'createdBy': createdBy,
       if (certificateId == null) 'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     };
-    if (certificateId == null) { await doc.set(data); } else { await doc.update(data); }
+    if (certificateId == null) {
+      await doc.set(data);
+    } else {
+      await doc.update(data);
+    }
   }
+
+  Future<void> archiveCertificate(String id) => _certificates.doc(id).update({
+    'archived': true,
+    'updatedAt': FieldValue.serverTimestamp(),
+  });
 
   void _requireOrganizationId(
     String organizationId, {

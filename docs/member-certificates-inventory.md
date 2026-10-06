@@ -1,10 +1,16 @@
 # Tunnistused ja varustus
 
-- Liikmed → vali liige → Tunnistused → Ava. Liige näeb enda tunnistusi, ühingu admin saab lisada ja uuendada oma ühingu liikmete tunnistusi.
+- Liikmed → vali liige. Profiili jaotised on kohe avatud: kontaktid, staaž, valvegraafik, merepääste aste, varustus, tunnistused, koolitused ja panused. Tunnistuse lisamine/muutmine avaneb otse profiilist. Liige näeb enda tunnistusi, ühingu admin saab lisada ja uuendada oma ühingu liikmete tunnistusi.
 - Ühingu seaded → Ühingu load ja tunnistused. Admin saab salvestada loa nimetuse, numbri, väljastaja, kuupäevad ja lisainfo. Tühi kehtivusaeg tähendab tähtajatut luba. Ühingu load ei ole liikme pädevused.
 - Varustus: ühiskasutuses esemed, ladu, mulle väljastatud/isiklik varustus ja liikmetele väljastatud varustuse ülevaade. Senised ühingu esemed jäävad ühiskasutusse; admin saab need menüüst lattu tõsta. Väljastatud ese kaob laost ja ilmub saaja profiili ning liikmete varustusse. Tagastamine viib selle lattu. Seisukord ei muutu väljastamise/tagastamise tõttu.
 
 ## Tunnistuste aegumise teated
+
+Kuupäevadel on ühine kalendrivalik ning kuvatakse `pp.kk.aaaa`; kuupäevapõhised väljad jäävad andmebaasis kujule `AAAA-KK-PP`, ilma ajavööndinihketa. Sama valikut kasutavad tunnistused, varustuse hooldus, ühingu load, liitumiskuupäev, panused, tegevuste ja mittevalvete ajavalik ning sündmuste/logi kuupäevad.
+
+Tunnistuse uued valikulised väljad on `number`, `noExpiry` ja `archived`. Tähtajatus märgitakse sõnaselgelt; vanade kirjete puuduv tähtaeg jääb teadmata tähtajaks. Profiilist eemaldamine arhiveerib kirje pärast kinnitamist, mitte ei kustuta dokumenti. Arhiveeritud ja tähtajatutele tunnistustele aegumise meeldetuletust ei saadeta. Migreerimist ei ole vaja. Omaniku, ühingu, koostaja ja haldusõiguste piirangud säilivad.
+
+14 päeva kalender eristab planeeritud mittevalvega päevi; päeva vajutamisel näeb vastavaid intervalle ja kordumisi. See on praeguse staatuse ja olemasolevate planeeringute ülevaade, mitte tulevase valve lubadus. Isiklikke mittevalve märkusi kalender ei kuva. Panuste koond kasutab olemasolevat aasta statistikat ning selle õigusi; kui koondstatistika pole lubatud, kuvatakse olemasolevad kinnitatud tegevustes osalemised. Punkte ei arvutata väljamõeldud valemi põhjal ning teiste ühingute isikuandmeid ei ühendata.
 
 `sendCertificateExpiryReminders` asub `europe-west1` piirkonnas ([Cloud Scheduleri toetatud piirkonnad](https://docs.cloud.google.com/scheduler/docs/locations)) ja käivitub iga päev kell 09:00 Europe/Tallinn. 30 päeva enne lõppu (või esimese kontrolli ajal, kui aega on vähem) salvestatakse liikmele ja sama ühingu aktiivsetele adminidele privaatne teade ning saadetakse tavaline push. Aegumisele järgneval päeval saadetakse eraldi aegumise teade. Liige peab olema aktiivne ja ühing kinnitatud. Puuduvaks märgitud tunnistusi ei teavitata. Uue tähtajaga tunnistus saab uue teate; sama tähtaja sama etappi ei saadeta iga päev uuesti.
 
