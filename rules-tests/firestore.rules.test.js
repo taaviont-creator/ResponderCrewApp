@@ -957,6 +957,44 @@ test('report reuses log and attendance, restricts private persons, rejects stale
   assert.equal((await read(req(activeMemberId))).summary,'Juhi parandus');
 });
 
+test('report technique selection and equipment incidents preserve history and enforce membership', async () => {
+  const db=serverDb(), assert=require('node:assert/strict');
+  const {FieldValue}=serverRequire('firebase-admin/firestore');
+  const {createSaveReportHandler,createGetReportHandler}=require('../functions/callout-report');
+  const save=createSaveReportHandler({db,timestamp:()=>FieldValue.serverTimestamp()}),read=createGetReportHandler({db});
+  await seedOperationLog('gear-log','returnedToBase');
+  await db.doc('operationLogs/gear-log').update({calloutId:'gear-callout'});
+  await db.doc('callouts/gear-callout').set({organizationId,status:'closed',title:'Varustuse katse'});
+  for (const [name,category,org] of [['boat','vessel',organizationId],['suit','safety',organizationId],['radio','radio',organizationId],['legacy','',organizationId],['foreign','vessel','another-org']]) {
+    await db.doc(`equipment/${name}`).set({organizationId:org,name,category,scope:'organization'});
+  }
+  const data={organizationId,calloutId:'gear-callout',operationLogId:'gear-log',revision:0,expectedSummary:'',expectedOutcome:'',authorUserId:orgAdminId,leaderUserId:'',equipmentIds:['boat'],status:'completed',summary:'',outcome:'',suggestions:'',persons:[],equipmentIncidents:[{name:'Raadiojaam',status:'lost',description:'Kukkus üle parda.'}]};
+  const req=(uid,d=data)=>({auth:{uid},data:d});
+  const choices=(await read(req(orgAdminId))).equipment.map(e=>e.id);
+  assert(choices.includes('boat'));assert(!choices.includes('suit'));assert(!choices.includes('radio'));assert(!choices.includes('foreign'));assert(!choices.includes('legacy'));
+  for(const equipmentIds of [['suit'],['radio'],['foreign'],['legacy']]) await assert.rejects(save(req(orgAdminId,{...data,equipmentIds})),{code:'invalid-argument'});
+  await assert.rejects(save(req(activeMemberId)),{code:'permission-denied'});
+  await assert.rejects(save(req(orgAdminId,{...data,equipmentIncidents:[{name:'',status:'lost',description:'x'}]})),{code:'invalid-argument'});
+  await assert.rejects(save(req(orgAdminId,{...data,equipmentIncidents:[{name:'x',status:'ok',description:'x'}]})),{code:'invalid-argument'});
+  await save(req(orgAdminId));
+  assert.deepEqual((await read(req(activeMemberId))).report.equipmentIncidents,data.equipmentIncidents);
+  assert.equal((await db.doc('equipment/radio').get()).data().status,undefined);
+  // An older client that knows nothing about incident records cannot erase them.
+  const {equipmentIncidents:ignored,...older}=data;
+  await save(req(orgAdminId,{...older,revision:1}));
+  assert.deepEqual((await read(req(orgAdminId))).report.equipmentIncidents,data.equipmentIncidents);
+  // Previously linked non-technical equipment remains readable/removable, never silently lost.
+  await db.doc('calloutReports/gear-callout').update({equipmentIds:['boat','suit']});
+  assert((await read(req(orgAdminId))).equipment.some(e=>e.id==='suit'));
+  await save(req(orgAdminId,{...data,revision:2,equipmentIds:['boat','suit'],equipmentIncidents:[{name:'Raadiojaam',status:'damaged',description:'Leitud; korpus purunenud.'}]}));
+  const history=await db.collection('callouts/gear-callout/reportHistory').get();
+  assert.equal(history.size,3);
+  assert(history.docs.some(d=>d.data().after.equipmentIncidents[0].status==='damaged'));
+  const audit=await db.collection('platformAudit').where('targetId','==','gear-callout').get();
+  assert(audit.docs.some(d=>d.data().changedFields.includes('equipmentIncidents')));
+  await assertFails(updateDoc(doc(testEnv.authenticatedContext(activeMemberId).firestore(),'calloutReports','gear-callout'),{equipmentIncidents:[]}));
+});
+
 test('organization duty pause is admin-only, persistent, idempotent and cannot be forged by client', async () => {
   const db=serverDb(),assert=require('node:assert/strict');
   const {FieldValue}=serverRequire('firebase-admin/firestore');

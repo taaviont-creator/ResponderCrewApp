@@ -5,6 +5,7 @@ const {orgId, millis} = require('./statistics-history');
 const {active} = require('./contribution-statistics');
 const id = v => typeof v === 'string' && v.length > 0 && v.length <= 128 && !v.includes('/');
 const text = (v, max = 10000) => typeof v === 'string' && v.length <= max;
+const technique = e => ['vessel','engine','trailer','vehicle','machinery'].includes(e?.category);
 function fail(message) { throw new HttpsError('invalid-argument', message); }
 function serial(value) {
   if (value?.toDate) return value.toDate().toISOString();
@@ -14,6 +15,11 @@ function serial(value) {
   return value;
 }
 function validateReport(d) {
+  if (d.equipmentIncidents !== undefined && (!Array.isArray(d.equipmentIncidents) || d.equipmentIncidents.length > 50 ||
+      d.equipmentIncidents.some(e => !e || typeof e !== 'object' || Array.isArray(e) ||
+        Object.keys(e).some(k => !['name','status','description'].includes(k)) ||
+        !text(e.name,200) || !e.name.trim() || !['damaged','lost'].includes(e.status) ||
+        !text(e.description,2000) || !e.description.trim()))) fail('Kontrolli kahjustatud või kaotatud varustuse kirjeid.');
   if (!id(d.calloutId) || !id(d.operationLogId) || !id(d.authorUserId) ||
       !(d.leaderUserId === '' || id(d.leaderUserId)) || !['draft','completed'].includes(d.status) ||
       !Number.isInteger(d.revision) || d.revision < 0 || !text(d.expectedSummary) || !text(d.expectedOutcome) || !text(d.summary) || !text(d.outcome) || !text(d.suggestions) ||
@@ -68,7 +74,7 @@ function createGetReportHandler({db}) {
     return serial({callout:{id:calloutId,...callout},organizationName:actor.organization.name || '',canEdit,
       report:metadata,operationLogId:primary?.id || null,summary:primary?.data().summary || '',outcome:primary?.data().outcome || '',
       authorName:members.find(m=>m.userId===metadata.authorUserId)?.name || 'Määramata',leaderName:members.find(m=>m.userId===metadata.leaderUserId)?.name || 'Määramata',
-      crew,timeline,members:canEdit?members:[],equipment:allEquipment.filter(e => canEdit || metadata.equipmentIds?.includes(e.id)),
+      crew,timeline,members:canEdit?members:[],equipment:allEquipment.filter(e => (canEdit && technique(e)) || metadata.equipmentIds?.includes(e.id)),
       ...(canEdit ? {persons:privateData?.persons || [],attachments} : {})});
   };
 }
@@ -90,10 +96,13 @@ function createSaveReportHandler({db,timestamp}) {
       if (peopleDocs.some((m,i)=>orgId(m.data())!==actor.org || m.data()?.userId!==people[i] || !active(m.data()))) fail('Koostaja ja juht peavad olema ühingu aktiivsed liikmed.');
       if (d.equipmentIds.length) {
         const gear=await tx.getAll(...d.equipmentIds.map(e=>db.doc(`equipment/${e}`)));
-        if (gear.some(e=>orgId(e.data())!==actor.org || e.data()?.scope==='personal')) fail('Vali selle ühingu tehnika.');
+        if (gear.some(e=>orgId(e.data())!==actor.org || e.data()?.scope==='personal' ||
+            (!technique(e.data()) && !old?.equipmentIds?.includes(e.id)))) fail('Vali selle ühingu alus või tehnika. Muu varustuse kahjustus või kaotus lisa eraldi kirjena.');
       }
       const next={organizationId:actor.org,calloutId:d.calloutId,operationLogId:d.operationLogId,authorUserId:d.authorUserId,leaderUserId:d.leaderUserId,
-        equipmentIds:d.equipmentIds,equipmentRegistration:d.equipmentRegistration || {},suggestions:d.suggestions.trim(),status:d.status,revision:d.revision+1,updatedBy:request.auth.uid,updatedAt:timestamp()};
+        equipmentIds:d.equipmentIds,equipmentRegistration:d.equipmentRegistration || {},
+        equipmentIncidents:d.equipmentIncidents === undefined ? (old?.equipmentIncidents || []) : d.equipmentIncidents.map(e=>({name:e.name.trim(),status:e.status,description:e.description.trim()})),
+        suggestions:d.suggestions.trim(),status:d.status,revision:d.revision+1,updatedBy:request.auth.uid,updatedAt:timestamp()};
       tx.set(reportRef,next);
       tx.create(db.doc(`callouts/${d.calloutId}/reportHistory/${changeId}`), {organizationId:actor.org,createdBy:request.auth.uid,createdAt:timestamp(),before:old || null,after:next});
       if ((log.summary || '')!==d.summary.trim() || (log.outcome || '')!==d.outcome.trim()) {

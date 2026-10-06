@@ -15,6 +15,7 @@ import 'operation_log_report_screen.dart';
 import '../widgets/callout_participants_section.dart';
 import '../widgets/operation_note_dialog.dart';
 import '../widgets/operation_log_actions.dart';
+import '../widgets/operation_log_access_panel.dart';
 
 class _EventLocation {
   const _EventLocation({
@@ -402,7 +403,7 @@ class _OperationLogCardState extends State<_OperationLogCard> {
           organizationId: widget.organizationId,
         );
   StreamSubscription<CalloutModel?>? _calloutSubscription;
-  late final Stream<bool> _participantAccess = widget.log.calloutId == null
+  Stream<bool> _participantAccess() => widget.log.calloutId == null
       ? Stream.value(false)
       : OperationLogAccessService().participantAccess(
           organizationId: widget.organizationId,
@@ -535,8 +536,8 @@ class _OperationLogCardState extends State<_OperationLogCard> {
             'Täienda lõpetatud väljakutse logi. Kommentaare, kokkuvõtet ja osalejaid saab lisada ka tagantjärele.',
           ),
         ),
-      StreamBuilder<bool>(
-        stream: _participantAccess,
+      OperationLogAccessPanel(
+        createStream: _participantAccess,
         builder: (context, access) {
           if (!widget.canStartOperationLog &&
               (finished || access.hasError || access.data != true)) {

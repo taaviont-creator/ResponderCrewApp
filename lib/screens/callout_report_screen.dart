@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:printing/printing.dart';
 import '../services/callout_report_pdf.dart';
 import '../widgets/callout_attachments.dart';
+import '../widgets/report_equipment_incidents.dart';
 import '../models/callout_model.dart';
 import '../models/operation_log_report.dart';
 import 'callout_attendance_screen.dart';
@@ -40,6 +41,7 @@ class _CalloutReportScreenState extends State<CalloutReportScreen> {
       _suggestions = TextEditingController();
   Map<String, dynamic>? _data;
   List<Map<String, dynamic>> _persons = [];
+  List<Map<String, dynamic>> _equipmentIncidents = [];
   Set<String> _equipment = {};
   Map<String, String> _registrations = {};
   String _author = '', _leader = '', _status = 'draft';
@@ -124,6 +126,7 @@ class _CalloutReportScreenState extends State<CalloutReportScreen> {
         _leader = report['leaderUserId'] ?? '';
         _status = report['status'] ?? 'draft';
         _persons = _maps(data['persons']);
+        _equipmentIncidents = _maps(report['equipmentIncidents']);
         _equipment = Set<String>.from(report['equipmentIds'] ?? []);
         _registrations = Map<String, String>.from(
           report['equipmentRegistration'] as Map? ?? {},
@@ -155,6 +158,7 @@ class _CalloutReportScreenState extends State<CalloutReportScreen> {
         'authorUserId': _author,
         'leaderUserId': _leader,
         'equipmentIds': _equipment.toList(),
+        'equipmentIncidents': _equipmentIncidents,
         'equipmentRegistration': {
           for (final id in _equipment)
             if (_registrations.containsKey(id)) id: _registrations[id],
@@ -587,13 +591,30 @@ class _CalloutReportScreenState extends State<CalloutReportScreen> {
                           ),
                       ]),
                       if (edit)
-                        _section('Seo kasutatud varustus', [
+                        _section('Seo kasutatud alused ja tehnika', [
                           ExpansionTile(
-                            title: Text('Valitud ${_equipment.length} eset'),
+                            title: Text(
+                              'Valitud ${_maps(data['equipment']).where((e) => _equipment.contains(e['id']) && EquipmentCategory.isTechnique(e['category'])).length} alust / tehnikat',
+                            ),
                             children: [
+                              if (!_maps(data['equipment']).any(
+                                (e) => EquipmentCategory.isTechnique(
+                                  e['category'],
+                                ),
+                              ))
+                                const Padding(
+                                  padding: EdgeInsets.all(12),
+                                  child: Text(
+                                    'Ühingu varustuse registris pole aluseid ega tehnikat.',
+                                  ),
+                                ),
                               for (final group
                                   in EquipmentCategory.groupEquipment(
-                                    _maps(data['equipment']),
+                                    _maps(data['equipment']).where(
+                                      (e) => EquipmentCategory.isTechnique(
+                                        e['category'],
+                                      ),
+                                    ),
                                   ).entries) ...[
                                 ListTile(title: Text(group.key)),
                                 for (final e in group.value)
@@ -616,9 +637,11 @@ class _CalloutReportScreenState extends State<CalloutReportScreen> {
                           ),
                         ]),
                       for (final group in EquipmentCategory.groupEquipment(
-                        _maps(
-                          data['equipment'],
-                        ).where((e) => _equipment.contains(e['id'])),
+                        _maps(data['equipment']).where(
+                          (e) =>
+                              _equipment.contains(e['id']) &&
+                              EquipmentCategory.isTechnique(e['category']),
+                        ),
                       ).entries)
                         _section(group.key, [
                           for (final e in group.value) ...[
@@ -652,6 +675,49 @@ class _CalloutReportScreenState extends State<CalloutReportScreen> {
                               ),
                           ],
                         ]),
+                      if (_maps(data['equipment']).any(
+                        (e) =>
+                            _equipment.contains(e['id']) &&
+                            !EquipmentCategory.isTechnique(e['category']),
+                      ))
+                        ExpansionTile(
+                          title: const Text(
+                            'Varem aruandega seotud muu varustus',
+                          ),
+                          children: [
+                            for (final e in _maps(data['equipment']).where(
+                              (e) =>
+                                  _equipment.contains(e['id']) &&
+                                  !EquipmentCategory.isTechnique(e['category']),
+                            ))
+                              ListTile(
+                                title: Text('${e['name']}'),
+                                trailing: edit
+                                    ? TextButton(
+                                        onPressed: _saving
+                                            ? null
+                                            : () => setState(() {
+                                                _equipment.remove(e['id']);
+                                                _dirty = true;
+                                              }),
+                                        child: const Text('Eemalda seos'),
+                                      )
+                                    : null,
+                              ),
+                          ],
+                        ),
+                      _section('Varustuse juhtumid', [
+                        ReportEquipmentIncidents(
+                          items: _equipmentIncidents,
+                          busy: _saving,
+                          onChanged: edit
+                              ? (items) => setState(() {
+                                  _equipmentIncidents = items;
+                                  _dirty = true;
+                                })
+                              : null,
+                        ),
+                      ]),
                       _section('Sündmuse kokkuvõte', [
                         if (edit)
                           const Text(
