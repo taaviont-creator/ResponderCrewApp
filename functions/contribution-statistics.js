@@ -52,7 +52,7 @@ function dutyForMember(uid, lines, start, end, pauses=[]) {
     line.events.forEach(e=>add(e.at));
     for (const state of [line.initial,...line.events.map(e=>e.after)]) {
       if (!state) continue;
-      add(state.joinedAt); add(state.startAt); add(state.endAt);
+      add(state.joinedAt); add(state.startAt); add(state.endAt); add(state.geofenceUntil);
       if(line.source === 'plannedUnavailabilityRules') ruleVersions.push(state);
     }
   }
@@ -83,6 +83,7 @@ function dutyForMember(uid, lines, start, end, pauses=[]) {
     const availability=states.filter(r=>r.source==='availability');
     const manual=availability.find(r=>r.id===`${uid}_${r.data.organizationId}`)?.data || availability[0]?.data;
     if(!['onDuty','delayed'].includes(manual?.status)) continue;
+    if(Number.isFinite(manual.geofenceUntil) && at>=manual.geofenceUntil) continue;
     const clock=DateTime.fromMillis(at,{zone:ZONE});
     const minute=clock.hour*60+clock.minute;
     const unavailable=states.some(({source,data:d}) => d.status==='active' &&

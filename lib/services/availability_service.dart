@@ -24,9 +24,9 @@ class AvailabilityService {
         .doc(availabilityId(userId: userId, organizationId: organizationId))
         .snapshots()
         .map((snapshot) {
-      if (!snapshot.exists) return null;
-      return AvailabilityModel.fromFirestore(snapshot);
-    });
+          if (!snapshot.exists) return null;
+          return AvailabilityModel.fromFirestore(snapshot);
+        });
   }
 
   Stream<List<AvailabilityModel>> streamOrganizationAvailability({
@@ -43,10 +43,10 @@ class AvailabilityService {
         )
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs
-          .map(AvailabilityModel.fromFirestore)
-          .toList(growable: false);
-    });
+          return snapshot.docs
+              .map(AvailabilityModel.fromFirestore)
+              .toList(growable: false);
+        });
   }
 
   Future<void> setMyAvailability({
@@ -67,26 +67,25 @@ class AvailabilityService {
       throw Exception('Hilinemise aeg on kohustuslik.');
     }
 
-    final id = availabilityId(
-      userId: userId,
-      organizationId: organizationId,
-    );
+    final id = availabilityId(userId: userId, organizationId: organizationId);
     final availabilityDoc = _availability.doc(id);
     await availabilityDoc.set({
-        'id': id,
-        'userId': userId,
-        'organizationId': organizationId,
-        // TODO: Remove commandId after all availability reads use
-        // organizationId.
-        'commandId': organizationId,
-        'status': status,
-        'responseMinutes':
-            status == AvailabilityStatus.delayed ? responseMinutes : null,
-        'note': note,
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-
+      'id': id,
+      'userId': userId,
+      'organizationId': organizationId,
+      // TODO: Remove commandId after all availability reads use
+      // organizationId.
+      'commandId': organizationId,
+      'status': status,
+      'responseMinutes': status == AvailabilityStatus.delayed
+          ? responseMinutes
+          : null,
+      'note': note,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+      'geofenceAppliedAt': null,
+      'geofenceUntil': null,
+    }, SetOptions(merge: true));
   }
 
   void _requireOrganizationId(String organizationId) {

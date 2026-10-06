@@ -1,21 +1,35 @@
 import Flutter
 import UIKit
 import UserNotifications
+import CoreLocation
+import native_geofence
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   private var wakelockChannel: FlutterMethodChannel?
   private var notificationChannel: FlutterMethodChannel?
+  private var geofenceChannel: FlutterMethodChannel?
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    NativeGeofencePlugin.setPluginRegistrantCallback { registry in
+      GeneratedPluginRegistrant.register(with: registry)
+    }
     UNUserNotificationCenter.current().delegate = self
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+    geofenceChannel = FlutterMethodChannel(name: "respondcrew/geofence-capabilities",
+      binaryMessenger: engineBridge.applicationRegistrar.messenger())
+    geofenceChannel?.setMethodCallHandler { call, result in
+      guard call.method == "limits" else { result(FlutterMethodNotImplemented); return }
+      result(["maximumRadius": CLLocationManager().maximumRegionMonitoringDistance,
+              "available": CLLocationManager.isMonitoringAvailable(for: CLCircularRegion.self),
+              "backgroundRefresh": UIApplication.shared.backgroundRefreshStatus == .available])
+    }
     notificationChannel = FlutterMethodChannel(name: "respondcrew/notifications",
       binaryMessenger: engineBridge.applicationRegistrar.messenger())
     notificationChannel?.setMethodCallHandler { call, result in

@@ -7,6 +7,7 @@ import 'firebase_options.dart';
 import 'navigation/app_router.dart';
 import 'navigation/url_strategy.dart';
 import 'services/callout_alarm_notification_service.dart';
+import 'services/geofence_service.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
@@ -16,6 +17,11 @@ Future<void> main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const MyApp());
   unawaited(_initializeCalloutAlarmNotifications());
+  unawaited(
+    GeofenceService.lifecycle.initialize().catchError((Object _) {
+      debugPrint('Asukohapõhise valmisoleku käivitamine ebaõnnestus.');
+    }),
+  );
 }
 
 Future<void> _initializeCalloutAlarmNotifications() async {

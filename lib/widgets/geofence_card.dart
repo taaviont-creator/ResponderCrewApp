@@ -1,0 +1,437 @@
+import 'dart:async';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/material.dart';
+import '../services/geofence_service.dart';
+import '../models/activity_schedule.dart';
+
+class GeofenceCard extends StatefulWidget {
+  const GeofenceCard({
+    super.key,
+    required this.organizationId,
+    this.admin = false,
+    this.service,
+  });
+  final GeofenceService? service;
+  final String organizationId;
+  final bool admin;
+  @override
+  State<GeofenceCard> createState() => _GeofenceCardState();
+}
+
+class _GeofenceCardState extends State<GeofenceCard>
+    with WidgetsBindingObserver {
+  late final service = widget.service ?? GeofenceService();
+  Map<String, dynamic>? data;
+  String? failure;
+  bool busy = false;
+  bool permissions = false;
+  bool local = false;
+  Timer? clock;
+  String? deviceError;
+  Map get config => data?['config'] as Map? ?? {};
+  Map get state => data?['state'] as Map? ?? {};
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    unawaited(load());
+    if (!widget.admin) {
+      clock = Timer.periodic(const Duration(seconds: 30), (_) {
+        if (!busy) unawaited(load());
+      });
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant GeofenceCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.organizationId != widget.organizationId) {
+      data = null;
+      unawaited(load());
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState value) {
+    if (value == AppLifecycleState.resumed) unawaited(load());
+  }
+
+  @override
+  void dispose() {
+    clock?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  Future<void> load() async {
+    final org = widget.organizationId;
+    try {
+      final value = await service.call(org, 'get');
+      final ready =
+          GeofenceService.supported && await service.permissionsReady();
+      final session = (value['state'] as Map?)?['sessionId'] as String?;
+      final isLocal =
+          GeofenceService.supported &&
+          session != null &&
+          await service.localSession(session) != null;
+      final error = isLocal ? await service.error(session) : null;
+      if (mounted && widget.organizationId == org) {
+        setState(() {
+          data = value;
+          permissions = ready;
+          local = isLocal;
+          failure = null;
+          deviceError = error;
+        });
+      }
+    } catch (_) {
+      if (mounted && widget.organizationId == org) {
+        setState(
+          () =>
+              failure = 'Asukohapõhise valmisoleku andmeid ei saanud laadida.',
+        );
+      }
+    }
+  }
+
+  Future<void> run(Future<void> Function() action) async {
+    if (busy) return;
+    setState(() => busy = true);
+    try {
+      await action();
+      await load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              e is FirebaseFunctionsException
+                  ? e.message ?? 'Salvestamine ebaõnnestus.'
+                  : e is StateError
+                  ? e.message.toString()
+                  : 'Toiming ebaõnnestus. Kontrolli asukohaluba ja ühendust.',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  String get reason => switch (state['reason']) {
+    'disabled' => 'Automaatika on välja lülitatud.',
+    'waiting' => 'Ootab asukohakinnitust. Sa ei ole veel valves.',
+    'manual' => 'Käsitsi valitud staatus peatas automaatika.',
+    'callout' =>
+      'Automaatika on väljakutsel osalemise ajaks peatatud. Pärast väljakutset lülita see uuesti sisse.',
+    'configuration' =>
+      'Ühingu piirkond muutus. Lülita automaatika uuesti sisse.',
+    'membership' => 'Ühingu liikmelisus muutus.',
+    'stale' => 'Asukohainfo aegus. Lülita automaatika uuesti sisse.',
+    'locationUnavailable' =>
+      'Asukoht pole piisavalt täpne või luba puudub. Automaatne staatus: mitte valves.',
+    _ => switch (state['zone']) {
+      'inner' =>
+        state['confirmationRequired'] == true
+            ? 'Oled baasi lähedal. Kas oled valmis valves olema?'
+            : 'Sisepiirkond · valvesolek kinnitatud',
+      'ring' => 'Vahepealne piirkond · hilinemisega',
+      'outside' => 'Väljaspool piirkonda · mitte valves',
+      _ => 'Piirkonna kinnitus puudub.',
+    },
+  };
+  @override
+  Widget build(BuildContext context) {
+    if (widget.admin) return _admin();
+    final enabled = state['enabled'] == true;
+    final last = state['lastObservedMs'] as num?;
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Asukohapõhine valmisolek',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            if (failure != null) ...[
+              Text(failure!),
+              TextButton(
+                onPressed: busy ? null : load,
+                child: const Text('Proovi uuesti'),
+              ),
+            ] else if (data == null)
+              const LinearProgressIndicator()
+            else if (config['enabled'] != true)
+              const Text(
+                'Ühingu admin pole asukohapõhist valmisolekut sisse lülitanud.',
+              )
+            else ...[
+              Text(
+                'Baasi lähedal: ${(config['innerMeters'] as num) / 1000} km · välispiir: ${(config['outerMeters'] as num) / 1000} km',
+              ),
+              if (!GeofenceService.supported)
+                const Text(
+                  'Automaatika töötab Androidi või iPhone’i rakenduses. Brauser ei jälgi taustal piirkondi.',
+                )
+              else ...[
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Kasuta selles telefonis'),
+                  value: enabled && local,
+                  onChanged: busy || failure != null
+                      ? null
+                      : (value) => run(() async {
+                          if (!value) {
+                            await service.disable(
+                              widget.organizationId,
+                              state['sessionId'] as String?,
+                            );
+                            return;
+                          }
+                          final agreed = await showDialog<bool>(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: const Text('Asukohapõhine valmisolek'),
+                              content: const Text(
+                                'Telefon kontrollib ühingu piirkonda ka taustal. Täpset asukohta ega liikumisteekonda serverisse ei saadeta.\n\nSisselülitamisel oled esialgu mitte valves. Baasi lähedale jõudes küsime valvesse märkimiseks kinnitust. Käsitsi valitud staatus peatab automaatika; planeeritud mittevalve jääb kehtima.\n\nKui 24 tunni jooksul uut asukohakinnitust ei tule, lõpeb automaatne valvesolek. Piirkonnateated võivad telefoni tõttu viibida.',
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.pop(context, false),
+                                  child: const Text('Loobu'),
+                                ),
+                                FilledButton(
+                                  onPressed: () => Navigator.pop(context, true),
+                                  child: const Text('Luba automaatika'),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (agreed != true) return;
+                          if (!await service.permissionsReady()) {
+                            await service.requestPermissions();
+                            if (!await service.permissionsReady()) return;
+                          }
+                          await service.enable(widget.organizationId);
+                        }),
+                ),
+                if (!permissions) ...[
+                  const Text(
+                    'Vajalik on täpne asukoht ja asukohaluba „Alati“. Telefoni energiasääst võib taustateateid viivitada.',
+                  ),
+                  TextButton(
+                    onPressed: busy
+                        ? null
+                        : () => run(service.requestPermissions),
+                    child: const Text('Ava asukoha õigused'),
+                  ),
+                ],
+              ],
+              if (state.isNotEmpty) Text(reason),
+              if (enabled && !local)
+                const Text(
+                  'Automaatika on sisse lülitatud teises telefonis. Siin sisselülitamine asendab varasema telefoni.',
+                ),
+              if (deviceError != null)
+                Text(
+                  deviceError!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              if (last != null && last > 0)
+                Text(
+                  'Viimane asukohakinnitus: ${ActivitySchedule.format(DateTime.fromMillisecondsSinceEpoch(last.toInt()))}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              if (enabled && local)
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    if (state['confirmationRequired'] == true)
+                      FilledButton.icon(
+                        onPressed: busy
+                            ? null
+                            : () => run(
+                                () => service.confirm(
+                                  widget.organizationId,
+                                  state['sessionId'] as String,
+                                ),
+                              ),
+                        icon: const Icon(Icons.check),
+                        label: const Text('Kinnitan: olen valves'),
+                      ),
+                    TextButton(
+                      onPressed: busy
+                          ? null
+                          : () => run(() async {
+                              await service.sample(
+                                state['sessionId'] as String,
+                              );
+                            }),
+                      child: const Text('Kontrolli asukohta'),
+                    ),
+                  ],
+                ),
+            ],
+            if (busy) const LinearProgressIndicator(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _admin() => Card(
+    child: ExpansionTile(
+      leading: const Icon(Icons.radar),
+      title: const Text('Asukohapõhine valmisolek'),
+      subtitle: const Text('Liikme vabatahtlik piirkonnaautomaatika'),
+      childrenPadding: const EdgeInsets.all(16),
+      children: [
+        if (failure != null)
+          Text(failure!)
+        else if (data == null)
+          const LinearProgressIndicator()
+        else ...[
+          Text(
+            config['latitude'] == null
+                ? 'Määra kõigepealt ühingu asukoht keskuste kaardi seadetes.'
+                : 'Kasutab ühingu olemasolevat baasiasukohta.',
+          ),
+          Text(
+            'Sisepiirkond ${(config['innerMeters'] as num) / 1000} km · välispiirkond ${(config['outerMeters'] as num) / 1000} km · hilinemine ${config['delayMinutes']} min',
+          ),
+          Text(
+            config['enabled'] == true
+                ? 'Ühingus lubatud. Iga liige lülitab automaatika ise sisse.'
+                : 'Ühingus välja lülitatud.',
+          ),
+          TextButton.icon(
+            onPressed: busy ? null : editSettings,
+            icon: const Icon(Icons.edit_outlined),
+            label: const Text('Muuda piirkonda'),
+          ),
+        ],
+      ],
+    ),
+  );
+  Future<void> editSettings() async {
+    final inner = TextEditingController(
+      text: ((config['innerMeters'] as num) / 1000).toString(),
+    );
+    final outer = TextEditingController(
+      text: ((config['outerMeters'] as num) / 1000).toString(),
+    );
+    var allowed = config['enabled'] == true;
+    var minutes = config['delayMinutes'] as int;
+    String? validation;
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, set) => AlertDialog(
+          title: const Text('Ühingu piirkond'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SwitchListTile(
+                  title: const Text('Luba liikmetele automaatika'),
+                  value: allowed,
+                  onChanged: (v) => set(() => allowed = v),
+                ),
+                TextField(
+                  controller: inner,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'Sisepiirkonna raadius (km)',
+                  ),
+                ),
+                TextField(
+                  controller: outer,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'Välispiirkonna raadius (km)',
+                  ),
+                ),
+                DropdownButtonFormField<int>(
+                  initialValue: minutes,
+                  decoration: const InputDecoration(
+                    labelText: 'Hilinemine vahepealses piirkonnas',
+                  ),
+                  items: [15, 30, 60]
+                      .map(
+                        (v) =>
+                            DropdownMenuItem(value: v, child: Text('$v min')),
+                      )
+                      .toList(),
+                  onChanged: (v) {
+                    if (v != null) minutes = v;
+                  },
+                ),
+                const Text(
+                  'Sisepiirkond vähemalt 0,3 km. Välispiir vähemalt 0,3 km kaugemal, kuni 50 km. Vahemaa ei arvuta sõiduaega. Muutmine peatab senised automaatikaseansid.',
+                ),
+                if (validation != null)
+                  Text(
+                    validation!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Loobu'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final a = double.tryParse(inner.text.replaceAll(',', '.'));
+                final b = double.tryParse(outer.text.replaceAll(',', '.'));
+                if (a == null ||
+                    b == null ||
+                    !a.isFinite ||
+                    !b.isFinite ||
+                    a < .3 ||
+                    b < a + .3 ||
+                    b > 50) {
+                  set(
+                    () => validation =
+                        'Kontrolli raadiusi: jäta piiride vahele vähemalt 0,3 km.',
+                  );
+                  return;
+                }
+                Navigator.pop(context, {
+                  'enabled': allowed,
+                  'innerMeters': (a * 1000).round(),
+                  'outerMeters': (b * 1000).round(),
+                  'delayMinutes': minutes,
+                  'expectedRevision': config['revision'],
+                });
+              },
+              child: const Text('Salvesta'),
+            ),
+          ],
+        ),
+      ),
+    );
+    // Dialog route animations can still reference controllers after pop.
+    await Future<void>.delayed(const Duration(milliseconds: 350));
+    inner.dispose();
+    outer.dispose();
+    if (result != null && mounted) {
+      await run(() async {
+        await service.call(widget.organizationId, 'save', result);
+      });
+    }
+  }
+}

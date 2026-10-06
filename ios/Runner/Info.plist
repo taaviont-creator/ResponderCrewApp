@@ -15,7 +15,9 @@
 	<key>CFBundleName</key>
 	<string>respondcrew_app</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Asukohta kasutatakse operatsioonilogi sündmuse koordinaatide lisamiseks.</string>
+	<string>Asukohta kasutatakse operatsioonilogi koordinaatide lisamiseks ja sinu lubatud piirkonnaautomaatika kontrolliks.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Sinu sisselülitatud piirkonnaautomaatika kontrollib ühingu baasi lähedust ka taustal. Serverisse saadetakse ainult piirkond, mitte sinu koordinaadid. Valvesse naasmine vajab sinu kinnitust.</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

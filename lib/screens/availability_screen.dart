@@ -12,6 +12,7 @@ import '../services/availability_service.dart';
 import '../services/planned_unavailability_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/personal_availability_card.dart';
+import '../widgets/geofence_card.dart';
 import '../widgets/unavailability_editor.dart';
 import '../models/activity_schedule.dart';
 
@@ -230,6 +231,11 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                         ),
                         const SizedBox(height: 16),
                         _buildPlans(periods, rules, now),
+                        const SizedBox(height: 12),
+                        GeofenceCard(
+                          key: ValueKey('geofence-${widget.organizationId}'),
+                          organizationId: widget.organizationId,
+                        ),
                         const SizedBox(height: 16),
                         _buildAvailabilityReminderSettings(),
                       ],

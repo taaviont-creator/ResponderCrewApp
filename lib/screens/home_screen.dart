@@ -16,6 +16,8 @@ import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../widgets/geofence_card.dart';
+import '../services/auth_service.dart';
 import '../models/availability_model.dart';
 import '../models/effective_availability.dart';
 import '../models/membership_model.dart';
@@ -328,7 +330,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _signOut() async {
     if (await NavigationProtection.confirm()) {
-      await FirebaseAuth.instance.signOut();
+      await AuthService().signOut();
     }
   }
 
@@ -1301,6 +1303,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         if (permissions.canManageOrganizationSettings && hasOrganization) ...[
+          GeofenceCard(organizationId: organizationId, admin: true),
           Card(
             child: ListTile(
               leading: const Icon(Icons.map_outlined),
