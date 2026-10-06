@@ -7,7 +7,7 @@ Regenerate Android, iOS, Windows and web icons from the repository root:
 
 ```sh
 flutter pub get
-dart run tool/generate-app-icons.dart
+dart run tool/generate_app_icons.dart
 ```
 
 Use this wrapper rather than invoking the launcher generator directly: it

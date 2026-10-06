@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:image/image.dart' as img;
 
-// Run from the repository root: dart run tool/generate-app-icons.dart
+// Run from the repository root: dart run tool/generate_app_icons.dart
 Future<void> main() async {
   final project = File('ios/Runner.xcodeproj/project.pbxproj');
   final originalProject = project.readAsBytesSync();
