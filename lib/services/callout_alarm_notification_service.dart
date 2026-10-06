@@ -323,7 +323,7 @@ class CalloutAlarmNotificationService with WidgetsBindingObserver {
 
   Future<void> _initializeLocalNotifications() async {
     const initializationSettings = InitializationSettings(
-      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      android: AndroidInitializationSettings('ic_stat_respondcrew'),
       iOS: DarwinInitializationSettings(
         requestAlertPermission: false,
         requestBadgePermission: false,

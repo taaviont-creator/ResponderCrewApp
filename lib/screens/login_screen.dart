@@ -1,4 +1,5 @@
 import '../widgets/app_layout.dart';
+import '../widgets/app_logo.dart';
 import 'package:flutter/material.dart';
 import '../widgets/login_information.dart';
 
@@ -136,6 +137,8 @@ class _LoginScreenState extends State<LoginScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
+            const AppLogo(),
+            const SizedBox(height: 16),
             const Text('Mõeldud vabatahtlikele merepäästeühingutele.'),
             const SizedBox(height: 24),
             // Ülemine osa: sisestused
