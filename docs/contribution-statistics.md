@@ -12,7 +12,22 @@ Statistika kasutab valitud kuupäevavahemikku (mõlemad kuupäevad kaasa arvatud
 - Panuse koostamine käib `recordMemberContribution` serverifunktsiooni kaudu (aktiivne liikmesus, kuni 50 osalejat, üle 0 kuni 24 t osaleja kohta, mitte tulevikus, kirjeldus kuni 2000 märki). Klient ei saa võltsida panuse liigitust ega panusele RSVP-ga ise lisanduda; liikme enda kinnitamine ja teise ühingu muutmine on keelatud. Admini olemasolev osalemiskinnitamise õigus säilib. `getContributionStatistics` tagastab panuse lisamise ja planeerimise õigused eraldi.
 - Väljakutse „reageerin”/„hilinen” vastus on kavatsus, mitte kinnitatud osalemine. Admin või sama ühingu aktiivne II astme liige kinnitab tegelikud osalejad väljakutse detailis nupuga „Kinnita osalemised”. Tunde võib lisada hiljem; osalemist saab parandada. Tühistatud väljakutsed ei lähe statistikasse.
 - Valvetunnid ei liitu panuse tundidega. Panuse tunnid on kinnitatud tegevuste ja väljakutsete osalemistunnid; mitu liiget samal tegevusel tähendab mitut osalemist.
-- CSV sisaldab perioodi, valveajaloo algust, liikmete koondit ja kuupäevadega alusandmeid.
+- Väljavõte koostatakse valitud andmelaua jaotise ja filtrite järgi. CSV on üks päistega tabel; periood on failinimes. PDF sisaldab lisaks ühingut, perioodi ja filtreid. Kõik filtrile vastavad read eksporditakse, mitte ainult nähtav tabelileht.
+
+## Statistika andmelaud (07.10.2026)
+
+Ühes vaates on jaotised **Ühing**, **Minu statistika**, **Liikmed**, **Sündmused**, **Panused** ja **Tunnistused**. Ühingu ülevaates on valveaja ja kinnitatud panuse võrdlused, väljakutsete SAR/Trossi jaotus ning viimased panused. Punktikaale ei mõelda välja. Võrdlusest liikmele vajutamine avab tema filtreeritud statistika. Isiklikust vaatest panuste loendisse liikumine säilitab liikme valiku.
+
+- Aastavalik, „See kuu” ja kalendriga kuupäevavahemik uuendavad sama serveriarvutust. Liikme-, liigi-, oleku- ja tekstifiltrid töötavad samas vaates; filtri tühjendamine on selge eraldi tegevus.
+- Sündmused: SAR/Tross, olek, kinnitatud osaleja ja pealkirja/ID otsing. Detail näitab tegelikku kinnitatud meeskonda. Sündmuste eksport sisaldab kogu meeskonda; osalemiste CSV sisaldab valitud liikmefilteri korral ainult tema osalemisi. Puuduv `eventDetails` vanast serverist kuvatakse andmete puudumisena, mitte null sündmusena.
+- Panused: liige, kategooria, kinnitatud/ootel ja tekst. Ootel tunnid ei suurenda kinnitatud koondit. Varasema tegevuse osalemisi ei kopeerita uueks panuseks.
+- Tunnistused: liik, liige, tekst, aegunud / 30 päeva jooksul aeguvad / kehtivad / tähtajatud / teadmata kehtivusega kirjed. Vaikimisi näidatakse hetkeseisu sõltumata tegevuste perioodist. Valikuliselt saab perioodi rakendada väljastamise või aegumise kuupäevale. See ei ole ajaloolise tunnistusseisu rekonstruktsioon. Puuduv tunnistuse dokument ei tähenda automaatselt puuduvat pädevust; „Puudub” näitab vastava olekuga olemasolevaid kirjeid.
+- Adminil on **Ekspordi → CSV tabel / PDF kokkuvõte**, sündmustel ka **Osalemised CSV**. Veebis algab faili allalaadimine, töölaual saab valida salvestuskoha, Androidis/iOS-is kasutatakse failiga süsteemset jagamis-/salvestusvaadet. CSV kasutab UTF-8 BOM-i, semikoolonit, jutumärkide kaitset ja valemilaadse kasutajateksti neutraliseerimist. Tühjad tunnid erinevad nullist.
+- Telefonis kuvatakse tabeli read loetavate kirjetena, arvutis tabelina; lehel on kuni 15 rida, eksport sisaldab kõiki tulemusi. Põhivõrdlustes kuvatakse kuni kaheksa liiget, täielik nimekiri on „Liikmed” jaotises.
+
+Õigused säilivad: statistika lugemine järgib olemasolevat ühingu õigust. Tavaliige alustab isiklikust vaatest, näeb oma tunnistusi ja panuseid ning lubatud ühingu/liikmete koondit, kuid mitte admini sündmuste väljavõtteid ega eksporti. Tunnistuste organisatsioonipäring kasutab olemasolevat `CertificateService` päringut ja Firestore'i admini lugemisõigust. Rolli või ühingu vahetamisel tühjendatakse valik ja laaditud tunnistused. Firestore'i skeemi, Security Rules'i ja Cloud Functions'i see andmelaua uuendus ei muuda.
+
+Kontroll: 306 Flutteri testi läbivad; `flutter analyze` puhas. Regressioonid katavad filtrite ja ekspordi vastavust, kõigi 20 rea eksporti 15-realise lehekülje korral, PDF-i pikki meeskonnanimekirju ja täpitähti, tunnistuste aegumise piire, tundmatuid väärtusi, CSV kaitset, rolli/ühingu vahetust, veaseisu ning 320-pikslist vaadet suurendatud kirjaga. Tegelikud Flutteri vaated renderdati telefoni ja arvuti mõõtmetes. Päris telefoni faili jagamisvaate kontroll jääb APK seadmekatsesse.
 
 ## Avaldamise järjekord
 

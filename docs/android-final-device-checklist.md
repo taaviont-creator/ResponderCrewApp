@@ -6,6 +6,29 @@ Täielik lõppkatse algab pärast Firestore rules ja Functions deploy ning pilve
 
 ## Ettevalmistus
 
+### Xiaomi 14 / Android 16: SAR-heli ja lukustatud ekraani parandus (1.0.3)
+
+07.10.2026 telefonitagasiside: vaikne režiim jättis SAR-teate vibreerima ning „umbes 10 s” test saabus ekraani avamisel. Koodis kasutas test `inexactAllowWhileIdle` ajastust, mille tähtaega Android ei taga. SAR v3 alarmi audioatribuudist üksi ei piisanud selles telefonis teavituse helistamiseks.
+
+- Androidi test kasutab nüüd `AlarmManager.setAlarmClock` ja süsteemi `SCHEDULE_EXACT_ALARM` eriligipääsu. Loata testi ei ajastata; seadete link ja loa värske kontroll on äpis. Ajastus ja receiver töötavad ilma Flutteri vaate avamiseta. Tühistatud/üle ühe minuti hilinenud testi ei alustata ekraani avamisel.
+- Androidi SAR-i jaoks on kohalik plugin `packages/sar_alarm_android`, mis registreerub ka Firebase Messagingu taustaengine'is. Kõrge prioriteediga SAR-teade käivitab nähtava `mediaPlayback` esiplaaniteenuse ning alarmi helikanalit kasutava `MediaPlayer`-i. Tavaline teavituse heli ei mängi samal ajal teist korda. Test kestab kuni 15 s ja pärishäire kuni 30 s; „Vaigista” ja sündmuse avamine peatavad selle. Teenus ei taaskäivita end pärast tapmist.
+- Vaikne kõne-/teavitusrežiim ei ole esitusloogika sisend. Alarmiheli null, keelatud teavitused/kanal, kanali vaigistus ja DND alarmikeeld jäävad jõusse. Säilib kasutaja valitud kanali heli. DND jaoks võib olla vaja lubada telefonis alarmid; kanali teavituserand üksi ei anna eraldi meediaesitusele DND-erandit. Rakendus ei muuda süsteemi helitugevust ega lülita DND-d välja.
+- Audiofookuse keeld, taustateenuse keeld, heli käivitumise ebaõnnestumine ja hilinenud test kajastuvad seadetes viimase katse olekuna. See ei mõõda kõlarist kuuldavat heli. Kõne ja tootja piirangud vajavad pärisseadme katset. Taustateenuse käivitamise keelu korral säilib tavaline nähtav teavitus.
+- Sama väljakutse kordustarne ei korda alarmi 5 minuti jooksul; erinevatel sündmustel on eraldi teavituse ja avamise ID. Lukustuskuval näidatakse ainult üldist häiret; sündmuse detailide avamine nõuab telefoni avamist.
+- Tross, iOS, Firestore'i õigused ja Functions selles paranduses ei muutu. Vajalik on uus APK. Veebiversioonis Androidi alarmiteenus ei tööta. Play Store'i tulevasel avaldamisel tuleb deklareerida kasutatav esiplaaniteenuse tüüp; täisekraanihäire saadavuse otsustab Android ja levituspoliitika.
+
+Kontrollitud: `flutter analyze`, kõik 290 Flutteri testi, Androidi kompileerimine ning 3 JVM regressioonitesti (tähtaeg/tühistus, kordustarne, vaikistuse/DND prioriteedid). Päris Xiaomi heli ega taustakäivitust arvutis automaattestidega kinnitada ei saa.
+
+Telefonikatse:
+
+1. Paigalda 1.0.3 olemasoleva äpi peale. Teavituste seadetes luba „Täpsed alarmid ja meeldetuletused”, kontrolli alarmi helitugevust ning kuula kohest proovi tavarežiimis ja vaikses režiimis.
+2. Vajuta „Proovihäire 10 s pärast” ja lukusta ekraan kohe. Häire peab tulema ekraani ise avamata. Vaigista lukustusvaatest. Korda enne tähtaega tühistamisega: häiret ei tohi tulla.
+3. Korda DND-ga, kus alarmid on lubatud, ning alarmikeelu/heli nulliga (viimastes ei tohi heli sundida). Keela täpne ajastus: äpp peab suunama seadistusse, mitte väitma, et test õnnestus.
+4. Tee eraldi serverist SAR-prooviväljakutse lukustatud/taustal telefonile. Ava teavitus: õige sündmus. Kaks erinevat sündmust peavad avanema eraldi; ühe sündmuse korduv sõnum ei tohi teist alarmi alustada. Tross jääb tavateavituseks.
+5. Kontrolli kõne ajal ja Xiaomi energiasäästuga. Ebaõnnestumise korral salvesta seadete „Viimane häirekatse” tekst ja APK versioon. Sundpeatatud äpi taustakäivitust Android ei taga.
+
+Allikad: [Androidi täpsed alarmid](https://developer.android.com/develop/background-work/services/alarms), [taustalt esiplaaniteenuse käivitamise piirangud](https://developer.android.com/develop/background-work/services/fgs/restrictions-bg-start), [audiofookus Android 15+](https://developer.android.com/about/versions/15/behavior-changes-15).
+
 - Paigalda sellest commit'ist ehitatud APK päris Androidi seadmesse; märgi telefoni mudel, Androidi versioon ja APK versioon.
 - Kasuta eraldi testühinguid A ja B ning testkontosid: admin ja mõlema ühingu liige. Alarmikatse saajad peavad olema testist teadlikud.
 - Valmisoleku jaoks sea teadaolev miinimumkoosseis ja vähemalt üks II astme merepäästja. Vajaduse korral kasuta lisaks testliikmeid.

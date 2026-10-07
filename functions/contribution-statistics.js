@@ -94,7 +94,7 @@ function dutyForMember(uid, lines, start, end, pauses=[]) {
   }
   return {dutyHours:duty/3600000, delayedHours:delayed/3600000};
 }
-function aggregate({organizationId, from, to, now, trackingStart, current, history, memberships, activities, participants, callouts, responses, attendance, dutyPauses=[]}) {
+function aggregate({organizationId, from, to, now, trackingStart, current, history, memberships, activities, participants, callouts, responses, attendance, dutyPauses=[], includeEventDetails=false}) {
   const range=period(from,to);
   if(!range) throw Error('Invalid period');
   const end=Math.min(range.end,now), start=range.start;
@@ -156,7 +156,22 @@ function aggregate({organizationId, from, to, now, trackingStart, current, histo
     closed:periodCallouts.filter(c=>c.status==='closed').length,
     cancelled:periodCallouts.filter(c=>c.status==='cancelled').length,
     undated:[...byCallout.values()].filter(c=>dateMillis(c.startedAt || c.createdAt)===null).length};
-  return {events,from,to,generatedAt:new Date(now).toISOString(),trackingStartedAt:Number.isFinite(trackingStart)?new Date(trackingStart).toISOString():null,
+  // Reuse confirmed, scoped and deduplicated attendance. Keep every callout,
+  // including those with no confirmed attendance; never infer it from responses.
+  const participantsByCallout=new Map();
+  if(includeEventDetails) for(const row of members) for(const entry of row.entries) {
+    if(entry.kind!=='callout' || !entry.confirmed) continue;
+    if(!participantsByCallout.has(entry.id)) participantsByCallout.set(entry.id,[]);
+    participantsByCallout.get(entry.id).push({userId:row.userId,name:row.name,hours:entry.hours});
+  }
+  const eventDetails=includeEventDetails?periodCallouts.map(c=>{
+    const ended=dateMillis(c.endedAt || c.closedAt);
+    return {id:c.id,title:c.title||'Väljakutse',type:c.calloutType||'sar',status:c.status||'active',
+      startedAt:new Date(dateMillis(c.startedAt || c.createdAt)).toISOString(),
+      endedAt:ended===null?null:new Date(ended).toISOString(),
+      participants:participantsByCallout.get(c.id)||[]};
+  }).sort((a,b)=>b.startedAt.localeCompare(a.startedAt)||a.id.localeCompare(b.id)):undefined;
+  return {events,...(includeEventDetails?{eventDetails}:{}),from,to,generatedAt:new Date(now).toISOString(),trackingStartedAt:Number.isFinite(trackingStart)?new Date(trackingStart).toISOString():null,
     dutyHistoryPending:timeline.pending,undatedCount,members};
 }
 module.exports={ZONE,TYPES,active,dateMillis,period,dutyForMember,versionTimelines,aggregate};

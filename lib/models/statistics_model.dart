@@ -18,6 +18,10 @@ Map<String, dynamic> statisticsMap(dynamic value) =>
 class ContributionReport {
   ContributionReport(Map<String, dynamic> data)
     : events = Map<String, dynamic>.from(data['events'] as Map? ?? {}),
+      eventDetails = data['eventDetails'] is List
+          ? (data['eventDetails'] as List).map(statisticsMap).toList()
+          : null,
+      generatedAt = DateTime.tryParse(data['generatedAt'] as String? ?? ''),
       members = (data['members'] as List)
           .map((m) => MemberContribution(statisticsMap(m)))
           .toList(),
@@ -31,6 +35,9 @@ class ContributionReport {
           data['canSubmitContribution'] == true || data['canRecord'] == true,
       canCreateActivities = data['canCreateActivities'] == true;
   final Map<String, dynamic> events;
+  // Null means an older server or a user without export access, not no events.
+  final List<Map<String, dynamic>>? eventDetails;
+  final DateTime? generatedAt;
   final List<MemberContribution> members;
   final DateTime? trackingStartedAt;
   final bool dutyHistoryPending, canManage, canRecord, canCreateActivities;
@@ -53,13 +60,13 @@ class MemberContribution {
   Map<String, dynamic> get categories => statisticsMap(data['categories']);
 }
 
-String contributionCsv(ContributionReport report) {
-  String cell(Object? value) {
-    var text = value?.toString() ?? '';
-    if (RegExp(r'^[=+@\-\t\r\n]').hasMatch(text.trimLeft())) text = "'$text";
-    return '"${text.replaceAll('"', '""')}"';
-  }
+String statisticsCsvCell(Object? value) {
+  var text = value?.toString() ?? '';
+  if (RegExp(r'^[=+@\-\t\r\n]').hasMatch(text.trimLeft())) text = "'$text";
+  return '"${text.replaceAll('"', '""')}"';
+}
 
+String contributionCsv(ContributionReport report) {
   final rows = <List<Object?>>[
     [
       'Liige',
@@ -95,5 +102,5 @@ String contributionCsv(ContributionReport report) {
           e['confirmed'] == true ? 'Jah' : 'Ootel',
         ],
   ];
-  return rows.map((row) => row.map(cell).join(';')).join('\r\n');
+  return rows.map((row) => row.map(statisticsCsvCell).join(';')).join('\r\n');
 }

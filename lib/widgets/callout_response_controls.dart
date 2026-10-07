@@ -220,6 +220,8 @@ class _DelayDialogState extends State<_DelayDialog> {
             'Sinu hinnanguline saabumine. See ei muuda väljakutse väljasõidu sihtaega.',
           ),
           DropdownButtonFormField<int>(
+            isExpanded: true,
+            itemHeight: null,
             initialValue: _minutes,
             decoration: const InputDecoration(labelText: 'Hilinen umbes'),
             items: ({15, 30, 60, _minutes}.toList()..sort())

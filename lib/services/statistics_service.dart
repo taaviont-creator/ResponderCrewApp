@@ -1,7 +1,26 @@
 import 'package:cloud_functions/cloud_functions.dart';
 import '../models/statistics_model.dart';
+import '../models/certificate_model.dart';
+import 'certificate_service.dart';
 
 class StatisticsService {
+  Future<List<CertificateModel>> certificates({
+    required String organizationId,
+    required String currentUid,
+    required bool organizationWide,
+  }) {
+    final service = CertificateService();
+    return (organizationWide
+            ? service.streamOrganizationCertificates(
+                organizationId: organizationId,
+              )
+            : service.streamMyCertificates(
+                organizationId: organizationId,
+                userId: currentUid,
+              ))
+        .first;
+  }
+
   final _functions = FirebaseFunctions.instanceFor(region: 'europe-north1');
   Future<ContributionReport> load({
     required String organizationId,

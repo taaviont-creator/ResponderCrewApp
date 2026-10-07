@@ -62,7 +62,7 @@ jobs:
       - name: Compile Android integration without packaging an APK
         run: |
           printf 'sdk.dir=%s\nflutter.sdk=%s\n' "$ANDROID_HOME" "$FLUTTER_ROOT" > android/local.properties
-          gradle -p android :app:compileDebugKotlin --no-daemon
+          gradle -p android :sar_alarm_android:testDebugUnitTest :app:compileDebugKotlin --no-daemon
 
       - name: Build Android debug APK
         if: github.event_name == 'workflow_dispatch' && inputs.build_android_apk
@@ -119,6 +119,9 @@ jobs:
 
       - name: Install Functions dependencies
         run: npm ci --prefix functions
+
+      - name: Check production dependencies for high or critical advisories
+        run: npm audit --prefix functions --omit=dev --audit-level=high
 
       - name: Check Functions JavaScript syntax
         run: node --check functions/index.js

@@ -141,6 +141,8 @@ class _IncidentDialogState extends State<_IncidentDialog> {
                     : null,
               ),
               DropdownButtonFormField<String>(
+                isExpanded: true,
+                itemHeight: null,
                 initialValue: _status,
                 decoration: const InputDecoration(labelText: 'Juhtum'),
                 items: const [

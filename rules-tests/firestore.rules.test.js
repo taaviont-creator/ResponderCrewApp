@@ -1753,3 +1753,41 @@ test('device alarm capability is optional, Android-only, and editable only by to
   await assertFails(setDoc(doc(db,'userDeviceTokens',`${memberId}_invalid-alarm`),
     {...token, platform:'ios', nativeSarAlarm:true}));
 });
+
+// These additions are server-only; existing default-deny rules must continue
+// to prevent clients (including org admins) from forging history or work links.
+test('equipment history and work links reject direct client reads and writes', async () => {
+  for (const uid of [activeMemberId,orgAdminId]) {
+    const client=testEnv.authenticatedContext(uid).firestore();
+    for(const resource of ['equipment/example/history/change','equipmentWorkLinks/contribution_example']) {
+      await assertFails(setDoc(doc(client,resource),{organizationId,equipmentId:'example',activityId:'contribution_example'}));
+      await assertFails(getDoc(doc(client,resource)));
+    }
+  }
+});
+
+test('equipment care workflow joins real confirmed contributions without changing condition', async () => {
+  const assert=require('node:assert/strict');
+  const db=serverDb();
+  const {createSetEquipmentCondition,createGetEquipmentCare,createEquipmentHistoryRecorder}=serverRequire('./equipment-care');
+  const {createRecordContributionHandler}=serverRequire('./statistics-handlers');
+  const ref=db.doc('equipment/care-boat');
+  await ref.set({id:'care-boat',organizationId,commandId:organizationId,scope:'organization',name:'Care boat',category:'vessel',status:'ok',note:'',createdBy:orgAdminId,location:'Base'});
+  const before=await ref.get();
+  const timestamp=()=>new Date('2026-10-07T12:00:00Z');
+  const change=createSetEquipmentCondition({db,timestamp});
+  const data={organizationId,equipmentId:'care-boat',status:'broken',note:'Engine fault',expectedStatus:'ok',expectedNote:''};
+  await assert.rejects(change({auth:{uid:activeMemberId},data}),{code:'permission-denied'});
+  await change({auth:{uid:orgAdminId},data});
+  const after=await ref.get();
+  await createEquipmentHistoryRecorder({db})({id:'real-test-event',params:{equipmentId:'care-boat'},authType:'service_account',data:{before,after}});
+  const record=createRecordContributionHandler({db,timestamp,now:()=>Date.parse('2026-10-07T12:00:00Z')});
+  await record({auth:{uid:activeMemberId},data:{organizationId,equipmentId:'care-boat',requestId:'care-work',title:'Repair',description:'Changed part',type:'repair',date:'2026-10-06',hours:2.5,memberIds:[activeMemberId]}});
+  const get=createGetEquipmentCare({db}),request={auth:{uid:activeMemberId},data:{organizationId,equipmentId:'care-boat'}};
+  let result=await get(request);
+  assert.equal(result.history.length,1);assert.equal(result.history[0].actorId,orgAdminId);assert.equal(result.works[0].confirmedHours,0);
+  const admin=testEnv.authenticatedContext(orgAdminId).firestore();
+  await assertSucceeds(updateDoc(doc(admin,`activityParticipants/contribution_care-work_${activeMemberId}`),{attendanceStatus:'confirmed',hours:2.5,confirmedBy:orgAdminId,confirmedAt:serverTimestamp(),updatedAt:serverTimestamp()}));
+  result=await get(request);
+  assert.equal(result.works[0].confirmedHours,2.5);assert.equal(result.status,'broken');
+});

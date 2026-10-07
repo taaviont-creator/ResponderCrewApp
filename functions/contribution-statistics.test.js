@@ -8,6 +8,36 @@ const rec=(source,id,data,version=start-1)=>({source,id,data,version});
 const change=(source,sourceId,at,before,after)=>({organizationId:'org',userId:'u',source,sourceId,at,before,after});
 const base={organizationId:'org',from:'2026-09-01',to:'2026-09-01',now:start+12*3600000,trackingStart:start,current:[rec('memberships','u_org',member),rec('availability','u_org',manual('onDuty'))],history:[],memberships:[member],activities:[],participants:[],callouts:[],responses:[],attendance:[]};
 const hours=(options={})=>aggregate({...base,...options}).members[0];
+
+test('event extract preserves callouts without attendance and shares the confirmed deduplicated source',()=>{
+ const c={id:'c',organizationId:'org',title:'SAR',createdAt:start,status:'closed',closedAt:start+3600000,description:'private detail'};
+ const p={organizationId:'org',calloutId:'c',userId:'u',status:'confirmed',hours:2};
+ const result=aggregate({...base,includeEventDetails:true,
+   callouts:[c,{...c,id:'empty',calloutType:'tross'},{...c,id:'cancel',status:'cancelled'},
+     {...c,id:'test',isTest:true},{...c,id:'foreign',organizationId:'other'},{...c,id:'undated',createdAt:null}],
+   attendance:[p,p,{...p,calloutId:'cancel'},{...p,userId:'pending',status:'pending'},
+     {...p,userId:'foreign',organizationId:'other'},{...p,userId:'former',userName:'Endine liige',hours:null}],
+   responses:[{...p,userId:'responder',response:'responding'}]});
+ assert.equal(result.eventDetails.length,result.events.period);
+ assert.equal(result.eventDetails.length,3);
+ const event=result.eventDetails.find(e=>e.id==='c');
+ assert.equal(event.participants.length,2);assert.equal(event.participants.find(p=>p.userId==='u').hours,2);
+ assert.equal(event.participants.find(p=>p.userId==='former').hours,null);
+ assert.equal(event.endedAt,new Date(start+3600000).toISOString());
+ assert.equal(Object.hasOwn(event,'description'),false);
+ assert.deepEqual(result.eventDetails.find(e=>e.id==='cancel').participants,[]);
+ assert.deepEqual(result.eventDetails.find(e=>e.id==='empty').participants,[]);
+ assert.equal(result.events.undated,1);
+ assert.equal(Object.hasOwn(aggregate({...base,callouts:[c]}),'eventDetails'),false);
+});
+
+test('annual event extract includes Tallinn year boundaries and leap day without next-year records',()=>{
+ const callout=(id,date)=>({id,organizationId:'org',createdAt:date,status:'closed'});
+ const result=aggregate({...base,from:'2024-01-01',to:'2024-12-31',now:Date.parse('2025-02-01'),includeEventDetails:true,
+   callouts:[callout('before','2023-12-31T21:59:59Z'),callout('first','2023-12-31T22:00:00Z'),
+     callout('leap','2024-02-29T12:00:00Z'),callout('last','2024-12-31T21:59:59Z'),callout('after','2024-12-31T22:00:00Z')]});
+ assert.deepEqual(result.eventDetails.map(e=>e.id),['last','leap','first']);
+});
 test('unchanged duty starts at tracking activation, never fabricates older hours',()=>{assert.equal(hours().dutyHours,12);assert.equal(hours({trackingStart:null}).dutyHours,null);assert.equal(hours({to:'2026-08-31',from:'2026-08-01'}).dutyHours,null);});
 
 test('geofence duty stops at evidence expiry even when cleanup has not yet run',()=>{

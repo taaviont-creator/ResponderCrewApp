@@ -395,3 +395,8 @@ exports.notifyDispatchUpdate = onDocumentCreated({document:'dispatchUpdateEvents
     title:urgent?'Keskuse oluline muudatus':'Keskus täiendas väljakutset',body:'Ava väljakutse ja vaata värsket infot.',
     type:'callout',relatedType:'callout',pushType:'callout_update',urgent,relatedId:d.calloutId,preferenceKeys:['newCallout']})));
 });
+
+const equipmentCare = require('./equipment-care');
+exports.setEquipmentCondition = onCall(statisticsCallableOptions, equipmentCare.createSetEquipmentCondition(workflowDependencies));
+exports.getEquipmentCare = onCall(statisticsCallableOptions, equipmentCare.createGetEquipmentCare({db}));
+exports.recordEquipmentHistory = onDocumentWrittenWithAuthContext({document:'equipment/{equipmentId}',region:'europe-north1',retry:true,maxInstances:5},equipmentCare.createEquipmentHistoryRecorder({db}));

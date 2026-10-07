@@ -77,6 +77,8 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
+                    isExpanded: true,
+                    itemHeight: null,
                     initialValue: primaryVesselStatus,
                     decoration: const InputDecoration(
                       labelText: 'Põhialuse staatus',
@@ -94,6 +96,8 @@ class _PlatformReadinessScreenState extends State<PlatformReadinessScreen> {
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
+                    isExpanded: true,
+                    itemHeight: null,
                     initialValue: equipmentStatus,
                     decoration: const InputDecoration(
                       labelText: 'Varustuse staatus',

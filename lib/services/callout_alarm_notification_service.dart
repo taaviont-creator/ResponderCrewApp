@@ -16,6 +16,7 @@ import 'device_token_service.dart';
 import 'sar_alarm_channel.dart';
 import '../models/sar_notification_policy.dart';
 import 'package:timezone/timezone.dart' as tz;
+import 'package:sar_alarm_android/sar_alarm_android.dart';
 
 const _memberRequestChannel = AndroidNotificationChannel(
   'member_requests', 'Liitumistaotlused',
@@ -248,7 +249,12 @@ class CalloutAlarmNotificationService with WidgetsBindingObserver {
 
   static const localTestId = 903100;
 
-  Future<void> cancelLocalTestAlarm() => _localNotifications.cancel(id: localTestId);
+  Future<void> cancelLocalTestAlarm() async {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      await NativeSarAlarm.cancelTest();
+    }
+    await _localNotifications.cancel(id: localTestId);
+  }
 
   Future<bool> scheduleLocalTestAlarm() => showLocalTestAlarmNotification(delay: const Duration(seconds: 10));
 
@@ -262,6 +268,14 @@ class CalloutAlarmNotificationService with WidgetsBindingObserver {
     final settings = await _messaging.getNotificationSettings();
     final readiness = _readinessFromSettings(settings);
     if (!readiness.notificationsAllowed) return false;
+
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      // Cancel the old inexact pending test left by a previous app version.
+      await _localNotifications.cancel(id: localTestId);
+      return delay > Duration.zero
+          ? NativeSarAlarm.scheduleTest()
+          : NativeSarAlarm.show(id: localTestId, payload: 'local_callout_alarm_test');
+    }
 
     const details = NotificationDetails(
       android: AndroidNotificationDetails(
@@ -468,6 +482,20 @@ class CalloutAlarmNotificationService with WidgetsBindingObserver {
 
     final openEvent =
         CalloutNotificationOpenEvent.fromData(message.data);
+
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android &&
+        !tross && openEvent != null) {
+      // The plugin is also registered in Firebase's background Flutter engine.
+      // One native notification plus bounded alarm playback, never two sounds.
+      await NativeSarAlarm.show(
+        id: calloutNotificationId(openEvent.organizationId, openEvent.calloutId),
+        payload: jsonEncode({
+          ...jsonDecode(openEvent.toPayload()) as Map<String, dynamic>,
+          'sarAlarm': true, 'isTest': message.data['isTest'] == 'true',
+        }),
+      );
+      return;
+    }
 
     await _localNotifications.show(
       id: calloutNotificationId(openEvent?.organizationId ?? "", openEvent?.calloutId ?? message.messageId ?? ""),

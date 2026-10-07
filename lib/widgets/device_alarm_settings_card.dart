@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../services/device_alarm_settings.dart';
 
 class DeviceAlarmSettingsCard extends StatefulWidget {
@@ -70,6 +71,14 @@ class _DeviceAlarmSettingsCardState extends State<DeviceAlarmSettingsCard>
         );
       } else if (destination == 'fullScreenList') {
         _message('Vali loendist RespondCrew ja luba täisekraaniteavitused.');
+      } else if (destination == 'batteryList') {
+        _message(
+          'Vali kõik rakendused, leia RespondCrew ja eemalda selle akupiirang.',
+        );
+      } else if (destination == 'appDetails' && method == 'openAppDetails') {
+        _message(
+          'Xiaomi telefonis kontrolli RespondCrew automaatkäivitust ja aku kasutust.',
+        );
       } else if (destination == 'appDetails' ||
           (destination == 'appNotifications' &&
               method != 'openAppNotifications')) {
@@ -173,6 +182,16 @@ class _DeviceAlarmSettingsCardState extends State<DeviceAlarmSettingsCard>
         ),
         if (android) ...[
           _row(
+            Icons.alarm,
+            'Täpsed alarmid ja meeldetuletused',
+            _flag(
+              'exactAlarmAllowed',
+              yes: '10-sekundiline test on lubatud',
+              no: 'Luba lukustatud ekraani proovihäire',
+            ),
+            'openExactAlarmSettings',
+          ),
+          _row(
             Icons.volume_up_outlined,
             'SAR-häire heli ja vibratsioon',
             sound,
@@ -187,7 +206,7 @@ class _DeviceAlarmSettingsCardState extends State<DeviceAlarmSettingsCard>
             'openSoundSettings',
           ),
           const Text(
-            'SAR kasutab alarmi heli, mitte kõne- ega tavateavituse helitugevust. Vaikne režiim üksi ei peaks seda vaigistama. Alarmi helitugevus peab olema üle nulli ja SAR-kanali heli lubatud.',
+            'SAR-häiret mängib eraldi alarmiesitus. Kõne- ja tavateavituste vaikne režiim ei ole selle helitugevuse seadistus. Alarmi helitugevus peab olema üle nulli ja SAR-kanali heli lubatud. Heli saab häire juurest vaigistada.',
           ),
           if (volume == 0)
             const Text(
@@ -232,6 +251,13 @@ class _DeviceAlarmSettingsCardState extends State<DeviceAlarmSettingsCard>
             const Text(
               'Telefonis on täielik vaikus. See võib blokeerida ka alarmid; muuda telefoni „Mitte segada“ reegleid.',
             ),
+          if (_settings?['alarmsAllowedByDnd'] == false)
+            _row(
+              Icons.alarm_off,
+              'Luba alarmi heli „Mitte segada“ ajal',
+              'Telefoni praegune režiim blokeerib alarmiheli. Luba telefonis alarmid; ainult teavituskanali erandist ei piisa.',
+              'openDndAlarmSettings',
+            ),
           _row(
             Icons.fullscreen,
             'Täisekraanihäire',
@@ -248,6 +274,26 @@ class _DeviceAlarmSettingsCardState extends State<DeviceAlarmSettingsCard>
           const Text(
             'Kõne ajal võib Android või telefoni tootja häireheli piirata. Kontrolli proovihäiret ka kõne ajal. Teavitus ja lubatud vibratsioon jäävad oluliseks lisamärguandeks.',
           ),
+          _row(
+            Icons.battery_saver_outlined,
+            'Taustal töötamine',
+            _flag(
+              'batteryUnrestricted',
+              yes: 'Androidi akuoptimeerimisest vabastatud',
+              no: 'Kontrolli RespondCrew akupiiranguid',
+            ),
+            'openBatterySettings',
+          ),
+          _row(
+            Icons.settings_outlined,
+            'Telefoni rakenduseseaded',
+            'Xiaomi: kontrolli automaatkäivitust ja taustal töötamise lubasid',
+            'openAppDetails',
+          ),
+          if (_settings?['lastAlarmState'] is String)
+            Text(
+              'Viimane häirekatse: ${_alarmStateLabel(_settings!['lastAlarmState'] as String)}',
+            ),
         ] else ...[
           _row(
             Icons.volume_up_outlined,
@@ -295,12 +341,35 @@ class _DeviceAlarmSettingsCardState extends State<DeviceAlarmSettingsCard>
                   : () async {
                       setState(() => _busy = true);
                       try {
+                        // Refresh before scheduling: the user may have revoked the
+                        // special access since opening this page.
+                        if (android) {
+                          final current = await widget.settings.read();
+                          if (current['exactAlarmAllowed'] == false) {
+                            _message(
+                              'Luba RespondCrew täpsed alarmid. Seejärel tule tagasi ja vajuta proovihäiret uuesti.',
+                            );
+                            await _open('openExactAlarmSettings');
+                            return;
+                          }
+                        }
                         final scheduled = await widget.testAlarm();
                         _message(
                           scheduled
-                              ? 'Proovihäire on ajastatud. Lukusta nüüd ekraan. Telefon võib häiret viivitada.'
+                              ? 'Proovihäire on ajastatud 10 sekundi pärast. Lukusta nüüd ekraan.'
                               : 'Teavitusluba puudub. Luba teavitused telefoni seadetes.',
                         );
+                      } on PlatformException catch (error) {
+                        if (error.code == 'exact_alarm_required') {
+                          _message(
+                            'Luba täpsed alarmid ja käivita proovihäire uuesti.',
+                          );
+                          await _open('openExactAlarmSettings');
+                        } else {
+                          _message(
+                            'Proovihäiret ei saanud ajastada. Kontrolli telefoni alarmi- ja teavituslube.',
+                          );
+                        }
                       } catch (_) {
                         _message(
                           'Proovihäiret ei saanud ajastada. Kontrolli telefoni teavitusseadeid.',
@@ -311,7 +380,7 @@ class _DeviceAlarmSettingsCardState extends State<DeviceAlarmSettingsCard>
                       }
                     },
               icon: const Icon(Icons.notification_add_outlined),
-              label: const Text('Proovihäire umbes 10 s pärast'),
+              label: const Text('Proovihäire 10 s pärast'),
             ),
             TextButton(
               onPressed: _busy
@@ -334,4 +403,22 @@ class _DeviceAlarmSettingsCardState extends State<DeviceAlarmSettingsCard>
       ],
     );
   }
+
+  String _alarmStateLabel(String state) => switch (state) {
+    'scheduled' => 'ajastatud',
+    'starting' => 'alarmi käivitamine',
+    'playing' => 'alarmi heli käivitati',
+    'finished' => 'alarmi esitusaeg lõppes',
+    'stopped' => 'vaigistatud',
+    'test_expired' =>
+      'telefon edastas testi liiga hilja; aegunud testi ei mängitud',
+    'sound_blocked' =>
+      'alarmiheli on telefoni seadetes blokeeritud või vaigistatud',
+    'notifications_blocked' => 'teavitused või SAR-kanal on blokeeritud',
+    'audio_focus_denied' || 'audio_interrupted' =>
+      'telefon ei lubanud heli või katkestas selle (nt kõne)',
+    'background_restricted' =>
+      'telefon ei lubanud taustal alarmiesitust; kasutati tavateavitust',
+    _ => 'käivitamine ebaõnnestus',
+  };
 }

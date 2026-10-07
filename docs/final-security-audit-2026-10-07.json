@@ -1,0 +1,24 @@
+{
+  "score": 4,
+  "summary": "Inspected ownership, organization membership, create/update transitions, server-owned writes, types, private attachments and read scopes. Repository rules/workflow suite passes 153 tests. No tested cross-organization or role escalation bypass found. Score is not a guarantee and does not cover every production identity or payload.",
+  "findings": [
+    {
+      "check": "Resource Exhaustion/DoS",
+      "severity": "medium",
+      "issue": "Some legacy text fields, including equipment name/location/note, validate type and ownership but lack application-specific upper bounds. Authorized writers can create unusually large legitimate documents up to Firestore limits.",
+      "recommendation": "Inventory existing lengths, add compatible per-field bounds for creates/changed values and regression tests. Preserve existing long records during rollout; do not treat the database document size limit as an application quota."
+    },
+    {
+      "check": "Deployment parity",
+      "severity": "info",
+      "issue": "Published rules intentionally omit unreleased center dispatch access present in the repository. A blanket rules deploy would change that scope.",
+      "recommendation": "Keep the center rollout gated and verify the exact published rules separately. No rules deployment is part of this UI audit."
+    },
+    {
+      "check": "Recovery readiness",
+      "severity": "high",
+      "issue": "Read-only production inspection found no backup schedules, PITR disabled and database deletion protection disabled. Access rules alone do not protect against mistaken privileged operations.",
+      "recommendation": "Obtain approval for the proposed daily seven-day backup policy and deletion protection, verify the first completed backup, and rehearse restore into a separate database. Include Auth and Storage in a separate recovery plan."
+    }
+  ]
+}

@@ -11,9 +11,15 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
 import org.json.JSONObject
+import ee.respondcrew.alarm.SarAlarmService
 
 /** Only this generic alert may cover the keyguard; operational data stays locked. */
 class SarAlarmActivity : Activity() {
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        recreate()
+    }
     companion object {
         fun isAlarmPayload(payload: String?): Boolean {
             if (payload == "local_callout_alarm_test") return true
@@ -60,10 +66,13 @@ class SarAlarmActivity : Activity() {
         layout.addView(Button(this).apply {
             text = if (test) "Ava RespondCrew" else "Ava väljakutse"
             setOnClickListener {
+                SarAlarmService.stop(this@SarAlarmActivity, intent.getIntExtra("id", -1))
                 val open = {
                     startActivity(Intent(this@SarAlarmActivity, MainActivity::class.java)
                         .setAction("SELECT_NOTIFICATION")
                         .putExtra("payload", payload)
+                        .putExtra("id", intent.getIntExtra("id", -1))
+                        .putExtra("notificationId", intent.getIntExtra("notificationId", -1))
                         .putExtra("alarmUnlocked", true)
                         .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP))
                     finish()
@@ -82,8 +91,11 @@ class SarAlarmActivity : Activity() {
             }
         }, LinearLayout.LayoutParams(-1, -2))
         layout.addView(Button(this).apply {
-            text = "Sulge häirevaade"
-            setOnClickListener { moveTaskToBack(true); finish() }
+            text = "Vaigista ja sulge"
+            setOnClickListener {
+                SarAlarmService.stop(this@SarAlarmActivity, intent.getIntExtra("id", -1))
+                moveTaskToBack(true); finish()
+            }
         }, LinearLayout.LayoutParams(-1, -2))
         setContentView(layout)
     }

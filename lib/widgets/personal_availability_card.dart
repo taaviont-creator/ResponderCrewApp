@@ -61,6 +61,8 @@ class PersonalAvailabilityCard extends StatelessWidget {
               DropdownButtonFormField<int>(
                 key: ValueKey(minutes),
                 initialValue: minutes,
+                isExpanded: true,
+                itemHeight: null,
                 decoration: const InputDecoration(
                   labelText: 'Reageerimisviivitus',
                   prefixIcon: Icon(Icons.schedule),

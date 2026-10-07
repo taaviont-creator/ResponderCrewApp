@@ -7,6 +7,7 @@ import android.view.WindowManager
 import android.content.Intent
 import android.os.Bundle
 import android.app.KeyguardManager
+import ee.respondcrew.alarm.SarAlarmService
 
 class MainActivity : FlutterActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -24,8 +25,10 @@ class MainActivity : FlutterActivity() {
         if (intent.action != "SELECT_NOTIFICATION" || intent.getBooleanExtra("alarmUnlocked", false)) return
         val payload = intent.getStringExtra("payload")
         val keyguard = getSystemService(KEYGUARD_SERVICE) as KeyguardManager
+        if (!keyguard.isKeyguardLocked) SarAlarmService.stop(this, intent.getIntExtra("id", -1))
         if (keyguard.isKeyguardLocked && SarAlarmActivity.isAlarmPayload(payload)) {
-            startActivity(Intent(this, SarAlarmActivity::class.java).putExtra("payload", payload))
+            startActivity(Intent(this, SarAlarmActivity::class.java).putExtra("payload", payload)
+                .putExtra("id", intent.getIntExtra("id", -1)))
         }
     }
 

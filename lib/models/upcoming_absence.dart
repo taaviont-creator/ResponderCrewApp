@@ -1,5 +1,7 @@
 import 'planned_unavailability_model.dart';
 import 'planned_unavailability_rule_model.dart';
+import 'activity_schedule.dart';
+import 'package:timezone/timezone.dart' as tz;
 
 class UpcomingAbsence {
   const UpcomingAbsence(this.start, this.end, {this.recurring = false});
@@ -14,6 +16,7 @@ List<UpcomingAbsence> upcomingAbsences({
   required DateTime now,
 }) {
   final result = <UpcomingAbsence>[];
+  final localNow = ActivitySchedule.inEstonia(now);
   for (final period in periods) {
     final start = period.startAt;
     final end = period.endAt;
@@ -36,16 +39,22 @@ List<UpcomingAbsence> upcomingAbsences({
     }
     // Two weeks contain at least two occurrences of any weekly schedule.
     for (var offset = 0; offset <= 14; offset++) {
-      final day = DateTime(now.year, now.month, now.day + offset);
+      final day = DateTime(
+        localNow.year,
+        localNow.month,
+        localNow.day + offset,
+      );
       if (!rule.daysOfWeek.contains(day.weekday)) continue;
-      final start = DateTime(
+      final start = tz.TZDateTime(
+        ActivitySchedule.zone,
         day.year,
         day.month,
         day.day,
         rule.startMinute ~/ 60,
         rule.startMinute % 60,
       );
-      final end = DateTime(
+      final end = tz.TZDateTime(
+        ActivitySchedule.zone,
         day.year,
         day.month,
         day.day,

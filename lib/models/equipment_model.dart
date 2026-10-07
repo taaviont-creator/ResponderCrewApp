@@ -7,6 +7,13 @@ class EquipmentStatus {
   static const outOfService = 'outOfService';
 
   static const values = {ok, needsMaintenance, broken, outOfService};
+  static String label(String status) => switch (status) {
+    ok => 'Korras',
+    needsMaintenance => 'Vajab hooldust',
+    broken => 'Katki / vajab remonti',
+    outOfService => 'Hoolduses / kasutusest väljas',
+    _ => 'Olek teadmata',
+  };
 }
 
 class EquipmentCategory {
@@ -34,6 +41,10 @@ class EquipmentCategory {
   };
   static String normalize(Object? value) =>
       values.contains(value) ? value as String : other;
+  // Operational reports keep their existing technique grouping. Inventory also
+  // treats shared communications equipment as technique.
+  static bool isInventoryTechnique(Object? value) =>
+      isTechnique(value) || value == radio;
   static bool isTechnique(Object? value) =>
       {vessel, engine, trailer, vehicle, machinery}.contains(value);
   static String label(String value) => switch (normalize(value)) {
@@ -186,6 +197,16 @@ class EquipmentModel {
   }
 
   bool appearsIn(String view, String uid) => switch (view) {
+    'technique' =>
+      !isPersonal &&
+          !isAssigned &&
+          storage != 'warehouse' &&
+          EquipmentCategory.isInventoryTechnique(category),
+    'supplies' =>
+      !isPersonal &&
+          !isAssigned &&
+          storage != 'warehouse' &&
+          !EquipmentCategory.isInventoryTechnique(category),
     'warehouse' => !isPersonal && !isAssigned && storage == 'warehouse',
     'mine' => assignedToUserId == uid || (isPersonal && ownerUserId == uid),
     'members' => !isPersonal && isAssigned,

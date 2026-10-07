@@ -58,6 +58,8 @@ class _UnitAllocationDialogState extends State<UnitAllocationDialog> {
                 ),
             ],
             DropdownButtonFormField<int>(
+              isExpanded: true,
+              itemHeight: null,
               initialValue: _hours,
               decoration: const InputDecoration(labelText: 'Jaotuse kestus'),
               items: [

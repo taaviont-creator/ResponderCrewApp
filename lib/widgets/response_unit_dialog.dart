@@ -108,6 +108,7 @@ class _ResponseUnitDialogState extends State<ResponseUnitDialog> {
                     (v ?? '').trim().isEmpty ? 'Sisesta nimi' : null,
               ),
               DropdownButtonFormField<String>(
+                itemHeight: null,
                 initialValue: widget.bases.any((b) => b['id'] == _base)
                     ? _base
                     : null,

@@ -285,8 +285,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(immediate, 1);
       expect(scheduled, 0);
-      await tester.ensureVisible(find.text('Proovihäire umbes 10 s pärast'));
-      await tester.tap(find.text('Proovihäire umbes 10 s pärast'));
+      await tester.ensureVisible(find.text('Proovihäire 10 s pärast'));
+      await tester.tap(find.text('Proovihäire 10 s pärast'));
       await tester.pumpAndSettle();
       expect(scheduled, 1);
       await tester.ensureVisible(find.text('Tühista proovihäire'));
@@ -325,4 +325,45 @@ void main() {
     expect(find.text('Süsteemi luba olemas'), findsNothing);
     expect(find.text('Pole teada'), findsWidgets);
   });
+
+  testWidgets(
+    'missing exact alarm permission opens settings and never schedules',
+    (tester) async {
+      final calls = <String>[];
+      var scheduled = 0;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(DeviceAlarmSettings.channel, (call) async {
+            calls.add(call.method);
+            if (call.method == 'getSettings') {
+              return {'exactAlarmAllowed': false};
+            }
+            return 'exactAlarm';
+          });
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: DeviceAlarmSettingsCard(
+                testAlarm: () async {
+                  scheduled++;
+                  return true;
+                },
+                cancelTest: () async {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Proovihäire 10 s pärast'));
+      await tester.tap(find.text('Proovihäire 10 s pärast'));
+      await tester.pumpAndSettle();
+      expect(scheduled, 0);
+      expect(calls, contains('openExactAlarmSettings'));
+      expect(
+        find.textContaining('Luba RespondCrew täpsed alarmid.'),
+        findsOneWidget,
+      );
+    },
+  );
 }

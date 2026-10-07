@@ -1,12 +1,104 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import '../models/statistics_model.dart';
 
 import '../models/equipment_model.dart';
 import '../models/notification_model.dart';
 import 'notification_service.dart';
 
 class EquipmentService {
+  Future<void> updateEquipmentDetails({
+    required String equipmentId,
+    required String organizationId,
+    required String name,
+    required String category,
+    required String location,
+    required String nextMaintenanceDate,
+  }) async {
+    if (name.trim().isEmpty || !EquipmentCategory.values.contains(category)) {
+      throw ArgumentError('Kontrolli varustuse andmeid.');
+    }
+    final ref = _equipment.doc(equipmentId);
+    await _firestore.runTransaction((tx) async {
+      final item = (await tx.get(ref)).data();
+      if (item == null ||
+          (item['organizationId'] ?? item['commandId']) != organizationId) {
+        throw StateError('Varustust ei leitud.');
+      }
+      // Editing descriptive fields must not revert condition or assignment.
+      // Firestore rules authorize the actual owner/organization administrator.
+      tx.update(ref, {
+        'name': name.trim(),
+        'category': category,
+        'location': location.trim(),
+        'nextMaintenanceDate': nextMaintenanceDate.trim(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    });
+  }
+
+  Future<void> moveToStorage({
+    required String organizationId,
+    required String equipmentId,
+    required String storage,
+  }) async {
+    if (!['shared', 'warehouse'].contains(storage)) {
+      throw ArgumentError('Vigane asukoht.');
+    }
+    final ref = _equipment.doc(equipmentId);
+    await _firestore.runTransaction((tx) async {
+      final item = (await tx.get(ref)).data();
+      if (item == null ||
+          (item['organizationId'] ?? item['commandId']) != organizationId ||
+          item['scope'] != 'organization' ||
+          (item['assignedToUserId'] as String? ?? '').isNotEmpty) {
+        throw StateError('Varustust ei saa liigutada.');
+      }
+      // Update only storage, preserving a simultaneous condition or note edit.
+      tx.update(ref, {
+        'storage': storage,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    });
+  }
+
+  Future<Map<String, dynamic>> care(
+    String organizationId,
+    String equipmentId, {
+    String? cursor,
+  }) async {
+    final result = await FirebaseFunctions.instanceFor(region: 'europe-north1')
+        .httpsCallable('getEquipmentCare')
+        .call({
+          'organizationId': organizationId,
+          'equipmentId': equipmentId,
+          'cursor': ?cursor,
+        });
+    return statisticsMap(result.data);
+  }
+
+  Future<void> setCondition({
+    required String organizationId,
+    required String equipmentId,
+    required String status,
+    required String note,
+    required String expectedStatus,
+    required String expectedNote,
+  }) async {
+    await FirebaseFunctions.instanceFor(
+      region: 'europe-north1',
+    ).httpsCallable('setEquipmentCondition').call({
+      'organizationId': organizationId,
+      'equipmentId': equipmentId,
+      'status': status,
+      'note': note,
+      'expectedStatus': expectedStatus,
+      'expectedNote': expectedNote,
+    });
+  }
+
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final NotificationService _notificationService = NotificationService();
 
@@ -22,8 +114,9 @@ class EquipmentService {
   Stream<List<EquipmentModel>> streamOrganizationEquipment({
     required String organizationId,
   }) {
-    return _streamOrganizationEquipment(organizationId: organizationId)
-        .map(_sortEquipment);
+    return _streamOrganizationEquipment(
+      organizationId: organizationId,
+    ).map(_sortEquipment);
   }
 
   Stream<List<EquipmentModel>> streamVisibleEquipment({
@@ -53,24 +146,19 @@ class EquipmentService {
       }
 
       controller.add(
-        _sortEquipment([
-          ...organizationEquipment!,
-          ...personalEquipment!,
-        ]),
+        _sortEquipment([...organizationEquipment!, ...personalEquipment!]),
       );
     }
 
     controller = StreamController<List<EquipmentModel>>(
       onListen: () {
-        organizationSubscription = _streamOrganizationEquipment(
-          organizationId: trimmedOrganizationId,
-        ).listen(
-          (value) {
-            organizationEquipment = value;
-            emitEquipment();
-          },
-          onError: controller.addError,
-        );
+        organizationSubscription =
+            _streamOrganizationEquipment(
+              organizationId: trimmedOrganizationId,
+            ).listen((value) {
+              organizationEquipment = value;
+              emitEquipment();
+            }, onError: controller.addError);
 
         final personalStream = canViewMemberPersonalEquipment
             ? _streamPersonalEquipmentForOrganization(
@@ -81,13 +169,10 @@ class EquipmentService {
                 ownerUserId: trimmedUserId,
               );
 
-        personalSubscription = personalStream.listen(
-          (value) {
-            personalEquipment = value;
-            emitEquipment();
-          },
-          onError: controller.addError,
-        );
+        personalSubscription = personalStream.listen((value) {
+          personalEquipment = value;
+          emitEquipment();
+        }, onError: controller.addError);
       },
       onCancel: () async {
         await organizationSubscription?.cancel();
@@ -116,14 +201,17 @@ class EquipmentService {
         )
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map(EquipmentModel.fromFirestore).where((item) {
-        final itemOrganizationId = item.organizationId.isNotEmpty
-            ? item.organizationId
-            : item.commandId;
-        return itemOrganizationId == trimmedOrganizationId &&
-            item.scope == EquipmentScope.organization;
-      }).toList(growable: false);
-    });
+          return snapshot.docs
+              .map(EquipmentModel.fromFirestore)
+              .where((item) {
+                final itemOrganizationId = item.organizationId.isNotEmpty
+                    ? item.organizationId
+                    : item.commandId;
+                return itemOrganizationId == trimmedOrganizationId &&
+                    item.scope == EquipmentScope.organization;
+              })
+              .toList(growable: false);
+        });
   }
 
   Stream<List<EquipmentModel>> _streamPersonalEquipment({
@@ -147,15 +235,18 @@ class EquipmentService {
         )
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map(EquipmentModel.fromFirestore).where((item) {
-        final itemOrganizationId = item.organizationId.isNotEmpty
-            ? item.organizationId
-            : item.commandId;
-        return itemOrganizationId == trimmedOrganizationId &&
-            item.scope == EquipmentScope.personal &&
-            item.ownerUserId == trimmedOwnerUserId;
-      }).toList(growable: false);
-    });
+          return snapshot.docs
+              .map(EquipmentModel.fromFirestore)
+              .where((item) {
+                final itemOrganizationId = item.organizationId.isNotEmpty
+                    ? item.organizationId
+                    : item.commandId;
+                return itemOrganizationId == trimmedOrganizationId &&
+                    item.scope == EquipmentScope.personal &&
+                    item.ownerUserId == trimmedOwnerUserId;
+              })
+              .toList(growable: false);
+        });
   }
 
   Stream<List<EquipmentModel>> _streamPersonalEquipmentForOrganization({
@@ -176,14 +267,17 @@ class EquipmentService {
         )
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map(EquipmentModel.fromFirestore).where((item) {
-        final itemOrganizationId = item.organizationId.isNotEmpty
-            ? item.organizationId
-            : item.commandId;
-        return itemOrganizationId == trimmedOrganizationId &&
-            item.scope == EquipmentScope.personal;
-      }).toList(growable: false);
-    });
+          return snapshot.docs
+              .map(EquipmentModel.fromFirestore)
+              .where((item) {
+                final itemOrganizationId = item.organizationId.isNotEmpty
+                    ? item.organizationId
+                    : item.commandId;
+                return itemOrganizationId == trimmedOrganizationId &&
+                    item.scope == EquipmentScope.personal;
+              })
+              .toList(growable: false);
+        });
   }
 
   List<EquipmentModel> _sortEquipment(List<EquipmentModel> equipment) {
@@ -326,7 +420,8 @@ class EquipmentService {
       allowAdminPersonalEquipment: true,
     );
     final createdBy = (existing['createdBy'] ?? '').toString();
-    final previousStatus = (existing['status'] ?? EquipmentStatus.ok).toString();
+    final previousStatus = (existing['status'] ?? EquipmentStatus.ok)
+        .toString();
 
     final batch = _firestore.batch();
 
@@ -455,7 +550,9 @@ class EquipmentService {
       );
 
       if ((equipment['assignedToUserId'] ?? '').toString().isNotEmpty) {
-        throw Exception('Varustus on juba väljastatud. Tagasta see enne uut väljastamist.');
+        throw Exception(
+          'Varustus on juba väljastatud. Tagasta see enne uut väljastamist.',
+        );
       }
       final membershipSnapshot = await transaction.get(membershipDoc);
       final membership = membershipSnapshot.data();
@@ -512,8 +609,9 @@ class EquipmentService {
         organizationId: trimmedOrganizationId,
       );
 
-      final assignedToUserId =
-          (equipment['assignedToUserId'] ?? '').toString().trim();
+      final assignedToUserId = (equipment['assignedToUserId'] ?? '')
+          .toString()
+          .trim();
       if (assignedToUserId.isEmpty) {
         throw Exception('Varustus ei ole väljastatud.');
       }
@@ -557,10 +655,10 @@ class EquipmentService {
   bool _isActiveMembership(Map<String, dynamic> membership) {
     final hasActiveMarker =
         membership['status'] == 'active' || membership['isActive'] == true;
-    final statusIsActive = !membership.containsKey('status') ||
-        membership['status'] == 'active';
-    final flagIsActive = !membership.containsKey('isActive') ||
-        membership['isActive'] == true;
+    final statusIsActive =
+        !membership.containsKey('status') || membership['status'] == 'active';
+    final flagIsActive =
+        !membership.containsKey('isActive') || membership['isActive'] == true;
     return hasActiveMarker && statusIsActive && flagIsActive;
   }
 
@@ -598,8 +696,7 @@ class EquipmentService {
       if (itemOrganizationId != organizationId) continue;
       if (item.scope != EquipmentScope.organization) continue;
 
-      final parsedDueDate =
-          DateTime.tryParse(item.nextMaintenanceDate.trim());
+      final parsedDueDate = DateTime.tryParse(item.nextMaintenanceDate.trim());
       if (parsedDueDate == null) continue;
 
       final dueDate = _dateOnly(parsedDueDate);
@@ -607,8 +704,9 @@ class EquipmentService {
       final isDueSoon = !isOverdue && !dueDate.isAfter(warningLimit);
       if (!isOverdue && !isDueSoon) continue;
 
-      final equipmentName =
-          item.name.trim().isEmpty ? 'Varustus' : item.name.trim();
+      final equipmentName = item.name.trim().isEmpty
+          ? 'Varustus'
+          : item.name.trim();
       final dueDateKey = _dateKey(dueDate);
       final dueState = isOverdue ? 'overdue' : 'dueSoon';
 
@@ -620,7 +718,7 @@ class EquipmentService {
         message: isOverdue
             ? 'Varustuse „$equipmentName” hooldus või kontroll on üle tähtaja.'
             : 'Varustuse „$equipmentName” hoolduse või kontrolli tähtaeg '
-                'läheneb.',
+                  'läheneb.',
         type: NotificationType.equipment,
         priority: isOverdue
             ? NotificationPriority.high

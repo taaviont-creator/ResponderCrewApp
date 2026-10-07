@@ -38,6 +38,8 @@ class _ActivityCalendarState extends State<ActivityCalendar> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final textScale = MediaQuery.textScalerOf(context);
     final days = DateTime(_month.year, _month.month + 1, 0).day;
     final offset = _month.weekday - 1;
     final count = ((offset + days) / 7).ceil() * 7;
@@ -54,10 +56,13 @@ class _ActivityCalendarState extends State<ActivityCalendar> {
               icon: const Icon(Icons.chevron_left),
             ),
             Expanded(
-              child: Text(
-                '${months[_month.month - 1]} ${_month.year}',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleMedium,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  '${months[_month.month - 1]} ${_month.year}',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
               ),
             ),
             IconButton(
@@ -85,9 +90,9 @@ class _ActivityCalendarState extends State<ActivityCalendar> {
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 7,
-            mainAxisExtent: 48,
+            mainAxisExtent: textScale.scale(16) + textScale.scale(12) + 30,
           ),
           itemCount: count,
           itemBuilder: (context, index) {
@@ -102,6 +107,8 @@ class _ActivityCalendarState extends State<ActivityCalendar> {
               label: '${ActivitySchedule.date(day)}, $events tegevust',
               selected: selected,
               button: true,
+              excludeSemantics: true,
+              onTap: () => widget.onSelected(day),
               child: InkWell(
                 key: ValueKey(
                   'calendar-${day.toIso8601String().split('T').first}',
@@ -113,27 +120,67 @@ class _ActivityCalendarState extends State<ActivityCalendar> {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(8),
                     color: selected
-                        ? Theme.of(context).colorScheme.primaryContainer
+                        ? colors.primary
+                        : events > 0
+                        ? colors.primaryContainer
                         : null,
-                    border: ActivitySchedule.sameDay(day, today)
-                        ? Border.all(
-                            color: Theme.of(context).colorScheme.primary,
-                          )
+                    border: events > 0 || ActivitySchedule.sameDay(day, today)
+                        ? Border.all(color: colors.primary, width: 1.5)
                         : null,
                   ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text('$number'),
-                      if (events > 0)
-                        Text(
-                          '$events',
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          '$number',
                           style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.primary,
+                            fontSize: 16,
+                            height: 1.2,
+                            fontWeight: events > 0 || selected
+                                ? FontWeight.w800
+                                : FontWeight.w500,
+                            color: selected
+                                ? colors.onPrimary
+                                : colors.onSurface,
                           ),
                         ),
+                      ),
+                      if (events > 0) ...[
+                        const SizedBox(height: 3),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 3),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Container(
+                              constraints: const BoxConstraints(minWidth: 22),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 5,
+                                vertical: 1,
+                              ),
+                              decoration: BoxDecoration(
+                                color: selected
+                                    ? colors.onPrimary
+                                    : colors.primary,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                events > 99 ? '99+' : '$events',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  height: 1.2,
+                                  fontWeight: FontWeight.w800,
+                                  color: selected
+                                      ? colors.primary
+                                      : colors.onPrimary,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -143,7 +190,9 @@ class _ActivityCalendarState extends State<ActivityCalendar> {
         ),
         const Align(
           alignment: Alignment.centerLeft,
-          child: Text('Kuupäeva all olev arv näitab tegevuste arvu.'),
+          child: Text(
+            'Arvumärgisega päeval on tegevus või koolitus. Märgis näitab nende arvu.',
+          ),
         ),
       ],
     );

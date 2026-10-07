@@ -32,7 +32,7 @@ function createStatisticsHandler({db,now=()=>Date.now()}) {
     const data=Object.fromEntries(names.map((name,i)=>[name,snapshots[i].map(d=>({...d.data(),id:d.id}))]));
     const current=SOURCES.flatMap((source,i)=>snapshots[i].map(d=>({source,id:d.id,data:project(source,d.data()),version:millis(d.updateTime)})));
     const result=aggregate({organizationId:org,from,to,now:at,trackingStart:millis(settings.data()?.startedAt),current,history:data.statisticsHistory,
-      memberships:data.memberships,activities:data.activities,participants:data.activityParticipants,callouts:data.callouts,responses:data.calloutResponses,attendance:data.calloutAttendance,dutyPauses:data.organizationDutyPauses});
+      memberships:data.memberships,activities:data.activities,participants:data.activityParticipants,callouts:data.callouts,responses:data.calloutResponses,attendance:data.calloutAttendance,dutyPauses:data.organizationDutyPauses,includeEventDetails:admin});
     // Keep canRecord's legacy meaning for installed clients that also use it
     // to show the scheduling action. New clients use separate capabilities.
     return {...result,canManage:admin,canSubmitContribution:true,canRecord:admin || organization.allowMembersToCreateActivities===true,canCreateActivities:admin || organization.allowMembersToCreateActivities===true};
@@ -43,6 +43,8 @@ function createRecordContributionHandler({db,timestamp,now=()=>Date.now()}) {
     const {org,admin}=await access(db,request);
     const {requestId,title,type,date,hours,memberIds}=request.data||{};
     const description=request.data?.description??'';
+    const equipmentId=request.data?.equipmentId || '';
+    if(equipmentId && (!validId(equipmentId) || !['maintenance','repair'].includes(type))) throw new HttpsError('invalid-argument','Tehnikaga saab siduda hoolduse või remondi.');
     if(typeof description!=='string' || description.length>2000) throw new HttpsError('invalid-argument','Kirjeldus võib olla kuni 2000 märki.');
     const day=DateTime.fromISO(typeof date==='string'?date:'',{zone:ZONE});
     if(!validId(requestId) || typeof title!=='string' || !title.trim() || title.length>200 || !Object.hasOwn(TYPES,type) || !/^\d{4}-\d{2}-\d{2}$/.test(date||'') || !day.isValid || +day>now() || typeof hours!=='number' || !Number.isFinite(hours) || hours<=0 || hours>24 || !Array.isArray(memberIds) || !memberIds.length || memberIds.length>50 || memberIds.some(id=>!validId(id))) throw new HttpsError('invalid-argument','Kontrolli panuse nimetust, kuupäeva, osalejaid ja tunde (kuni 24 t).');
@@ -57,10 +59,15 @@ function createRecordContributionHandler({db,timestamp,now=()=>Date.now()}) {
         if(orgId(existing.data())!==org || existing.data().createdBy!==request.auth.uid) throw new HttpsError('already-exists','Panuse tunnus on kasutusel.');
         return {activityId:id};
       }
+      if(equipmentId) {
+        const equipment=(await tx.get(db.doc(`equipment/${equipmentId}`))).data();
+        if(!equipment || orgId(equipment)!==org || equipment.scope!=='organization') throw new HttpsError('permission-denied','Vali selle ühingu varustus.');
+      }
       const members=await tx.getAll(...users.map(uid=>db.doc(`memberships/${uid}_${org}`)));
       if(members.some((m,i)=>!active(m.data()) || orgId(m.data())!==org || m.data()?.userId!==users[i])) throw new HttpsError('failed-precondition','Osaleja ei ole selle ühingu aktiivne liige.');
       tx.create(ref,{id,organizationId:org,commandId:org,entryKind:'contribution',title:title.trim(),description:description.trim(),type,
         startTime:day.toISO(),endTime:'',location:'',createdBy:request.auth.uid,createdAt:timestamp(),updatedAt:timestamp()});
+      if(equipmentId) tx.create(db.doc(`equipmentWorkLinks/${id}`),{organizationId:org,equipmentId,activityId:id,createdBy:request.auth.uid,createdAt:timestamp()});
       for(const uid of users) {
         const participantId=`${id}_${uid}`;
         tx.create(db.doc(`activityParticipants/${participantId}`),{id:participantId,activityId:id,userId:uid,organizationId:org,commandId:org,

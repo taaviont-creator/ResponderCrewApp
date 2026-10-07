@@ -125,14 +125,29 @@ class SectionHeading extends StatelessWidget {
   final String title;
   final VoidCallback? onOpen;
   @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      Expanded(
-        child: Text(title, style: Theme.of(context).textTheme.titleMedium),
-      ),
-      if (onOpen != null)
-        TextButton(onPressed: onOpen, child: const Text('Vaata kõiki')),
-    ],
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, bounds) {
+      final titleWidget = Text(
+        title,
+        style: Theme.of(context).textTheme.titleMedium,
+      );
+      final action = onOpen == null
+          ? null
+          : TextButton(onPressed: onOpen, child: const Text('Vaata kõiki'));
+      if (bounds.maxWidth < 360 ||
+          MediaQuery.textScalerOf(context).scale(16) >= 24) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [titleWidget, ?action],
+        );
+      }
+      return Row(
+        children: [
+          Expanded(child: titleWidget),
+          ?action,
+        ],
+      );
+    },
   );
 }
 
