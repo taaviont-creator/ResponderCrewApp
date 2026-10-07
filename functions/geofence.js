@@ -3,7 +3,7 @@ const {HttpsError} = require('firebase-functions/v2/https');
 const {access,organizationDocs} = require('./statistics-handlers');
 const {orgId,millis} = require('./statistics-history');
 const {unavailableMembers} = require('./effective-readiness');
-const {FRESH_MS,SAMPLE_MS,managed,validateSettings,transition} = require('./geofence-policy');
+const {FRESH_MS,SAMPLE_MS,managed,availabilityStatus,validateSettings,transition} = require('./geofence-policy');
 const fail = message => { throw new HttpsError('failed-precondition',message); };
 
 function createGeofence({db,now=Date.now}) {
@@ -33,6 +33,11 @@ function createGeofence({db,now=Date.now}) {
     }
     return false;
   }
+  async function plannedAbsence(reader, org, uid, at) {
+    const periods=await organizationDocs(reader,'plannedUnavailability',org);
+    const rules=await organizationDocs(reader,'plannedUnavailabilityRules',org);
+    return unavailableMembers(periods.map(p=>p.data()),rules.map(r=>r.data()),at).includes(uid);
+  }
   function saveAvailability(tx, ref, a, uid, org, status, minutes, at, auto) {
     tx.set(ref,{id:ref.id,userId:uid,organizationId:org,commandId:org,status,
       responseMinutes:status === 'delayed' ? minutes : null,updatedAt:new Date(at),
@@ -53,8 +58,12 @@ function createGeofence({db,now=Date.now}) {
       const ref=db.doc(`geofenceStates/${uid}_${org}`), state=(await tx.get(ref)).data();
       const aRef=db.doc(`availability/${uid}_${org}`), a=(await tx.get(aRef)).data();
       const wasManual=state?.enabled && (!managed(a) || millis(a?.updatedAt)!==state.availabilityAtMs);
-      if (action==='get') return {config:cfg,state:state ? {...state,...(wasManual ? {enabled:false,reason:'manual'} :
-        state.enabled && state.expiresAtMs<=at ? {enabled:false,reason:'stale'} : {})} : null};
+      if (action==='get') {
+        const absent=await plannedAbsence(reader,org,uid,at);
+        return {config:cfg,state:state ? {...state,...(wasManual ? {enabled:false,reason:'manual'} :
+          state.enabled && state.expiresAtMs<=at ? {enabled:false,reason:'stale'} :
+            state.enabled && absent ? {reason:'plannedAbsence',confirmationRequired:false} : {})} : null};
+      }
       if (action==='save') {
         if (!validateSettings(d) || d.expectedRevision!==cfg.revision) throw new HttpsError('invalid-argument','Kontrolli raadiusi või laadi seaded uuesti.');
         if(d.enabled && cfg.latitude==null) fail('Määra ja kinnita kõigepealt ühingu asukoht keskuste kaardi seadetes.');
@@ -69,18 +78,21 @@ function createGeofence({db,now=Date.now}) {
       if(action==='disable') {
         if(d.sessionId != null && state?.sessionId!==d.sessionId) return {ignored:true};
         if (state) tx.update(ref,{enabled:false,reason:'disabled',confirmationRequired:false,updatedAt:new Date(at)});
-        // Stopping automation is an explicit return to manual off-duty.
-        saveAvailability(tx,aRef,a,uid,org,'offDuty',null,at,false);
+        // Explicitly stopping automatic duty must not overwrite a later
+        // manual choice, nor leave automatic duty active without monitoring.
+        if(state?.enabled && !wasManual) saveAvailability(tx,aRef,a,uid,org,'offDuty',null,at,false);
         return {saved:true};
       }
       if (!cfg.enabled || cfg.latitude==null) fail('Ühingu asukohapõhine valmisolek ei ole seadistatud.');
       if (action==='enable') {
+        if(await plannedAbsence(reader,org,uid,at)) fail('Planeeritud mittevalve on aktiivne. Automaatika saad sisse lülitada pärast selle lõppu ja valvesse märkimist.');
+        if(availabilityStatus(a,at)!=='onDuty') fail('Märgi end kõigepealt valvesse. Asukohaautomaatika kohandab ainult sinu alustatud valvet.');
         if(await participating(reader,org,uid)) fail('Osaled aktiivsel väljakutsel. Lülita automaatika sisse pärast väljakutset.');
         const value={organizationId:org,userId:uid,sessionId:randomUUID(),version:cfg.version,enabled:true,
           zone:'unknown',reason:'waiting',confirmedInner:false,confirmationRequired:false,lastObservedMs:0,
           availabilityAtMs:at,expiresAtMs:at+FRESH_MS,updatedAt:new Date(at)};
         tx.set(ref,value);
-        saveAvailability(tx,aRef,a,uid,org,'offDuty',null,at,true);
+        saveAvailability(tx,aRef,a,uid,org,'onDuty',null,at,true);
         return {config:cfg,state:value};
       }
       if (!state?.enabled || state.sessionId!==d.sessionId) fail('Automaatika on peatatud või teises telefonis uuesti sisse lülitatud.');
@@ -96,11 +108,18 @@ function createGeofence({db,now=Date.now}) {
         saveAvailability(tx,aRef,a,uid,org,a.status,a.responseMinutes,at,false);
         return {stopped:true};
       }
+      const absent=await plannedAbsence(reader,org,uid,at);
+      if(absent) {
+        if(action==='confirm') fail('Planeeritud mittevalve on aktiivne. Selle ajal ei saa asukoha alusel valvesse märkida.');
+        if (!['inner','ring','outside','unknown'].includes(d.zone)) throw new HttpsError('invalid-argument','Tundmatu piirkond.');
+        if(d.observedAtMs<=state.lastObservedMs) return {ignored:true};
+        // Do not touch availability or renew its lease during an absence.
+        // A later fresh event will apply the location after the plan ends.
+        tx.update(ref,{lastObservedMs:d.observedAtMs,reason:'plannedAbsence',confirmationRequired:false,updatedAt:new Date(at)});
+        return {saved:true,paused:true};
+      }
       if(action==='confirm') {
-        if(state.zone!=='inner' || state.lastObservedMs!==d.observedAtMs || !state.confirmationRequired) fail('Kontrolli kõigepealt, et asud sisepiirkonnas.');
-        const periods=await organizationDocs(reader,'plannedUnavailability',org);
-        const rules=await organizationDocs(reader,'plannedUnavailabilityRules',org);
-        if(unavailableMembers(periods.map(p=>p.data()),rules.map(r=>r.data()),at).includes(uid)) fail('Planeeritud mittevalve on aktiivne. Muuda või tühista see enne valvesse märkimist.');
+        if(state.zone!=='inner' || state.lastObservedMs!==d.observedAtMs || !state.confirmationRequired) fail('Kontrolli kõigepealt, et asud valvesoleku raadiuses.');
         tx.update(ref,{confirmedInner:true,confirmationRequired:false,reason:'confirmed',availabilityAtMs:at,expiresAtMs:at+FRESH_MS,updatedAt:new Date(at)});
         saveAvailability(tx,aRef,a,uid,org,'onDuty',null,at,true);
         return {saved:true};

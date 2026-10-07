@@ -25,3 +25,11 @@ test('geofence: bounded distinct radii and supported delay',()=>{
   assert.equal(validateSettings(d),true);
   for(const patch of [{innerMeters:0},{outerMeters:3000},{outerMeters:50001},{delayMinutes:0},{enabled:'true'}]) assert.equal(validateSettings({...d,...patch}),false);
 });
+
+test('geofence: initial fix preserves existing duty but cannot promote an off-duty member',()=>{
+  const waiting={zone:'unknown',reason:'waiting'};
+  assert.equal(transition(waiting,'inner','onDuty',15).status,'onDuty');
+  assert.equal(transition(waiting,'inner','onDuty',15).confirmationRequired,false);
+  assert.equal(transition(waiting,'inner','offDuty',15).confirmationRequired,true);
+  assert.equal(transition(waiting,'outside','onDuty',15).status,'offDuty');
+});
