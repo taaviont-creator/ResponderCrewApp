@@ -1183,6 +1183,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         context,
                         MaterialPageRoute(
                           builder: (_) => StatisticsScreen(
+                            organizationName: commandName,
                             organizationId: commandId,
                             currentUid: user.uid,
                             canViewStatistics: true,

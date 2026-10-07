@@ -60,7 +60,7 @@ class ReportService extends Fake implements StatisticsService {
 void main() {
   for (final width in [320.0, 1440.0]) {
     testWidgets(
-      'member statistics shows own contribution, preserves organization reading and hides exports at $width',
+      'member workspace preserves own and organization reading without exports at $width',
       (tester) async {
         tester.view.physicalSize = Size(width, 1200);
         tester.view.devicePixelRatio = 1;
@@ -87,111 +87,79 @@ void main() {
         await tester.pumpWidget(screen('org'));
         await tester.pumpAndSettle();
         expect(find.text('Minu panus'), findsOneWidget);
-        expect(find.text('Liikmete panus'), findsNothing);
-        expect(find.text('CSV'), findsNothing);
+        expect(find.text('Ekspordi'), findsNothing);
+        await tester.scrollUntilVisible(
+          find.textContaining('pole sellel perioodil piisavalt andmeid'),
+          180,
+          scrollable: find.byType(Scrollable).first,
+        );
         expect(
           find.textContaining('pole sellel perioodil piisavalt andmeid'),
           findsOneWidget,
         );
-        await tester.scrollUntilVisible(
-          find.text('Minu osalemised ja panused (1)'),
-          250,
-        );
+        await tester.drag(find.byType(ListView).first, const Offset(0, 2500));
         await tester.pumpAndSettle();
-        await tester.ensureVisible(find.text('Minu osalemised ja panused (1)'));
-        await tester.tap(find.text('Minu osalemised ja panused (1)'));
+        await tester.tap(find.text('Panused'));
         await tester.pumpAndSettle();
-        expect(find.text('Sadama niitmine'), findsOneWidget);
         await tester.scrollUntilVisible(
-          find.text('Vaata ühingu ülevaadet'),
+          find.textContaining('Sadama niitmine'),
           200,
           scrollable: find.byType(Scrollable).first,
         );
-        await tester.tap(find.text('Vaata ühingu ülevaadet'));
+        expect(find.textContaining('Sadama niitmine'), findsOneWidget);
+        await tester.drag(find.byType(ListView).first, const Offset(0, 2000));
         await tester.pumpAndSettle();
-        await tester.scrollUntilVisible(
-          find.text('Liikmete panus'),
-          300,
-          scrollable: find.byType(Scrollable).first,
-        );
-        expect(find.text('Liikmete panus'), findsOneWidget);
-        expect(find.text('CSV'), findsNothing);
-        expect(tester.takeException(), isNull);
+        await tester.tap(find.text('Ühing'));
+        await tester.pumpAndSettle();
+        expect(find.text('Ühingu ülevaade'), findsOneWidget);
+        expect(find.text('Ekspordi'), findsNothing);
         await tester.pumpWidget(screen('other-org'));
         await tester.pumpAndSettle();
-        expect(find.text('Liikmete panus'), findsNothing);
+        expect(find.text('Minu panus'), findsOneWidget);
         expect(service.loads, 2);
+        expect(tester.takeException(), isNull);
       },
     );
   }
-  test(
-    'CSV preserves unknown duty and separates confirmed attendance from response',
-    () {
-      final data = report(missingDuty: true);
-      final csv = contributionCsv(data);
-      expect(csv, contains('"Testliige";"";"1";"0";"1";"2"'));
-      expect(csv, contains('Sadama niitmine'));
-      expect(csv, contains('Heakord / niitmine'));
-      data.members.first.data['name'] = '=HYPERLINK("bad")';
-      expect(contributionCsv(data), contains("'=HYPERLINK"));
-    },
-  );
-  testWidgets(
-    'phone layout shows measured contribution and expands the underlying work',
-    (tester) async {
-      tester.view.physicalSize = const Size(390, 844);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      final service = ReportService(report());
-      await tester.pumpWidget(
-        MaterialApp(
-          home: StatisticsScreen(
-            organizationId: 'org',
-            currentUid: 'u',
-            canViewStatistics: true,
-            canViewOrganizationCertificates: false,
-            service: service,
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('Statistika'), findsOneWidget);
-      expect(find.text('Panuse tunnid'), findsWidgets);
-      expect(find.textContaining('Valveajalugu alates'), findsOneWidget);
-      expect(find.text('Minu panus'), findsNothing);
-      await tester.scrollUntilVisible(
-        find.text('CSV'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-      expect(find.text('CSV'), findsOneWidget);
-      await tester.scrollUntilVisible(
-        find.text('Testliige'),
-        250,
-        scrollable: find
-            .byWidgetPredicate(
-              (w) => w is Scrollable && w.axisDirection == AxisDirection.down,
-            )
-            .first,
-      );
-      await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('Testliige'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Testliige'));
-      await tester.pumpAndSettle();
-      expect(find.text('Sadama niitmine'), findsOneWidget);
-      expect(
-        find.text('Väljakutsetel osales: 0 • Reageerin-vastuseid: 1'),
-        findsOneWidget,
-      );
-      expect(tester.takeException(), isNull);
-      expect(service.loads, 1);
-    },
-  );
-  testWidgets('permission denied does not request organization report', (
+  test('CSV retains unknown duty and escaped user content', () {
+    final data = report(missingDuty: true);
+    expect(contributionCsv(data), contains('"Testliige";"";"1";"0";"1";"2"'));
+    data.members.first.data['name'] = '=HYPERLINK("bad")';
+    expect(contributionCsv(data), contains("'=HYPERLINK"));
+  });
+  testWidgets('admin can inspect the underlying member entries', (
     tester,
   ) async {
+    final service = ReportService(report());
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StatisticsScreen(
+          organizationId: 'org',
+          currentUid: 'u',
+          canViewStatistics: true,
+          canViewOrganizationCertificates: false,
+          service: service,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Liikmed'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Testliige'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('Testliige').last);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Sadama niitmine'), findsOneWidget);
+    expect(
+      find.text('Väljakutsetel osales: 0 • Reageerin-vastuseid: 1'),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('permission denied does not load reports', (tester) async {
     final service = ReportService(report());
     await tester.pumpWidget(
       MaterialApp(

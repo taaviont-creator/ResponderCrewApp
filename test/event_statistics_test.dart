@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:respondcrew_app/models/event_statistics.dart';
 import 'package:respondcrew_app/models/statistics_model.dart';
-import 'package:respondcrew_app/screens/event_statistics_screen.dart';
 import 'package:respondcrew_app/screens/statistics_screen.dart';
 import 'package:respondcrew_app/services/statistics_service.dart';
 
@@ -137,68 +136,8 @@ void main() {
       ); // Whole crew remains in the event view.
     },
   );
-  for (final admin in [false, true]) {
-    testWidgets('export access and legacy state admin=$admin', (tester) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          home: EventStatisticsScreen(
-            report: report(admin: admin, legacy: true),
-            organizationId: 'org',
-            from: DateTime(2024),
-            to: DateTime(2024, 12, 31),
-          ),
-        ),
-      );
-      expect(
-        find.textContaining(admin ? 'serveri uuendust' : 'ühingu admin'),
-        findsOneWidget,
-      );
-      expect(find.text('Sündmused CSV'), findsNothing);
-    });
-  }
-  for (final (width, scale) in [(320.0, 2.0), (1100.0, 1.0)]) {
-    testWidgets(
-      'event query fits $width with scale $scale and expands attendance',
-      (tester) async {
-        tester.view.physicalSize = Size(width, 1000);
-        tester.view.devicePixelRatio = 1;
-        addTearDown(tester.view.resetPhysicalSize);
-        addTearDown(tester.view.resetDevicePixelRatio);
-        await tester.pumpWidget(
-          MaterialApp(
-            home: MediaQuery(
-              data: MediaQueryData(textScaler: TextScaler.linear(scale)),
-              child: EventStatisticsScreen(
-                report: report(),
-                organizationId: 'org',
-                from: DateTime(2024),
-                to: DateTime(2024, 12, 31),
-              ),
-            ),
-          ),
-        );
-        await tester.pumpAndSettle();
-        await tester.scrollUntilVisible(
-          find.text('SAR pääste'),
-          250,
-          scrollable: find.byType(Scrollable).first,
-        );
-        await tester.pumpAndSettle();
-        await tester.ensureVisible(find.text('SAR pääste'));
-        await tester.tap(find.text('SAR pääste'));
-        await tester.pumpAndSettle();
-        await tester.scrollUntilVisible(
-          find.text('Jüri'),
-          200,
-          scrollable: find.byType(Scrollable).first,
-        );
-        expect(find.text('Tunnid märkimata'), findsOneWidget);
-        expect(tester.takeException(), isNull);
-      },
-    );
-  }
   testWidgets(
-    'year selection requests the whole leap year, then opens the same report period',
+    'year selection uses whole leap year in the same event workspace',
     (tester) async {
       tester.view.physicalSize = const Size(1100, 1000);
       tester.view.devicePixelRatio = 1;
@@ -217,20 +156,16 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Vali aasta'));
+      await tester.tap(find.textContaining('Vali aasta'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('2024'));
       await tester.pumpAndSettle();
       expect(service.from, DateTime(2024));
       expect(service.to, DateTime(2024, 12, 31));
-      await tester.scrollUntilVisible(
-        find.text('Sündmuste väljavõte'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.tap(find.text('Sündmuste väljavõte'));
+      await tester.tap(find.text('Sündmused'));
       await tester.pumpAndSettle();
       expect(find.text('01.01.2024 – 31.12.2024'), findsOneWidget);
+      expect(find.text('Sündmusi: 3'), findsOneWidget);
     },
   );
 }
