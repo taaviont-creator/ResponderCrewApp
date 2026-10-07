@@ -369,15 +369,16 @@ class _CalloutReportScreenState extends State<CalloutReportScreen> {
           appBar: AppBar(
             title: const Text('Sündmuse aruanne'),
             actions: [
-              IconButton(
-                tooltip: _dirty
-                    ? 'Salvesta enne PDF-i koostamist'
-                    : 'Ekspordi aruanne PDF-ina',
-                onPressed: _dirty || _saving || _loading || _data == null
-                    ? null
-                    : _exportPdf,
-                icon: const Icon(Icons.picture_as_pdf_outlined),
-              ),
+              if (edit)
+                IconButton(
+                  tooltip: _dirty
+                      ? 'Salvesta enne PDF-i koostamist'
+                      : 'Ekspordi aruanne PDF-ina',
+                  onPressed: _dirty || _saving || _loading || _data == null
+                      ? null
+                      : _exportPdf,
+                  icon: const Icon(Icons.picture_as_pdf_outlined),
+                ),
               if (!_dirty)
                 IconButton(
                   tooltip: 'Värskenda',
@@ -470,10 +471,13 @@ class _CalloutReportScreenState extends State<CalloutReportScreen> {
                         const ListTile(
                           leading: Icon(Icons.science_outlined),
                           title: Text('Test-/proovisündmuse aruanne'),
-                          subtitle: Text(
-                            'Ei kuulu ametlikku aruandlusse. PDF on märgistatud testina.',
-                          ),
+                          subtitle: Text('Ei kuulu ametlikku aruandlusse.'),
                         ),
+                      if (!edit)
+                        _section('Sündmuse kokkuvõte', [
+                          _field('Kokkuvõte', _summary, false),
+                          _field('Tulemus', _outcome, false),
+                        ]),
                       _section('Sündmuse põhiandmed', [
                         Text(callout['title'] ?? ''),
                         Text('Ühing: ${data['organizationName']}'),
@@ -492,7 +496,8 @@ class _CalloutReportScreenState extends State<CalloutReportScreen> {
                           Text(
                             'GPS: ${callout['latitude']}, ${callout['longitude']}',
                           ),
-                        SelectableText('Sündmuse ID: ${widget.calloutId}'),
+                        if (edit)
+                          SelectableText('Sündmuse ID: ${widget.calloutId}'),
                       ]),
                       _section('Koostaja ja meeskonna juht', [
                         if (edit) ...[
@@ -706,26 +711,28 @@ class _CalloutReportScreenState extends State<CalloutReportScreen> {
                               ),
                           ],
                         ),
-                      _section('Varustuse juhtumid', [
-                        ReportEquipmentIncidents(
-                          items: _equipmentIncidents,
-                          busy: _saving,
-                          onChanged: edit
-                              ? (items) => setState(() {
-                                  _equipmentIncidents = items;
-                                  _dirty = true;
-                                })
-                              : null,
-                        ),
-                      ]),
-                      _section('Sündmuse kokkuvõte', [
-                        if (edit)
-                          const Text(
-                            'Kirjelda olukorda ja tulemust. Logi tegevusi pole vaja ümber kirjutada. Isikuandmed lisa eraldi seotud isikute alla.',
+                      if (edit || _equipmentIncidents.isNotEmpty)
+                        _section('Varustuse juhtumid', [
+                          ReportEquipmentIncidents(
+                            items: _equipmentIncidents,
+                            busy: _saving,
+                            onChanged: edit
+                                ? (items) => setState(() {
+                                    _equipmentIncidents = items;
+                                    _dirty = true;
+                                  })
+                                : null,
                           ),
-                        _field('Kokkuvõte', _summary, edit),
-                        _field('Tulemus', _outcome, edit),
-                      ]),
+                        ]),
+                      if (edit)
+                        _section('Sündmuse kokkuvõte', [
+                          if (edit)
+                            const Text(
+                              'Kirjelda olukorda ja tulemust. Logi tegevusi pole vaja ümber kirjutada. Isikuandmed lisa eraldi seotud isikute alla.',
+                            ),
+                          _field('Kokkuvõte', _summary, edit),
+                          _field('Tulemus', _outcome, edit),
+                        ]),
                       _section('Operatiivlogi', [
                         if (_maps(data['timeline']).isEmpty)
                           const Text('Logikanded puuduvad.'),
@@ -787,13 +794,14 @@ class _CalloutReportScreenState extends State<CalloutReportScreen> {
                               'Salvesta aruande muudatused enne manuse lisamist.',
                             ),
                         ]),
-                      _section('Ettepanekud ja tähelepanekud', [
-                        _field(
-                          'Ettepanekud / tähelepanekud',
-                          _suggestions,
-                          edit,
-                        ),
-                      ]),
+                      if (edit || _suggestions.text.trim().isNotEmpty)
+                        _section('Ettepanekud ja tähelepanekud', [
+                          _field(
+                            'Ettepanekud / tähelepanekud',
+                            _suggestions,
+                            edit,
+                          ),
+                        ]),
                       if (edit && data['operationLogId'] == null)
                         const Text(
                           'Ava sündmuse operatiivlogi, et saaksid aruande salvestada.',

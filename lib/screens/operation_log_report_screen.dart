@@ -15,10 +15,12 @@ class OperationLogReportScreen extends StatefulWidget {
     this.logStream,
     this.participantStream,
     this.attendanceHistoryStream,
+    this.showExport = false,
   });
   final OperationLogModel log;
   final Stream<OperationLogModel?>? logStream;
   final String organizationId;
+  final bool showExport;
   final Stream<List<OperationLogEventModel>>? eventStream;
   final Stream<List<Map<String, dynamic>>>? participantStream,
       attendanceHistoryStream;
@@ -85,25 +87,28 @@ class _ReportState extends State<OperationLogReportScreen> {
                   : '';
               return AppScaffold(
                 appBar: AppBar(
-                  title: const Text('Logi väljavõte'),
+                  title: Text(
+                    widget.showExport ? 'Logi väljavõte' : 'Logi ülevaade',
+                  ),
                   actions: [
-                    IconButton(
-                      tooltip: 'Kopeeri väljavõte',
-                      icon: const Icon(Icons.copy),
-                      onPressed: ready
-                          ? () async {
-                              await Clipboard.setData(
-                                ClipboardData(text: report),
-                              );
-                              if (!context.mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Logi väljavõte kopeeritud.'),
-                                ),
-                              );
-                            }
-                          : null,
-                    ),
+                    if (widget.showExport)
+                      IconButton(
+                        tooltip: 'Kopeeri väljavõte',
+                        icon: const Icon(Icons.copy),
+                        onPressed: ready
+                            ? () async {
+                                await Clipboard.setData(
+                                  ClipboardData(text: report),
+                                );
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Logi väljavõte kopeeritud.'),
+                                  ),
+                                );
+                              }
+                            : null,
+                      ),
                   ],
                 ),
                 body: failed

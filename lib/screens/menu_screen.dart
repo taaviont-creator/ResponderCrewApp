@@ -107,7 +107,9 @@ class MenuScreen extends StatelessWidget {
           _MenuEntry(
             icon: Icons.group_outlined,
             title: 'Liikmed',
-            subtitle: 'Profiilid, rollid ja tunnistused',
+            subtitle: isOrganizationAdmin
+                ? 'Profiilid, rollid ja tunnistused'
+                : 'Meeskond ja kontaktid',
             onTap: () => _open(
               context,
               MembersScreen(
@@ -120,7 +122,9 @@ class MenuScreen extends StatelessWidget {
           _MenuEntry(
             icon: Icons.inventory_2_outlined,
             title: 'Varustus',
-            subtitle: 'Ühingu varustus ja ladu',
+            subtitle: isOrganizationAdmin
+                ? 'Ühingu varustus ja ladu'
+                : 'Minu ja ühingu varustus',
             onTap: () => _open(
               context,
               EquipmentScreen(
@@ -133,7 +137,9 @@ class MenuScreen extends StatelessWidget {
           _MenuEntry(
             icon: Icons.assignment_outlined,
             title: 'Operatiivlogi',
-            subtitle: 'Logid ja väljavõtted',
+            subtitle: canStartOperationLog
+                ? 'Sündmuste logid ja aruandlus'
+                : 'Sündmuste käik ja kokkuvõtted',
             onTap: () => _open(
               context,
               OperationLogScreen(
@@ -148,7 +154,9 @@ class MenuScreen extends StatelessWidget {
           _MenuEntry(
             icon: Icons.event_outlined,
             title: 'Tegevused ja koolitused',
-            subtitle: 'Planeeri ja märgi osalemine',
+            subtitle: canCreateActivities
+                ? 'Planeeri ja märgi osalemine'
+                : 'Kalender ja minu osalemine',
             onTap: () => _open(
               context,
               ActivitiesScreen(
@@ -162,7 +170,9 @@ class MenuScreen extends StatelessWidget {
             _MenuEntry(
               icon: Icons.insights_outlined,
               title: 'Statistika',
-              subtitle: 'Valveaeg ja osalemine',
+              subtitle: isOrganizationAdmin
+                  ? 'Valveaeg ja osalemine'
+                  : 'Minu valveaeg ja panus',
               onTap: () => _open(
                 context,
                 StatisticsScreen(
@@ -200,7 +210,7 @@ class MenuScreen extends StatelessWidget {
           _MenuEntry(
             icon: Icons.person_outline,
             title: 'Minu profiil',
-            subtitle: 'Kontaktid ja liikmesus',
+            subtitle: 'Minu andmed, tunnistused ja koolitused',
             onTap: () => _open(
               context,
               SelfProfileScreen(

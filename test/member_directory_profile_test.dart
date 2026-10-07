@@ -22,6 +22,29 @@ const members = [
 ];
 void main() {
   testWidgets(
+    'directory export follows organization management presentation and disappears when role changes',
+    (tester) async {
+      Widget screen(bool admin) => MaterialApp(
+        home: Scaffold(
+          body: MemberDirectory(
+            members: members,
+            onOpen: (_) {},
+            onContact: (_, _) {},
+            showExport: admin,
+          ),
+        ),
+      );
+      await tester.pumpWidget(screen(false));
+      expect(find.text('Liikmed CSV'), findsNothing);
+      expect(find.text('Minu andmed'), findsOneWidget);
+      expect(find.byTooltip('Helista: Mari'), findsOneWidget);
+      await tester.pumpWidget(screen(true));
+      expect(find.text('Liikmed CSV'), findsOneWidget);
+      await tester.pumpWidget(screen(false));
+      expect(find.text('Liikmed CSV'), findsNothing);
+    },
+  );
+  testWidgets(
     'own member opens own profile, peer contact uses exact member, search filters',
     (tester) async {
       String? opened, contact;

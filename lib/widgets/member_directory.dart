@@ -45,12 +45,14 @@ class MemberDirectory extends StatefulWidget {
     required this.onContact,
     this.adminSections = const [],
     this.busyUserId,
+    this.showExport = false,
   });
   final List<DirectoryMember> members;
   final ValueChanged<String> onOpen;
   final void Function(String, bool) onContact;
   final List<Widget> adminSections;
   final String? busyUserId;
+  final bool showExport;
   @override
   State<MemberDirectory> createState() => _MemberDirectoryState();
 }
@@ -83,29 +85,31 @@ class _MemberDirectoryState extends State<MemberDirectory> {
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            OutlinedButton.icon(
-              onPressed: () async {
-                await Clipboard.setData(
-                  ClipboardData(text: memberDirectoryCsv(members)),
-                );
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Nähtavate liikmete CSV kopeeritud.'),
-                    ),
+        if (widget.showExport) ...[
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              OutlinedButton.icon(
+                onPressed: () async {
+                  await Clipboard.setData(
+                    ClipboardData(text: memberDirectoryCsv(members)),
                   );
-                }
-              },
-              icon: const Icon(Icons.copy_outlined),
-              label: const Text('Liikmed CSV'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Nähtavate liikmete CSV kopeeritud.'),
+                      ),
+                    );
+                  }
+                },
+                icon: const Icon(Icons.copy_outlined),
+                label: const Text('Liikmed CSV'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+        ],
         TextField(
           decoration: const InputDecoration(
             prefixIcon: Icon(Icons.search),
