@@ -102,16 +102,21 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
   }
 
   Future<void> _updateCalloutStatus(String status) async {
-    if (!widget.canCloseCallouts || _isUpdatingStatus || !_isActive) return;
+    if (!widget.canCloseCallouts ||
+        _isUpdatingStatus ||
+        !_isActive ||
+        _calloutReadFailed) {
+      return;
+    }
 
     final isClosing = status == CalloutStatus.closed;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(isClosing ? 'Lõpeta sündmus' : 'Tühista väljakutse'),
+        title: Text(isClosing ? 'Lõpeta väljakutse' : 'Tühista väljakutse'),
         content: Text(
           isClosing
-              ? 'Kas soovid väljakutse "${_callout.title}" lõpetada?'
+              ? 'Kas soovid väljakutse "${_callout.title}" lõpetada? See liigub lõpetatud väljakutsete alla. Operatiivlogi, aruannet ja osalejaid saad hiljem täiendada.'
               : 'Kas soovid väljakutse "${_callout.title}" tühistada?',
         ),
         actions: [
@@ -126,7 +131,14 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
         ],
       ),
     );
-    if (confirmed != true) return;
+    if (confirmed != true ||
+        !mounted ||
+        !widget.canCloseCallouts ||
+        _isUpdatingStatus ||
+        !_isActive ||
+        _calloutReadFailed) {
+      return;
+    }
 
     setState(() => _isUpdatingStatus = true);
     try {
@@ -215,10 +227,6 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
               onSelected: _updateCalloutStatus,
               itemBuilder: (context) => const [
                 PopupMenuItem(
-                  value: CalloutStatus.closed,
-                  child: Text('Lõpeta sündmus'),
-                ),
-                PopupMenuItem(
                   value: CalloutStatus.cancelled,
                   child: Text('Tühista väljakutse'),
                 ),
@@ -240,6 +248,19 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
               key: ValueKey('dispatch-${_callout.id}'),
               callout: _callout,
               canManage: widget.canManageCallouts && !_calloutReadFailed,
+            ),
+          if (widget.canCloseCallouts && _isActive)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.check_circle_outline),
+                label: Text(
+                  _isUpdatingStatus ? 'Salvestan…' : 'Lõpeta väljakutse',
+                ),
+                onPressed: _isUpdatingStatus || _calloutReadFailed
+                    ? null
+                    : () => _updateCalloutStatus(CalloutStatus.closed),
+              ),
             ),
           CalloutResponseControls(
             key: ValueKey(_callout.id),
