@@ -213,6 +213,8 @@ class _CertificateEditorState extends State<CertificateEditor> {
                   tilePadding: EdgeInsets.zero,
                   children: [
                     DropdownButtonFormField<String>(
+                      isExpanded: true,
+                      itemHeight: null,
                       initialValue: CertificateType.values.contains(_type)
                           ? _type
                           : CertificateType.other,
@@ -241,6 +243,8 @@ class _CertificateEditorState extends State<CertificateEditor> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
+                      isExpanded: true,
+                      itemHeight: null,
                       initialValue: _status,
                       decoration: const InputDecoration(
                         labelText: 'Oleku märge',

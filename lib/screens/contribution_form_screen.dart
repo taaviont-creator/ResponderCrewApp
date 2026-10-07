@@ -244,6 +244,7 @@ class _ContributionFormScreenState extends State<ContributionFormScreen> {
                     : null,
               ),
               DropdownButtonFormField<String>(
+                itemHeight: null,
                 isExpanded: true,
                 initialValue: _type,
                 decoration: const InputDecoration(labelText: 'Kategooria'),

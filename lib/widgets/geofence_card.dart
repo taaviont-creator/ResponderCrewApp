@@ -364,6 +364,8 @@ class _GeofenceCardState extends State<GeofenceCard>
                   ),
                 ),
                 DropdownButtonFormField<int>(
+                  isExpanded: true,
+                  itemHeight: null,
                   initialValue: minutes,
                   decoration: const InputDecoration(
                     labelText: 'Hilinemine kahe raadiuse vahel',

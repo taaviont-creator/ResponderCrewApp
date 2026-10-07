@@ -503,6 +503,7 @@ class _CalloutReportScreenState extends State<CalloutReportScreen> {
                         if (edit) ...[
                           for (final author in [true, false])
                             DropdownButtonFormField<String>(
+                              itemHeight: null,
                               key: ValueKey(
                                 'author-$author-${_map(data['report'])['revision']}',
                               ),

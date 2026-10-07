@@ -139,6 +139,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
+                    isExpanded: true,
+                    itemHeight: null,
                     initialValue: selectedType,
                     decoration: const InputDecoration(labelText: 'Tüüp'),
                     items: NotificationType.values.map((type) {
@@ -154,6 +156,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   ),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
+                    isExpanded: true,
+                    itemHeight: null,
                     initialValue: selectedPriority,
                     decoration: const InputDecoration(labelText: 'Prioriteet'),
                     items: NotificationPriority.values.map((priority) {

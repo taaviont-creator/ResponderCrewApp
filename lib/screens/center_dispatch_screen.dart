@@ -622,6 +622,8 @@ class _DispatchEditorState extends State<DispatchEditor> {
                     _field(_lat, 'Laiuskraad · kümnendkraadides', max: 24),
                     _field(_lon, 'Pikkuskraad · kümnendkraadides', max: 24),
                     DropdownButtonFormField<String>(
+                      isExpanded: true,
+                      itemHeight: null,
                       initialValue: _kind,
                       decoration: const InputDecoration(
                         labelText: 'Asukoha täpsus',
@@ -727,6 +729,8 @@ class _DispatchEditorState extends State<DispatchEditor> {
                 ),
                 if (!widget.appendOnly)
                   DropdownButtonFormField<String>(
+                    isExpanded: true,
+                    itemHeight: null,
                     initialValue: _status,
                     decoration: const InputDecoration(
                       labelText: 'Keskuse väljakutse seis',

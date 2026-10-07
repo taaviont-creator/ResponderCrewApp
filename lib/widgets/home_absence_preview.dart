@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../models/activity_schedule.dart';
 import '../models/planned_unavailability_model.dart';
 import '../models/planned_unavailability_rule_model.dart';
 import '../models/upcoming_absence.dart';
@@ -37,7 +38,7 @@ class _HomeAbsencePreviewState extends State<HomeAbsencePreview> {
   }
 
   String _date(DateTime time) {
-    final local = time.toLocal();
+    final local = ActivitySchedule.inEstonia(time);
     String two(int n) => n.toString().padLeft(2, '0');
     return '${two(local.day)}.${two(local.month)} ${two(local.hour)}:${two(local.minute)}';
   }

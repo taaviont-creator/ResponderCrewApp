@@ -1,12 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:respondcrew_app/models/availability_model.dart';
+import 'package:respondcrew_app/models/activity_schedule.dart';
 import 'package:respondcrew_app/models/effective_availability.dart';
 import 'package:respondcrew_app/models/planned_unavailability_model.dart';
 import 'package:respondcrew_app/models/planned_unavailability_rule_model.dart';
 
 void main() {
   group('EffectiveAvailability', () {
-    final now = DateTime(2026, 9, 27, 12, 0);
+    final now = ActivitySchedule.parse('2026-09-27 12:00')!;
 
     test('keeps manual status when no planned unavailability is active', () {
       expect(

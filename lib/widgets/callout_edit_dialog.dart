@@ -133,6 +133,8 @@ class _CalloutEditDialogState extends State<CalloutEditDialog> {
               title: const Text('Sündmuse tüüp ja ajad'),
               children: [
                 DropdownButtonFormField<String>(
+                  isExpanded: true,
+                  itemHeight: null,
                   initialValue: _type,
                   decoration: const InputDecoration(labelText: 'Sündmuse tüüp'),
                   items: [
@@ -148,6 +150,8 @@ class _CalloutEditDialogState extends State<CalloutEditDialog> {
                 ),
                 if (_type == CalloutType.tross)
                   DropdownButtonFormField<int>(
+                    isExpanded: true,
+                    itemHeight: null,
                     initialValue: _target,
                     decoration: const InputDecoration(
                       labelText: 'Väljasõidu sihtaeg',

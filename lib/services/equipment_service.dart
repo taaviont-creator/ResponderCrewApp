@@ -9,6 +9,36 @@ import '../models/notification_model.dart';
 import 'notification_service.dart';
 
 class EquipmentService {
+  Future<void> updateEquipmentDetails({
+    required String equipmentId,
+    required String organizationId,
+    required String name,
+    required String category,
+    required String location,
+    required String nextMaintenanceDate,
+  }) async {
+    if (name.trim().isEmpty || !EquipmentCategory.values.contains(category)) {
+      throw ArgumentError('Kontrolli varustuse andmeid.');
+    }
+    final ref = _equipment.doc(equipmentId);
+    await _firestore.runTransaction((tx) async {
+      final item = (await tx.get(ref)).data();
+      if (item == null ||
+          (item['organizationId'] ?? item['commandId']) != organizationId) {
+        throw StateError('Varustust ei leitud.');
+      }
+      // Editing descriptive fields must not revert condition or assignment.
+      // Firestore rules authorize the actual owner/organization administrator.
+      tx.update(ref, {
+        'name': name.trim(),
+        'category': category,
+        'location': location.trim(),
+        'nextMaintenanceDate': nextMaintenanceDate.trim(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    });
+  }
+
   Future<void> moveToStorage({
     required String organizationId,
     required String equipmentId,

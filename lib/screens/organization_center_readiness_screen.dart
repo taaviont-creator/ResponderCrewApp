@@ -282,6 +282,7 @@ class _ConfirmationDialogState extends State<_ConfirmationDialog> {
               'Muudad selle teenuse staatust keskuse kaardil. Sinu isiklik valvesolek ei muutu. Kogu ühingu valve peatamiseks kasuta ühingu valve nuppu.',
             ),
             DropdownButtonFormField<String>(
+              itemHeight: null,
               initialValue: _action,
               isExpanded: true,
               decoration: const InputDecoration(labelText: 'Staatus'),
@@ -307,6 +308,7 @@ class _ConfirmationDialogState extends State<_ConfirmationDialog> {
               ),
               if (_action == 'confirm')
                 DropdownButtonFormField<int>(
+                  itemHeight: null,
                   initialValue: _delay,
                   isExpanded: true,
                   decoration: const InputDecoration(

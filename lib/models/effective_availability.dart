@@ -1,4 +1,5 @@
 import 'availability_model.dart';
+import 'activity_schedule.dart';
 import 'planned_unavailability_model.dart';
 import 'planned_unavailability_rule_model.dart';
 
@@ -37,16 +38,8 @@ class EffectiveAvailability {
   }) {
     if (userId.trim().isEmpty) return false;
     final moment = now ?? DateTime.now();
-    return _hasActivePeriod(
-          userId: userId,
-          periods: periods,
-          now: moment,
-        ) ||
-        _hasActiveRule(
-          userId: userId,
-          rules: rules,
-          now: moment,
-        );
+    return _hasActivePeriod(userId: userId, periods: periods, now: moment) ||
+        _hasActiveRule(userId: userId, rules: rules, now: moment);
   }
 
   static bool _hasActivePeriod({
@@ -72,11 +65,12 @@ class EffectiveAvailability {
     required Iterable<PlannedUnavailabilityRuleModel> rules,
     required DateTime now,
   }) {
-    final minuteOfDay = now.hour * 60 + now.minute;
+    final local = ActivitySchedule.inEstonia(now);
+    final minuteOfDay = local.hour * 60 + local.minute;
     return rules.any((rule) {
       return rule.userId == userId &&
           rule.isActive &&
-          rule.daysOfWeek.contains(now.weekday) &&
+          rule.daysOfWeek.contains(local.weekday) &&
           minuteOfDay >= rule.startMinute &&
           minuteOfDay < rule.endMinute;
     });

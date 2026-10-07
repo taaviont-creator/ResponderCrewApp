@@ -625,6 +625,8 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                 onChanged: (value) => updateSettings(enabled: value),
               ),
               DropdownButtonFormField<int>(
+                isExpanded: true,
+                itemHeight: null,
                 initialValue: settings.intervalHours,
                 decoration: const InputDecoration(labelText: 'Intervall'),
                 items: AvailabilityReminderSettingsModel.allowedIntervalHours
@@ -641,6 +643,8 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
+                isExpanded: true,
+                itemHeight: null,
                 initialValue: settings.reminderTime,
                 decoration: const InputDecoration(labelText: 'Kellaaeg'),
                 items: timeOptions

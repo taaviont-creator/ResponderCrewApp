@@ -187,6 +187,7 @@ class _UnavailabilityEditorState extends State<UnavailabilityEditor> {
                     )
                   else
                     DropdownButtonFormField<bool>(
+                      itemHeight: null,
                       isExpanded: true,
                       initialValue: _weekly,
                       decoration: const InputDecoration(labelText: 'Kordumine'),

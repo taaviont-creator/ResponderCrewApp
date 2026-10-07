@@ -1,4 +1,4 @@
-import '../widgets/app_date_field.dart';
+import '../widgets/equipment_editor.dart';
 import 'equipment_care_screen.dart';
 import '../widgets/app_layout.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -107,332 +107,67 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
   }
 
   Future<void> _showAddEquipmentDialog({required String scope}) async {
-    if (widget.organizationId.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Varustust ei saa salvestada ilma aktiivse ühinguta.'),
-        ),
-      );
+    if (widget.organizationId.trim().isEmpty ||
+        (scope == EquipmentScope.organization && !widget.canManageEquipment)) {
       return;
     }
-
-    if (scope == EquipmentScope.organization && !widget.canManageEquipment) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Sul puudub õigus ühingu varustust muuta.'),
-        ),
-      );
-      return;
-    }
-
-    final nameController = TextEditingController();
-    final locationController = TextEditingController();
-    final nextMaintenanceDateController = TextEditingController();
-    final noteController = TextEditingController();
-    var selectedCategory = _view == 'technique'
-        ? EquipmentCategory.vessel
-        : EquipmentCategory.other;
-    var selectedStatus = EquipmentStatus.ok;
-    String? nameError;
-
-    final shouldCreate = await showDialog<bool>(
+    final saved = await showDialog<bool>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            title: Text(
-              scope == EquipmentScope.personal
-                  ? 'Lisa minu varustus'
-                  : 'Lisa ühingu varustus',
-            ),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: nameController,
-                    onChanged: (value) {
-                      if (nameError != null && value.trim().isNotEmpty) {
-                        setDialogState(() => nameError = null);
-                      }
-                    },
-                    decoration: InputDecoration(
-                      labelText: 'Varustuse nimi',
-                      errorText: nameError,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedCategory,
-                    decoration: const InputDecoration(labelText: 'Kategooria'),
-                    items: EquipmentCategory.values.map((category) {
-                      return DropdownMenuItem<String>(
-                        value: category,
-                        child: Text(_equipmentCategoryLabel(category)),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value == null) return;
-                      setDialogState(() => selectedCategory = value);
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedStatus,
-                    decoration: const InputDecoration(labelText: 'Staatus'),
-                    items: EquipmentStatus.values.map((status) {
-                      return DropdownMenuItem<String>(
-                        value: status,
-                        child: Text(_equipmentStatusLabel(status)),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value == null) return;
-                      setDialogState(() => selectedStatus = value);
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: locationController,
-                    decoration: const InputDecoration(labelText: 'Asukoht'),
-                  ),
-                  const SizedBox(height: 8),
-                  AppDateTextField(
-                    controller: nextMaintenanceDateController,
-                    label: 'Järgmine hooldus või kontroll',
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: noteController,
-                    decoration: const InputDecoration(labelText: 'Märkus'),
-                    maxLines: 2,
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Katkesta'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  if (nameController.text.trim().isEmpty) {
-                    setDialogState(() {
-                      nameError = 'Varustuse nimi on kohustuslik.';
-                    });
-                    return;
-                  }
-                  Navigator.pop(context, true);
-                },
-                child: const Text('Lisa'),
-              ),
-            ],
-          );
-        },
+      barrierDismissible: false,
+      builder: (_) => EquipmentEditor(
+        initialCategory: _view == 'technique'
+            ? EquipmentCategory.vessel
+            : EquipmentCategory.other,
+        save: (draft) => _equipmentService.addEquipment(
+          organizationId: widget.organizationId,
+          scope: scope,
+          ownerUserId: scope == EquipmentScope.personal
+              ? widget.currentUid
+              : '',
+          storage: scope == EquipmentScope.organization && _view == 'warehouse'
+              ? 'warehouse'
+              : 'shared',
+          name: draft.name,
+          category: draft.category,
+          status: draft.status,
+          location: draft.location,
+          nextMaintenanceDate: draft.nextMaintenanceDate,
+          note: draft.note,
+          createdBy: widget.currentUid,
+          canManageOrganizationEquipment: widget.canManageEquipment,
+        ),
       ),
     );
-
-    if (shouldCreate != true) return;
-
-    final organizationId = widget.organizationId.trim();
-    final currentUid = widget.currentUid.trim();
-    final name = nameController.text.trim();
-    final location = locationController.text.trim();
-    final nextMaintenanceDate = nextMaintenanceDateController.text.trim();
-    final note = noteController.text.trim();
-
-    try {
-      await _equipmentService.addEquipment(
-        organizationId: organizationId,
-        scope: scope,
-        storage: scope == EquipmentScope.organization && _view == 'warehouse'
-            ? 'warehouse'
-            : 'shared',
-        ownerUserId: scope == EquipmentScope.personal ? currentUid : '',
-        name: name,
-        category: selectedCategory,
-        status: selectedStatus,
-        location: location,
-        nextMaintenanceDate: nextMaintenanceDate,
-        note: note,
-        createdBy: currentUid,
-        canManageOrganizationEquipment: widget.canManageEquipment,
-      );
-      if (scope == EquipmentScope.organization) {
-        await _checkMaintenanceDueNotifications();
-      }
-
-      if (!mounted) return;
+    if (saved == true && mounted) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Varustus salvestatud')));
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Varustuse lisamine ebaõnnestus.')),
-      );
     }
   }
 
   Future<void> _showEditEquipmentDialog(EquipmentModel item) async {
-    if (widget.organizationId.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Varustust ei saa salvestada ilma aktiivse ühinguta.'),
-        ),
-      );
+    if (widget.organizationId.trim().isEmpty || !_canEditEquipment(item)) {
       return;
     }
-
-    if (!_canEditEquipment(item)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_equipmentPermissionMessage(item))),
-      );
-      return;
-    }
-
-    final nameController = TextEditingController(text: item.name);
-    final locationController = TextEditingController(text: item.location);
-    final nextMaintenanceDateController = TextEditingController(
-      text: item.nextMaintenanceDate,
-    );
-    final noteController = TextEditingController(text: item.note);
-    var selectedCategory = item.category;
-    var selectedStatus = EquipmentStatus.values.contains(item.status)
-        ? item.status
-        : EquipmentStatus.ok;
-    String? nameError;
-
-    final shouldUpdate = await showDialog<bool>(
+    final saved = await showDialog<bool>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            title: const Text('Muuda varustust'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: nameController,
-                    onChanged: (value) {
-                      if (nameError != null && value.trim().isNotEmpty) {
-                        setDialogState(() => nameError = null);
-                      }
-                    },
-                    decoration: InputDecoration(
-                      labelText: 'Varustuse nimi',
-                      errorText: nameError,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedCategory,
-                    decoration: const InputDecoration(labelText: 'Kategooria'),
-                    items: EquipmentCategory.values.map((category) {
-                      return DropdownMenuItem<String>(
-                        value: category,
-                        child: Text(_equipmentCategoryLabel(category)),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value == null) return;
-                      setDialogState(() => selectedCategory = value);
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedStatus,
-                    decoration: const InputDecoration(labelText: 'Staatus'),
-                    items: EquipmentStatus.values.map((status) {
-                      return DropdownMenuItem<String>(
-                        value: status,
-                        child: Text(_equipmentStatusLabel(status)),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value == null) return;
-                      setDialogState(() => selectedStatus = value);
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: locationController,
-                    decoration: const InputDecoration(labelText: 'Asukoht'),
-                  ),
-                  const SizedBox(height: 8),
-                  AppDateTextField(
-                    controller: nextMaintenanceDateController,
-                    label: 'Järgmine hooldus või kontroll',
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: noteController,
-                    decoration: const InputDecoration(labelText: 'Märkus'),
-                    maxLines: 2,
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Katkesta'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  if (nameController.text.trim().isEmpty) {
-                    setDialogState(() {
-                      nameError = 'Varustuse nimi on kohustuslik.';
-                    });
-                    return;
-                  }
-                  Navigator.pop(context, true);
-                },
-                child: const Text('Salvesta'),
-              ),
-            ],
-          );
-        },
+      barrierDismissible: false,
+      builder: (_) => EquipmentEditor(
+        existing: item,
+        save: (draft) => _equipmentService.updateEquipmentDetails(
+          equipmentId: item.id,
+          organizationId: widget.organizationId,
+          name: draft.name,
+          category: draft.category,
+          location: draft.location,
+          nextMaintenanceDate: draft.nextMaintenanceDate,
+        ),
       ),
     );
-
-    if (shouldUpdate != true) return;
-
-    final organizationId = widget.organizationId.trim();
-    final currentUid = widget.currentUid.trim();
-    final name = nameController.text.trim();
-    final location = locationController.text.trim();
-    final nextMaintenanceDate = nextMaintenanceDateController.text.trim();
-    final note = noteController.text.trim();
-
-    try {
-      await _equipmentService.updateEquipment(
-        equipmentId: item.id,
-        organizationId: organizationId,
-        name: name,
-        category: selectedCategory,
-        status: selectedStatus,
-        location: location,
-        nextMaintenanceDate: nextMaintenanceDate,
-        note: note,
-        updatedBy: currentUid,
-        canManageOrganizationEquipment: widget.canManageEquipment,
-      );
-      if (item.scope == EquipmentScope.organization) {
-        await _checkMaintenanceDueNotifications();
-      }
-
-      if (!mounted) return;
+    if (saved == true && mounted) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Varustus salvestatud')));
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Varustuse uuendamine ebaõnnestus.')),
-      );
     }
   }
 
@@ -466,6 +201,8 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
           return AlertDialog(
             title: const Text('Väljasta liikmele'),
             content: DropdownButtonFormField<_EquipmentMemberOption>(
+              isExpanded: true,
+              itemHeight: null,
               initialValue: selectedMember,
               decoration: const InputDecoration(labelText: 'Liige'),
               items: members.map((member) {
@@ -675,6 +412,7 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
                   SizedBox(
                     width: 260,
                     child: DropdownButtonFormField<String>(
+                      itemHeight: null,
                       key: ValueKey('category-$_view-$_category'),
                       initialValue: _category ?? '',
                       isExpanded: true,
@@ -1004,13 +742,6 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
 
   bool _canManageOrganizationAssignment(EquipmentModel item) {
     return widget.canManageEquipment && !item.isPersonal;
-  }
-
-  String _equipmentPermissionMessage(EquipmentModel item) {
-    if (!item.isPersonal) {
-      return 'Sul puudub õigus ühingu varustust muuta.';
-    }
-    return 'Sul puudub õigus seda varustust muuta.';
   }
 
   String _equipmentStatusLabel(String status) => EquipmentStatus.label(status);

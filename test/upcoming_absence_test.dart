@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:respondcrew_app/models/upcoming_absence.dart';
+import 'package:respondcrew_app/models/activity_schedule.dart';
 import 'package:respondcrew_app/models/planned_unavailability_model.dart';
 import 'package:respondcrew_app/models/planned_unavailability_rule_model.dart';
 import 'package:respondcrew_app/widgets/home_absence_preview.dart';
@@ -60,13 +61,13 @@ void main() {
     () {
       final values = upcomingAbsences(
         userId: 'me',
-        now: DateTime(2026, 9, 28, 9),
+        now: ActivitySchedule.parse('2026-09-28 09:00')!,
         rules: [rule()],
-        periods: [period(DateTime(2026, 9, 28, 10))],
+        periods: [period(ActivitySchedule.parse('2026-09-28 10:00')!)],
       );
       expect(values.length, 2);
-      expect(values[0].start, DateTime(2026, 9, 28, 10));
-      expect(values[1].start, DateTime(2026, 10, 5, 10));
+      expect(values[0].start, ActivitySchedule.parse('2026-09-28 10:00'));
+      expect(values[1].start, ActivitySchedule.parse('2026-10-05 10:00'));
       expect(values[1].recurring, isTrue);
     },
   );

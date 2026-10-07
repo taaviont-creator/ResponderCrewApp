@@ -133,6 +133,7 @@ class _ActivityEditorState extends State<ActivityEditor> {
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
+                    itemHeight: null,
                     initialValue: _type,
                     isExpanded: true,
                     decoration: const InputDecoration(labelText: 'Tüüp'),
