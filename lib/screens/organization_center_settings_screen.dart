@@ -72,18 +72,9 @@ class _OrganizationCenterSettingsScreenState
                     embedded: true,
                     onSaved: _refresh,
                   ),
-                  ExpansionTile(
-                    title: const Text('Aluste registriandmed'),
-                    subtitle: const Text(
-                      'Vajadusel täienda juba valitud aluste andmeid',
-                    ),
-                    children: [
-                      CenterResourcesScreen(
-                        organizationId: widget.organizationId,
-                        embedded: true,
-                        onSaved: _refresh,
-                      ),
-                    ],
+                  CenterVesselRegistrySection(
+                    organizationId: widget.organizationId,
+                    onSaved: _refresh,
                   ),
                   _heading('3. Nähtavus keskustele'),
                   CenterSharingScreen(
@@ -127,5 +118,33 @@ class _OrganizationCenterSettingsScreenState
         ),
       ],
     ),
+  );
+}
+
+/// Keeps the disclosure state separate from the surrounding list's scroll offset.
+class CenterVesselRegistrySection extends StatelessWidget {
+  const CenterVesselRegistrySection({
+    super.key,
+    required this.organizationId,
+    this.onSaved,
+    this.service,
+  });
+  final String organizationId;
+  final VoidCallback? onSaved;
+  final CenterResourcesService? service;
+
+  @override
+  Widget build(BuildContext context) => ExpansionTile(
+    key: PageStorageKey('center-vessel-registry-$organizationId'),
+    title: const Text('Aluste registriandmed'),
+    subtitle: const Text('Vajadusel täienda juba valitud aluste andmeid'),
+    children: [
+      CenterResourcesScreen(
+        organizationId: organizationId,
+        embedded: true,
+        onSaved: onSaved,
+        service: service,
+      ),
+    ],
   );
 }
