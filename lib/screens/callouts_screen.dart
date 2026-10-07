@@ -1,5 +1,6 @@
 import '../widgets/app_layout.dart';
 import '../widgets/callout_link_opener.dart';
+import '../widgets/callout_list_view.dart';
 import 'package:flutter/material.dart';
 
 import '../models/callout_model.dart';
@@ -40,7 +41,6 @@ class CalloutsScreen extends StatefulWidget {
 
 class _CalloutsScreenState extends State<CalloutsScreen> {
   final _calloutService = CalloutService();
-  bool _showTests = false;
   late var _stream = _calloutService.streamOrganizationCallouts(
     organizationId: widget.organizationId,
   );
@@ -61,7 +61,6 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
       _stream = _calloutService.streamOrganizationCallouts(
         organizationId: widget.organizationId,
       );
-      _showTests = false;
     }
   }
 
@@ -83,6 +82,7 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
         onSave: (draft) async {
           createdId = await _calloutService.addCallout(
             organizationId: widget.organizationId,
+            isTest: draft.isTest,
             title: draft.title,
             description: draft.description,
             location: draft.location,
@@ -185,84 +185,17 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
               );
             }
 
-            final callouts = (snapshot.data ?? const <CalloutModel>[]).where(
-              (c) => _showTests || !c.isTest,
-            );
-            final activeCallouts = callouts
-                .where((callout) => callout.status == CalloutStatus.active)
-                .toList(growable: false);
-            final pastCallouts = callouts
-                .where((callout) => callout.status != CalloutStatus.active)
-                .toList(growable: false);
-
-            return ListView(
-              padding: const EdgeInsets.fromLTRB(
-                AppTheme.screenPadding,
-                AppTheme.screenPadding,
-                AppTheme.screenPadding,
-                96,
+            return CalloutListView(
+              key: ValueKey(widget.organizationId),
+              callouts: snapshot.data ?? const <CalloutModel>[],
+              itemBuilder: (callout) => _CalloutCard(
+                callout: callout,
+                organizationId: widget.organizationId,
+                currentUid: widget.currentUid,
+                calloutService: _calloutService,
+                canViewResponseSummary: widget.canManageCallouts,
+                onTap: () => _openCallout(callout),
               ),
-              children: [
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Näita test-/proovisündmusi'),
-                  value: _showTests,
-                  onChanged: (value) => setState(() => _showTests = value),
-                ),
-                _SectionHeading(
-                  title: 'Aktiivsed väljakutsed',
-                  count: activeCallouts.length,
-                ),
-                const SizedBox(height: AppTheme.itemSpacing),
-                if (activeCallouts.isEmpty)
-                  const _SectionEmptyState(
-                    icon: Icons.notifications_none,
-                    text: 'Aktiivseid väljakutseid ei ole.',
-                  )
-                else
-                  ...activeCallouts.map(
-                    (callout) => Padding(
-                      padding: const EdgeInsets.only(
-                        bottom: AppTheme.itemSpacing,
-                      ),
-                      child: _CalloutCard(
-                        callout: callout,
-                        organizationId: widget.organizationId,
-                        currentUid: widget.currentUid,
-                        calloutService: _calloutService,
-                        canViewResponseSummary: widget.canManageCallouts,
-                        onTap: () => _openCallout(callout),
-                      ),
-                    ),
-                  ),
-                const SizedBox(height: AppTheme.sectionSpacing),
-                _SectionHeading(
-                  title: 'Lõpetatud väljakutsed',
-                  count: pastCallouts.length,
-                ),
-                const SizedBox(height: AppTheme.itemSpacing),
-                if (pastCallouts.isEmpty)
-                  const _SectionEmptyState(
-                    icon: Icons.history,
-                    text: 'Lõpetatud väljakutseid ei ole.',
-                  )
-                else
-                  ...pastCallouts.map(
-                    (callout) => Padding(
-                      padding: const EdgeInsets.only(
-                        bottom: AppTheme.itemSpacing,
-                      ),
-                      child: _CalloutCard(
-                        callout: callout,
-                        organizationId: widget.organizationId,
-                        currentUid: widget.currentUid,
-                        calloutService: _calloutService,
-                        canViewResponseSummary: widget.canManageCallouts,
-                        onTap: () => _openCallout(callout),
-                      ),
-                    ),
-                  ),
-              ],
             );
           },
         ),
@@ -308,6 +241,12 @@ class _CalloutCard extends StatelessWidget {
                 runSpacing: 8,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
+                  if (callout.isTest)
+                    const StatusBadge(
+                      label: 'PROOVIHÄIRE',
+                      type: StatusBadgeType.neutral,
+                      icon: Icons.science_outlined,
+                    ),
                   StatusBadge(
                     label: _priorityLabel(callout.priority),
                     type: _calloutPriorityBadgeType(callout),
@@ -328,7 +267,9 @@ class _CalloutCard extends StatelessWidget {
               ),
               const SizedBox(height: 14),
               Text(
-                '${callout.isTest ? 'TEST · ' : ''}${CalloutType.label(callout.calloutType)} · ${callout.title}',
+                callout.title == CalloutType.label(callout.calloutType)
+                    ? callout.title
+                    : '${CalloutType.label(callout.calloutType)} · ${callout.title}',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               if (callout.location.isNotEmpty) ...[
@@ -501,57 +442,6 @@ class _CalloutCard extends StatelessWidget {
       default:
         return _isActive ? Icons.touch_app_outlined : Icons.info_outline;
     }
-  }
-}
-
-class _SectionHeading extends StatelessWidget {
-  const _SectionHeading({required this.title, required this.count});
-
-  final String title;
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(title, style: Theme.of(context).textTheme.titleLarge),
-        ),
-        Text(
-          '$count',
-          style: Theme.of(
-            context,
-          ).textTheme.labelLarge?.copyWith(color: AppColors.textSecondary),
-        ),
-      ],
-    );
-  }
-}
-
-class _SectionEmptyState extends StatelessWidget {
-  const _SectionEmptyState({required this.icon, required this.text});
-
-  final IconData icon;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return AppSectionCard(
-      child: Row(
-        children: [
-          Icon(icon, color: AppColors.textSecondary),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              text,
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: AppColors.textSecondary),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
 

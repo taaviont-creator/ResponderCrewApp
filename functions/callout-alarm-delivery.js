@@ -29,7 +29,7 @@ function createCalloutAlarmHandler({db, loadMembers, loadTokens, sendAlarm, logg
     }
     let result;
     try {
-      result = await sendAlarm({calloutId, organizationId: org, tokenRecords, calloutType: current.calloutType || 'sar'});
+      result = await sendAlarm({calloutId, organizationId: org, tokenRecords, calloutType: current.calloutType || 'sar', isTest: current.isTest === true});
     } catch (_) {
       await delivery.update({status: 'unknown', updatedAt: now()});
       logger.error('Callout push result unknown; automatic resend suppressed', {calloutId, organizationId: org});

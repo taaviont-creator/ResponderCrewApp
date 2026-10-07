@@ -39,7 +39,7 @@ class _CalloutTestStatusControlState extends State<CalloutTestStatusControl> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Testtunnuse salvestamine ebaõnnestus. Proovi uuesti.',
+              'Proovisündmuse tunnuse salvestamine ebaõnnestus. Proovi uuesti.',
             ),
           ),
         );
@@ -62,9 +62,9 @@ class _CalloutTestStatusControlState extends State<CalloutTestStatusControl> {
       }
       return SwitchListTile(
         contentPadding: EdgeInsets.zero,
-        title: const Text('Test-/proovisündmus'),
+        title: const Text('Proovisündmus'),
         subtitle: const Text(
-          'Jääb auditiks alles; ei lähe ametlikku statistikasse ega liikmete panusesse.',
+          'Ei lähe sündmuste statistikasse ega liikmete panusesse. Tunnuse muutmine ei saada uut häiret.',
         ),
         value: widget.callout.isTest,
         onChanged: _saving ? null : _save,

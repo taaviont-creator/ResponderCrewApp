@@ -483,7 +483,7 @@ class CalloutAlarmNotificationService with WidgetsBindingObserver {
       title: title,
       body: body,
       notificationDetails: details,
-      payload: openEvent == null ? null : jsonEncode({...jsonDecode(openEvent.toPayload()) as Map<String, dynamic>, 'sarAlarm': !tross}),
+      payload: openEvent == null ? null : jsonEncode({...jsonDecode(openEvent.toPayload()) as Map<String, dynamic>, 'sarAlarm': !tross, 'isTest': message.data['isTest'] == 'true'}),
     );
   }
 

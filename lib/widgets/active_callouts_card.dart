@@ -60,7 +60,7 @@ class _ActiveCalloutsCardState extends State<ActiveCalloutsCard> {
       if (!snapshot.hasData) return const LinearProgressIndicator();
       final active = snapshot.data!.where(
         (c) =>
-            c.status == CalloutStatus.active && !c.isTest &&
+            c.status == CalloutStatus.active &&
             (c.organizationId.isNotEmpty ? c.organizationId : c.commandId) ==
                 widget.organizationId,
       );
@@ -77,7 +77,7 @@ class _ActiveCalloutsCardState extends State<ActiveCalloutsCard> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Text(
-                      'AKTIIVNE · ${CalloutType.label(callout.calloutType)}',
+                      '${callout.isTest ? 'PROOVIHÄIRE' : 'AKTIIVNE'} · ${CalloutType.label(callout.calloutType)}',
                       style: Theme.of(context).textTheme.labelLarge?.copyWith(
                         color: AppColors.activeCallout,
                       ),

@@ -1134,11 +1134,12 @@ test('callout policy enforces TROSS target bounds and explicit type independentl
 });
 
 for (const calloutType of ['sar','tross']) {
-test(`quick ${calloutType} creates callout, notification and own log without a location or description`, async () => {
+for (const isTest of [false,true]) {
+test(`quick ${calloutType} ${isTest ? 'drill' : 'real event'} creates callout, notification and own log without a location or description`, async () => {
   const db = testEnv.authenticatedContext(orgAdminId).firestore();
   const id='batch-tross', logId=`callout_${id}_created`;
   const batch=writeBatch(db);
-  batch.set(doc(db,`callouts/${id}`),calloutData(id,{title:calloutType==='sar'?'SAR sündmus':'TROSSI mereabi',calloutType,responseTargetMinutes:calloutType==='tross'?60:null}));
+  batch.set(doc(db,`callouts/${id}`),calloutData(id,{isTest,title:calloutType==='sar'?'SAR sündmus':'TROSSI mereabi',calloutType,responseTargetMinutes:calloutType==='tross'?60:null}));
   batch.set(doc(db,'notifications/batch-tross'),{id:'batch-tross',organizationId,commandId:organizationId,
     title:'Väljakutse: TROSSI mereabi',message:'Tehniline rike.',type:'callout',priority:'high',relatedType:'callout',relatedId:id,
     createdBy:orgAdminId,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
@@ -1152,6 +1153,9 @@ test(`quick ${calloutType} creates callout, notification and own log without a l
   require('node:assert/strict').equal(log.status,'open');
   require('node:assert/strict').equal(log.calloutId,id);
   const stored=(await serverDb().doc(`callouts/${id}`).get()).data();
+  require('node:assert/strict').equal(stored.isTest,isTest);
+  await assertFails(setDoc(doc(testEnv.authenticatedContext(activeMemberId).firestore(),'callouts/member-drill'),
+    calloutData('member-drill',{isTest:true,createdBy:activeMemberId})));
   const {FieldValue}=serverRequire('firebase-admin/firestore');
   const amend=serverRequire('./callout-report').createAmendCalloutHandler({db:serverDb(),timestamp:()=>FieldValue.serverTimestamp()});
   await amend({auth:{uid:orgAdminId},data:{organizationId,calloutId:id,version:stored.updatedAt.toMillis(),
@@ -1160,11 +1164,13 @@ test(`quick ${calloutType} creates callout, notification and own log without a l
   const updated=(await assertSucceeds(getDoc(doc(member,`callouts/${id}`)))).data();
   require('node:assert/strict').equal(updated.description,'Täpsustus pärast alarmeerimist');
   require('node:assert/strict').equal(updated.status,'active');
+  require('node:assert/strict').equal(updated.isTest,isTest);
   require('node:assert/strict').equal((await serverDb().collection(`callouts/${id}/changeHistory`).get()).size,1);
   await assertFails(setDoc(doc(db,'callouts/fake-time'),calloutData('fake-time',{
     calloutType:'tross',responseTargetMinutes:60,createdAt:new Date('2020-01-01')})));
 });
 
+}
 }
 
 test('first availability transaction reads missing own record and writes status with notification', async () => {

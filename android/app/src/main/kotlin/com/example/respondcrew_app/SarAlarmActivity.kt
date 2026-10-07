@@ -36,6 +36,7 @@ class SarAlarmActivity : Activity() {
             window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON)
         }
         val test = payload == "local_callout_alarm_test"
+        val drill = !test && try { JSONObject(payload ?: "").optBoolean("isTest", false) } catch (_: Exception) { false }
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
@@ -44,13 +45,13 @@ class SarAlarmActivity : Activity() {
             setBackgroundColor(android.graphics.Color.WHITE)
         }
         layout.addView(TextView(this).apply {
-            text = if (test) "SAR-proovihäire" else "SAR-väljakutse"
+            text = if (test || drill) "SAR-proovihäire" else "SAR-väljakutse"
             textSize = 30f
             setTextColor(android.graphics.Color.rgb(8, 36, 56))
             gravity = Gravity.CENTER
         })
         layout.addView(TextView(this).apply {
-            text = if (test) "See on ainult selle telefoni proovihäire." else "Uus väljakutse vajab reageerimist."
+            text = if (test) "See on ainult selle telefoni proovihäire." else if (drill) "Ühingu meeskonna harjutus. Tegemist ei ole päris sündmusega." else "Uus väljakutse vajab reageerimist."
             textSize = 18f
             setTextColor(android.graphics.Color.DKGRAY)
             gravity = Gravity.CENTER
