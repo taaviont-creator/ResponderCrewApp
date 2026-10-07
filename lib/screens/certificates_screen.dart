@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../models/certificate_model.dart';
+import '../models/certificate_access.dart';
 import '../services/certificate_service.dart';
 import '../services/membership_service.dart';
 
@@ -32,7 +33,17 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
   final _certificateService = CertificateService();
   final _membershipService = MembershipService();
 
+  CertificateAccess get _access => CertificateAccess(
+    organizationId: widget.organizationId,
+    currentUid: widget.currentUid,
+    targetUid: widget.targetUserId ?? widget.currentUid,
+    organizationAdmin: widget.canManageCertificates,
+  );
+
   Future<void> _showAddCertificateDialog([CertificateModel? existing]) async {
+    if (!_access.canAdd || (existing != null && !_access.canEdit(existing))) {
+      return;
+    }
     if (widget.organizationId.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -42,7 +53,19 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
       return;
     }
 
-    final members = await _loadMemberOptions();
+    List<_MemberOption> members;
+    try {
+      members = await _loadMemberOptions();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Liikme andmeid ei saanud laadida. Proovi uuesti.'),
+          ),
+        );
+      }
+      return;
+    }
     if (!mounted) return;
 
     if (members.isEmpty) {
@@ -78,33 +101,33 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
   }
 
   Future<List<_MemberOption>> _loadMemberOptions() async {
-    final membershipDocs = await _membershipService
-        .loadActiveMembershipsForOrganization(widget.organizationId);
-    final members = <_MemberOption>[];
-
-    for (final membershipDoc in membershipDocs) {
-      final membership = membershipDoc.data();
-      final uid = (membership['userId'] ?? '').toString();
-      if (uid != (widget.targetUserId ?? widget.currentUid)) continue;
-
-      final userSnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .get();
-      final userData = userSnapshot.data() ?? <String, dynamic>{};
-      final name = (userData['name'] ?? '').toString();
-      final email = (userData['email'] ?? '').toString();
-
-      members.add(
-        _MemberOption(
-          uid: uid,
-          name: name.isNotEmpty ? name : (email.isNotEmpty ? email : uid),
-        ),
-      );
+    final uid = widget.targetUserId ?? widget.currentUid;
+    final membership =
+        (await FirebaseFirestore.instance
+                .collection('memberships')
+                .doc('${uid}_${widget.organizationId}')
+                .get())
+            .data();
+    if (membership == null ||
+        !_membershipService.isActiveMembership(membership) ||
+        _membershipService.organizationIdFromMembership(membership) !=
+            widget.organizationId) {
+      return [];
     }
+    final userSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .get();
+    final userData = userSnapshot.data() ?? <String, dynamic>{};
+    final name = (userData['name'] ?? '').toString();
+    final email = (userData['email'] ?? '').toString();
 
-    members.sort((a, b) => a.name.compareTo(b.name));
-    return members;
+    return [
+      _MemberOption(
+        uid: uid,
+        name: name.isNotEmpty ? name : (email.isNotEmpty ? email : uid),
+      ),
+    ];
   }
 
   @override
@@ -116,7 +139,7 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
 
     return AppScaffold(
       appBar: AppBar(title: const Text('Tunnistused')),
-      floatingActionButton: widget.canManageCertificates
+      floatingActionButton: _access.canAdd
           ? FloatingActionButton.extended(
               onPressed: () => _showAddCertificateDialog(),
               icon: const Icon(Icons.add),
@@ -190,7 +213,7 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       title: Text(certificate.title),
-      trailing: widget.canManageCertificates
+      trailing: _access.canEdit(certificate)
           ? IconButton(
               tooltip: 'Muuda tunnistust',
               icon: const Icon(Icons.edit_outlined),
