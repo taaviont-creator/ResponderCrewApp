@@ -1,6 +1,9 @@
 package com.example.respondcrew_app
 
 import android.app.NotificationManager
+import android.app.AlarmManager
+import android.os.PowerManager
+import ee.respondcrew.alarm.SarAlarmEngine
 import android.content.Context
 import android.content.Intent
 import android.media.AudioManager
@@ -36,7 +39,15 @@ object AlarmDeviceSettings {
         // A muted channel may have null audio attributes. Still report the
         // alarm stream used by SAR v3, never the unrelated ringtone volume.
         val stream = AudioManager.STREAM_ALARM
+        val alarm = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val power = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+        val runtime = context.getSharedPreferences("sar_alarm_runtime", 0)
         return mapOf(
+            "exactAlarmAllowed" to (Build.VERSION.SDK_INT < 31 || alarm.canScheduleExactAlarms()),
+            "batteryUnrestricted" to power.isIgnoringBatteryOptimizations(context.packageName),
+            "alarmsAllowedByDnd" to SarAlarmEngine.alarmsAllowed(context),
+            "lastAlarmState" to runtime.getString("lastState", null),
+            "lastAlarmAt" to runtime.getLong("lastAt", 0),
             "notificationsEnabled" to (if (Build.VERSION.SDK_INT >= 24) manager.areNotificationsEnabled() else true),
             "channelExists" to (channel != null),
             "channelEnabled" to channel?.let { it.importance > NotificationManager.IMPORTANCE_NONE },
@@ -65,6 +76,13 @@ object AlarmDeviceSettings {
                 .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
                 .putExtra(Settings.EXTRA_CHANNEL_ID, SAR_CHANNEL) else notifications
         return when (method) {
+            "openExactAlarmSettings" -> if (Build.VERSION.SDK_INT >= 31) listOf(
+                "exactAlarm" to Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:${context.packageName}")),
+                "appDetails" to details
+            ) else listOf("appDetails" to details)
+            "openBatterySettings" -> listOf("batteryList" to Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS), "appDetails" to details)
+            "openAppDetails" -> listOf("appDetails" to details)
+            "openDndAlarmSettings" -> listOf("dndRules" to Intent("android.settings.ZEN_MODE_SETTINGS"), "sound" to Intent(Settings.ACTION_SOUND_SETTINGS))
             "openAppNotifications" -> listOf("appNotifications" to notifications, "appDetails" to details)
             "openSarChannel" -> listOf("sarChannel" to channel, "appNotifications" to notifications, "appDetails" to details)
             "openDndSettings" -> if (Build.VERSION.SDK_INT >= 23) listOf(
