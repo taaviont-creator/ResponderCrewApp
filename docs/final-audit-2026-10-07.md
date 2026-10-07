@@ -67,7 +67,8 @@ Osaleja märkuse erand ei anna tavaliikmele sündmuse üldandmete ega ajaloo muu
 - Repositooriumi Firestore/Storage/serveritöövood: **153 testi läbis**.
 - Praegu avaldatud reeglite emulaatorikatse: **143 testi läbis**. 10 mitteavaldatud `dispatch` katset jäeti selles eraldi kontrollis teadlikult välja; need sisalduvad täielikus 153-testises repositooriumi testis. Esimene filtrikatse kaasas ekslikult ka dispatch-testid ja andis ühe oodatud ligipääsuvea; lõplik jooks kasutab selget `--test-skip-pattern=^dispatch ` valikut.
 - Varustuse ja statistika tegelikud Flutteri vaated renderdatud telefoni/arvuti mõõtudes ja visuaalselt üle vaadatud; need kasutavad kontrollitud testandmeid, mitte kõiki tootmise dokumente.
-- Veebikoostu, avaldamise ja GitHubi CI tulemus lisatakse eraldi; kohalik test ei ole pilve avaldamise tõend.
+- Release-veebikoost läbis koos Material/Cupertino fontidega. Avaldatud nii [püsivasse katseveebi](https://respondcrew-katse.web.app) kui olemasolevasse keskused-katse eelvaatekanalisse. Mõlema `index.html`, `main.dart.js` ja `flutter_bootstrap.js` sisu vastavus testitud koostule kontrollitud SHA-256 võrdlusega. Avaldatud sisselogimisvaade avatud ja visuaalselt kontrollitud brauseris.
+- GitHubi viimase commit'i kontrollid on nähtavad [PR #59](https://github.com/taaviont-creator/ResponderCrewApp/pull/59) juures. Raporti koostamise ajal uue auditi CI veel töötas; Functions-kontroll oli edukas. Varasema baasi viis kontrolli olid rohelised. Kohalikku kontrolli ega eelmise commit'i CI-d ei esitata viimase CI tulemusena.
 
 Tõendilogid asuvad kohalikus ignoreeritud `.local-cache/final-*` failides. Neid ei lisata reposse, sest osa sisaldab taristu metaandmeid ja pikki emulaatori keelatud päringute väljundeid. `PERMISSION_DENIED` on negatiivsetes turvatestides oodatud tulemus; määrav on testi läbimise tulemus.
 
