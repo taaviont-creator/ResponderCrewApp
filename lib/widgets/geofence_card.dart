@@ -379,7 +379,7 @@ class _GeofenceCardState extends State<GeofenceCard>
                   },
                 ),
                 const Text(
-                  'Näiteks 3 ja 8 km: kuni 3 km valves, 3–8 km hilinemisega, üle 8 km mitte valves. Valvesse tagasi märkimine vajab kinnitust. Esimene raadius vähemalt 0,3 km, teine vähemalt 0,3 km kaugemal ja kuni 50 km. Vahemaa ei arvuta sõiduaega. Muutmine peatab senised automaatikaseansid.',
+                  'Vali kaugused ühingu reageerimisaja ja kohalike teeolude järgi. Näiteks 20 ja 30 km: kuni 20 km valves, 20–30 km hilinemisega, üle 30 km mitte valves. Raadius on kaugus baasist linnulennul, mitte sõiduaeg. Tagasi valvesse märkimine vajab kinnitust. Raadiuste muutmise järel tuleb automaatika uuesti sisse lülitada.',
                 ),
                 if (validation != null)
                   Text(
@@ -409,7 +409,7 @@ class _GeofenceCardState extends State<GeofenceCard>
                     b > 50) {
                   set(
                     () => validation =
-                        'Kontrolli raadiusi: jäta piiride vahele vähemalt 0,3 km.',
+                        'Kontrolli kaugusi. Hilinemisega valve raadius peab olema valvesoleku raadiusest suurem ja kuni 50 km. Väldi liiga väikseid või peaaegu võrdseid raadiusi.',
                   );
                   return;
                 }
