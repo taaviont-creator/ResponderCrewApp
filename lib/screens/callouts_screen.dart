@@ -75,28 +75,52 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
       return;
     }
 
+    String? createdId;
     final saved = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (context) => CreateCalloutDialog(
-        onSave: (draft) => _calloutService.addCallout(
-          organizationId: widget.organizationId,
-          title: draft.title,
-          description: draft.description,
-          location: draft.location,
-          priority: draft.priority,
-          calloutType: draft.type,
-          phoneCenterId: draft.phoneCenterId,
-          responseTargetMinutes: draft.responseTargetMinutes,
-          createdBy: widget.currentUid,
-          createdByName: widget.currentUserName,
-        ),
+        onSave: (draft) async {
+          createdId = await _calloutService.addCallout(
+            organizationId: widget.organizationId,
+            title: draft.title,
+            description: draft.description,
+            location: draft.location,
+            priority: draft.priority,
+            calloutType: draft.type,
+            phoneCenterId: draft.phoneCenterId,
+            responseTargetMinutes: draft.responseTargetMinutes,
+            createdBy: widget.currentUid,
+            createdByName: widget.currentUserName,
+          );
+        },
       ),
     );
     if (saved == true && mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Väljakutse aktiveeritud')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Väljakutse loodud. Meeskonna teavitamine käivitati.'),
+        ),
+      );
+      if (createdId != null) {
+        try {
+          final callout = await _calloutService.getCallout(
+            organizationId: widget.organizationId,
+            calloutId: createdId!,
+          );
+          if (mounted && callout != null) _openCallout(callout);
+        } catch (_) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Väljakutse on loodud. Ava see aktiivsete väljakutsete nimekirjast.',
+                ),
+              ),
+            );
+          }
+        }
+      }
     }
   }
 
@@ -139,7 +163,7 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
             ? FloatingActionButton.extended(
                 onPressed: _showAddCalloutDialog,
                 icon: const Icon(Icons.add),
-                label: const Text('Uus väljakutse'),
+                label: const Text('Loo väljakutse'),
               )
             : null,
         body: StreamBuilder<List<CalloutModel>>(

@@ -60,6 +60,7 @@ void main() {
         await tester.pumpWidget(
           MaterialApp(
             home: AppContextScreen(
+              centersEnabled: true,
               userId: 'user',
               path: path,
               access: access,
@@ -129,6 +130,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: AppContextScreen(
+            centersEnabled: true,
             userId: 'user',
             path: '/uhingud',
             navigate: (_) {},
@@ -198,6 +200,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: AppContextScreen(
+            centersEnabled: true,
             userId: 'user',
             path: '/',
             navigate: (_) {},
@@ -246,6 +249,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: AppContextScreen(
+            centersEnabled: true,
             userId: 'user',
             path: '/',
             navigate: (_) {},

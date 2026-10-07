@@ -1,3 +1,4 @@
+import '../config/release_features.dart';
 import '../widgets/app_layout.dart';
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -12,6 +13,7 @@ class PlatformManagementScreen extends StatefulWidget {
   const PlatformManagementScreen({
     super.key,
     this.call,
+    this.centersEnabled = ReleaseFeatures.centers,
     this.pendingUpdates,
     this.notices,
   });
@@ -19,6 +21,7 @@ class PlatformManagementScreen extends StatefulWidget {
   call;
   final Stream<Object?>? pendingUpdates;
   final Widget? notices;
+  final bool centersEnabled;
   @override
   State<PlatformManagementScreen> createState() =>
       _PlatformManagementScreenState();
@@ -53,6 +56,10 @@ class _PlatformManagementScreenState extends State<PlatformManagementScreen> {
   }
 
   void _open(String section) {
+    if (!widget.centersEnabled &&
+        ['centers', 'centerAccounts'].contains(section)) {
+      return;
+    }
     setState(() {
       _section = section;
       _query = '';
@@ -403,7 +410,7 @@ class _PlatformManagementScreenState extends State<PlatformManagementScreen> {
                 ),
               ),
           ],
-        if (pendingOnly) ...[
+        if (pendingOnly && widget.centersEnabled) ...[
           const Divider(),
           Text(
             'Kaardile lisamise taotlused',
@@ -473,19 +480,20 @@ class _PlatformManagementScreenState extends State<PlatformManagementScreen> {
                       'E-post kinnitatud: ${account['emailVerified'] == true ? 'jah' : 'ei'}\nKonto peatatud: ${account['disabled'] == true ? 'jah' : 'ei'}\nViimane sisselogimine: ${account['lastSignInTime']}',
                     ),
                     SelectableText('ID: ${account['uid']}'),
-                    OutlinedButton.icon(
-                      icon: const Icon(Icons.map_outlined),
-                      label: const Text('Keskuste ligipääs'),
-                      onPressed: _saving
-                          ? null
-                          : () => showDialog<void>(
-                              context: context,
-                              builder: (_) => CenterAccessDialog(
-                                userId: account['uid'] as String,
-                                name: account['email'] as String,
+                    if (widget.centersEnabled)
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.map_outlined),
+                        label: const Text('Keskuste ligipääs'),
+                        onPressed: _saving
+                            ? null
+                            : () => showDialog<void>(
+                                context: context,
+                                builder: (_) => CenterAccessDialog(
+                                  userId: account['uid'] as String,
+                                  name: account['email'] as String,
+                                ),
                               ),
-                            ),
-                    ),
+                      ),
                     OutlinedButton(
                       onPressed: _saving ? null : () => _revoke(account),
                       child: const Text('Tühista sisselogimisseansid'),
@@ -557,14 +565,17 @@ class _PlatformManagementScreenState extends State<PlatformManagementScreen> {
           'requests',
           Icons.inbox_outlined,
           'Taotlused',
-          '$pending uut ühingut · kaardile lisamise taotlused',
+          widget.centersEnabled
+              ? '$pending uut ühingut · kaardile lisamise taotlused'
+              : '$pending uut ühingut',
         ),
-        _tile(
-          'centers',
-          Icons.map_outlined,
-          'Kaardikeskused',
-          'Ühingute nähtavus ja keskuste kasutajaõigused',
-        ),
+        if (widget.centersEnabled)
+          _tile(
+            'centers',
+            Icons.map_outlined,
+            'Kaardikeskused',
+            'Ühingute nähtavus ja keskuste kasutajaõigused',
+          ),
         _tile(
           'organizations',
           Icons.apartment_outlined,

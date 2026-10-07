@@ -1,3 +1,4 @@
+import '../config/release_features.dart';
 import '../navigation/navigation_protection.dart';
 import 'notification_settings_screen.dart';
 import '../widgets/app_layout.dart';
@@ -1304,22 +1305,25 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         if (permissions.canManageOrganizationSettings && hasOrganization) ...[
           GeofenceCard(organizationId: organizationId, admin: true),
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.map_outlined),
-              title: const Text('Keskuste kaart'),
-              subtitle: const Text('Asukoht, teenused ja nähtavus keskustele'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => _pushPage(
-                context,
-                MaterialPageRoute<void>(
-                  builder: (_) => OrganizationCenterSettingsScreen(
-                    organizationId: organizationId,
+          if (ReleaseFeatures.centers)
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.map_outlined),
+                title: const Text('Keskuste kaart'),
+                subtitle: const Text(
+                  'Asukoht, teenused ja nähtavus keskustele',
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => _pushPage(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (_) => OrganizationCenterSettingsScreen(
+                      organizationId: organizationId,
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
           SettingsGroup(
             title: 'Liikmed ja õigused',
             icon: Icons.manage_accounts_outlined,

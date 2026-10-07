@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:respondcrew_app/models/callout_model.dart';
@@ -18,8 +19,67 @@ void main() {
     expect(CalloutType.validTarget('sar', 15), isFalse);
     expect(CalloutType.validTarget('unknown', null), isFalse);
   });
+  for (final type in CalloutType.values) {
+    testWidgets(
+      '$type alarms with only a type selection; no text or location required',
+      (tester) async {
+        tester.view.physicalSize = const Size(390, 844);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        final pending = Completer<void>();
+        CalloutDraft? saved;
+        var calls = 0;
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.light,
+            home: Scaffold(
+              body: CreateCalloutDialog(
+                onSave: (draft) {
+                  saved = draft;
+                  calls++;
+                  return pending.future;
+                },
+              ),
+            ),
+          ),
+        );
+        expect(
+          tester
+              .widget<FilledButton>(
+                find.widgetWithText(FilledButton, 'Alarmeeri meeskond'),
+              )
+              .onPressed,
+          isNull,
+        );
+        expect(find.byType(TextField), findsNothing);
+        await tester.tap(find.text(CalloutType.label(type)));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Alarmeeri meeskond'));
+        await tester.pump();
+        expect(saved!.type, type);
+        expect(saved!.title, CalloutType.label(type));
+        expect(saved!.description, '');
+        expect(saved!.location, '');
+        expect(
+          saved!.responseTargetMinutes,
+          type == CalloutType.tross ? 60 : null,
+        );
+        expect(saved!.phoneCenterId, isNull);
+        expect(
+          tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+          isNull,
+        );
+        expect(calls, 1);
+        pending.completeError(StateError('offline'));
+        await tester.pumpAndSettle();
+        expect(find.textContaining('Sisestatud info säilib'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
   testWidgets(
-    'type switch and chips preserve manual text; failed save retains form',
+    'optional details and chips survive type changes and a failed send',
     (tester) async {
       tester.view.physicalSize = const Size(800, 1400);
       tester.view.devicePixelRatio = 1;
@@ -28,23 +88,26 @@ void main() {
       CalloutDraft? saved;
       await tester.pumpWidget(
         MaterialApp(
-          theme: AppTheme.maritime,
           home: Scaffold(
             body: CreateCalloutDialog(
-              onSave: (draft) async {
-                saved = draft;
-                throw Exception('offline');
+              onSave: (d) async {
+                saved = d;
+                throw StateError('offline');
               },
             ),
           ),
         ),
       );
+      await tester.tap(find.text('SAR sündmus'));
+      await tester.pump();
+      await tester.tap(find.text('Lisa teadaolev info (valikuline)'));
+      await tester.pumpAndSettle();
       await tester.enterText(
-        find.widgetWithText(TextFormField, 'SAR sündmus'),
+        find.widgetWithText(TextField, 'Pealkiri (valikuline)'),
         'Minu sündmus',
       );
       await tester.enterText(
-        find.widgetWithText(TextFormField, 'Kirjeldus ja lisainfo'),
+        find.widgetWithText(TextField, 'Kirjeldus ja lisainfo'),
         'Oma info',
       );
       await tester.tap(find.text('Inimene vees.'));
@@ -53,18 +116,11 @@ void main() {
       await tester.pump();
       await tester.tap(find.text('Mootoririke.'));
       await tester.pump();
-      await tester.tap(find.text('SAR sündmus'));
-      await tester.pump();
-      await tester.tap(find.text('TROSSI mereabi'));
-      await tester.pump();
-      await tester.ensureVisible(find.text('Aktiveeri väljakutse'));
-      await tester.tap(find.text('Aktiveeri väljakutse'));
+      await tester.tap(find.text('Alarmeeri meeskond'));
       await tester.pumpAndSettle();
-      expect(saved!.type, 'tross');
-      expect(saved!.title, 'Minu sündmus');
       expect(saved!.description, 'Oma info\nInimene vees.\nMootoririke.');
-      expect(saved!.responseTargetMinutes, 60);
-      expect(find.textContaining('Sisestatud tekst säilib'), findsOneWidget);
+      expect(saved!.title, 'Minu sündmus');
+      expect(saved!.type, 'tross');
       expect(find.text('Minu sündmus'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },

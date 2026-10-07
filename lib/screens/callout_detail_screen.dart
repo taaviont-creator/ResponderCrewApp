@@ -274,6 +274,19 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
             ),
           const SizedBox(height: AppTheme.itemSpacing),
           _buildDescriptionCard(),
+          if (widget.canManageCallouts && _callout.dispatch == null)
+            OutlinedButton.icon(
+              icon: const Icon(Icons.edit_outlined),
+              label: const Text('Täienda sündmuse andmeid'),
+              onPressed: () => showDialog<void>(
+                context: context,
+                builder: (_) => CalloutEditDialog(
+                  callout: _callout,
+                  organizationId: widget.organizationId,
+                ),
+              ),
+            ),
+
           const SizedBox(height: AppTheme.itemSpacing),
           if (_callout.status == CalloutStatus.closed)
             const AppSectionCard(
@@ -301,18 +314,6 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
               callout: _callout,
               organizationId: widget.organizationId,
               userId: widget.currentUid,
-            ),
-          if (widget.canManageCallouts && _callout.dispatch == null)
-            OutlinedButton.icon(
-              icon: const Icon(Icons.edit_outlined),
-              label: const Text('Täienda sündmuse andmeid'),
-              onPressed: () => showDialog<void>(
-                context: context,
-                builder: (_) => CalloutEditDialog(
-                  callout: _callout,
-                  organizationId: widget.organizationId,
-                ),
-              ),
             ),
           const SizedBox(height: AppTheme.itemSpacing),
           if (widget.canManageCallouts) ...[

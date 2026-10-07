@@ -337,7 +337,7 @@ class CalloutService {
     });
   }
 
-  Future<void> addCallout({
+  Future<String> addCallout({
     String? phoneCenterId,
     String calloutType = CalloutType.sar,
     int? responseTargetMinutes,
@@ -455,6 +455,7 @@ class CalloutService {
     });
 
     await batch.commit();
+    return calloutDoc.id;
   }
 
   Future<void> updateCalloutStatus({

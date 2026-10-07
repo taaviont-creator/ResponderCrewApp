@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../config/release_features.dart';
 import '../models/callout_model.dart';
 
 class CalloutDraft {
@@ -24,30 +25,24 @@ class CreateCalloutDialog extends StatefulWidget {
 }
 
 class _CreateCalloutDialogState extends State<CreateCalloutDialog> {
-  final _form = GlobalKey<FormState>();
-  final _title = TextEditingController(text: 'SAR sündmus');
+  final _title = TextEditingController();
   final _description = TextEditingController();
   final _location = TextEditingController();
-  final _target = TextEditingController(text: '60');
-  final _applied = <String>{};
-  String _type = CalloutType.sar;
-  String _priority = CalloutPriority.normal;
-  bool _phone = false;
-  bool _titleEdited = false;
+  String? _type, _error;
   bool _saving = false;
-  String? _error;
+  bool _phone = false;
 
   @override
   void dispose() {
     _title.dispose();
     _description.dispose();
     _location.dispose();
-    _target.dispose();
     super.dispose();
   }
 
   Future<void> _save() async {
-    if (_saving || !_form.currentState!.validate()) return;
+    final type = _type;
+    if (_saving || type == null) return;
     setState(() {
       _saving = true;
       _error = null;
@@ -55,28 +50,28 @@ class _CreateCalloutDialogState extends State<CreateCalloutDialog> {
     try {
       await widget.onSave(
         CalloutDraft(
-          type: _type,
-          phoneCenterId: _phone
-              ? (_type == CalloutType.sar ? 'merevalvekeskus' : 'tross')
+          type: type,
+          phoneCenterId: _phone && ReleaseFeatures.centers
+              ? (type == CalloutType.sar ? 'merevalvekeskus' : 'tross')
               : null,
-          title: _title.text.trim(),
+          title: _title.text.trim().isEmpty
+              ? CalloutType.label(type)
+              : _title.text.trim(),
           description: _description.text.trim(),
           location: _location.text.trim(),
-          priority: _priority,
-          responseTargetMinutes: _type == CalloutType.tross
-              ? int.parse(_target.text.trim())
-              : null,
+          priority: type == CalloutType.sar
+              ? CalloutPriority.high
+              : CalloutPriority.normal,
+          responseTargetMinutes: type == CalloutType.tross ? 60 : null,
         ),
       );
-      if (mounted) {
-        Navigator.pop(context, true);
-      }
+      if (mounted) Navigator.pop(context, true);
     } catch (_) {
       if (mounted) {
         setState(() {
           _saving = false;
           _error =
-              'Väljakutset ei õnnestunud salvestada. Kontrolli ühendust ja proovi uuesti. Sisestatud tekst säilib.';
+              'Väljakutse saatmist ei õnnestunud kinnitada. Kontrolli ühendust ja väljakutsete nimekirja enne uuesti saatmist. Sisestatud info säilib.';
         });
       }
     }
@@ -87,169 +82,101 @@ class _CreateCalloutDialogState extends State<CreateCalloutDialog> {
     canPop: !_saving,
     child: AlertDialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-      title: const Text('Lisa väljakutse'),
+      title: const Text('Loo väljakutse'),
       content: SizedBox(
         width: 480,
         child: SingleChildScrollView(
-          child: Form(
-            key: _form,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                CheckboxListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Keskus andis ülesande telefoni teel'),
-                  subtitle: const Text(
-                    'Keskus saab selle hiljem oma sündmusega siduda ilma uue alarmita.',
-                  ),
-                  value: _phone,
-                  onChanged: _saving
-                      ? null
-                      : (v) => setState(() => _phone = v!),
-                ),
-                const Text('Sündmuse tüüp'),
-                for (final type in CalloutType.values)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: OutlinedButton.icon(
-                      onPressed: _saving
-                          ? null
-                          : () => setState(() {
-                              _type = type;
-                              if (!_titleEdited) {
-                                _title.text = CalloutType.label(type);
-                              }
-                            }),
-                      icon: Icon(
-                        _type == type
-                            ? Icons.radio_button_checked
-                            : Icons.radio_button_off,
-                      ),
-                      label: Text(CalloutType.label(type)),
-                    ),
-                  ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _title,
-                  enabled: !_saving,
-                  onChanged: (_) => _titleEdited = true,
-                  decoration: const InputDecoration(labelText: 'Pealkiri'),
-                  validator: (value) => value == null || value.trim().isEmpty
-                      ? 'Sisesta pealkiri'
-                      : null,
-                ),
-                const SizedBox(height: 16),
-                const Text('Lisa kirjeldusse'),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    for (final choice in CalloutType.choices(_type))
-                      ActionChip(
-                        label: Text(choice, softWrap: true),
-                        materialTapTargetSize: MaterialTapTargetSize.padded,
-                        onPressed: _saving || _applied.contains(choice)
-                            ? null
-                            : () => setState(() {
-                                _applied.add(choice);
-                                if (!_description.text.contains(choice)) {
-                                  final text = _description.text;
-                                  _description.text =
-                                      '$text${text.isEmpty || text.endsWith('\n') || text.endsWith(' ') ? '' : '\n'}$choice';
-                                }
-                              }),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _description,
-                  enabled: !_saving,
-                  minLines: 3,
-                  maxLines: 6,
-                  decoration: const InputDecoration(
-                    labelText: 'Kirjeldus ja lisainfo',
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _location,
-                  enabled: !_saving,
-                  decoration: const InputDecoration(labelText: 'Asukoht'),
-                ),
-                const SizedBox(height: 16),
-                if (_type == CalloutType.tross) ...[
-                  TextFormField(
-                    controller: _target,
-                    enabled: !_saving,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Väljasõidu sihtaeg (min)',
-                      helperText: 'Aktiveerimisest väljasõiduni, 1–60 minutit.',
-                      helperMaxLines: 3,
-                    ),
-                    validator: (value) =>
-                        CalloutType.validTarget(
-                          _type,
-                          int.tryParse(value?.trim() ?? ''),
-                        )
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Vali sündmuse tüüp ja alarmeeri oma ühingu meeskond. Info saad lisada hiljem.',
+              ),
+              for (final type in CalloutType.values)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: OutlinedButton.icon(
+                    onPressed: _saving
                         ? null
-                        : 'Sisesta täisarv 1–60',
+                        : () => setState(() => _type = type),
+                    icon: Icon(
+                      _type == type
+                          ? Icons.radio_button_checked
+                          : Icons.radio_button_off,
+                    ),
+                    label: Text(CalloutType.label(type)),
                   ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'TROSSI saab aktiveerida ka ilma kinnitatud reageerijateta. SAR-i koosseisu- ja astmenõuded aktiveerimist ei piira.',
+                ),
+              const SizedBox(height: 8),
+              ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                title: const Text('Lisa teadaolev info (valikuline)'),
+                children: [
+                  TextField(
+                    controller: _title,
+                    enabled: !_saving,
+                    maxLength: 200,
+                    decoration: const InputDecoration(
+                      labelText: 'Pealkiri (valikuline)',
+                    ),
                   ),
-                  const SizedBox(height: 16),
+                  if (_type != null)
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: [
+                        for (final choice in CalloutType.choices(_type!))
+                          ActionChip(
+                            label: Text(choice),
+                            onPressed: _saving
+                                ? null
+                                : () {
+                                    if (!_description.text.contains(choice)) {
+                                      final before = _description.text;
+                                      _description.text =
+                                          '$before${before.isEmpty ? '' : '\n'}$choice';
+                                    }
+                                  },
+                          ),
+                      ],
+                    ),
+                  TextField(
+                    controller: _description,
+                    enabled: !_saving,
+                    minLines: 2,
+                    maxLines: 5,
+                    maxLength: 6000,
+                    decoration: const InputDecoration(
+                      labelText: 'Kirjeldus ja lisainfo',
+                    ),
+                  ),
+                  TextField(
+                    controller: _location,
+                    enabled: !_saving,
+                    maxLength: 500,
+                    decoration: const InputDecoration(
+                      labelText: 'Asukoht (valikuline)',
+                    ),
+                  ),
+                  if (ReleaseFeatures.centers)
+                    CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Keskuse telefonikõne põhjal'),
+                      value: _phone,
+                      onChanged: _saving
+                          ? null
+                          : (v) => setState(() => _phone = v!),
+                    ),
                 ],
-                DropdownButtonFormField<String>(
-                  initialValue: _priority,
-                  isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'Prioriteet'),
-                  items: const [
-                    DropdownMenuItem(
-                      value: CalloutPriority.low,
-                      child: Text('Madal'),
-                    ),
-                    DropdownMenuItem(
-                      value: CalloutPriority.normal,
-                      child: Text('Tavaline'),
-                    ),
-                    DropdownMenuItem(
-                      value: CalloutPriority.high,
-                      child: Text('Kõrge'),
-                    ),
-                    DropdownMenuItem(
-                      value: CalloutPriority.critical,
-                      child: Text('Kriitiline'),
-                    ),
-                  ],
-                  onChanged: _saving
-                      ? null
-                      : (value) => setState(() => _priority = value!),
+              ),
+              if (_error != null)
+                Text(
+                  _error!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Aktiveerimisel saadetakse liikmetele teavitus. See ei märgi kedagi väljunuks ega pardale.',
-                ),
-                if (_error != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 16),
-                    child: Text(
-                      _error!,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                    ),
-                  ),
-                if (_saving)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 16),
-                    child: Text('Salvestan ja ootan serveri kinnitust…'),
-                  ),
-              ],
-            ),
+              if (_saving) const Text('Saadan väljakutset…'),
+            ],
           ),
         ),
       ),
@@ -258,9 +185,10 @@ class _CreateCalloutDialogState extends State<CreateCalloutDialog> {
           onPressed: _saving ? null : () => Navigator.pop(context, false),
           child: const Text('Katkesta'),
         ),
-        FilledButton(
-          onPressed: _saving ? null : _save,
-          child: Text(_saving ? 'Salvestan…' : 'Aktiveeri väljakutse'),
+        FilledButton.icon(
+          onPressed: _saving || _type == null ? null : _save,
+          icon: const Icon(Icons.campaign),
+          label: Text(_saving ? 'Saadan…' : 'Alarmeeri meeskond'),
         ),
       ],
     ),

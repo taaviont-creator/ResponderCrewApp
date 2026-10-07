@@ -56,6 +56,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: AppContextScreen(
+            centersEnabled: true,
             userId: 'center-only',
             path: '/',
             access: access,
@@ -80,6 +81,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: AppContextScreen(
+          centersEnabled: true,
           userId: 'member',
           path: '/keskus/sar',
           access: access,
@@ -107,6 +109,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: AppContextScreen(
+          centersEnabled: true,
           userId: 'center',
           path: '/keskus/sar',
           access: access,
