@@ -148,14 +148,22 @@ void main() {
           input('Kirjeldus (valikuline)'),
           'Puhastasin teki',
         );
-        await tester.ensureVisible(find.text('Salvesta panus'));
+        await tester.scrollUntilVisible(
+          find.text('Salvesta panus'),
+          180,
+          scrollable: find.byType(Scrollable).first,
+        );
         await tester.tap(find.text('Salvesta panus'));
         await tester.pumpAndSettle();
         expect(writes.single['hours'], 2.5);
         expect(writes.single['memberIds'], ['u']);
         expect(writes.single['description'], 'Puhastasin teki');
         expect(find.byType(CheckboxListTile), findsNothing);
-        await tester.ensureVisible(find.text('Salvesta panus'));
+        await tester.scrollUntilVisible(
+          find.text('Salvesta panus'),
+          180,
+          scrollable: find.byType(Scrollable).first,
+        );
         await tester.tap(find.text('Salvesta panus'));
         await tester.pumpAndSettle();
         expect(writes.length, 2);
@@ -194,7 +202,11 @@ void main() {
     await tester.enterText(input('Mida tegid?'), 'Niitmine');
     await tester.ensureVisible(input('Kulunud tunnid'));
     await tester.enterText(input('Kulunud tunnid'), '1');
-    await tester.ensureVisible(find.text('Salvesta panus'));
+    await tester.scrollUntilVisible(
+      find.text('Salvesta panus'),
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(find.text('Salvesta panus'));
     await tester.pumpAndSettle();
     expect(writes.single['memberIds'], ['u']);
@@ -204,7 +216,11 @@ void main() {
     await tester.ensureVisible(find.text('Jüri'));
     await tester.tap(find.text('Jüri'));
     await tester.pump();
-    await tester.ensureVisible(find.text('Salvesta panus'));
+    await tester.scrollUntilVisible(
+      find.text('Salvesta panus'),
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(find.text('Salvesta panus'));
     await tester.pumpAndSettle();
     expect(writes.last['memberIds'], containsAll(['u', 'other']));

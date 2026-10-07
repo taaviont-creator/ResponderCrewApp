@@ -1,4 +1,5 @@
 import '../widgets/app_date_field.dart';
+import 'equipment_care_screen.dart';
 import '../widgets/app_layout.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -19,6 +20,7 @@ class EquipmentScreen extends StatefulWidget {
     this.initialView = 'shared',
     this.openPersonalCreateOnLoad = false,
     this.editOnOpen,
+    this.service,
   });
 
   final String organizationId;
@@ -28,15 +30,38 @@ class EquipmentScreen extends StatefulWidget {
   final String initialView;
   final bool openPersonalCreateOnLoad;
   final EquipmentModel? editOnOpen;
+  final EquipmentService? service;
 
   @override
   State<EquipmentScreen> createState() => _EquipmentScreenState();
 }
 
 class _EquipmentScreenState extends State<EquipmentScreen> {
-  final _equipmentService = EquipmentService();
-  final _membershipService = MembershipService();
-  late String _view = widget.initialView;
+  late final _equipmentService = widget.service ?? EquipmentService();
+  late final _membershipService = MembershipService();
+  late String _view = widget.initialView == 'shared'
+      ? 'technique'
+      : widget.initialView;
+  bool _attentionOnly = false;
+  late Stream<List<EquipmentModel>> _stream = _visibleStream();
+  Stream<List<EquipmentModel>> _visibleStream() =>
+      _equipmentService.streamVisibleEquipment(
+        organizationId: widget.organizationId,
+        currentUserId: widget.currentUid,
+        canViewMemberPersonalEquipment: widget.canManageEquipment,
+      );
+  @override
+  void didUpdateWidget(covariant EquipmentScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.organizationId != widget.organizationId ||
+        oldWidget.currentUid != widget.currentUid ||
+        oldWidget.canManageEquipment != widget.canManageEquipment) {
+      _stream = _visibleStream();
+      _category = null;
+      _search = '';
+    }
+  }
+
   String _search = '';
   String? _category;
 
@@ -104,7 +129,9 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
     final locationController = TextEditingController();
     final nextMaintenanceDateController = TextEditingController();
     final noteController = TextEditingController();
-    var selectedCategory = EquipmentCategory.other;
+    var selectedCategory = _view == 'technique'
+        ? EquipmentCategory.vessel
+        : EquipmentCategory.other;
     var selectedStatus = EquipmentStatus.ok;
     String? nameError;
 
@@ -577,11 +604,7 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
     return AppScaffold(
       appBar: AppBar(title: const Text('Varustus')),
       body: StreamBuilder<List<EquipmentModel>>(
-        stream: _equipmentService.streamVisibleEquipment(
-          organizationId: widget.organizationId,
-          currentUserId: widget.currentUid,
-          canViewMemberPersonalEquipment: widget.canManageEquipment,
-        ),
+        stream: _stream,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -597,12 +620,14 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
           final visible = equipment.where((item) {
             final matchesTab = item.appearsIn(_view, widget.currentUid);
             return matchesTab &&
+                (!_attentionOnly || item.status != EquipmentStatus.ok) &&
                 (_category == null || item.category == _category) &&
                 '${item.name} ${item.assignedToName} ${item.location}'
                     .toLowerCase()
                     .contains(_search);
           }).toList();
           final title = switch (_view) {
+            'technique' => 'Ühingu tehnika',
             'warehouse' => 'Ladu',
             'mine' => 'Minu varustus',
             'members' => 'Liikmete varustus',
@@ -625,46 +650,58 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
                 runSpacing: 8,
                 children: [
                   for (final entry in const {
-                    'shared': 'Ühing',
+                    'technique': 'Ühingu tehnika',
+                    'supplies': 'Ühingu varustus',
                     'warehouse': 'Ladu',
-                    'mine': 'Minu',
-                    'members': 'Liikmete',
+                    'members': 'Liikmete varustus',
+                    'mine': 'Minu varustus',
                   }.entries)
                     ChoiceChip(
                       label: Text(entry.value),
                       selected: _view == entry.key,
-                      onSelected: (_) => setState(() => _view = entry.key),
+                      onSelected: (_) => setState(() {
+                        _view = entry.key;
+                        _category = null;
+                      }),
                     ),
                 ],
               ),
               const SizedBox(height: 12),
-              ExpansionTile(
-                tilePadding: EdgeInsets.zero,
-                title: Text(
-                  _category == null
-                      ? 'Filtrid'
-                      : 'Filter: ${_equipmentCategoryLabel(_category!)}',
-                ),
+              Wrap(
+                spacing: 16,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  DropdownButtonFormField<String>(
-                    initialValue: _category ?? '',
-                    isExpanded: true,
-                    decoration: const InputDecoration(labelText: 'Kategooria'),
-                    items: [
-                      const DropdownMenuItem(
-                        value: '',
-                        child: Text('Kõik kategooriad'),
+                  SizedBox(
+                    width: 260,
+                    child: DropdownButtonFormField<String>(
+                      key: ValueKey('category-$_view-$_category'),
+                      initialValue: _category ?? '',
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Kategooria',
                       ),
-                      for (final category in EquipmentCategory.values)
-                        DropdownMenuItem(
-                          value: category,
-                          child: Text(_equipmentCategoryLabel(category)),
+                      items: [
+                        const DropdownMenuItem(
+                          value: '',
+                          child: Text('Kõik kategooriad'),
                         ),
-                    ],
-                    onChanged: (value) =>
-                        setState(() => _category = value == '' ? null : value),
+                        for (final category in EquipmentCategory.values)
+                          DropdownMenuItem(
+                            value: category,
+                            child: Text(_equipmentCategoryLabel(category)),
+                          ),
+                      ],
+                      onChanged: (value) => setState(
+                        () => _category = value == '' ? null : value,
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 8),
+                  FilterChip(
+                    label: const Text('Ainult tähelepanu vajavad'),
+                    selected: _attentionOnly,
+                    onSelected: (v) => setState(() => _attentionOnly = v),
+                  ),
                 ],
               ),
               const SizedBox(height: 8),
@@ -674,6 +711,8 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
                 emptyText: 'Varustust ei leitud.',
                 addLabel: _view == 'mine'
                     ? 'Lisa isiklik varustus'
+                    : _view == 'technique'
+                    ? 'Lisa tehnika'
                     : 'Lisa varustus',
                 helperText: _view == 'warehouse'
                     ? 'Laos olevad esemed saab väljastada liikmele. Tagastatud ese tuleb tagasi lattu.'
@@ -699,17 +738,9 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
 
   Future<void> _moveEquipment(EquipmentModel item, String storage) async {
     try {
-      await _equipmentService.updateEquipment(
-        equipmentId: item.id,
+      await _equipmentService.moveToStorage(
         organizationId: widget.organizationId,
-        name: item.name,
-        category: item.category,
-        status: item.status,
-        location: item.location,
-        nextMaintenanceDate: item.nextMaintenanceDate,
-        note: item.note,
-        updatedBy: widget.currentUid,
-        canManageOrganizationEquipment: widget.canManageEquipment,
+        equipmentId: item.id,
         storage: storage,
       );
     } catch (_) {
@@ -762,7 +793,20 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
             child: Text(emptyText),
           )
         else
-          ...equipment.map(_buildEquipmentTile),
+          LayoutBuilder(
+            builder: (context, bounds) => Wrap(
+              spacing: 12,
+              children: [
+                for (final item in equipment)
+                  SizedBox(
+                    width: bounds.maxWidth >= 850
+                        ? (bounds.maxWidth - 12) / 2
+                        : bounds.maxWidth,
+                    child: _buildEquipmentTile(item),
+                  ),
+              ],
+            ),
+          ),
       ],
     );
   }
@@ -787,6 +831,40 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
       statusType: _equipmentStatusBadgeType(item.status),
       statusIcon: _equipmentStatusIcon(item.status),
       actions: _buildEquipmentActions(item),
+      onOpen: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => EquipmentCareScreen(
+            item: item,
+            organizationId: widget.organizationId,
+            currentUid: widget.currentUid,
+            canManage: widget.canManageEquipment,
+            service: _equipmentService,
+          ),
+        ),
+      ),
+      onCondition: _canEditEquipment(item)
+          ? () => showDialog<bool>(
+              context: context,
+              builder: (_) => EquipmentConditionDialog(
+                status: item.status,
+                note: item.note,
+                save: (status, note) => _equipmentService.setCondition(
+                  organizationId: widget.organizationId,
+                  equipmentId: item.id,
+                  status: status,
+                  note: note,
+                  expectedStatus: item.status,
+                  expectedNote: item.note,
+                ),
+              ),
+            )
+          : null,
+      itemIcon: item.category == EquipmentCategory.vessel
+          ? Icons.sailing_outlined
+          : EquipmentCategory.isInventoryTechnique(item.category)
+          ? Icons.precision_manufacturing_outlined
+          : Icons.inventory_2_outlined,
     );
   }
 
@@ -876,7 +954,7 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
             child: Text(
               hasProblems
                   ? 'Tähelepanu vajav varustus: '
-                        '${problemItems.map((item) => item.name).join(', ')}'
+                        '${problemItems.length} eset. Kasuta tähelepanu filtrit.'
                   : 'Kõik varustus on korras.',
             ),
           ),
@@ -891,7 +969,9 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
           ? 'Isiklik varustus'
           : 'Liikme isiklik varustus';
     }
-    if (!item.isAssigned) return 'Saadaval';
+    if (!item.isAssigned) {
+      return item.storage == 'warehouse' ? 'Laos' : 'Ühiskasutuses';
+    }
     if (item.assignedToUserId == widget.currentUid) return 'Väljastatud mulle';
 
     final assignedToName = item.assignedToName.trim();
@@ -933,18 +1013,7 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
     return 'Sul puudub õigus seda varustust muuta.';
   }
 
-  String _equipmentStatusLabel(String status) {
-    switch (status) {
-      case EquipmentStatus.needsMaintenance:
-        return 'Vajab hooldust';
-      case EquipmentStatus.broken:
-        return 'Katki';
-      case EquipmentStatus.outOfService:
-        return 'Kasutusest väljas';
-      default:
-        return 'Korras';
-    }
-  }
+  String _equipmentStatusLabel(String status) => EquipmentStatus.label(status);
 
   StatusBadgeType _equipmentStatusBadgeType(String status) {
     switch (status) {

@@ -6,6 +6,8 @@ import 'package:cloud_functions/cloud_functions.dart';
 import '../models/statistics_model.dart';
 import '../services/statistics_service.dart';
 import '../services/activity_service.dart';
+import '../models/equipment_model.dart';
+import '../services/equipment_service.dart';
 
 class ContributionFormScreen extends StatefulWidget {
   const ContributionFormScreen({
@@ -19,6 +21,8 @@ class ContributionFormScreen extends StatefulWidget {
     this.saveContribution,
     this.requestId,
     this.activityService,
+    this.initialEquipment,
+    this.equipmentService,
   });
   final String organizationId, currentUid;
   final List<MemberContribution> members;
@@ -27,6 +31,8 @@ class ContributionFormScreen extends StatefulWidget {
   final Future<void> Function(Map<String, dynamic>)? saveContribution;
   final String? requestId;
   final ActivityService? activityService;
+  final EquipmentModel? initialEquipment;
+  final EquipmentService? equipmentService;
   @override
   State<ContributionFormScreen> createState() => _ContributionFormScreenState();
 }
@@ -36,6 +42,7 @@ class _ContributionFormScreenState extends State<ContributionFormScreen> {
   final _title = TextEditingController(), _hours = TextEditingController();
   final _description = TextEditingController();
   String _search = '';
+  late EquipmentModel? _equipment = widget.initialEquipment;
   late final _memberStream = widget.canManage && widget.members.isEmpty
       ? (widget.activityService ?? ActivityService())
             .streamActiveMembers(widget.organizationId)
@@ -70,6 +77,79 @@ class _ContributionFormScreenState extends State<ContributionFormScreen> {
     super.dispose();
   }
 
+  Future<void> _chooseEquipment() async {
+    final stream = (widget.equipmentService ?? EquipmentService())
+        .streamOrganizationEquipment(organizationId: widget.organizationId);
+    final picked = await showDialog<EquipmentModel>(
+      context: context,
+      builder: (context) {
+        var search = '';
+        return StatefulBuilder(
+          builder: (context, setLocal) => AlertDialog(
+            title: const Text('Vali tehnika või varustus'),
+            content: SizedBox(
+              width: 520,
+              height: 400,
+              child: Column(
+                children: [
+                  TextField(
+                    decoration: const InputDecoration(
+                      labelText: 'Otsi nime järgi',
+                      prefixIcon: Icon(Icons.search),
+                    ),
+                    onChanged: (v) =>
+                        setLocal(() => search = v.toLowerCase().trim()),
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: StreamBuilder<List<EquipmentModel>>(
+                      stream: stream,
+                      builder: (context, snapshot) {
+                        if (snapshot.hasError) {
+                          return const Text('Varustuse laadimine ebaõnnestus.');
+                        }
+                        if (!snapshot.hasData) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
+                        }
+                        final items = snapshot.data!
+                            .where((e) => e.name.toLowerCase().contains(search))
+                            .toList();
+                        if (items.isEmpty) {
+                          return const Text('Sobivat varustust ei leitud.');
+                        }
+                        return ListView(
+                          children: [
+                            for (final item in items)
+                              ListTile(
+                                title: Text(item.name),
+                                subtitle: Text(
+                                  EquipmentStatus.label(item.status),
+                                ),
+                                onTap: () => Navigator.pop(context, item),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Loobu'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    if (picked != null && mounted) setState(() => _equipment = picked);
+  }
+
   Future<void> _save() async {
     if (_saving || !_form.currentState!.validate()) return;
     setState(() {
@@ -83,6 +163,8 @@ class _ContributionFormScreenState extends State<ContributionFormScreen> {
         'title': _title.text.trim(),
         'description': _description.text.trim(),
         'type': _type,
+        if (_equipment != null && ['maintenance', 'repair'].contains(_type))
+          'equipmentId': _equipment!.id,
         'date': statisticsDate(_date),
         'hours': double.parse(_hours.text.replaceAll(',', '.')),
         'memberIds': widget.canManage && _members.isNotEmpty
@@ -176,6 +258,25 @@ class _ContributionFormScreenState extends State<ContributionFormScreen> {
                 onChanged: (v) => setState(() => _type = v!),
               ),
               const SizedBox(height: 16),
+              if (['maintenance', 'repair'].contains(_type)) ...[
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.build_outlined),
+                  title: Text(_equipment?.name ?? 'Seo tehnika või varustus'),
+                  subtitle: const Text(
+                    'Valikuline · töö ja tunnid kuvatakse selle eseme ajaloos',
+                  ),
+                  onTap: _chooseEquipment,
+                  trailing: _equipment == null
+                      ? const Icon(Icons.chevron_right)
+                      : IconButton(
+                          tooltip: 'Eemalda seos',
+                          onPressed: () => setState(() => _equipment = null),
+                          icon: const Icon(Icons.close),
+                        ),
+                ),
+                const SizedBox(height: 12),
+              ],
               AppDateField(
                 label: 'Kuupäev',
                 value: _date,
