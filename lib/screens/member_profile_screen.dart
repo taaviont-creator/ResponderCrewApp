@@ -998,6 +998,8 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                             Text(
                               '${_roleLabel(_membershipRole)} · ${_membershipStatusLabel(widget.membershipData)}',
                             ),
+                            if (!_canManageProfileMembership)
+                              Text(_seaRescueLevelLabel(_seaRescueLevel)),
                             if (canSeeContact && email.isNotEmpty)
                               SelectableText(email),
                             if (canSeeContact)
@@ -1088,23 +1090,24 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
             ),
           ),
           const SizedBox(height: 14),
-          MemberProfileSection(
-            title: 'Ühingusse liitumise kuupäev',
-            icon: Icons.event_outlined,
-            subtitle:
-                'Tegelik ühinguga liitumise kuupäev staaži arvestamiseks.',
-            child: AppDateField(
-              label: _savingMembershipDate
-                  ? 'Salvestan kuupäeva…'
-                  : 'Liitumise kuupäev',
-              value: _membershipStartedAt,
-              enabled: _canEditMembershipStartDate && !_savingMembershipDate,
-              lastDate: DateTime.now(),
-              onChanged: (date) {
-                if (date != null) _saveMembershipStartDate(date);
-              },
+          if (_canEditMembershipStartDate)
+            MemberProfileSection(
+              title: 'Ühingusse liitumise kuupäev',
+              icon: Icons.event_outlined,
+              subtitle:
+                  'Tegelik ühinguga liitumise kuupäev staaži arvestamiseks.',
+              child: AppDateField(
+                label: _savingMembershipDate
+                    ? 'Salvestan kuupäeva…'
+                    : 'Liitumise kuupäev',
+                value: _membershipStartedAt,
+                enabled: _canEditMembershipStartDate && !_savingMembershipDate,
+                lastDate: DateTime.now(),
+                onChanged: (date) {
+                  if (date != null) _saveMembershipStartDate(date);
+                },
+              ),
             ),
-          ),
           MemberProfileSection(
             title: 'Valvegraafik',
             icon: Icons.calendar_month_outlined,
@@ -1129,19 +1132,20 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
             ],
             child: _buildAvailabilitySection(),
           ),
-          MemberProfileSection(
-            title: 'Merepääste aste',
-            icon: Icons.school_outlined,
-            actions: [
-              if (_canManageProfileMembership)
-                OutlinedButton.icon(
-                  onPressed: _changeSeaRescueLevel,
-                  icon: const Icon(Icons.edit_outlined),
-                  label: const Text('Muuda'),
-                ),
-            ],
-            child: Text(_seaRescueLevelLabel(_seaRescueLevel)),
-          ),
+          if (_canManageProfileMembership)
+            MemberProfileSection(
+              title: 'Merepääste aste',
+              icon: Icons.school_outlined,
+              actions: [
+                if (_canManageProfileMembership)
+                  OutlinedButton.icon(
+                    onPressed: _changeSeaRescueLevel,
+                    icon: const Icon(Icons.edit_outlined),
+                    label: const Text('Muuda'),
+                  ),
+              ],
+              child: Text(_seaRescueLevelLabel(_seaRescueLevel)),
+            ),
           MemberProfileSection(
             title: 'Isiklik ja väljastatud varustus',
             icon: Icons.inventory_2_outlined,

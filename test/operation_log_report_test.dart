@@ -46,6 +46,30 @@ OperationLogEventModel event(
 );
 
 void main() {
+  testWidgets('member can read completed log without a copy action', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: OperationLogReportScreen(
+          log: log,
+          organizationId: 'a',
+          eventStream: Stream.value([
+            event(
+              'saved',
+              'Salvestatud sündmus',
+              DateTime(2026, 9, 27, 15, 30),
+            ),
+          ]),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Logi ülevaade'), findsOneWidget);
+    expect(find.textContaining('Salvestatud sündmus'), findsOneWidget);
+    expect(find.byTooltip('Kopeeri väljavõte'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
   test(
     'extract preserves chronology, full dates, GPS and summary without duplicate notes',
     () {
@@ -89,6 +113,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: OperationLogReportScreen(
+            showExport: true,
             log: log,
             organizationId: 'a',
             eventStream: Stream.value([
@@ -109,7 +134,13 @@ void main() {
       expect(find.textContaining('GPS: 59.00000, 24.00000'), findsOneWidget);
       expect(
         tester
-            .widget<IconButton>(find.byWidgetPredicate((widget) => widget is IconButton && widget.tooltip == 'Kopeeri väljavõte'))
+            .widget<IconButton>(
+              find.byWidgetPredicate(
+                (widget) =>
+                    widget is IconButton &&
+                    widget.tooltip == 'Kopeeri väljavõte',
+              ),
+            )
             .onPressed,
         isNotNull,
       );
@@ -122,6 +153,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: OperationLogReportScreen(
+            showExport: true,
             log: log,
             organizationId: 'a',
             eventStream: stream.stream,
@@ -133,7 +165,13 @@ void main() {
       expect(find.textContaining('laadimine ebaõnnestus'), findsOneWidget);
       expect(
         tester
-            .widget<IconButton>(find.byWidgetPredicate((widget) => widget is IconButton && widget.tooltip == 'Kopeeri väljavõte'))
+            .widget<IconButton>(
+              find.byWidgetPredicate(
+                (widget) =>
+                    widget is IconButton &&
+                    widget.tooltip == 'Kopeeri väljavõte',
+              ),
+            )
             .onPressed,
         isNull,
       );

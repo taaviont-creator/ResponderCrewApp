@@ -144,51 +144,35 @@ class _CertificatesScreenState extends State<CertificatesScreen> {
           final attentionCertificates = certificates
               .where(_certificateNeedsAttention)
               .toList(growable: false);
+          // Show each certificate once, with actionable expiries first.
+          final ordered = [
+            ...attentionCertificates,
+            ...certificates.where((c) => !_certificateNeedsAttention(c)),
+          ];
 
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              Text(
-                'Merepäästja aste määratakse liikme profiilis eraldi.',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
+              if (widget.canManageCertificates)
+                Text(
+                  'Merepäästja aste määratakse liikme profiilis eraldi.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
               const SizedBox(height: 12),
               Text(
-                'Tähelepanu vajavad tunnistused',
+                attentionCertificates.isEmpty
+                    ? '${certificates.length} tunnistust'
+                    : '${attentionCertificates.length} tunnistust vajab tähelepanu',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: 8),
-              if (attentionCertificates.isEmpty)
-                const Text('Kõik tunnistused on kehtivad.')
-              else
-                ...attentionCertificates.map(_buildAttentionCertificateTile),
-              const SizedBox(height: 16),
-              const Divider(height: 1),
-              for (var index = 0; index < certificates.length; index++) ...[
-                _buildCertificateTile(certificates[index]),
-                if (index < certificates.length - 1) const Divider(height: 1),
+              for (var index = 0; index < ordered.length; index++) ...[
+                _buildCertificateTile(ordered[index]),
+                if (index < ordered.length - 1) const Divider(height: 1),
               ],
             ],
           );
         },
-      ),
-    );
-  }
-
-  Widget _buildAttentionCertificateTile(CertificateModel certificate) {
-    final displayStatus = _certificateDisplayStatus(certificate);
-    final ownerPrefix = widget.canManageCertificates
-        ? '${certificate.userName}: '
-        : '';
-    final expiryText = displayStatus == _unknownCertificateExpiryStatus
-        ? ''
-        : ' - ${_certificateExpiryText(certificate)}';
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Text(
-        '$ownerPrefix${certificate.title} - '
-        '${_certificateStatusLabel(displayStatus)}$expiryText',
       ),
     );
   }

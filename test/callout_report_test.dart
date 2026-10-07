@@ -41,6 +41,10 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      expect(find.byTooltip('Ekspordi aruanne PDF-ina'), findsNothing);
+      expect(find.textContaining('Sündmuse ID:'), findsNothing);
+      expect(find.text('Varustuse juhtumid'), findsNothing);
+      expect(find.text('Ettepanekud ja tähelepanekud'), findsNothing);
       await tester.scrollUntilVisible(
         find.textContaining('Alus pukseeriti'),
         300,
@@ -72,6 +76,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       final summary = find.widgetWithText(TextField, 'Kokkuvõte');
+      expect(find.byTooltip('Ekspordi aruanne PDF-ina'), findsOneWidget);
       await tester.scrollUntilVisible(
         summary,
         350,

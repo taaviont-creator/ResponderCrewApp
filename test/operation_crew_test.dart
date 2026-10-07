@@ -113,6 +113,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: OperationLogReportScreen(
+          showExport: true,
           log: log,
           organizationId: 'org',
           eventStream: Stream.value([]),

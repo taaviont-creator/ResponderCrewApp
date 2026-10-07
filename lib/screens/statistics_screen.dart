@@ -29,6 +29,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   Future<ContributionReport>? _future;
   String _metric = 'dutyHours';
   String _search = '';
+  bool _showOrganization = false;
   @override
   void initState() {
     super.initState();
@@ -39,7 +40,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   void didUpdateWidget(covariant StatisticsScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.organizationId != widget.organizationId ||
+        oldWidget.currentUid != widget.currentUid ||
         oldWidget.canViewStatistics != widget.canViewStatistics) {
+      _showOrganization = false;
       _load();
     }
   }
@@ -215,239 +218,342 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        for (final entry in const {
-                          'total': 'Sündmusi kokku',
-                          'period': 'Sündmusi perioodil',
-                          'sar': 'SAR perioodil',
-                          'tross': 'TROSS perioodil',
-                          'closed': 'Lõpetatud perioodil',
-                          'cancelled': 'Tühistatud perioodil',
-                        }.entries)
+                    if (!report.canManage) ...[
+                      ..._personalOverview(report),
+                      const SizedBox(height: 12),
+                      TextButton.icon(
+                        onPressed: () => setState(
+                          () => _showOrganization = !_showOrganization,
+                        ),
+                        icon: Icon(
+                          _showOrganization
+                              ? Icons.expand_less
+                              : Icons.expand_more,
+                        ),
+                        label: Text(
+                          _showOrganization
+                              ? 'Peida ühingu ülevaade'
+                              : 'Vaata ühingu ülevaadet',
+                        ),
+                      ),
+                    ],
+                    if (report.canManage || _showOrganization) ...[
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (final entry in const {
+                            'total': 'Sündmusi kokku',
+                            'period': 'Sündmusi perioodil',
+                            'sar': 'SAR perioodil',
+                            'tross': 'TROSS perioodil',
+                            'closed': 'Lõpetatud perioodil',
+                            'cancelled': 'Tühistatud perioodil',
+                          }.entries)
+                            _summary(
+                              entry.value,
+                              '${report.events[entry.key] ?? '—'}',
+                            ),
                           _summary(
-                            entry.value,
-                            '${report.events[entry.key] ?? '—'}',
+                            'Valves oldud',
+                            report.hasDuty
+                                ? statisticsHours(report.total('dutyHours'))
+                                : '—',
                           ),
-                        _summary(
-                          'Valves oldud',
-                          report.hasDuty
-                              ? statisticsHours(report.total('dutyHours'))
-                              : '—',
-                        ),
-                        _summary(
-                          'Panuse tunnid',
-                          statisticsHours(report.total('contributionHours')),
-                        ),
-                        _summary(
-                          'Väljakutsetel osalemisi',
-                          '${report.total('calloutCount')}',
-                        ),
-                        _summary(
-                          'Koolitustel osalemisi',
-                          '${report.members.fold<int>(0, (n, m) => n + ((m.categories['training'] as Map?)?['count'] as num? ?? 0).toInt())}',
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      report.dutyHistoryPending
-                          ? 'Valveajalugu uueneb. Värskenda mõne hetke pärast.'
-                          : report.trackingStartedAt == null
-                          ? 'Valvetundide ajalugu pole veel käivitatud.'
-                          : 'Valveajalugu alates ${statisticsDate(report.trackingStartedAt!.toLocal())} kell ${report.trackingStartedAt!.toLocal().hour.toString().padLeft(2, '0')}:${report.trackingStartedAt!.toLocal().minute.toString().padLeft(2, '0')}. Varasem aeg pole teada.',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                    const SizedBox(height: 8),
+                          _summary(
+                            'Panuse tunnid',
+                            statisticsHours(report.total('contributionHours')),
+                          ),
+                          _summary(
+                            'Väljakutsetel osalemisi',
+                            '${report.total('calloutCount')}',
+                          ),
+                          _summary(
+                            'Koolitustel osalemisi',
+                            '${report.members.fold<int>(0, (n, m) => n + ((m.categories['training'] as Map?)?['count'] as num? ?? 0).toInt())}',
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        report.dutyHistoryPending
+                            ? 'Valveajalugu uueneb. Värskenda mõne hetke pärast.'
+                            : report.trackingStartedAt == null
+                            ? 'Valvetundide ajalugu pole veel käivitatud.'
+                            : 'Valveajalugu alates ${statisticsDate(report.trackingStartedAt!.toLocal())} kell ${report.trackingStartedAt!.toLocal().hour.toString().padLeft(2, '0')}:${report.trackingStartedAt!.toLocal().minute.toString().padLeft(2, '0')}. Varasem aeg pole teada.',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      const SizedBox(height: 8),
 
-                    if (report.undatedCount > 0)
-                      Text(
-                        '${report.undatedCount} osalemist jäi välja puuduva või vigase tegevuse kuupäeva tõttu.',
+                      if (report.undatedCount > 0)
+                        Text(
+                          '${report.undatedCount} osalemist jäi välja puuduva või vigase tegevuse kuupäeva tõttu.',
+                        ),
+                      if (report.total('unknownHoursCount') > 0)
+                        Text(
+                          '${report.total('unknownHoursCount')} kinnitatud osalemisel puuduvad tunnid.',
+                        ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          if (report.canManage && report.canRecord)
+                            FilledButton.icon(
+                              onPressed: () => _add(report),
+                              icon: const Icon(Icons.add),
+                              label: const Text('Lisa panus'),
+                            ),
+                          if (report.canManage)
+                            OutlinedButton(
+                              onPressed: () => _activities(report),
+                              child: const Text('Tegevuste osalemised'),
+                            ),
+                          if (report.canManage)
+                            OutlinedButton(
+                              onPressed: () async {
+                                await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => ActivitiesScreen(
+                                      organizationId: widget.organizationId,
+                                      currentUid: widget.currentUid,
+                                      canManageActivities: report.canManage,
+                                      contributionsOnly: true,
+                                    ),
+                                  ),
+                                );
+                                if (mounted) _refresh();
+                              },
+                              child: const Text('Vaata panuseid'),
+                            ),
+                          if (report.canManage)
+                            TextButton.icon(
+                              onPressed: () async {
+                                final csv =
+                                    'Periood;${statisticsDate(_from)};${statisticsDate(_to)}\r\nValveajaloo algus;${report.trackingStartedAt?.toIso8601String() ?? 'puudub'}\r\n${contributionCsv(report)}';
+                                await Clipboard.setData(
+                                  ClipboardData(text: csv),
+                                );
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Perioodi statistika ja kirjed kopeeritud CSV-na.',
+                                      ),
+                                    ),
+                                  );
+                                }
+                              },
+                              icon: const Icon(Icons.copy),
+                              label: const Text('CSV'),
+                            ),
+                        ],
                       ),
-                    if (report.total('unknownHoursCount') > 0)
+                      const SizedBox(height: 20),
                       Text(
-                        '${report.total('unknownHoursCount')} kinnitatud osalemisel puuduvad tunnid.',
+                        'Liikmete panus',
+                        style: Theme.of(context).textTheme.titleLarge,
                       ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        if (report.canRecord)
-                          FilledButton.icon(
-                            onPressed: () => _add(report),
-                            icon: const Icon(Icons.add),
-                            label: const Text('Lisa panus'),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        isExpanded: true,
+                        itemHeight: null,
+                        initialValue: _metric,
+                        decoration: const InputDecoration(
+                          labelText: 'Järjesta',
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'dutyHours',
+                            child: Text('Valves oldud aeg'),
                           ),
-                        OutlinedButton(
-                          onPressed: () => _activities(report),
-                          child: const Text('Tegevuste osalemised'),
+                          DropdownMenuItem(
+                            value: 'contributionHours',
+                            child: Text('Panuse tunnid'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'calloutCount',
+                            child: Text('Väljakutsed'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'activityCount',
+                            child: Text('Tegevustes osalemine'),
+                          ),
+                        ],
+                        onChanged: (value) => setState(() => _metric = value!),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        decoration: const InputDecoration(
+                          hintText: 'Otsi liiget',
+                          prefixIcon: Icon(Icons.search),
                         ),
-                        OutlinedButton(
-                          onPressed: () async {
-                            await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => ActivitiesScreen(
-                                  organizationId: widget.organizationId,
-                                  currentUid: widget.currentUid,
-                                  canManageActivities: report.canManage,
-                                  contributionsOnly: true,
-                                ),
+                        onChanged: (v) => setState(() => _search = v),
+                      ),
+                      const SizedBox(height: 12),
+                      if (members.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Text(
+                            'Selles vaates pole liikmeid ega osalemisi.',
+                          ),
+                        ),
+                      for (final member in members)
+                        Card(
+                          child: ExpansionTile(
+                            key: ValueKey(
+                              '${widget.organizationId}-${member.userId}',
+                            ),
+                            title: Text(member.name),
+                            subtitle: Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _metric == 'dutyHours'
+                                        ? statisticsHours(member.dutyHours)
+                                        : _metric == 'contributionHours'
+                                        ? statisticsHours(
+                                            member.number(_metric),
+                                          )
+                                        : '${member.number(_metric)} osalemist',
+                                  ),
+                                  const SizedBox(height: 6),
+                                  LinearProgressIndicator(
+                                    value: maximum > 0
+                                        ? (member.number(_metric) / maximum)
+                                              .toDouble()
+                                        : 0,
+                                  ),
+                                ],
                               ),
-                            );
-                            if (mounted) _refresh();
-                          },
-                          child: const Text('Vaata panuseid'),
-                        ),
-                        TextButton.icon(
-                          onPressed: () async {
-                            final csv =
-                                'Periood;${statisticsDate(_from)};${statisticsDate(_to)}\r\nValveajaloo algus;${report.trackingStartedAt?.toIso8601String() ?? 'puudub'}\r\n${contributionCsv(report)}';
-                            await Clipboard.setData(ClipboardData(text: csv));
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Perioodi statistika ja kirjed kopeeritud CSV-na.',
+                            ),
+                            childrenPadding: const EdgeInsets.all(16),
+                            expandedCrossAxisAlignment:
+                                CrossAxisAlignment.start,
+                            children: [
+                              if (!member.active) const Text('Endine liige'),
+                              Text(
+                                'Valves: ${statisticsHours(member.dutyHours)} • Hilinemisega: ${statisticsHours(member.data['delayedHours'] as num?)}',
+                              ),
+                              Text(
+                                'Väljakutsetel osales: ${member.number('calloutCount')} • Reageerin-vastuseid: ${member.number('responseCount')}',
+                              ),
+                              Text(
+                                'Panus: ${statisticsHours(member.number('contributionHours'))} • Tegevusi: ${member.number('activityCount')}',
+                              ),
+                              for (final c in member.categories.entries)
+                                Text(
+                                  '${contributionTypes[c.key] ?? c.key}: ${(c.value as Map)['count']} korda · ${statisticsHours((c.value as Map)['hours'] as num?)}',
+                                ),
+                              if (member.number('pendingCount') > 0)
+                                Text(
+                                  'Kinnitamisel: ${member.number('pendingCount')}',
+                                ),
+                              if (member.number('unknownHoursCount') > 0)
+                                Text(
+                                  'Tunnid puudu: ${member.number('unknownHoursCount')} osalemisel',
+                                ),
+                              const Divider(),
+                              if (member.entries.isEmpty)
+                                const Text(
+                                  'Sellel perioodil pole tegevuste ega väljakutsete osalemisi.',
+                                ),
+                              for (final e in member.entries)
+                                ListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  leading: Icon(
+                                    e['kind'] == 'callout'
+                                        ? Icons.notifications_active_outlined
+                                        : Icons.task_alt,
+                                  ),
+                                  title: Text(e['title'] as String),
+                                  subtitle: Text(
+                                    '${statisticsDate(DateTime.parse(e['date'] as String).toLocal())} · ${contributionTypes[e['category']] ?? 'Väljakutse'} · ${e['hours'] == null ? 'Tunnid märkimata' : statisticsHours(e['hours'] as num)}${e['confirmed'] == true ? '' : ' · Ootab kinnitust'}',
                                   ),
                                 ),
-                              );
-                            }
-                          },
-                          icon: const Icon(Icons.copy),
-                          label: const Text('CSV'),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      'Liikmete panus',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      initialValue: _metric,
-                      decoration: const InputDecoration(labelText: 'Järjesta'),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'dutyHours',
-                          child: Text('Valves oldud aeg'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'contributionHours',
-                          child: Text('Panuse tunnid'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'calloutCount',
-                          child: Text('Väljakutsed'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'activityCount',
-                          child: Text('Tegevustes osalemine'),
-                        ),
-                      ],
-                      onChanged: (value) => setState(() => _metric = value!),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      decoration: const InputDecoration(
-                        hintText: 'Otsi liiget',
-                        prefixIcon: Icon(Icons.search),
-                      ),
-                      onChanged: (v) => setState(() => _search = v),
-                    ),
-                    const SizedBox(height: 12),
-                    if (members.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.all(16),
-                        child: Text(
-                          'Selles vaates pole liikmeid ega osalemisi.',
-                        ),
-                      ),
-                    for (final member in members)
-                      Card(
-                        child: ExpansionTile(
-                          key: ValueKey(
-                            '${widget.organizationId}-${member.userId}',
+                            ],
                           ),
-                          title: Text(member.name),
-                          subtitle: Padding(
-                            padding: const EdgeInsets.only(top: 8),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _metric == 'dutyHours'
-                                      ? statisticsHours(member.dutyHours)
-                                      : _metric == 'contributionHours'
-                                      ? statisticsHours(member.number(_metric))
-                                      : '${member.number(_metric)} osalemist',
-                                ),
-                                const SizedBox(height: 6),
-                                LinearProgressIndicator(
-                                  value: maximum > 0
-                                      ? (member.number(_metric) / maximum)
-                                            .toDouble()
-                                      : 0,
-                                ),
-                              ],
-                            ),
-                          ),
-                          childrenPadding: const EdgeInsets.all(16),
-                          expandedCrossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (!member.active) const Text('Endine liige'),
-                            Text(
-                              'Valves: ${statisticsHours(member.dutyHours)} • Hilinemisega: ${statisticsHours(member.data['delayedHours'] as num?)}',
-                            ),
-                            Text(
-                              'Väljakutsetel osales: ${member.number('calloutCount')} • Reageerin-vastuseid: ${member.number('responseCount')}',
-                            ),
-                            Text(
-                              'Panus: ${statisticsHours(member.number('contributionHours'))} • Tegevusi: ${member.number('activityCount')}',
-                            ),
-                            for (final c in member.categories.entries)
-                              Text(
-                                '${contributionTypes[c.key] ?? c.key}: ${(c.value as Map)['count']} korda · ${statisticsHours((c.value as Map)['hours'] as num?)}',
-                              ),
-                            if (member.number('pendingCount') > 0)
-                              Text(
-                                'Kinnitamisel: ${member.number('pendingCount')}',
-                              ),
-                            if (member.number('unknownHoursCount') > 0)
-                              Text(
-                                'Tunnid puudu: ${member.number('unknownHoursCount')} osalemisel',
-                              ),
-                            const Divider(),
-                            if (member.entries.isEmpty)
-                              const Text(
-                                'Sellel perioodil pole tegevuste ega väljakutsete osalemisi.',
-                              ),
-                            for (final e in member.entries)
-                              ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                leading: Icon(
-                                  e['kind'] == 'callout'
-                                      ? Icons.notifications_active_outlined
-                                      : Icons.task_alt,
-                                ),
-                                title: Text(e['title'] as String),
-                                subtitle: Text(
-                                  '${statisticsDate(DateTime.parse(e['date'] as String).toLocal())} · ${contributionTypes[e['category']] ?? 'Väljakutse'} · ${e['hours'] == null ? 'Tunnid märkimata' : statisticsHours(e['hours'] as num)}${e['confirmed'] == true ? '' : ' · Ootab kinnitust'}',
-                                ),
-                              ),
-                          ],
                         ),
-                      ),
+                    ],
                   ],
                 ),
               );
             },
           ),
   );
+  List<Widget> _personalOverview(ContributionReport report) {
+    final member = report.members
+        .where((m) => m.userId == widget.currentUid)
+        .firstOrNull;
+    return [
+      Text('Minu panus', style: Theme.of(context).textTheme.titleLarge),
+      const SizedBox(height: 12),
+      if (member == null)
+        const Text('Selle perioodi kohta pole sinu andmeid veel saadaval.')
+      else ...[
+        Wrap(
+          spacing: 8,
+          runSpacing: 12,
+          children: [
+            _summary('Valves oldud', statisticsHours(member.dutyHours)),
+            _summary(
+              'Panuse tunnid',
+              statisticsHours(member.number('contributionHours')),
+            ),
+            _summary(
+              'Väljakutsetel osalemisi',
+              '${member.number('calloutCount')}',
+            ),
+            _summary(
+              'Koolitustel osalemisi',
+              '${(member.categories['training'] as Map?)?['count'] ?? 0}',
+            ),
+          ],
+        ),
+        if (report.dutyHistoryPending)
+          const Text('Valveajalugu uueneb. Värskenda mõne hetke pärast.'),
+        if (member.dutyHours == null)
+          const Text(
+            'Sinu valveaja kohta pole sellel perioodil piisavalt andmeid.',
+          ),
+        if (member.number('pendingCount') > 0)
+          Text('Kinnitamisel: ${member.number('pendingCount')} osalemist'),
+        const SizedBox(height: 16),
+        if (member.entries.isEmpty)
+          const Text('Sellel perioodil pole veel osalemisi ega panuseid.')
+        else
+          ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            title: Text(
+              'Minu osalemised ja panused (${member.entries.length})',
+            ),
+            children: [
+              for (final entry in member.entries)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(entry['title'] as String),
+                  subtitle: Text(
+                    '${statisticsDate(DateTime.parse(entry['date'] as String).toLocal())} · ${entry['hours'] == null ? 'Tunnid märkimata' : statisticsHours(entry['hours'] as num)}${entry['confirmed'] == true ? '' : ' · Ootab kinnitust'}',
+                  ),
+                ),
+            ],
+          ),
+      ],
+      if (report.canRecord)
+        Align(
+          alignment: Alignment.centerLeft,
+          child: FilledButton.icon(
+            onPressed: () => _add(report),
+            icon: const Icon(Icons.add),
+            label: const Text('Lisa panus'),
+          ),
+        ),
+    ];
+  }
+
   Widget _summary(String title, String value) =>
       MetricValue(title: title, value: value);
 }

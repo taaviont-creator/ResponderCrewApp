@@ -539,7 +539,7 @@ class _OperationLogCardState extends State<_OperationLogCard> {
         const Text(
           'Väljakutse oleku laadimine ebaõnnestus. Kontrolli ühendust.',
         ),
-      if (finished)
+      if (finished && widget.canStartOperationLog)
         const Padding(
           padding: EdgeInsets.only(bottom: 12),
           child: Text(
@@ -575,7 +575,9 @@ class _OperationLogCardState extends State<_OperationLogCard> {
         tilePadding: EdgeInsets.zero,
         initiallyExpanded: canSummarize,
         title: const Text('Kokkuvõte ja osalejad'),
-        subtitle: const Text('Täida sündmuse lõpus või hiljem'),
+        subtitle: widget.canStartOperationLog
+            ? const Text('Täida sündmuse lõpus või hiljem')
+            : null,
         children: [
           if (log.calloutId != null)
             CalloutParticipantsSection(
@@ -585,7 +587,7 @@ class _OperationLogCardState extends State<_OperationLogCard> {
               currentUid: widget.currentUid,
             ),
           if (canSummarize) ..._buildFinalSummaryChildren(log),
-          if (!canSummarize)
+          if (!canSummarize && widget.canStartOperationLog)
             const Text(
               'Lõppkokkuvõtte saad lisada pärast sündmuskohal tegevuste või väljakutse lõpetamist.',
             ),
@@ -593,10 +595,15 @@ class _OperationLogCardState extends State<_OperationLogCard> {
       ),
       OutlinedButton.icon(
         icon: const Icon(Icons.receipt_long),
-        label: const Text('Vaata logi väljavõtet'),
+        label: Text(
+          widget.canStartOperationLog
+              ? 'Vaata logi väljavõtet'
+              : 'Vaata logi ülevaadet',
+        ),
         onPressed: () => Navigator.of(context).push(
           MaterialPageRoute(
             builder: (_) => OperationLogReportScreen(
+              showExport: widget.canStartOperationLog,
               log: log,
               organizationId: widget.organizationId,
               logStream: OperationLogService().streamLog(

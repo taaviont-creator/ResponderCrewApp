@@ -193,6 +193,7 @@ class _MembersScreenState extends State<MembersScreen> {
     };
     final now = DateTime.now();
     return MemberDirectory(
+      showExport: widget.canManageRoles,
       key: ValueKey(widget.organizationId),
       busyUserId: _busyContact,
       members: [

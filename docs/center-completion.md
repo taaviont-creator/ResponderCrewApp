@@ -221,3 +221,21 @@ Allikad: [Androidi DND ligipääsu seadete leht](https://developer.android.com/r
 Kontroll: regressioonitestid eristavad eriligipääsu kanali erandist, kontrollivad erinevaid otseteid, varutee juhist, avamistõrget, lubade uuendamist naasmisel ning kitsast suure tekstiga vaadet. Päris telefoni tootja seadete lehe avamine, kasutaja antud luba ja lukuekraanil kuuldav proovihäire vajavad järgmise Androidi äpiversiooni telefonitesti. APK-d selle töö käigus ei koostata. Firebase'i reegleid, Functions'it ja andmemudelit ei muudeta ega avaldata; katseveebi uuendamine ei parandaks varem paigaldatud telefoniäppi.
 
 Kohalik lõppkontroll: Flutter analyze — 0 probleemi; kõik 269 Flutteri testi läbisid.
+
+## Tavaliikme vaadete lihtsustamine (07.10.2026)
+
+Ülevaatus hõlmas menüüd, töölauda, isiklikku valmisolekut, ühingu valmidust, liikmete nimekirja ja profiili, tunnistusi, varustust, tegevusi, statistikat ning sündmuse aruannet ja operatiivlogi. Töölaud ja valmidusvaated olid juba operatiivsed ning vajalikud toimingud valdavalt õiguste järgi piiratud. Seetõttu ei lisatud uut paralleelset „liikmerakendust” ega muud navigatsioonimudelit.
+
+Parandatud esitlus:
+- Liikmete CSV on nähtav ühingu haldajale; liikmel jäävad otsing, filtrid, oma profiil ning helistamine/SMS. Rolli muutumisel kaob ekspordinupp ka samast komponendist.
+- Statistikale senise ligipääsuga liige näeb esmalt enda valveaega, panust, väljakutsetel ja koolitustel osalemist. Detailkirjed avanevad samas vaates; „Lisa panus” säilib. Senine lubatud ühingu ülevaade on avatav ühe nupuga. CSV jääb serveri tagastatud `canManage` alusel haldaja vaatesse. Ühingu või kasutaja vahetus lähtestab avatud üldülevaate. Puuduvat valveajalugu ei näidata nullina.
+- Sündmuse aruande lugemisel on kokkuvõte eespool, PDF-nupp ja tehniline ID peidetud ning tühje varustuse juhtumite/ettepanekute plokke ei kuvata. Olemasolev sisu säilib loetavana. Aruande senise muutmisõigusega admini/II astme vaade säilitab koostamise, parandamise ja ekspordi.
+- Logi lugemisvaates kasutatakse nimetust „Logi ülevaade” ilma kopeerimisnupu ja haldajale mõeldud täitmisjuhisteta. Logi sündmused, osalejad ja kokkuvõte jäävad loetavaks; olemasolev osaleja lisamismärgete loogika säilib. Logi juhtimisõigusega kasutaja väljavõtte koostamine jääb alles.
+- Tunnistuste nimekirjas kuvatakse iga tunnistus ühe korra, tähelepanu vajavad eespool. Merepääste aste asub lugemisprofiilis nime/rolli juures; haldaja muutmisplokk säilib. Liitumiskuupäeva muutmisvorm kuvatakse ainult inimesele, kes saab seda olemasoleva õiguse järgi muuta; staaž on endiselt profiili päises.
+- Menüü kirjeldused vastavad liikme tegelikule tegevusele (kontaktid, kalender/osalemine, enda statistika) ega kutsu haldama toiminguid, milleks õigust ei ole.
+
+Turvapiirid: tegemist on kasutajaliidese korrastusega, mitte uute turvaõigustega. Rollid, Functions, Firestore/Storage reeglid, andmemudel, teavitused, statistikaarvutus ja organisatsioonide eraldatus ei muutu. Peidetud ekspordinupp ei keela lubatud andmete tavalist lugemist/kopeerimist ega loo serveripoolset ekspordikeeldu. Platvormihalduri roll ei anna nende nuppude jaoks ühingu adminiõigust. Isiklikud tunnistused, osalemise kinnitamine, panuse lisamine, enda profiili muutmine, varustuse õigused ja II astme sündmuse juhtimine säilivad.
+
+Regressioonid katavad liikme/haldaja ekspordinupud, loa puudumisel päringu puudumise, lugemisvaate säilimise, ühinguvahetuse ning 320 px ja 1440 px paigutuse 150% tekstiga. Suure tekstiga statistika järjestusvaliku ülevool parandati. Visuaalne paigutus renderdati Flutteri enda komponentidega telefoni ja töölaua mõõdus. APK-d ei koostata; telefoni kasutajaliides muutub järgmise äpiversiooniga.
+
+Kohalik kontroll: Flutter analyze — 0 probleemi; kõik 273 Flutteri testi läbisid.
