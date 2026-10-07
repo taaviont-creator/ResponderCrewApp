@@ -377,3 +377,20 @@ exports.sendMemberApplicationEmail = onDocumentWritten({...emailOptions,document
   }}));
 exports.sendOrganizationApplicationNotification = onDocumentCreated({document:'commands/{organizationId}',region:'europe-north1',
   maxInstances:3,timeoutSeconds:120,retry:true},applicationNotifications.createOrganizationApplicationNotification({db,deliver:personalDelivery}));
+
+const dispatch = require('./center-dispatch').createCenterDispatch({db,timestamp:()=>admin.firestore.FieldValue.serverTimestamp()});
+exports.centerDispatch = onCall({region:'europe-north1',maxInstances:5,timeoutSeconds:60},dispatch.handle);
+for (const [name,document] of Object.entries({syncDispatchCallout:'callouts/{calloutId}',syncDispatchLog:'operationLogs/{logId}',
+  syncDispatchLogEvent:'operationLogs/{logId}/events/{eventId}',syncDispatchResponse:'calloutResponses/{responseId}',syncDispatchDelivery:'calloutPushDeliveries/{calloutId}'})) {
+  exports[name] = onDocumentWritten({document,region:'europe-north1',maxInstances:3,timeoutSeconds:60,retry:true},dispatch.syncProgress);
+}
+exports.notifyDispatchUpdate = onDocumentCreated({document:'dispatchUpdateEvents/{eventId}',region:'europe-north1',maxInstances:3,timeoutSeconds:120,retry:true},async event=>{
+  const d=event.data?.data(); if (!d) return;
+  const callout=(await db.doc(`callouts/${d.calloutId}`).get()).data();
+  if (callout?.dispatch?.incidentId!==d.incidentId || callout.organizationId!==d.organizationId || callout.dispatch.revision!==d.revision) return;
+  const urgent=d.critical || (callout.dispatch.criticalRevision || 0)>(callout.dispatch.acknowledgedRevision || 0);
+  const uids=await loadActiveMemberUserIds(d.organizationId);
+  await Promise.all(uids.map(uid=>personalDelivery({sourceId:`dispatch:${event.params.eventId}`,org:d.organizationId,uid,
+    title:urgent?'Keskuse oluline muudatus':'Keskus täiendas väljakutset',body:'Ava väljakutse ja vaata värsket infot.',
+    type:'callout',relatedType:'callout',pushType:'callout_update',urgent,relatedId:d.calloutId,preferenceKeys:['newCallout']})));
+});

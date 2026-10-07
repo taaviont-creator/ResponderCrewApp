@@ -48,7 +48,11 @@ class _CenterAccessDialogState extends State<CenterAccessDialog> {
     }
   }
 
-  Future<void> _change(Map<String, dynamic> grant, bool enabled) async {
+  Future<void> _change(
+    Map<String, dynamic> grant,
+    bool enabled, {
+    bool? canDispatch,
+  }) async {
     setState(() {
       _busy = true;
       _error = null;
@@ -58,6 +62,7 @@ class _CenterAccessDialogState extends State<CenterAccessDialog> {
         'userId': widget.userId,
         'centerId': grant['centerId'],
         'active': enabled,
+        'canDispatch': canDispatch ?? grant['canDispatch'] == true,
         'expectedRevision': grant['revision'],
       });
       if (mounted) await _load();
@@ -88,7 +93,7 @@ class _CenterAccessDialogState extends State<CenterAccessDialog> {
               'Õigus kehtib kuni eemaldamiseni. See ei anna ühingu administraatori ega platvormihalduri õigusi.',
             ),
             if (_busy) const LinearProgressIndicator(),
-            for (final grant in _grants)
+            for (final grant in _grants) ...[
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 title: Text(grant['name'] as String),
@@ -100,6 +105,15 @@ class _CenterAccessDialogState extends State<CenterAccessDialog> {
                 value: grant['active'] == true,
                 onChanged: _busy ? null : (value) => _change(grant, value),
               ),
+              if (grant['active'] == true)
+                CheckboxListTile(
+                  title: const Text('Väljakutsete saatmine ja täiendamine'),
+                  value: grant['canDispatch'] == true,
+                  onChanged: _busy
+                      ? null
+                      : (value) => _change(grant, true, canDispatch: value),
+                ),
+            ],
             if (_error != null) ...[
               Text(_error!),
               TextButton(

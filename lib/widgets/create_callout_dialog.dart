@@ -9,9 +9,11 @@ class CalloutDraft {
     required this.location,
     required this.priority,
     this.responseTargetMinutes,
+    this.phoneCenterId,
   });
   final String type, title, description, location, priority;
   final int? responseTargetMinutes;
+  final String? phoneCenterId;
 }
 
 class CreateCalloutDialog extends StatefulWidget {
@@ -30,6 +32,7 @@ class _CreateCalloutDialogState extends State<CreateCalloutDialog> {
   final _applied = <String>{};
   String _type = CalloutType.sar;
   String _priority = CalloutPriority.normal;
+  bool _phone = false;
   bool _titleEdited = false;
   bool _saving = false;
   String? _error;
@@ -53,6 +56,9 @@ class _CreateCalloutDialogState extends State<CreateCalloutDialog> {
       await widget.onSave(
         CalloutDraft(
           type: _type,
+          phoneCenterId: _phone
+              ? (_type == CalloutType.sar ? 'merevalvekeskus' : 'tross')
+              : null,
           title: _title.text.trim(),
           description: _description.text.trim(),
           location: _location.text.trim(),
@@ -91,6 +97,17 @@ class _CreateCalloutDialogState extends State<CreateCalloutDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Keskus andis ülesande telefoni teel'),
+                  subtitle: const Text(
+                    'Keskus saab selle hiljem oma sündmusega siduda ilma uue alarmita.',
+                  ),
+                  value: _phone,
+                  onChanged: _saving
+                      ? null
+                      : (v) => setState(() => _phone = v!),
+                ),
                 const Text('Sündmuse tüüp'),
                 for (final type in CalloutType.values)
                   Padding(

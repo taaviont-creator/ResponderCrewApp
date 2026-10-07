@@ -81,6 +81,18 @@ test('personal delivery respects off, membership boundaries, and keeps inbox wit
   await deliver(message);await deliver(message);assert.equal([...records.keys()].filter(k=>k.startsWith('userNotifications/')).length,1);
   await deliver({...message,sourceId:'foreign',org:'other'});assert.equal([...records.keys()].filter(k=>k.startsWith('userNotifications/')).length,1);
 });
+
+test('dispatch information uses exact callout routing and a separate channel without a second SAR alarm',async()=>{
+  const {db}=memoryDb({'commands/o':{status:'approved'},'memberships/a_o':member('a')});
+  const sent=[];
+  const deliver=createPersonalDelivery({db,logger,loadTokens:async()=>[{token:'device'}],messaging:{sendEachForMulticast:async data=>{sent.push(data);return {failureCount:0};}}});
+  const message={sourceId:'critical',org:'o',uid:'a',title:'Keskuse info',body:'Ava väljakutse',type:'callout',relatedType:'callout',relatedId:'callout-exact',pushType:'callout_update',urgent:true};
+  await deliver(message);await deliver(message);
+  assert.equal(sent.length,1);assert.equal(sent[0].data.type,'callout_update');assert.equal(sent[0].data.relatedId,'callout-exact');
+  assert.equal(sent[0].android.notification.channelId,'dispatch_updates');assert.equal(sent[0].android.priority,'high');assert.equal(sent[0].android.notification.sound,undefined);
+  await deliver({...message,sourceId:'routine',urgent:false});
+  assert.equal(sent[1].android.notification.channelId,'respondcrew_info');assert.equal(sent[1].android.priority,'normal');
+});
 test('membership email goes only to active org admins via Auth and is idempotent/minimal',async()=>{
   const applicant={userId:'applicant',organizationId:'o',role:'member',status:'pending',isActive:false,displayName:'Taotleja',joinedAt:new Date(now)};
   const {db,records}=memoryDb({'commands/o':{status:'approved',name:'Päästeühing'},'memberships/applicant_o':applicant,

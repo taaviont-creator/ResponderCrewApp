@@ -73,6 +73,7 @@ function serverDb() {
 }
 after(async () => { if (serverApp) await serverRequire('firebase-admin/app').deleteApp(serverApp); });
 
+require('./center-dispatch.cases')({getEnv: () => testEnv, serverDb, serverRequire});
 require('./center-access.cases')({getEnv: () => testEnv, serverDb, serverRequire});
 require('./response-units.cases')({getEnv: () => testEnv, serverDb, serverRequire});
 require('./organization-map-location.cases')({getEnv: () => testEnv, serverDb, serverRequire});

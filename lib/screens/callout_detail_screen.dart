@@ -1,3 +1,4 @@
+import '../widgets/dispatch_callout_panel.dart';
 import '../widgets/app_layout.dart';
 import '../widgets/callout_test_status_control.dart';
 import 'dart:async';
@@ -234,13 +235,21 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
                 'Väljakutse värskendamine ebaõnnestus. Kuvatakse viimati saadud andmed. Kontrolli ühendust.',
               ),
             ),
+          if (_callout.dispatch != null)
+            DispatchCalloutPanel(
+              key: ValueKey('dispatch-${_callout.id}'),
+              callout: _callout,
+              canManage: widget.canManageCallouts && !_calloutReadFailed,
+            ),
           CalloutResponseControls(
             key: ValueKey(_callout.id),
             calloutId: _callout.id,
             organizationId: widget.organizationId,
             userId: widget.currentUid,
             userName: widget.currentUserName,
-            active: _isActive,
+            active:
+                _isActive &&
+                (_callout.dispatch?['incidentStatus'] ?? 'active') == 'active',
             enabled: !_calloutReadFailed,
           ),
           const SizedBox(height: 12),
@@ -251,6 +260,18 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
               subtitle: Text('Ei kuulu ametlikku statistikasse.'),
             ),
           _buildOverviewCard(),
+          if (_callout.dispatch == null &&
+              _callout.phoneCenterId != null &&
+              widget.canManageCallouts)
+            ExpansionTile(
+              title: const Text('Keskusega sidumine'),
+              children: [
+                const Text(
+                  'Kui ülesanne saadi telefoni teel, anna keskusele see tunnus:',
+                ),
+                SelectableText(_callout.id),
+              ],
+            ),
           const SizedBox(height: AppTheme.itemSpacing),
           _buildDescriptionCard(),
           const SizedBox(height: AppTheme.itemSpacing),
@@ -274,13 +295,14 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
               ),
             ),
           ),
-          CalloutTestStatusControl(
-            key: ValueKey('${widget.organizationId}-${widget.callout.id}'),
-            callout: _callout,
-            organizationId: widget.organizationId,
-            userId: widget.currentUid,
-          ),
-          if (widget.canManageCallouts)
+          if (_callout.dispatch == null)
+            CalloutTestStatusControl(
+              key: ValueKey('${widget.organizationId}-${widget.callout.id}'),
+              callout: _callout,
+              organizationId: widget.organizationId,
+              userId: widget.currentUid,
+            ),
+          if (widget.canManageCallouts && _callout.dispatch == null)
             OutlinedButton.icon(
               icon: const Icon(Icons.edit_outlined),
               label: const Text('Täienda sündmuse andmeid'),

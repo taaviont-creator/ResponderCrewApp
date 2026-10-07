@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'app_layout.dart';
-import 'primary_action_button.dart';
 
 class DashboardQuickActions extends StatelessWidget {
   const DashboardQuickActions({
@@ -20,11 +19,10 @@ class DashboardQuickActions extends StatelessWidget {
         const SectionHeading(title: 'Kiirtegevused'),
         const SizedBox(height: 8),
         if (onCreateCallout != null)
-          PrimaryActionButton(
-            label: 'Loo väljakutse',
-            icon: Icons.campaign_outlined,
-            style: PrimaryActionButtonStyle.danger,
-            onPressed: onCreateCallout!,
+          OutlinedButton.icon(
+            onPressed: onCreateCallout,
+            icon: const Icon(Icons.campaign_outlined),
+            label: const Text('Loo väljakutse'),
           ),
         if (onCreateActivity != null) ...[
           const SizedBox(height: 8),

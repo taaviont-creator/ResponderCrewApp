@@ -86,6 +86,7 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
           location: draft.location,
           priority: draft.priority,
           calloutType: draft.type,
+          phoneCenterId: draft.phoneCenterId,
           responseTargetMinutes: draft.responseTargetMinutes,
           createdBy: widget.currentUid,
           createdByName: widget.currentUserName,

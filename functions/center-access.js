@@ -39,7 +39,7 @@ function createCenterAccessHandlers({db, timestamp, now = Date.now, fromMillis})
         return {serverNowMs, contexts: entries
           .filter(e => allowed(e.grant, e.center, e.definition.service, serverNowMs))
           .map(e => ({centerId: e.id, name: e.definition.name,
-            service: e.definition.service, validUntilMs: millis(e.grant.validUntil)}))};
+            service: e.definition.service, canDispatch: e.grant.canDispatch === true, validUntilMs: millis(e.grant.validUntil)}))};
       });
     },
     getPlatformCenterAccess: async request => {
@@ -48,7 +48,7 @@ function createCenterAccessHandlers({db, timestamp, now = Date.now, fromMillis})
         await platformAccess(transactionDb(tx), request);
         const entries = await readAccess(tx, request.data.userId);
         return {grants: entries.map(e => ({centerId: e.id, name: e.definition.name,
-          active: e.grant?.active === true, validUntilMs: millis(e.grant?.validUntil),
+          active: e.grant?.active === true, canDispatch: e.grant?.canDispatch === true, validUntilMs: millis(e.grant?.validUntil),
           revision: e.grant?.revision ?? 0}))};
       });
     },
@@ -56,8 +56,8 @@ function createCenterAccessHandlers({db, timestamp, now = Date.now, fromMillis})
       const d = request.data || {};
       if (!validId(d.userId) || !Object.hasOwn(CENTERS, d.centerId) ||
           typeof d.active !== 'boolean' || !Number.isSafeInteger(d.expectedRevision) ||
-          d.expectedRevision < 0 ||
-          Object.keys(d).some(k => !['userId','centerId','active','expectedRevision','validUntilMs'].includes(k)) ||
+          d.expectedRevision < 0 || (d.canDispatch !== undefined && typeof d.canDispatch !== 'boolean') ||
+          Object.keys(d).some(k => !['userId','centerId','active','expectedRevision','validUntilMs','canDispatch'].includes(k)) ||
           (d.validUntilMs != null && (!Number.isSafeInteger(d.validUntilMs) ||
             d.validUntilMs <= now() || d.validUntilMs > 8640000000000000))) {
         throw new HttpsError('invalid-argument', 'Kontrolli keskuse õiguse andmeid.');
@@ -80,7 +80,7 @@ function createCenterAccessHandlers({db, timestamp, now = Date.now, fromMillis})
           name: definition.name, services: [definition.service], active: true,
           createdAt: at, createdBy: request.auth.uid,
         });
-        const after = {active: d.active, services: [definition.service],
+        const after = {active: d.active, canDispatch: d.active && (d.canDispatch ?? before?.canDispatch ?? false), services: [definition.service],
           validUntil: d.active && d.validUntilMs != null ? fromMillis(d.validUntilMs) : null,
           revision: d.expectedRevision + 1, updatedAt: at, updatedBy: request.auth.uid,
           grantedAt: d.active ? at : before?.grantedAt ?? null,
@@ -91,7 +91,7 @@ function createCenterAccessHandlers({db, timestamp, now = Date.now, fromMillis})
           action: d.active ? 'centerAccess.granted' : 'centerAccess.revoked',
           targetId: d.userId, centerId: d.centerId,
           before: {active: before?.active === true, revision: before?.revision ?? 0},
-          after: {active: after.active, services: after.services, validUntil: after.validUntil, revision: after.revision},
+          after: {active: after.active, canDispatch: after.canDispatch, services: after.services, validUntil: after.validUntil, revision: after.revision},
           createdAt: at, createdBy: request.auth.uid,
         });
         return {saved: true, revision: after.revision};

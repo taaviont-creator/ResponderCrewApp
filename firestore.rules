@@ -2113,13 +2113,14 @@ service cloud.firestore {
         data.createdBy is string &&
         data.createdByName is string &&
         hasValidOrganizationReference(data) &&
+        (!data.keys().hasAny(['phoneCenterId']) || (data.phoneCenterId == 'merevalvekeskus' && data.get('calloutType','sar') == 'sar') || (data.phoneCenterId == 'tross' && data.get('calloutType','sar') == 'tross')) &&
         isValidCalloutStatus(data.status) &&
         isValidCalloutPriority(data.priority) &&
         hasValidCalloutPolicy(data);
     }
 
     function isCalloutCreate(calloutId) {
-      return signedIn() &&
+      return signedIn() && !request.resource.data.keys().hasAny(['dispatch']) &&
         request.resource.data.id == calloutId &&
         request.resource.data.createdBy == request.auth.uid &&
         request.resource.data.status == 'active' &&
@@ -2232,6 +2233,7 @@ service cloud.firestore {
         responseId == request.resource.data.calloutId + '_' + request.auth.uid &&
         isValidCalloutResponseData(request.resource.data) &&
         calloutIsActive(request.resource.data.calloutId) &&
+        calloutData(request.resource.data.calloutId).get('dispatch', {}).get('incidentStatus', 'active') == 'active' &&
         isActiveMember(organizationIdFromData(request.resource.data));
     }
 
@@ -2823,6 +2825,28 @@ service cloud.firestore {
         );
       allow create: if isCalloutCreate(calloutId);
       allow update: if isCalloutStatusUpdate(calloutId);
+    }
+
+    // Dispatch commands are server-only; centers read only their own service.
+    function canDispatchAt(centerId) {
+      let grant = get(/databases/$(database)/documents/centerAccess/$(request.auth.uid)/grants/$(centerId)).data;
+      let center = get(/databases/$(database)/documents/centers/$(centerId)).data;
+      let serviceType = centerId == 'merevalvekeskus' ? 'sar' : 'tross';
+      return signedIn() && centerId in ['merevalvekeskus','tross'] &&
+        center.active == true && serviceType in center.services && grant.active == true &&
+        grant.get('canDispatch', false) == true && serviceType in grant.services &&
+        (grant.validUntil == null || grant.validUntil > request.time);
+    }
+    match /dispatchIncidents/{incidentId} {
+      allow read: if canDispatchAt(resource.data.centerId);
+      match /{collection}/{entryId} {
+        allow read: if collection in ['assignments','updates'] &&
+          canDispatchAt(get(/databases/$(database)/documents/dispatchIncidents/$(incidentId)).data.centerId);
+      }
+    }
+    match /callouts/{calloutId}/centerUpdates/{entryId} {
+      allow read: if signedIn() && isActiveMember(resource.data.organizationId) &&
+        resource.data.organizationId == get(/databases/$(database)/documents/callouts/$(calloutId)).data.organizationId;
     }
 
     match /calloutReports/{calloutId} {
