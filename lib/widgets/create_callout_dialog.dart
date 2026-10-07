@@ -11,10 +11,12 @@ class CalloutDraft {
     required this.priority,
     this.responseTargetMinutes,
     this.phoneCenterId,
+    this.isTest = false,
   });
   final String type, title, description, location, priority;
   final int? responseTargetMinutes;
   final String? phoneCenterId;
+  final bool isTest;
 }
 
 class CreateCalloutDialog extends StatefulWidget {
@@ -31,6 +33,7 @@ class _CreateCalloutDialogState extends State<CreateCalloutDialog> {
   String? _type, _error;
   bool _saving = false;
   bool _phone = false;
+  bool _isTest = false;
 
   @override
   void dispose() {
@@ -51,6 +54,7 @@ class _CreateCalloutDialogState extends State<CreateCalloutDialog> {
       await widget.onSave(
         CalloutDraft(
           type: type,
+          isTest: _isTest,
           phoneCenterId: _phone && ReleaseFeatures.centers
               ? (type == CalloutType.sar ? 'merevalvekeskus' : 'tross')
               : null,
@@ -109,6 +113,19 @@ class _CreateCalloutDialogState extends State<CreateCalloutDialog> {
                   ),
                 ),
               const SizedBox(height: 8),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                title: const Text('Proovihäire'),
+                value: _isTest,
+                onChanged: _saving
+                    ? null
+                    : (value) => setState(() => _isTest = value ?? false),
+              ),
+              if (_isTest)
+                const Text(
+                  'Saadab päris häire ühingu meeskonnale harjutamiseks. Ei lähe sündmuste statistikasse ega liikmete panusesse.',
+                ),
               ExpansionTile(
                 tilePadding: EdgeInsets.zero,
                 title: const Text('Lisa teadaolev info (valikuline)'),
@@ -188,7 +205,13 @@ class _CreateCalloutDialogState extends State<CreateCalloutDialog> {
         FilledButton.icon(
           onPressed: _saving || _type == null ? null : _save,
           icon: const Icon(Icons.campaign),
-          label: Text(_saving ? 'Saadan…' : 'Alarmeeri meeskond'),
+          label: Text(
+            _saving
+                ? 'Saadan…'
+                : _isTest
+                ? 'Saada proovihäire'
+                : 'Alarmeeri meeskond',
+          ),
         ),
       ],
     ),

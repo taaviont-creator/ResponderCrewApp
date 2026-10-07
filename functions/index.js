@@ -163,6 +163,7 @@ async function sendCalloutAlarm({
   organizationId,
   tokenRecords,
   calloutType = 'sar',
+  isTest = false,
 }) {
   let successCount = 0;
   let failureCount = 0;
@@ -171,7 +172,7 @@ async function sendCalloutAlarm({
   const {calloutDeliveryGroups} = require('./callout-notification-payload');
   for (const group of calloutDeliveryGroups(tokenRecords, calloutType)) {
     for (const tokenRecordChunk of chunkArray(group.records, MAX_MULTICAST_TOKENS)) {
-      const message = require('./callout-notification-payload').calloutNotificationPayload({calloutId,organizationId,calloutType,
+      const message = require('./callout-notification-payload').calloutNotificationPayload({calloutId,organizationId,calloutType,isTest,
         nativeSarAlarm: group.nativeSarAlarm, tokens:tokenRecordChunk.map(record=>record.token)});
 
       const response = await messaging.sendEachForMulticast(message);

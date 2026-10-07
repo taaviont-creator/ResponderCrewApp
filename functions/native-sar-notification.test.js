@@ -1,6 +1,26 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {calloutDeliveryGroups,calloutNotificationPayload}=require('./callout-notification-payload');
+test('crew drills are clearly labelled for native Android, legacy Android and iOS without changing route or channel',()=>{
+  for (const calloutType of ['sar','tross']) {
+    for (const nativeSarAlarm of [true,false]) {
+      const args={calloutId:'drill-id',organizationId:'org',tokens:['t'],calloutType,nativeSarAlarm};
+      const real=calloutNotificationPayload(args);
+      const drill=calloutNotificationPayload({...args,isTest:true});
+      assert.match(drill.notification?.title || drill.data.title,/PROOVIHÄIRE/);
+      assert.match(drill.notification?.body || drill.data.body,/ei ole päris/);
+      assert.equal(drill.data.isTest,'true');
+      assert.equal(real.data.isTest,'false');
+      assert.equal(drill.data.calloutId,'drill-id');
+      assert.equal(drill.data.organizationId,'org');
+      assert.equal(drill.data.channelId,real.data.channelId);
+      const path=require('node:path');
+      const {validateMessage}=require(path.join(path.dirname(require.resolve('firebase-admin')),'messaging/messaging-internal.js'));
+      const {tokens,...payload}=drill;
+      validateMessage({...payload,token:tokens[0]});
+    }
+  }
+});
 test('only capable Android SAR clients receive data-only alarm delivery',()=>{
   const records=[{token:'new',platform:'android',nativeSarAlarm:true},
     {token:'old',platform:'android'}, {token:'apple',platform:'ios',nativeSarAlarm:true}];

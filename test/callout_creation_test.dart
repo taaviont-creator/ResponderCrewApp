@@ -58,6 +58,7 @@ void main() {
         await tester.tap(find.text('Alarmeeri meeskond'));
         await tester.pump();
         expect(saved!.type, type);
+        expect(saved!.isTest, isFalse);
         expect(saved!.title, CalloutType.label(type));
         expect(saved!.description, '');
         expect(saved!.location, '');
@@ -74,6 +75,47 @@ void main() {
         pending.completeError(StateError('offline'));
         await tester.pumpAndSettle();
         expect(find.textContaining('Sisestatud info säilib'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+  for (final type in CalloutType.values) {
+    testWidgets(
+      '$type drill is chosen before sending and explains crew-wide alarm',
+      (tester) async {
+        tester.view.physicalSize = const Size(390, 844);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        CalloutDraft? saved;
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: CreateCalloutDialog(
+                onSave: (d) async {
+                  saved = d;
+                  throw StateError('offline');
+                },
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text(CalloutType.label(type)));
+        await tester.tap(find.text('Proovihäire'));
+        await tester.pumpAndSettle();
+        expect(
+          find.textContaining('päris häire ühingu meeskonnale'),
+          findsOneWidget,
+        );
+        expect(find.text('Alarmeeri meeskond'), findsNothing);
+        await tester.tap(find.text('Saada proovihäire'));
+        await tester.pumpAndSettle();
+        expect(saved!.isTest, isTrue);
+        expect(saved!.type, type);
+        expect(
+          tester.widget<CheckboxListTile>(find.byType(CheckboxListTile)).value,
+          isTrue,
+        );
         expect(tester.takeException(), isNull);
       },
     );

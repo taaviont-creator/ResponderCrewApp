@@ -1,15 +1,18 @@
 const {test}=require('node:test');const assert=require('node:assert/strict');
 const {createCalloutAlarmHandler}=require('./callout-alarm-delivery');
-function fixture({status='active',orgStatus='approved',tokens=[{token:'secret'}],failure=false}={}) {
- let claimed=false,calls=0,record;
- const current={organizationId:'org',status};
+function fixture({status='active',orgStatus='approved',tokens=[{token:'secret'}],failure=false,isTest}={}) {
+ let claimed=false,calls=0,record,sent;
+ const current={organizationId:'org',status,isTest};
  const db={doc:path=>path.startsWith('commands/')?{get:async()=>({exists:true,data:()=>({status:orgStatus})})}:{
  create:async value=>{if(claimed)throw {code:6};claimed=true;record=value;},update:async value=>Object.assign(record,value)}};
  const handler=createCalloutAlarmHandler({db,loadMembers:async()=>['u'],loadTokens:async()=>tokens,
- sendAlarm:async()=>{calls++;if(failure)throw Error('timeout');return {successCount:1,failureCount:0}},logger:{warn(){},error(){}}});
+ sendAlarm:async data=>{sent=data;calls++;if(failure)throw Error('timeout');return {successCount:1,failureCount:0}},logger:{warn(){},error(){}}});
  const event={params:{calloutId:'c'},data:{data:()=>({organizationId:'org',status:'active'}),ref:{get:async()=>({data:()=>current})}}};
- return {handler,event,get calls(){return calls},get record(){return record}};
+ return {handler,event,get calls(){return calls},get record(){return record},get sent(){return sent}};
 }
+test('alarm delivery uses current drill flag; old events default to real',async()=>{
+ for(const isTest of [undefined,false,true]){const f=fixture({isTest});await f.handler(f.event);assert.equal(f.sent.isTest,isTest===true);}
+});
 test('concurrent repeated Firestore events send the callout alarm only once',async()=>{
  const f=fixture();await Promise.all(Array.from({length:8},()=>f.handler(f.event)));assert.equal(f.calls,1);assert.equal(f.record.status,'accepted');assert.equal(f.record.token,undefined);
 });

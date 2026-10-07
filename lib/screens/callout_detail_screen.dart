@@ -256,7 +256,7 @@ class _CalloutDetailScreenState extends State<CalloutDetailScreen> {
           if (_callout.isTest)
             const ListTile(
               leading: Icon(Icons.science_outlined),
-              title: Text('Test-/proovisündmus'),
+              title: Text('Proovihäire · harjutus'),
               subtitle: Text('Ei kuulu ametlikku statistikasse.'),
             ),
           _buildOverviewCard(),

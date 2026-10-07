@@ -338,6 +338,7 @@ class CalloutService {
   }
 
   Future<String> addCallout({
+    bool isTest = false,
     String? phoneCenterId,
     String calloutType = CalloutType.sar,
     int? responseTargetMinutes,
@@ -391,6 +392,7 @@ class CalloutService {
       'id': calloutDoc.id,
       'phoneCenterId': ?phoneCenterId,
       'calloutType': calloutType,
+      'isTest': isTest,
       'responseTargetMinutes': responseTargetMinutes,
       'organizationId': trimmedOrganizationId,
       // TODO: Remove commandId after all callout reads use organizationId.
@@ -412,7 +414,7 @@ class CalloutService {
       'organizationId': trimmedOrganizationId,
       // TODO: Remove commandId after all notification reads use organizationId.
       'commandId': trimmedOrganizationId,
-      'title': 'Väljakutse: $trimmedTitle',
+      'title': '${isTest ? 'PROOVIHÄIRE' : 'Väljakutse'}: $trimmedTitle',
       'message': notificationMessage,
       'type': NotificationType.callout,
       'priority': NotificationPriority.high,
@@ -431,7 +433,7 @@ class CalloutService {
       'createdBy': trimmedCreatedBy,
       'createdByName': trimmedCreatedByName,
       'type': OperationLogType.note,
-      'title': 'Väljakutse loodud: $trimmedTitle',
+      'title': '${isTest ? 'Prooviväljakutse' : 'Väljakutse'} loodud: $trimmedTitle',
       'description': notificationMessage,
       'status': OperationLogStatus.open,
       'calloutId': calloutDoc.id,
