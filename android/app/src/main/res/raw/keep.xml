@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Flutter passes these Android resource names at runtime. The Android
+     resource shrinker cannot see references in Dart and must retain them. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@raw/sar_alarm,@drawable/ic_stat_respondcrew" />

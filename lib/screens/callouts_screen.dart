@@ -169,24 +169,17 @@ class _CalloutsScreenState extends State<CalloutsScreen> {
         body: StreamBuilder<List<CalloutModel>>(
           stream: _stream,
           builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            if (snapshot.hasError) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppTheme.screenPadding),
-                  child: Text(
-                    'Väljakutsete laadimine ebaõnnestus.',
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              );
-            }
-
             return CalloutListView(
               key: ValueKey(widget.organizationId),
+              loading: snapshot.connectionState == ConnectionState.waiting,
+              error: snapshot.hasError
+                  ? 'Väljakutsete laadimine ebaõnnestus.'
+                  : null,
+              onRetry: () => setState(() {
+                _stream = _calloutService.streamOrganizationCallouts(
+                  organizationId: widget.organizationId,
+                );
+              }),
               callouts: snapshot.data ?? const <CalloutModel>[],
               itemBuilder: (callout) => _CalloutCard(
                 callout: callout,

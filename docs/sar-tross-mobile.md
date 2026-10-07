@@ -31,3 +31,17 @@ Logi staatuse muutus nõuab kinnitamist; ajajoon ja väljavõte näitavad autori
 7. Kontrolli logi ekraani ärkvel hoidmist, telefoninumbri avamist helistajas, kitsast kuva ja suurt teksti.
 
 Päris-seadme alarmi, GPS-i, ärkvelhoidmise ja helistaja tulemust ei saa asendada automatiseeritud testidega. Varustuse kontrollnimekirjad, statistika laiendused ja välised ühendused jäävad eraldi etappidesse. Automaatne e-posti kutse ning uue ühingu platvormiadmini e-kiri vajavad endiselt e-posti teenuse/SMTP/API saladuse seadistust.
+
+## Androidi SAR-heli parandus 2026-10-07 (1.0.1)
+
+Eelmise optimeeritud APK kontroll leidis, et `sar_alarm.wav` oli ressursi vähendamisel eemaldatud. `res/raw/keep.xml` säilitab nüüd Dartist nime järgi kasutatava helifaili ja teavitusikooni. APK üleandmisel tuleb käivitada `python tool/verify_apk_alarm.py <apk>`; kontroll võrdleb pakitud heli räsi originaaliga ja tuvastas vea ka eelmises APK-s.
+
+SAR kasutab kliendis kanalit `sar_alarm_v3` ja `AudioAttributesUsage.alarm`. Vana kanali helikasutust ei saa kohapeal muuta. Migratsioon säilitab kasutaja vaigistuse, kanali blokeerimise, valitud muu heli, vibratsiooni ja olemasoleva DND-erandi. Rakenduse vana numbrilise heliviite asendab stabiilne `android.resource://com.example.respondcrew_app/raw/sar_alarm` viide. Olemasolevat v3 kanalit ei lähtestata. Esiplaani, tausta andmesõnum ning kohalik proov kasutavad sama kanalit. Vanemate klientide serverisüsteemiteavitus jääb v2 kanalile; serveri payload ega õigused ei muutu.
+
+Telefoni seadetes kuvatakse alarmi tegelik helitugevus. DND eriligipääsu järel saab kasutaja eraldi nupuga lubada SAR-erandi; tulemus loetakse süsteemist tagasi. Kui Android ei luba kanalit rakendusest muuta, avatakse kanali seaded. Rakendus ei muuda üldist DND-režiimi ega tõsta helitugevust. Kohe kuulatav proov kasutab sama heli kui saabuv SAR. Telefoniseaded ei sõltu enam ühingu teavituseelistuste võrguvastusest. Menüüs kuvatakse paigaldatud Androidi paketi versioon.
+
+Väljakutsete „Aktiivsed“ ja „Lõpetatud“ valikud jäävad nähtavaks ka laadimisel ja laadimisvea korral, viimasel juhul lisandub uuesti proovimine. Need valikud olid olemas juba eelmise APK lähtekoodis; kasutaja Xiaomi 14 / Android 16 telefonis kirjeldatud kadumist ei ole pärisseadmes reprodutseeritud. Muudetud laadimis- ja veavaated ning 320 px suure tekstiga paigutus on kaetud widget-testidega.
+
+Kontroll: 282 Flutteri testi läbisid; eraldi kaetud kanali migratsioon, vanade heliviidete parandamine, vaigistuse säilitamine, DND keeld/luba, versiooninäit ning kahe valiku püsimine laadimisel ja vea korral. Pärisseadmes vajavad kontrolli tavaline ja vaikne režiim, DND, lukustatud ekraan, pooleliolev kõne ja serverist saabuv prooviväljakutse. Alarmikanal ei taga heli, kui alarmi helitugevus on null, teavitused/kanal keelatud või Android/tootja heli piirab. Kõne ajal helifookus võib olla lukustatud. Android 7-l puuduvad teavituskanalid; v3 alarmihelitee eeldab Android 8 või uuemat.
+
+Allikad: https://developer.android.com/reference/android/app/NotificationChannel ja https://developer.android.com/media/optimize/audio-focus .

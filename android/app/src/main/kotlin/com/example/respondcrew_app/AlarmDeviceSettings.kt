@@ -10,15 +10,32 @@ import android.os.Build
 import android.provider.Settings
 
 object AlarmDeviceSettings {
-    const val SAR_CHANNEL = "sar_alarm_v2"
+    const val SAR_CHANNEL = "sar_alarm_v3"
+
+    fun buildInfo(context: Context): Map<String, Any?> {
+        val info = context.packageManager.getPackageInfo(context.packageName, 0)
+        val code = if (Build.VERSION.SDK_INT >= 28) info.longVersionCode else info.versionCode.toLong()
+        return mapOf("version" to info.versionName, "build" to code.toString())
+    }
+
+    // Only called after an explicit button press and system-granted access.
+    // Android can refuse changes to a channel previously edited by the user.
+    fun enableSarDnd(context: Context): Boolean {
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (Build.VERSION.SDK_INT < 26 || !manager.isNotificationPolicyAccessGranted) return false
+        val channel = manager.getNotificationChannel(SAR_CHANNEL) ?: return false
+        channel.setBypassDnd(true)
+        manager.createNotificationChannel(channel)
+        return manager.getNotificationChannel(SAR_CHANNEL)?.canBypassDnd() == true
+    }
 
     fun read(context: Context): Map<String, Any?> {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val audio = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         val channel = if (Build.VERSION.SDK_INT >= 26) manager.getNotificationChannel(SAR_CHANNEL) else null
-        // Existing channels retain their user-selected sound and audio stream.
-        val stream = if (channel?.audioAttributes?.usage == AudioAttributes.USAGE_ALARM)
-            AudioManager.STREAM_ALARM else AudioManager.STREAM_NOTIFICATION
+        // A muted channel may have null audio attributes. Still report the
+        // alarm stream used by SAR v3, never the unrelated ringtone volume.
+        val stream = AudioManager.STREAM_ALARM
         return mapOf(
             "notificationsEnabled" to (if (Build.VERSION.SDK_INT >= 24) manager.areNotificationsEnabled() else true),
             "channelExists" to (channel != null),
@@ -26,6 +43,10 @@ object AlarmDeviceSettings {
             "channelSound" to channel?.let { it.sound != null && it.importance >= NotificationManager.IMPORTANCE_DEFAULT },
             "bypassDnd" to channel?.canBypassDnd(),
             "notificationPolicyAccess" to (if (Build.VERSION.SDK_INT >= 23) manager.isNotificationPolicyAccessGranted else null),
+            "alarmAudio" to (channel?.audioAttributes?.usage == AudioAttributes.USAGE_ALARM),
+            "interruptionFilter" to manager.currentInterruptionFilter,
+            "ringerMode" to audio.ringerMode,
+            "audioMode" to audio.mode,
             "fullScreenAllowed" to (if (Build.VERSION.SDK_INT >= 34) manager.canUseFullScreenIntent() else true),
             "soundVolume" to audio.getStreamVolume(stream),
             "soundVolumeMax" to audio.getStreamMaxVolume(stream)

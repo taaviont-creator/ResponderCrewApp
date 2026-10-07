@@ -35,6 +35,14 @@ class MainActivity : FlutterActivity() {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "respondcrew/notifications")
             .setMethodCallHandler { call, result ->
                 try {
+                    if (call.method == "getBuildInfo") {
+                        result.success(AlarmDeviceSettings.buildInfo(this))
+                        return@setMethodCallHandler
+                    }
+                    if (call.method == "enableSarDnd") {
+                        result.success(AlarmDeviceSettings.enableSarDnd(this))
+                        return@setMethodCallHandler
+                    }
                     if (call.method == "getSettings") {
                         result.success(AlarmDeviceSettings.read(this))
                         return@setMethodCallHandler

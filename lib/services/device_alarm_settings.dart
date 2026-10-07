@@ -11,4 +11,11 @@ class DeviceAlarmSettings {
 
   Future<String?> open(String destination) =>
       channel.invokeMethod<String>(destination);
+
+  Future<bool> enableSarDnd() async =>
+      await channel.invokeMethod<bool>('enableSarDnd') ?? false;
+
+  Future<Map<String, dynamic>> buildInfo() async => Map<String, dynamic>.from(
+    await channel.invokeMapMethod<String, dynamic>('getBuildInfo') ?? {},
+  );
 }

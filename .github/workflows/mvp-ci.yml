@@ -68,6 +68,10 @@ jobs:
         if: github.event_name == 'workflow_dispatch' && inputs.build_android_apk
         run: flutter build apk --debug
 
+      - name: Verify packaged SAR alarm sound
+        if: github.event_name == 'workflow_dispatch' && inputs.build_android_apk
+        run: python3 tool/verify_apk_alarm.py build/app/outputs/flutter-apk/app-debug.apk
+
       - name: Save Android test APK
         if: github.event_name == 'workflow_dispatch' && inputs.build_android_apk
         uses: actions/upload-artifact@v4

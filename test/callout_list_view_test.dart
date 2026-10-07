@@ -20,6 +20,40 @@ CalloutModel event(String id, String status, {bool drill = false}) =>
     );
 
 void main() {
+  testWidgets(
+    'phone tabs remain visible during loading and errors, retry preserves selected tab',
+    (tester) async {
+      tester.view.physicalSize = const Size(360, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      var retried = false;
+      Widget app({bool loading = false, String? error}) => MaterialApp(
+        home: Scaffold(
+          body: CalloutListView(
+            callouts: [],
+            loading: loading,
+            error: error,
+            onRetry: () => retried = true,
+            itemBuilder: (_) => const SizedBox(),
+          ),
+        ),
+      );
+      await tester.pumpWidget(app(loading: true));
+      expect(find.text('Aktiivsed'), findsOneWidget);
+      expect(find.text('Lõpetatud'), findsOneWidget);
+      await tester.tap(find.text('Lõpetatud'));
+      await tester.pumpWidget(app(error: 'Laadimine ebaõnnestus'));
+      expect(find.text('Aktiivsed'), findsOneWidget);
+      expect(find.text('Lõpetatud'), findsOneWidget);
+      await tester.tap(find.text('Proovi uuesti'));
+      expect(retried, isTrue);
+      await tester.pumpWidget(app());
+      expect(find.text('Lõpetatud väljakutseid ei ole.'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   final active = event('Päästetöö', CalloutStatus.active);
   final drill = event('Harjutus', CalloutStatus.active, drill: true);
   final closed = event('Vana sündmus', CalloutStatus.closed);

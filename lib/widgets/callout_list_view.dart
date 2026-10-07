@@ -9,9 +9,15 @@ class CalloutListView extends StatefulWidget {
     super.key,
     required this.callouts,
     required this.itemBuilder,
+    this.loading = false,
+    this.error,
+    this.onRetry,
   });
   final List<CalloutModel> callouts;
   final Widget Function(CalloutModel) itemBuilder;
+  final bool loading;
+  final String? error;
+  final VoidCallback? onRetry;
 
   @override
   State<CalloutListView> createState() => _CalloutListViewState();
@@ -48,7 +54,7 @@ class _CalloutListViewState extends State<CalloutListView> {
                       ),
                       onPressed: () => setState(() => _completed = past),
                       child: Text(
-                        '${past ? 'Lõpetatud' : 'Aktiivsed'} (${past ? completed.length : active.length})',
+                        '${past ? 'Lõpetatud' : 'Aktiivsed'}${widget.loading || widget.error != null ? '' : ' (${past ? completed.length : active.length})'}',
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -59,7 +65,26 @@ class _CalloutListViewState extends State<CalloutListView> {
           ),
         ),
         Expanded(
-          child: visible.isEmpty
+          child: widget.error != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppTheme.screenPadding),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(widget.error!, textAlign: TextAlign.center),
+                        if (widget.onRetry != null)
+                          TextButton(
+                            onPressed: widget.onRetry,
+                            child: const Text('Proovi uuesti'),
+                          ),
+                      ],
+                    ),
+                  ),
+                )
+              : widget.loading
+              ? const Center(child: CircularProgressIndicator())
+              : visible.isEmpty
               ? Center(
                   child: Padding(
                     padding: const EdgeInsets.all(AppTheme.screenPadding),

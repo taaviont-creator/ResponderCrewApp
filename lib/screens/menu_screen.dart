@@ -1,4 +1,5 @@
 import '../widgets/app_layout.dart';
+import '../widgets/app_build_label.dart';
 import '../widgets/platform_pending_badge.dart';
 import 'notification_settings_screen.dart';
 import 'package:flutter/material.dart';
@@ -247,6 +248,7 @@ class MenuScreen extends StatelessWidget {
               subtitle: 'Lülitu teise ühingu vaatele',
               onTap: onSwitchOrganization,
             ),
+          const AppBuildLabel(),
         ],
       ),
     );
