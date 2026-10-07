@@ -53,7 +53,7 @@ class CalloutNotificationOpenEvent {
   static CalloutNotificationOpenEvent? fromData(
     Map<String, dynamic> data,
   ) {
-    if (data['type'] != null && !{'callout', 'callout_alarm', 'tross_callout'}.contains(data['type'])) return null;
+    if (data['type'] != null && !{'callout', 'callout_alarm', 'tross_callout', 'callout_update'}.contains(data['type'])) return null;
     final organizationId =
         (data['organizationId'] ?? data['commandId'] ?? '').toString().trim();
     final calloutId =
@@ -374,6 +374,7 @@ class CalloutAlarmNotificationService with WidgetsBindingObserver {
       AndroidNotificationChannel('tross_callouts','Trossi mereabi',importance:Importance.defaultImportance),
       AndroidNotificationChannel('readiness_changes','Ühingu valmiduse muutused',importance:Importance.defaultImportance),
       AndroidNotificationChannel('respondcrew_info','RespondCrew teated',importance:Importance.defaultImportance),
+      AndroidNotificationChannel('dispatch_updates','Keskuse olulised täiendused',importance:Importance.high),
     ]) { await android?.createNotificationChannel(channel); }
     final launch = await _localNotifications.getNotificationAppLaunchDetails();
     if (launch?.didNotificationLaunchApp == true && launch?.notificationResponse != null) {
@@ -407,6 +408,16 @@ class CalloutAlarmNotificationService with WidgetsBindingObserver {
   Future<void> _showForegroundCalloutNotification(
     RemoteMessage message,
   ) async {
+    if (message.data['type'] == 'callout_update') {
+      await _localNotifications.show(id: message.hashCode, title: message.notification?.title, body: message.notification?.body,
+        notificationDetails: NotificationDetails(android: AndroidNotificationDetails(
+          message.data['urgent'] == 'true' ? 'dispatch_updates' : 'respondcrew_info',
+          message.data['urgent'] == 'true' ? 'Keskuse olulised täiendused' : 'RespondCrew teated',
+          importance: message.data['urgent'] == 'true' ? Importance.high : Importance.defaultImportance,
+          priority: message.data['urgent'] == 'true' ? Priority.high : Priority.defaultPriority),
+          iOS: const DarwinNotificationDetails(presentAlert: true, presentSound: true)), payload: jsonEncode(message.data));
+      return;
+    }
     if (InformationNotificationOpen.fromData(message.data) != null) {
       final readiness = message.data['type'] != 'platformApplication';
       await _localNotifications.show(id:message.hashCode,title:message.notification?.title,body:message.notification?.body,

@@ -1,3 +1,4 @@
+import '../widgets/dispatch_callout_panel.dart';
 import '../widgets/app_layout.dart';
 import '../services/operation_log_access_service.dart';
 import 'dart:async';
@@ -410,6 +411,7 @@ class _OperationLogCardState extends State<_OperationLogCard> {
           userId: widget.currentUid,
           calloutId: widget.log.calloutId!,
         );
+  CalloutModel? _linkedCallout;
   bool _calloutClosed = false;
   bool _calloutReadFailed = false;
 
@@ -421,6 +423,7 @@ class _OperationLogCardState extends State<_OperationLogCard> {
       (callout) {
         if (!mounted) return;
         setState(() {
+          _linkedCallout = callout;
           _calloutClosed = callout?.status != CalloutStatus.active;
           _calloutReadFailed = false;
         });
@@ -525,6 +528,13 @@ class _OperationLogCardState extends State<_OperationLogCard> {
         log.status == OperationLogStatus.returnedToBase;
     final finished = calloutClosed || !_isActiveOperationLog(log.status);
     return [
+      if (_linkedCallout?.dispatch != null)
+        DispatchCalloutPanel(
+          key: ValueKey('log-dispatch-${_linkedCallout!.id}'),
+          callout: _linkedCallout!,
+          canManage: widget.canStartOperationLog && !_calloutReadFailed,
+          compact: true,
+        ),
       if (_calloutReadFailed)
         const Text(
           'Väljakutse oleku laadimine ebaõnnestus. Kontrolli ühendust.',

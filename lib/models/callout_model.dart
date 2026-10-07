@@ -4,12 +4,33 @@ class CalloutType {
   static const sar = 'sar';
   static const tross = 'tross';
   static const values = {sar, tross};
-  static String label(String type) => type == tross ? 'TROSSI mereabi' : 'SAR sündmus';
-  static const sarChoices = ['Kadunud isik.', 'Inimene vees.', 'Punane rakett.', 'Uppumisohus alus.', 'Alus madalikul kinni.', 'Eksinud alus.', 'Terviserikkega inimene alusel.', 'Muu sündmus.'];
-  static const trossChoices = ['Tehniline rike.', 'Mootoririke.', 'Vajab pukseerimist.', 'Kütus otsas.', 'Aku-/elektririke.', 'Alus madalikul kinni.', 'Käivitusabi.', 'Muu mereabi.'];
-  static List<String> choices(String type) => type == tross ? trossChoices : sarChoices;
+  static String label(String type) =>
+      type == tross ? 'TROSSI mereabi' : 'SAR sündmus';
+  static const sarChoices = [
+    'Kadunud isik.',
+    'Inimene vees.',
+    'Punane rakett.',
+    'Uppumisohus alus.',
+    'Alus madalikul kinni.',
+    'Eksinud alus.',
+    'Terviserikkega inimene alusel.',
+    'Muu sündmus.',
+  ];
+  static const trossChoices = [
+    'Tehniline rike.',
+    'Mootoririke.',
+    'Vajab pukseerimist.',
+    'Kütus otsas.',
+    'Aku-/elektririke.',
+    'Alus madalikul kinni.',
+    'Käivitusabi.',
+    'Muu mereabi.',
+  ];
+  static List<String> choices(String type) =>
+      type == tross ? trossChoices : sarChoices;
   static bool validTarget(String type, int? minutes) =>
-      values.contains(type) && (type == tross
+      values.contains(type) &&
+      (type == tross
           ? minutes != null && minutes >= 1 && minutes <= 60
           : minutes == null);
 }
@@ -19,11 +40,7 @@ class CalloutStatus {
   static const closed = 'closed';
   static const cancelled = 'cancelled';
 
-  static const values = {
-    active,
-    closed,
-    cancelled,
-  };
+  static const values = {active, closed, cancelled};
 }
 
 class CalloutPriority {
@@ -32,12 +49,7 @@ class CalloutPriority {
   static const high = 'high';
   static const critical = 'critical';
 
-  static const values = {
-    low,
-    normal,
-    high,
-    critical,
-  };
+  static const values = {low, normal, high, critical};
 }
 
 class CalloutResponseValue {
@@ -46,12 +58,7 @@ class CalloutResponseValue {
   static const unavailable = 'unavailable';
   static const noResponse = 'noResponse';
 
-  static const values = {
-    responding,
-    delayed,
-    unavailable,
-    noResponse,
-  };
+  static const values = {responding, delayed, unavailable, noResponse};
 }
 
 class CalloutModel {
@@ -74,9 +81,15 @@ class CalloutModel {
     this.startedAt,
     this.endedAt,
     this.isTest = false,
+    this.dispatch,
+    this.isFromCache = false,
+    this.phoneCenterId,
   });
 
   final bool isTest;
+  final bool isFromCache;
+  final String? phoneCenterId;
+  final Map<String, dynamic>? dispatch;
   final String id;
   final String organizationId;
   final String commandId;
@@ -104,7 +117,14 @@ class CalloutModel {
 
     return CalloutModel(
       id: document.id,
+      isFromCache: document.metadata.isFromCache,
+      phoneCenterId: data['phoneCenterId'] is String
+          ? data['phoneCenterId'] as String
+          : null,
       isTest: data['isTest'] == true,
+      dispatch: data['dispatch'] is Map
+          ? Map<String, dynamic>.from(data['dispatch'] as Map)
+          : null,
       organizationId: _stringValue(data['organizationId']),
       commandId: _stringValue(data['commandId']),
       title: _stringValue(data['title']),
@@ -265,11 +285,11 @@ class CalloutResponseDetails {
   final List<CalloutResponseMember> noResponse;
 
   CalloutResponseSummary get summary => CalloutResponseSummary(
-        responding: responding.length,
-        delayed: delayed.length,
-        unavailable: unavailable.length,
-        noResponse: noResponse.length,
-      );
+    responding: responding.length,
+    delayed: delayed.length,
+    unavailable: unavailable.length,
+    noResponse: noResponse.length,
+  );
 }
 
 String _stringValue(Object? value, {String fallback = ''}) {

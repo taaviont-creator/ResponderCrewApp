@@ -4,10 +4,12 @@ class CenterContext {
     required this.name,
     required this.service,
     this.validUntil,
+    this.canDispatch = false,
   });
 
   final String centerId, name, service;
   final DateTime? validUntil;
+  final bool canDispatch;
   String get path => '/keskus/$service';
 
   static CenterContext? fromMap(Map<String, dynamic> data) {
@@ -23,6 +25,7 @@ class CenterContext {
     }
     return CenterContext(
       centerId: id as String,
+      canDispatch: data['canDispatch'] == true,
       name: service == 'sar' ? 'Merevalvekeskus' : 'Trossi keskus',
       service: service as String,
       validUntil: expiry == null

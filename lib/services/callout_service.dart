@@ -79,7 +79,7 @@ class CalloutService {
     required String organizationId,
   }) {
     _requireOrganizationId(organizationId);
-    return _callouts.doc(calloutId).snapshots().map((snapshot) {
+    return _callouts.doc(calloutId).snapshots(includeMetadataChanges: true).map((snapshot) {
       if (!snapshot.exists) return null;
       final callout = CalloutModel.fromFirestore(snapshot);
       final calloutOrganizationId = callout.organizationId.isNotEmpty
@@ -338,6 +338,7 @@ class CalloutService {
   }
 
   Future<void> addCallout({
+    String? phoneCenterId,
     String calloutType = CalloutType.sar,
     int? responseTargetMinutes,
     required String organizationId,
@@ -388,6 +389,7 @@ class CalloutService {
 
     batch.set(calloutDoc, {
       'id': calloutDoc.id,
+      'phoneCenterId': ?phoneCenterId,
       'calloutType': calloutType,
       'responseTargetMinutes': responseTargetMinutes,
       'organizationId': trimmedOrganizationId,

@@ -133,6 +133,7 @@ function createAmendCalloutHandler({db,timestamp,now=Date.now}) {
       const actor=await access({doc:path=>({get:()=>tx.get(db.doc(path))})},request,{crewOnly:true});
       const ref=db.doc(`callouts/${d.calloutId}`), old=(await tx.get(ref)).data();
       if (orgId(old)!==actor.org) throw new HttpsError('permission-denied','Sündmus kuulub teisele ühingule.');
+      if (old.dispatch) throw new HttpsError('permission-denied','Keskuse ülesande üldinfot muudab keskus. Täienda ühingu operatiivlogi.');
       if (Math.trunc(millis(old.updatedAt) || 0)!==d.version) throw new HttpsError('aborted','Sündmust muudeti vahepeal. Ava see uuesti.');
       const before={title:old.title,description:old.description,location:old.location},after={title:d.title.trim(),description:d.description.trim(),location:d.location.trim()};
       if (d.startedAt !== undefined || d.endedAt !== undefined || d.calloutType !== undefined) {

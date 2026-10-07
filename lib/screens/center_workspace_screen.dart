@@ -1,3 +1,4 @@
+import 'center_dispatch_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -178,6 +179,16 @@ class _CenterWorkspaceScreenState extends State<CenterWorkspaceScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(item.name, style: Theme.of(context).textTheme.titleLarge),
+                if (!widget.demo && widget.center.canDispatch)
+                  FilledButton.icon(
+                    icon: const Icon(Icons.campaign),label: const Text('Loo väljakutse'),
+                    onPressed: !_service.freshConnection ? null : () async {
+                      final id = await Navigator.push<String>(context,MaterialPageRoute(builder: (_) => DispatchEditor(center:widget.center,units:_service.items,initialOrganizationId:item.id)));
+                      if(id != null && mounted && context.mounted) {
+                        await Navigator.push(context,MaterialPageRoute(builder: (_) => CenterDispatchDetail(center:widget.center,units:_service.items,id:id)));
+                      }
+                    },
+                  ),
                 const SizedBox(height: 12),
                 _badge(_status(item)),
                 const SizedBox(height: 12),
@@ -484,6 +495,20 @@ class _CenterWorkspaceScreenState extends State<CenterWorkspaceScreen>
         appBar: AppBar(
           title: Text(widget.center.name),
           actions: [
+            if (!widget.demo && widget.center.canDispatch)
+              TextButton.icon(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => CenterDispatchScreen(
+                      center: widget.center,
+                      units: _service.items,
+                    ),
+                  ),
+                ),
+                icon: const Icon(Icons.campaign),
+                label: const Text('Väljakutsed'),
+              ),
             IconButton(
               tooltip: 'Uuenda andmeid',
               onPressed: _service.loading ? null : _service.refresh,

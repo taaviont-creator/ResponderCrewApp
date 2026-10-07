@@ -15,6 +15,7 @@ function createSetCalloutTestStatusHandler({db,timestamp}) {
       const actor = await access({doc:path => ({get:() => tx.get(db.doc(path))})},request,{adminOnly:true});
       const ref = db.doc(`callouts/${calloutId}`), old = (await tx.get(ref)).data();
       if (orgId(old) !== actor.org) throw new HttpsError('permission-denied','Väljakutse ei kuulu sellesse ühingusse.');
+      if (old.dispatch) throw new HttpsError('permission-denied','Keskuse sündmuse proovitunnus on ühine kõigile ühingutele.');
       const before = old.isTest === true;
       if (before !== expectedIsTest) throw new HttpsError('aborted','Tunnust muudeti vahepeal. Ava sündmus uuesti.');
       if (before === isTest) return {saved:true};
