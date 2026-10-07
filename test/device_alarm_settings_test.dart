@@ -14,6 +14,66 @@ void main() {
         .setMockMethodCallHandler(DeviceAlarmSettings.channel, null);
   });
 
+  testWidgets(
+    'explicit DND action checks actual result and opens channel when Android refuses',
+    (tester) async {
+      var enabled = false;
+      var allowChange = false;
+      final calls = <String>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(DeviceAlarmSettings.channel, (call) async {
+            calls.add(call.method);
+            if (call.method == 'getSettings') {
+              return <String, dynamic>{
+                'notificationPolicyAccess': true,
+                'bypassDnd': enabled,
+                'alarmAudio': true,
+                'soundVolume': 0,
+                'soundVolumeMax': 15,
+                'interruptionFilter': 3,
+              };
+            }
+            if (call.method == 'enableSarDnd') return enabled = allowChange;
+            return 'sarChannel';
+          });
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: DeviceAlarmSettingsCard(
+                testAlarm: () async => true,
+                cancelTest: () async {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(calls, isNot(contains('enableSarDnd')));
+      expect(
+        find.textContaining('Alarmi helitugevus on nullis'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('Telefonis on täielik vaikus'),
+        findsOneWidget,
+      );
+      final action = find.text('Luba SAR-häire „Mitte segada“ ajal');
+      await tester.ensureVisible(action);
+      await tester.tap(action);
+      await tester.pumpAndSettle();
+      expect(calls, contains('openSarChannel'));
+      expect(find.text('SAR-kanali erand lubatud'), findsNothing);
+      allowChange = true;
+      await tester.pump(const Duration(seconds: 5));
+      await tester.ensureVisible(action);
+      await tester.tap(action);
+      await tester.pumpAndSettle();
+      expect(find.text('SAR-kanali erand lubatud'), findsOneWidget);
+      expect(action, findsNothing);
+    },
+  );
+
   test('native SAR delivery excludes malformed and Tross messages', () {
     final sar = <String, dynamic>{
       'delivery': 'native_sar_v1',
@@ -189,7 +249,7 @@ void main() {
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
-      var scheduled = 0, cancelled = 0;
+      var scheduled = 0, cancelled = 0, immediate = 0;
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
             DeviceAlarmSettings.channel,
@@ -202,6 +262,10 @@ void main() {
             child: Scaffold(
               body: SingleChildScrollView(
                 child: DeviceAlarmSettingsCard(
+                  testNow: () async {
+                    immediate++;
+                    return true;
+                  },
                   testAlarm: () async {
                     scheduled++;
                     return true;
@@ -216,6 +280,11 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Kuula SAR-proovihäiret'));
+      await tester.tap(find.text('Kuula SAR-proovihäiret'));
+      await tester.pumpAndSettle();
+      expect(immediate, 1);
+      expect(scheduled, 0);
       await tester.ensureVisible(find.text('Proovihäire umbes 10 s pärast'));
       await tester.tap(find.text('Proovihäire umbes 10 s pärast'));
       await tester.pumpAndSettle();

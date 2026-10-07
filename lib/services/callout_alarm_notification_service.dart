@@ -13,18 +13,9 @@ import '../firebase_options.dart';
 import '../models/member_request_notification.dart';
 import '../models/certificate_reminder_open.dart';
 import 'device_token_service.dart';
+import 'sar_alarm_channel.dart';
 import '../models/sar_notification_policy.dart';
 import 'package:timezone/timezone.dart' as tz;
-
-const _calloutAlarmChannel = AndroidNotificationChannel(
-  'sar_alarm_v2',
-  'SAR-väljakutse häire',
-  description: 'Kiire reageerimist vajav SAR-väljakutse',
-  sound: RawResourceAndroidNotificationSound('sar_alarm'),
-  importance: Importance.max,
-  playSound: true,
-  enableVibration: true,
-);
 
 const _memberRequestChannel = AndroidNotificationChannel(
   'member_requests', 'Liitumistaotlused',
@@ -274,13 +265,14 @@ class CalloutAlarmNotificationService with WidgetsBindingObserver {
 
     const details = NotificationDetails(
       android: AndroidNotificationDetails(
-        'sar_alarm_v2',
+        sarAlarmChannelId,
         'V\u00e4ljakutse alarm',
         channelDescription: 'Heliline alarm v\u00e4ljakutsete jaoks',
         importance: Importance.max,
         priority: Priority.high,
         playSound: true,
-        sound: RawResourceAndroidNotificationSound('sar_alarm'),
+        sound: sarAlarmSound,
+        audioAttributesUsage: AudioAttributesUsage.alarm,
         enableVibration: true,
         category: AndroidNotificationCategory.alarm,
         fullScreenIntent: true,
@@ -360,10 +352,8 @@ class CalloutAlarmNotificationService with WidgetsBindingObserver {
       onDidReceiveNotificationResponse: _handleLocalNotificationResponse,
     );
 
-    await _localNotifications
-        .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(_calloutAlarmChannel);
+    final alarmAndroid = _localNotifications.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    if (alarmAndroid != null) await ensureSarAlarmChannel(alarmAndroid);
     await _localNotifications
         .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(_memberRequestChannel);
@@ -454,13 +444,14 @@ class CalloutAlarmNotificationService with WidgetsBindingObserver {
     final tross = message.data['calloutType'] == 'tross';
     final details = NotificationDetails(
       android: AndroidNotificationDetails(
-        tross ? 'tross_callouts' : 'sar_alarm_v2',
+        tross ? 'tross_callouts' : sarAlarmChannelId,
         tross ? 'Trossi mereabi' : 'SAR-väljakutse häire',
         channelDescription: 'Heliline alarm väljakutsete jaoks',
         importance: tross ? Importance.defaultImportance : Importance.max,
         priority: tross ? Priority.defaultPriority : Priority.high,
         playSound: true,
-        sound: tross ? null : const RawResourceAndroidNotificationSound('sar_alarm'),
+        sound: tross ? null : sarAlarmSound,
+        audioAttributesUsage: tross ? AudioAttributesUsage.notification : AudioAttributesUsage.alarm,
         enableVibration: true,
         category: tross ? AndroidNotificationCategory.event : AndroidNotificationCategory.alarm,
         fullScreenIntent: !tross,
@@ -541,7 +532,8 @@ class CalloutAlarmNotificationService with WidgetsBindingObserver {
     final data = message.data;
     return data['type'] == 'callout' ||
         data['relatedType'] == 'callout' ||
-        data['channelId'] == _calloutAlarmChannel.id;
+        data['channelId'] == sarAlarmChannelId ||
+        data['channelId'] == 'sar_alarm_v2';
   }
 
   CalloutAlarmNotificationReadiness _readinessFromSettings(

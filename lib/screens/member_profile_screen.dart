@@ -20,6 +20,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/activity_model.dart';
 import '../models/availability_model.dart';
 import '../models/certificate_model.dart';
+import '../models/certificate_access.dart';
 import '../models/equipment_model.dart';
 import '../models/effective_availability.dart';
 import '../models/membership_model.dart';
@@ -170,6 +171,13 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
   }
 
   bool get _canEditRole => _canManageProfileMembership;
+
+  CertificateAccess get _certificateAccess => CertificateAccess(
+    organizationId: widget.organizationId,
+    currentUid: widget.currentUid,
+    targetUid: _targetUid,
+    organizationAdmin: _canManageProfileMembership,
+  );
 
   bool get _canEditMembershipStartDate =>
       _isOwnProfile || _canManageProfileMembership;
@@ -438,32 +446,38 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
     },
   );
 
-  Future<void> _editCertificate([CertificateModel? certificate]) =>
-      showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => CertificateEditor(
-          existing: certificate,
-          save: (draft) => _certificateService.addCertificate(
-            certificateId: certificate?.id,
-            organizationId: widget.organizationId,
-            userId: _targetUid,
-            userName: _name,
-            title: draft.title,
-            type: draft.type,
-            issuer: draft.issuer,
-            issuedAt: draft.issuedAt,
-            expiresAt: draft.expiresAt,
-            status: draft.status,
-            note: draft.note,
-            number: draft.number,
-            noExpiry: draft.noExpiry,
-            createdBy: widget.currentUid,
-          ),
+  Future<void> _editCertificate([CertificateModel? certificate]) async {
+    if (!_certificateAccess.canAdd ||
+        (certificate != null && !_certificateAccess.canEdit(certificate))) {
+      return;
+    }
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => CertificateEditor(
+        existing: certificate,
+        save: (draft) => _certificateService.addCertificate(
+          certificateId: certificate?.id,
+          organizationId: widget.organizationId,
+          userId: _targetUid,
+          userName: _name,
+          title: draft.title,
+          type: draft.type,
+          issuer: draft.issuer,
+          issuedAt: draft.issuedAt,
+          expiresAt: draft.expiresAt,
+          status: draft.status,
+          note: draft.note,
+          number: draft.number,
+          noExpiry: draft.noExpiry,
+          createdBy: widget.currentUid,
         ),
-      );
+      ),
+    );
+  }
 
   Future<void> _archiveCertificate(CertificateModel certificate) async {
+    if (!_certificateAccess.canEdit(certificate)) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -525,7 +539,7 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
                   if (c.note.isNotEmpty) c.note,
                 ].join(' · '),
               ),
-              trailing: _canManageProfileMembership
+              trailing: _certificateAccess.canEdit(c)
                   ? Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -1169,7 +1183,7 @@ class _MemberProfileScreenState extends State<MemberProfileScreen> {
               title: 'Tunnistused',
               icon: Icons.school_outlined,
               actions: [
-                if (_canManageProfileMembership)
+                if (_certificateAccess.canAdd)
                   OutlinedButton.icon(
                     onPressed: () => _editCertificate(),
                     icon: const Icon(Icons.add),

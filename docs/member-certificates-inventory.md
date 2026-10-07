@@ -1,6 +1,7 @@
 # Tunnistused ja varustus
 
-- Liikmed → vali liige. Profiili jaotised on kohe avatud: kontaktid, staaž, valvegraafik, merepääste aste, varustus, tunnistused, koolitused ja panused. Tunnistuse lisamine/muutmine avaneb otse profiilist. Liige näeb enda tunnistusi, ühingu admin saab lisada ja uuendada oma ühingu liikmete tunnistusi.
+- Liikmed → vali liige (või Menüü → Minu profiil). Profiili jaotised on kohe avatud: kontaktid, staaž, valvegraafik, merepääste aste, varustus, tunnistused, koolitused ja panused. Aktiivne liige saab enda profiilil tunnistusi lisada ning enda sisestatud tunnistusi muuta ja arhiveerida. Admini sisestatud tunnistust saab liige lugeda; selle muutmine jääb adminile. Ühingu admin saab lisada ja uuendada oma ühingu liikmete tunnistusi. Sama õiguste loogika kehtib teavitusest avanevas tunnistuste vaates.
+- Tunnistuse lisamine ei muuda liikmelisuse merepäästeastet ega rolli. Firestore kontrollib aktiivset liikmelisust, tunnistuse omanikku, ühingut ja algset koostajat; liige ei saa andmeid teisele omanikule või ühingule üle kanda. Enda lisatud tunnistus kasutab sama andmemudelit ja aegumise meeldetuletusi nagu admini lisatud tunnistus; uut kogu ega migratsiooni ei ole.
 - Ühingu seaded → Ühingu load ja tunnistused. Admin saab salvestada loa nimetuse, numbri, väljastaja, kuupäevad ja lisainfo. Tühi kehtivusaeg tähendab tähtajatut luba. Ühingu load ei ole liikme pädevused.
 - Varustus: ühiskasutuses esemed, ladu, mulle väljastatud/isiklik varustus ja liikmetele väljastatud varustuse ülevaade. Senised ühingu esemed jäävad ühiskasutusse; admin saab need menüüst lattu tõsta. Väljastatud ese kaob laost ja ilmub saaja profiili ning liikmete varustusse. Tagastamine viib selle lattu. Seisukord ei muutu väljastamise/tagastamise tõttu.
 
@@ -20,7 +21,15 @@ Push vajab seadmes lubatud teavitusi ja registreeritud seadmetokenit. Äpi teavi
 
 ## Päris-seadme kontroll
 
-1. Admin: ava teise liikme profiil, lisa tunnistus, ava uuesti ja uuenda kehtivusaega. Liige: näe enda tunnistust; teise liikme tunnistuste muutmine pole lubatud.
+### Liikme iseteeninduse parandus (07.10.2026)
+
+- Klient: versioon `1.0.2+20261009`; telefonis on vaja uuendada APK-d, sest vana versioon peidab lisamisnupu.
+- Kontrollitud: Flutter analyze (puhas), kõik 286 Flutter testi ning kõik 151 Firestore/Storage reeglite ja töövoogude testi. Lisatud neli kliendi õigustesti ja neli Firestore iseteeninduse regressioonitesti. Avaldatava reeglifaili vastu läbisid eraldi ka kõik kuus tunnistustega seotud reeglitesti.
+- Firebase `respondcrew` Firestore reeglite versioon `68f9977a-2f3d-4176-a510-d02b12f28ec2` avaldati ja loeti serverist tagasi; sisu vastas täpselt testitud failile (SHA-256 `8d0a8dcbb0bb94d7f246a11e40aeeed64896fd125938d9a499b59b7514022387`). CLI tagastas lõpus 409, kuid järelkontroll kinnitas avaldamise õnnestumist.
+- Avaldati ainult tunnistuse loomise ja muutmise õiguste muudatused varasema serveriversiooni peale. Repos juba olemasolevad, serveris seni avaldamata keskuste väljakutsete reeglid jäid sellest avaldamisest välja. Järgmise täieliku rules-deploy eel tuleb see erinevus arvesse võtta. Functions ja Storage reegleid ei muudetud.
+- Allolev päris-seadme kontroll tuleb teha liikme kontoga; emulaatoritestid ei asenda telefoni kasutustesti.
+
+1. Liige: ava enda profiil, lisa tunnistus koos kalendrist valitud kuupäevadega, ava uuesti ning paranda number või tähtaeg. Kontrolli ka tunnistuste teavituse kaudu avanevat vaadet. Admin: näe liikme sisestatud tunnistust, muuda seda ja lisa teine tunnistus liikmele. Liige saab admini sisestatud tunnistust lugeda, kuid mitte muuta. Teise liikme tunnistuse lisamine ja muutmine ning enda merepäästeastme tõstmine ei ole lubatud. Arhiveerimine küsib kinnitust.
 2. Admin: salvesta raadioside luba numbri ja väljastajaga; ava uuesti, muuda andmeid; kontrolli tähtajatut luba.
 3. Lisa lattu ese, vali seisukord, väljasta aktiivsele liikmele. Kontrolli saaja profiili, „Minu varustus” ja „Liikmete varustus” vaadet. Tagasta ja kontrolli, et ese ilmub lattu sama seisukorraga.
 4. Testühingus kasuta kontrollpäevast 30 päeva pärast aeguvat tunnistust. Pärast järgmist 09:00 käivitust kontrolli liikme ja admini teavitusi ning kolmanda liikme teate puudumist. Kontrolli push'i äpi eesplaanil, taustal ja lukustatud ekraanil ning puudutusega avanevat õiget liiget. Järgmisel päeval ei tohi sama hoiatus korduda.

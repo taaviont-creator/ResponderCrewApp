@@ -1870,7 +1870,21 @@ service cloud.firestore {
         request.resource.data.id == certificateId &&
         request.resource.data.createdBy == request.auth.uid &&
         isValidCertificateData(request.resource.data) &&
-        isActiveOrgAdmin(organizationIdFromData(request.resource.data)) &&
+        (
+          isActiveOrgAdmin(organizationIdFromData(request.resource.data)) ||
+          (
+            isActiveMember(organizationIdFromData(request.resource.data)) &&
+            request.resource.data.userId == request.auth.uid &&
+            request.resource.data.keys().hasOnly([
+              'id', 'organizationId', 'commandId', 'userId', 'userName',
+              'title', 'type', 'issuer', 'issuedAt', 'expiresAt', 'status',
+              'note', 'number', 'noExpiry', 'archived',
+              'createdBy', 'createdAt', 'updatedAt'
+            ]) &&
+            request.resource.data.createdAt == request.time &&
+            request.resource.data.updatedAt == request.time
+          )
+        ) &&
         isActiveMemberOf(
           request.resource.data.userId,
           organizationIdFromData(request.resource.data)
@@ -1886,7 +1900,19 @@ service cloud.firestore {
         organizationIdFromData(request.resource.data) ==
           organizationIdFromData(resource.data) &&
         isValidCertificateData(request.resource.data) &&
-        isActiveOrgAdmin(organizationIdFromData(resource.data)) &&
+        (
+          isActiveOrgAdmin(organizationIdFromData(resource.data)) ||
+          (
+            isActiveMember(organizationIdFromData(resource.data)) &&
+            resource.data.userId == request.auth.uid &&
+            resource.data.createdBy == request.auth.uid &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'title', 'type', 'issuer', 'issuedAt', 'expiresAt', 'status',
+              'note', 'number', 'noExpiry', 'archived', 'userName', 'updatedAt'
+            ]) &&
+            request.resource.data.updatedAt == request.time
+          )
+        ) &&
         isActiveMemberOf(
           resource.data.userId,
           organizationIdFromData(resource.data)

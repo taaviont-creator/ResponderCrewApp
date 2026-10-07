@@ -82,6 +82,7 @@ require('./organization-response-settings.cases')({getEnv: () => testEnv, server
 require('./center-board.cases')({getEnv: () => testEnv, serverDb, serverRequire});
 require('./center-confirmation.cases')({getEnv: () => testEnv, serverDb, serverRequire});
 require('./center-completion.cases')({getEnv: () => testEnv, serverDb, serverRequire});
+require('./certificate-self-service.cases')({getEnv: () => testEnv, serverDb});
 
 before(async () => {
   testEnv = await initializeTestEnvironment({
@@ -89,7 +90,7 @@ before(async () => {
     storage: { rules: fs.readFileSync(path.resolve(__dirname, '..', 'storage.rules'), 'utf8') },
     firestore: {
       rules: fs.readFileSync(
-        path.resolve(__dirname, '..', 'firestore.rules'),
+        process.env.RULES_TEST_FILE || path.resolve(__dirname, '..', 'firestore.rules'),
         'utf8',
       ),
     },

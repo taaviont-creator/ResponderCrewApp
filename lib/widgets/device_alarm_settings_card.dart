@@ -8,10 +8,12 @@ class DeviceAlarmSettingsCard extends StatefulWidget {
     this.settings = const DeviceAlarmSettings(),
     required this.testAlarm,
     required this.cancelTest,
+    this.testNow,
   });
   final DeviceAlarmSettings settings;
   final Future<bool> Function() testAlarm;
   final Future<void> Function() cancelTest;
+  final Future<bool> Function()? testNow;
 
   @override
   State<DeviceAlarmSettingsCard> createState() =>
@@ -90,6 +92,28 @@ class _DeviceAlarmSettingsCardState extends State<DeviceAlarmSettingsCard>
     }
   }
 
+  Future<void> _enableSarDnd() async {
+    setState(() => _busy = true);
+    try {
+      final enabled = await widget.settings.enableSarDnd();
+      await _refresh();
+      if (enabled) {
+        _message(
+          'SAR-häire „Mitte segada“ erand on lubatud. Kontrolli seda proovihäirega.',
+        );
+      } else {
+        _message(
+          'Telefon ei lubanud erandit rakendusest muuta. Luba see SAR-kanali seadetes.',
+        );
+        await _open('openSarChannel');
+      }
+    } catch (_) {
+      _message('Erandit ei saanud lubada. Ava SAR-kanali seaded.');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   String _flag(String key, {String yes = 'Lubatud', String no = 'Keelatud'}) =>
       _settings?[key] == true
       ? yes
@@ -156,10 +180,24 @@ class _DeviceAlarmSettingsCardState extends State<DeviceAlarmSettingsCard>
           ),
           _row(
             Icons.tune,
-            'Helitugevus',
-            'Ava telefoni heliseaded',
+            'Alarmi helitugevus',
+            volume is int && maximum is int
+                ? 'Praegu $volume / $maximum · ava telefoni heliseaded'
+                : 'Ava telefoni heliseaded ja tõsta alarmi helitugevust',
             'openSoundSettings',
           ),
+          const Text(
+            'SAR kasutab alarmi heli, mitte kõne- ega tavateavituse helitugevust. Vaikne režiim üksi ei peaks seda vaigistama. Alarmi helitugevus peab olema üle nulli ja SAR-kanali heli lubatud.',
+          ),
+          if (volume == 0)
+            const Text(
+              'Alarmi helitugevus on nullis — helilist häiret ei saa kuulda.',
+            ),
+          if (_settings?['alarmAudio'] == false &&
+              _settings?['channelSound'] == true)
+            const Text(
+              'Telefon ei kasuta selle kanali jaoks alarmi heli. Kontrolli SAR-kanali seadeid ja tee proovihäire.',
+            ),
           _row(
             Icons.do_not_disturb_on_outlined,
             '„Mitte segada“ ligipääs',
@@ -180,9 +218,20 @@ class _DeviceAlarmSettingsCardState extends State<DeviceAlarmSettingsCard>
             ),
             'openSarChannel',
           ),
+          if (_settings?['notificationPolicyAccess'] == true &&
+              _settings?['bypassDnd'] == false)
+            FilledButton.icon(
+              onPressed: _busy ? null : _enableSarDnd,
+              icon: const Icon(Icons.notification_important_outlined),
+              label: const Text('Luba SAR-häire „Mitte segada“ ajal'),
+            ),
           const Text(
-            'Luba esmalt RespondCrew eriligipääs. Kui avaneb rakenduste loend, vali RespondCrew. Seejärel ava SAR-häire erand ja luba kanali seadetes „Mitte segada” ajal teavitamine. Seadete nimetused võivad telefoniti erineda.',
+            '1. Luba RespondCrew „Mitte segada“ ligipääs ja tule tagasi. 2. Vajuta „Luba SAR-häire „Mitte segada“ ajal“. Kui telefon seda ei luba, ava SAR-häire erand ja muuda seda kanali seadetes. Rakendus ei lülita telefoni „Mitte segada“ režiimi välja.',
           ),
+          if (_settings?['interruptionFilter'] == 3)
+            const Text(
+              'Telefonis on täielik vaikus. See võib blokeerida ka alarmid; muuda telefoni „Mitte segada“ reegleid.',
+            ),
           _row(
             Icons.fullscreen,
             'Täisekraanihäire',
@@ -195,6 +244,9 @@ class _DeviceAlarmSettingsCardState extends State<DeviceAlarmSettingsCard>
           ),
           const Text(
             'Telefon otsustab, kas kuvada täisekraanihäire või teavitusriba. Lubade olemasolu ei taga heli, kui kanal või telefoni helitugevus on vaigistatud.',
+          ),
+          const Text(
+            'Kõne ajal võib Android või telefoni tootja häireheli piirata. Kontrolli proovihäiret ka kõne ajal. Teavitus ja lubatud vibratsioon jäävad oluliseks lisamärguandeks.',
           ),
         ] else ...[
           _row(
@@ -212,6 +264,31 @@ class _DeviceAlarmSettingsCardState extends State<DeviceAlarmSettingsCard>
           spacing: 8,
           runSpacing: 8,
           children: [
+            if (widget.testNow != null)
+              FilledButton.icon(
+                onPressed: _busy
+                    ? null
+                    : () async {
+                        setState(() => _busy = true);
+                        try {
+                          final sent = await widget.testNow!();
+                          _message(
+                            sent
+                                ? 'Proovihäire saadeti. Kontrolli, kas kuuled heli.'
+                                : 'Teavitusluba puudub. Luba teavitused telefoni seadetes.',
+                          );
+                        } catch (_) {
+                          _message(
+                            'Proovihäiret ei saanud käivitada. Kontrolli telefoni teavitusseadeid.',
+                          );
+                        } finally {
+                          if (mounted) setState(() => _busy = false);
+                          await _refresh();
+                        }
+                      },
+                icon: const Icon(Icons.volume_up_outlined),
+                label: const Text('Kuula SAR-proovihäiret'),
+              ),
             FilledButton.icon(
               onPressed: _busy
                   ? null

@@ -51,59 +51,70 @@ class _NotificationSettingsScreenState
   @override
   Widget build(BuildContext context) => AppScaffold(
     appBar: AppBar(title: const Text('Teavituste seaded')),
-    body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: _stream,
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return const Center(
-            child: Text('Teavituste seadeid ei õnnestunud laadida.'),
-          );
-        }
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        final prefs = NotificationPreferences.resolve(
-          admin: widget.isAdmin,
-          stored: Map<String, dynamic>.from(
-            snapshot.data!.data()?['preferences'] as Map? ?? {},
-          ),
-        );
-        return ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            const Text(
-              'Valikud kehtivad sinu jaoks selles ühingus. Adminile on kriitilised valmiduse teated vaikimisi sisse lülitatud. Ühe muutuse põhjused koondatakse ühte teatesse.',
+    body: ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        if (kIsWeb)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Text(
+              'SAR-häire heli ja lukustuskuva teavitused seadista RespondCrew telefoniäpis.',
             ),
-            for (final entry in NotificationPreferences.labels.entries)
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(entry.value),
-                value: prefs[entry.key]!,
-                onChanged: _saving != null
-                    ? null
-                    : (value) => _save(entry.key, value),
+          ),
+        if (!kIsWeb &&
+            (defaultTargetPlatform == TargetPlatform.android ||
+                defaultTargetPlatform == TargetPlatform.iOS))
+          DeviceAlarmSettingsCard(
+            testNow: () => CalloutAlarmNotificationService.instance
+                .showLocalTestAlarmNotification(),
+            testAlarm: () => CalloutAlarmNotificationService.instance
+                .scheduleLocalTestAlarm(),
+            cancelTest: () =>
+                CalloutAlarmNotificationService.instance.cancelLocalTestAlarm(),
+          ),
+        const Divider(height: 32),
+        Text(
+          'Selle ühingu teavitused',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          stream: _stream,
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return const Center(
+                child: Text('Teavituste seadeid ei õnnestunud laadida.'),
+              );
+            }
+            if (!snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            final prefs = NotificationPreferences.resolve(
+              admin: widget.isAdmin,
+              stored: Map<String, dynamic>.from(
+                snapshot.data!.data()?['preferences'] as Map? ?? {},
               ),
-            if (_saving != null) const LinearProgressIndicator(),
-            const Divider(),
-            if (kIsWeb)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 12),
-                child: Text(
-                  'SAR-häire heli ja lukustuskuva teavitused seadista RespondCrew telefoniäpis.',
+            );
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Valikud kehtivad sinu jaoks selles ühingus. Adminile on kriitilised valmiduse teated vaikimisi sisse lülitatud. Ühe muutuse põhjused koondatakse ühte teatesse.',
                 ),
-              ),
-            if (!kIsWeb &&
-                (defaultTargetPlatform == TargetPlatform.android ||
-                    defaultTargetPlatform == TargetPlatform.iOS))
-              DeviceAlarmSettingsCard(
-                testAlarm: () => CalloutAlarmNotificationService.instance
-                    .scheduleLocalTestAlarm(),
-                cancelTest: () => CalloutAlarmNotificationService.instance
-                    .cancelLocalTestAlarm(),
-              ),
-          ],
-        );
-      },
+                for (final entry in NotificationPreferences.labels.entries)
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(entry.value),
+                    value: prefs[entry.key]!,
+                    onChanged: _saving != null
+                        ? null
+                        : (value) => _save(entry.key, value),
+                  ),
+                if (_saving != null) const LinearProgressIndicator(),
+              ],
+            );
+          },
+        ),
+      ],
     ),
   );
 }
