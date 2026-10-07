@@ -61,7 +61,20 @@ class _DeviceAlarmSettingsCardState extends State<DeviceAlarmSettingsCard>
 
   Future<void> _open(String method) async {
     try {
-      await widget.settings.open(method);
+      final destination = await widget.settings.open(method);
+      if (destination == 'dndList') {
+        _message(
+          'Vali „Mitte segada” ligipääsu loendist RespondCrew ja luba ligipääs.',
+        );
+      } else if (destination == 'fullScreenList') {
+        _message('Vali loendist RespondCrew ja luba täisekraaniteavitused.');
+      } else if (destination == 'appDetails' ||
+          (destination == 'appNotifications' &&
+              method != 'openAppNotifications')) {
+        _message(
+          'Telefon ei avanud otseteed. Vali RespondCrew teavituste alt „SAR-väljakutse häire”; eriligipääsu leia telefoni seadete „Erirakenduse juurdepääs” alt.',
+        );
+      }
     } catch (_) {
       _message(
         'Seadet ei saanud avada. Ava telefoni seadetes RespondCrew teavitused.',
@@ -119,7 +132,7 @@ class _DeviceAlarmSettingsCardState extends State<DeviceAlarmSettingsCard>
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const Text(
-          'Need valikud kehtivad kogu telefonile. Trossi mereabi kasutab eraldi tavateavitust.',
+          'Need on RespondCrew õigused selles telefonis. Trossi mereabi kasutab eraldi tavateavitust.',
         ),
         if (_settings == null && !_failed) const LinearProgressIndicator(),
         if (_failed)
@@ -149,9 +162,26 @@ class _DeviceAlarmSettingsCardState extends State<DeviceAlarmSettingsCard>
           ),
           _row(
             Icons.do_not_disturb_on_outlined,
-            '„Mitte segada“ erand',
-            '${_flag('bypassDnd', yes: 'SAR-kanali erand lubatud', no: 'SAR-kanali erand puudub')} · sõltub telefoni režiimist',
+            '„Mitte segada“ ligipääs',
+            _flag(
+              'notificationPolicyAccess',
+              yes: 'RespondCrew eriligipääs lubatud',
+              no: 'Anna RespondCrew’le eriligipääs',
+            ),
             'openDndSettings',
+          ),
+          _row(
+            Icons.notification_important_outlined,
+            'SAR-häire „Mitte segada“ erand',
+            _flag(
+              'bypassDnd',
+              yes: 'SAR-kanali erand lubatud',
+              no: 'SAR-kanali erand puudub',
+            ),
+            'openSarChannel',
+          ),
+          const Text(
+            'Luba esmalt RespondCrew eriligipääs. Kui avaneb rakenduste loend, vali RespondCrew. Seejärel ava SAR-häire erand ja luba kanali seadetes „Mitte segada” ajal teavitamine. Seadete nimetused võivad telefoniti erineda.',
           ),
           _row(
             Icons.fullscreen,

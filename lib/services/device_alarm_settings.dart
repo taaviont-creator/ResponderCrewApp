@@ -9,6 +9,6 @@ class DeviceAlarmSettings {
     await channel.invokeMapMethod<String, dynamic>('getSettings') ?? {},
   );
 
-  Future<void> open(String destination) =>
-      channel.invokeMethod<void>(destination);
+  Future<String?> open(String destination) =>
+      channel.invokeMethod<String>(destination);
 }

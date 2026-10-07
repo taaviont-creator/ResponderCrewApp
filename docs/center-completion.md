@@ -209,3 +209,15 @@ Kontrollid: Flutter analyze 0 probleemi, 267 Flutteri testi, 108 Functions'i tes
 ### Väljakutse lõpetamise leitavus (07.10.2026)
 
 Varem asus lõpetamine väljakutse detailvaate ülemises kolme punkti menüüs. „Lõpeta väljakutse” asub nüüd nähtava nupuna detailvaate ülaosas, enne vastamisnuppe. Tühistamine jääb teisese toiminguna kolme punkti menüüsse. Senised admini/II astme õigused ning Firestore'i kontroll säilivad. Lõpetamisel küsitakse kinnitust ja selgitatakse, et väljakutse liigub lõpetatute alla, kuid logi, aruannet ja osalejaid saab hiljem täiendada. Salvestamise või lugemisvea ajal on nupp keelatud; pärast kinnitust kontrollitakse uuesti, et vaade on alles ja väljakutse endiselt aktiivne. Operatiivlogi lõpetamine ja väljakutse lõpetamine jäävad eraldi toiminguteks. Serverit, andmemudelit ja reegleid ei muudeta.
+
+### Androidi SAR-häire eriloa suunamine (07.10.2026)
+
+„Mitte segada” avas varem SAR-kanali seadistuse ning manifestist puudus `ACCESS_NOTIFICATION_POLICY`. Nüüd on eraldi RespondCrew „Mitte segada” eriligipääs ja SAR-kanali erand. Lubade olek loetakse Androidist eraldi (`isNotificationPolicyAccessGranted`, `canBypassDnd`) ja uuendatakse rakendusse naasmisel. Eriloa olemasolu ei esitata kanali erandi olemasoluna. Rakendus ei muuda automaatselt telefoni häirerežiimi, helitugevust ega kasutaja kanalisätteid.
+
+Androidi suunamine proovib esmalt rakenduse eriloa lehte, seejärel vastava loa avalikku loendit ning viimase varuna rakenduse teavitusi/infot. AOSP detailvaate action on valikuline stringipõhine otsetee, mitte avalik SDK garantii. Nii puuduva tegevuse kui tootja turvapiirangu korral proovitakse järgmist teed. Kanali erand avab jätkuvalt täpse `sar_alarm_v2` kanali. Täisekraanihäire ja heliseadete otseteed kasutavad samuti varuteed. Kasutajale kuvatakse juhis RespondCrew leidmiseks loendist.
+
+Allikad: [Androidi DND ligipääsu seadete leht](https://developer.android.com/reference/android/provider/Settings#ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS), [eriloa deklaratsioon](https://developer.android.com/reference/android/Manifest.permission#ACCESS_NOTIFICATION_POLICY), [kanali DND erand](https://developer.android.com/reference/android/app/NotificationChannel#setBypassDnd(boolean)).
+
+Kontroll: regressioonitestid eristavad eriligipääsu kanali erandist, kontrollivad erinevaid otseteid, varutee juhist, avamistõrget, lubade uuendamist naasmisel ning kitsast suure tekstiga vaadet. Päris telefoni tootja seadete lehe avamine, kasutaja antud luba ja lukuekraanil kuuldav proovihäire vajavad järgmise Androidi äpiversiooni telefonitesti. APK-d selle töö käigus ei koostata. Firebase'i reegleid, Functions'it ja andmemudelit ei muudeta ega avaldata; katseveebi uuendamine ei parandaks varem paigaldatud telefoniäppi.
+
+Kohalik lõppkontroll: Flutter analyze — 0 probleemi; kõik 269 Flutteri testi läbisid.

@@ -61,6 +61,7 @@ void main() {
                 'channelEnabled': true,
                 'channelSound': false,
                 'bypassDnd': allowed,
+                'notificationPolicyAccess': allowed,
                 'fullScreenAllowed': allowed,
                 'soundVolume': 0,
                 'soundVolumeMax': 15,
@@ -83,7 +84,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Heli on välja lülitatud'), findsOneWidget);
       expect(find.text('Süsteemi luba puudub'), findsOneWidget);
-      await tester.tap(find.text('„Mitte segada“ erand'));
+      await tester.ensureVisible(find.text('„Mitte segada“ ligipääs'));
+      await tester.tap(find.text('„Mitte segada“ ligipääs'));
       expect(calls, contains('openDndSettings'));
       allowed = true;
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
@@ -91,6 +93,92 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Süsteemi luba olemas'), findsOneWidget);
       expect(find.textContaining('SAR-kanali erand lubatud'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'DND access and SAR exception stay separate and open different screens',
+    (tester) async {
+      final calls = <String>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(DeviceAlarmSettings.channel, (call) async {
+            calls.add(call.method);
+            if (call.method == 'getSettings') {
+              return <String, dynamic>{
+                'notificationPolicyAccess': true,
+                'bypassDnd': false,
+              };
+            }
+            return call.method == 'openDndSettings' ? 'dndList' : 'sarChannel';
+          });
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: DeviceAlarmSettingsCard(
+                testAlarm: () async => true,
+                cancelTest: () async {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('RespondCrew eriligipääs lubatud'), findsOneWidget);
+      expect(find.text('SAR-kanali erand puudub'), findsOneWidget);
+      expect(find.text('SAR-kanali erand lubatud'), findsNothing);
+      await tester.ensureVisible(find.text('„Mitte segada“ ligipääs'));
+      await tester.tap(find.text('„Mitte segada“ ligipääs'));
+      await tester.pumpAndSettle();
+      expect(
+        find.textContaining('ligipääsu loendist RespondCrew'),
+        findsOneWidget,
+      );
+      await tester.ensureVisible(find.text('SAR-häire „Mitte segada“ erand'));
+      await tester.tap(find.text('SAR-häire „Mitte segada“ erand'));
+      await tester.pumpAndSettle();
+      expect(calls, containsAllInOrder(['openDndSettings', 'openSarChannel']));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'fallback app settings and unavailable system screen give guidance without granting access',
+    (tester) async {
+      var unavailable = false;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(DeviceAlarmSettings.channel, (call) async {
+            if (call.method == 'getSettings') {
+              return <String, dynamic>{'notificationPolicyAccess': false};
+            }
+            if (unavailable) throw PlatformException(code: 'unavailable');
+            return 'appDetails';
+          });
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: DeviceAlarmSettingsCard(
+                testAlarm: () async => true,
+                cancelTest: () async {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('„Mitte segada“ ligipääs'));
+      await tester.tap(find.text('„Mitte segada“ ligipääs'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Telefon ei avanud otseteed'), findsOneWidget);
+      expect(find.text('RespondCrew eriligipääs lubatud'), findsNothing);
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pumpAndSettle();
+      unavailable = true;
+      await tester.tap(find.text('„Mitte segada“ ligipääs'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Seadet ei saanud avada'), findsOneWidget);
+      expect(tester.takeException(), isNull);
     },
   );
 

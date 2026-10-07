@@ -25,29 +25,41 @@ object AlarmDeviceSettings {
             "channelEnabled" to channel?.let { it.importance > NotificationManager.IMPORTANCE_NONE },
             "channelSound" to channel?.let { it.sound != null && it.importance >= NotificationManager.IMPORTANCE_DEFAULT },
             "bypassDnd" to channel?.canBypassDnd(),
+            "notificationPolicyAccess" to (if (Build.VERSION.SDK_INT >= 23) manager.isNotificationPolicyAccessGranted else null),
             "fullScreenAllowed" to (if (Build.VERSION.SDK_INT >= 34) manager.canUseFullScreenIntent() else true),
             "soundVolume" to audio.getStreamVolume(stream),
             "soundVolumeMax" to audio.getStreamMaxVolume(stream)
         )
     }
 
-    fun intent(context: Context, method: String): Intent? {
+    // OEMs differ in which Settings activities they expose. Try the relevant
+    // permission list before falling back to general app information.
+    fun intents(context: Context, method: String): List<Pair<String, Intent>> {
         val details = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
             Uri.parse("package:${context.packageName}"))
+        val notifications = if (Build.VERSION.SDK_INT >= 26)
+            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName) else details
+        val channel = if (Build.VERSION.SDK_INT >= 26)
+            Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+                .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                .putExtra(Settings.EXTRA_CHANNEL_ID, SAR_CHANNEL) else notifications
         return when (method) {
-            "openAppNotifications" -> if (Build.VERSION.SDK_INT >= 26)
-                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName) else details
-            // The channel screen contains the actual exception switch. General
-            // policy access alone is NOT evidence that SAR can bypass DND.
-            "openSarChannel", "openDndSettings" -> if (Build.VERSION.SDK_INT >= 26)
-                Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
-                    .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-                    .putExtra(Settings.EXTRA_CHANNEL_ID, SAR_CHANNEL) else details
-            "openFullScreenSettings" -> if (Build.VERSION.SDK_INT >= 34)
-                Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, Uri.parse("package:${context.packageName}")) else
-                intent(context, "openAppNotifications")
-            "openSoundSettings" -> Intent(Settings.ACTION_SOUND_SETTINGS)
-            else -> null
+            "openAppNotifications" -> listOf("appNotifications" to notifications, "appDetails" to details)
+            "openSarChannel" -> listOf("sarChannel" to channel, "appNotifications" to notifications, "appDetails" to details)
+            "openDndSettings" -> if (Build.VERSION.SDK_INT >= 23) listOf(
+                // AOSP detail action is not a public SDK constant. It is only
+                // an optional shortcut; the documented public list is next.
+                "dndApp" to Intent("android.settings.NOTIFICATION_POLICY_ACCESS_DETAIL_SETTINGS", Uri.parse("package:${context.packageName}")),
+                "dndList" to Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS),
+                "appNotifications" to notifications, "appDetails" to details
+            ) else listOf("appDetails" to details)
+            "openFullScreenSettings" -> if (Build.VERSION.SDK_INT >= 34) listOf(
+                "fullScreenApp" to Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, Uri.parse("package:${context.packageName}")),
+                "fullScreenList" to Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT),
+                "appNotifications" to notifications, "appDetails" to details
+            ) else listOf("appNotifications" to notifications, "appDetails" to details)
+            "openSoundSettings" -> listOf("sound" to Intent(Settings.ACTION_SOUND_SETTINGS), "appNotifications" to notifications, "appDetails" to details)
+            else -> emptyList()
         }
     }
 }
