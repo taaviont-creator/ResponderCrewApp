@@ -32,7 +32,7 @@ function createStatisticsHandler({db,now=()=>Date.now()}) {
     const data=Object.fromEntries(names.map((name,i)=>[name,snapshots[i].map(d=>({...d.data(),id:d.id}))]));
     const current=SOURCES.flatMap((source,i)=>snapshots[i].map(d=>({source,id:d.id,data:project(source,d.data()),version:millis(d.updateTime)})));
     const result=aggregate({organizationId:org,from,to,now:at,trackingStart:millis(settings.data()?.startedAt),current,history:data.statisticsHistory,
-      memberships:data.memberships,activities:data.activities,participants:data.activityParticipants,callouts:data.callouts,responses:data.calloutResponses,attendance:data.calloutAttendance,dutyPauses:data.organizationDutyPauses});
+      memberships:data.memberships,activities:data.activities,participants:data.activityParticipants,callouts:data.callouts,responses:data.calloutResponses,attendance:data.calloutAttendance,dutyPauses:data.organizationDutyPauses,includeEventDetails:admin});
     // Keep canRecord's legacy meaning for installed clients that also use it
     // to show the scheduling action. New clients use separate capabilities.
     return {...result,canManage:admin,canSubmitContribution:true,canRecord:admin || organization.allowMembersToCreateActivities===true,canCreateActivities:admin || organization.allowMembersToCreateActivities===true};

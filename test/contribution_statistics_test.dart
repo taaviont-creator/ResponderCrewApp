@@ -97,6 +97,8 @@ void main() {
           find.text('Minu osalemised ja panused (1)'),
           250,
         );
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(find.text('Minu osalemised ja panused (1)'));
         await tester.tap(find.text('Minu osalemised ja panused (1)'));
         await tester.pumpAndSettle();
         expect(find.text('Sadama niitmine'), findsOneWidget);

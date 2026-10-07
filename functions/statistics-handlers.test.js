@@ -10,6 +10,21 @@ function fixture(overrides={}) {
 const req=data=>({auth:{uid:'a'},data:{organizationId:'org',...data}});
 const contribution={requestId:'unique',title:'Mowing',type:'groundskeeping',date:'2026-09-27',hours:2,memberIds:['a']};
 
+test('event export capability is derived from organization admin membership, never caller flags or platform claim',async()=>{
+ const {createStatisticsHandler}=require('./statistics-handlers');
+ for(const role of ['member','orgAdmin']) {
+   const f=fixture({'memberships/a_org':member('a',{role}),
+     'callouts/c':{organizationId:'org',createdAt:'2026-09-27T10:00:00Z',title:'Empty callout',status:'active'}});
+   f.db.collection=name=>({where:(field,op,value)=>({get:async()=>({docs:Object.entries(f.records)
+     .filter(([path,data])=>path.startsWith(`${name}/`)&&data[field]===value)
+     .map(([path,data])=>({id:path.split('/')[1],data:()=>data}))})})});
+   const handler=createStatisticsHandler({db:f.db,now:()=>Date.parse('2026-09-28T12:00Z')});
+   const response=await handler({...req({from:'2026-09-01',to:'2026-09-28',includeEventDetails:true,canManage:true}),auth:{uid:'a',token:{platformAdmin:true}}});
+   assert.equal(Object.hasOwn(response,'eventDetails'),role==='orgAdmin');
+   if(role==='orgAdmin') assert.equal(response.eventDetails[0].id,'c');
+ }
+});
+
 test('contributions are separate from scheduling, keep notes and count once only after confirmation',async()=>{
  const f=fixture({'commands/org':{status:'approved',allowMembersToCreateActivities:false,allowMembersToViewStatistics:false}});
  const data={...contribution,description:'  Puhastasin kai  '};

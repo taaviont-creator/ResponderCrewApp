@@ -6,6 +6,7 @@ import '../models/statistics_model.dart';
 import '../services/statistics_service.dart';
 import 'contribution_form_screen.dart';
 import 'activities_screen.dart';
+import 'event_statistics_screen.dart';
 
 class StatisticsScreen extends StatefulWidget {
   const StatisticsScreen({
@@ -59,6 +60,29 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   }
 
   void _refresh() => setState(_load);
+  Future<void> _pickYear() async {
+    final now = DateTime.now();
+    final year = await showDialog<int>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('Vali aasta'),
+        children: [
+          for (var year = now.year; year >= 2000; year--)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(context, year),
+              child: Text('$year'),
+            ),
+        ],
+      ),
+    );
+    if (year == null || !mounted) return;
+    setState(() {
+      _from = DateTime(year);
+      _to = year == now.year ? now : DateTime(year, 12, 31);
+      _load();
+    });
+  }
+
   Future<void> _pickPeriod() async {
     final range = await showDateRangePicker(
       context: context,
@@ -216,6 +240,10 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                           }),
                           child: const Text('See aasta'),
                         ),
+                        TextButton(
+                          onPressed: _pickYear,
+                          child: const Text('Vali aasta'),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 12),
@@ -304,6 +332,22 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                               onPressed: () => _add(report),
                               icon: const Icon(Icons.add),
                               label: const Text('Lisa panus'),
+                            ),
+                          if (report.canManage)
+                            OutlinedButton.icon(
+                              onPressed: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => EventStatisticsScreen(
+                                    report: report,
+                                    organizationId: widget.organizationId,
+                                    from: _from,
+                                    to: _to,
+                                  ),
+                                ),
+                              ),
+                              icon: const Icon(Icons.table_chart_outlined),
+                              label: const Text('Sündmuste väljavõte'),
                             ),
                           if (report.canManage)
                             OutlinedButton(
