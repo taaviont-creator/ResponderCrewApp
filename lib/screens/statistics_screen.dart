@@ -1,4 +1,5 @@
 import '../widgets/app_layout.dart';
+import '../widgets/statistics_charts.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/statistics_model.dart';
@@ -238,22 +239,17 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                       ),
                     ],
                     if (report.canManage || _showOrganization) ...[
+                      if (!report.canManage) ...[
+                        Text(
+                          'Ühingu ülevaade',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: 12),
+                      ],
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
                         children: [
-                          for (final entry in const {
-                            'total': 'Sündmusi kokku',
-                            'period': 'Sündmusi perioodil',
-                            'sar': 'SAR perioodil',
-                            'tross': 'TROSS perioodil',
-                            'closed': 'Lõpetatud perioodil',
-                            'cancelled': 'Tühistatud perioodil',
-                          }.entries)
-                            _summary(
-                              entry.value,
-                              '${report.events[entry.key] ?? '—'}',
-                            ),
                           _summary(
                             'Valves oldud',
                             report.hasDuty
@@ -293,6 +289,11 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                         Text(
                           '${report.total('unknownHoursCount')} kinnitatud osalemisel puuduvad tunnid.',
                         ),
+                      const SizedBox(height: 12),
+                      StatisticsCharts(
+                        members: report.members,
+                        events: report.events,
+                      ),
                       const SizedBox(height: 12),
                       Wrap(
                         spacing: 8,
@@ -421,12 +422,14 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                                         : '${member.number(_metric)} osalemist',
                                   ),
                                   const SizedBox(height: 6),
-                                  LinearProgressIndicator(
-                                    value: maximum > 0
-                                        ? (member.number(_metric) / maximum)
-                                              .toDouble()
-                                        : 0,
-                                  ),
+                                  if (_metric != 'dutyHours' ||
+                                      member.dutyHours != null)
+                                    LinearProgressIndicator(
+                                      value: maximum > 0
+                                          ? (member.number(_metric) / maximum)
+                                                .toDouble()
+                                          : 0,
+                                    ),
                                 ],
                               ),
                             ),
@@ -521,6 +524,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           ),
         if (member.number('pendingCount') > 0)
           Text('Kinnitamisel: ${member.number('pendingCount')} osalemist'),
+        const SizedBox(height: 16),
+        StatisticsCharts(members: [member]),
         const SizedBox(height: 16),
         if (member.entries.isEmpty)
           const Text('Sellel perioodil pole veel osalemisi ega panuseid.')

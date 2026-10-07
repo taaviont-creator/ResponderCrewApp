@@ -93,7 +93,10 @@ void main() {
           find.textContaining('pole sellel perioodil piisavalt andmeid'),
           findsOneWidget,
         );
-        await tester.ensureVisible(find.text('Minu osalemised ja panused (1)'));
+        await tester.scrollUntilVisible(
+          find.text('Minu osalemised ja panused (1)'),
+          250,
+        );
         await tester.tap(find.text('Minu osalemised ja panused (1)'));
         await tester.pumpAndSettle();
         expect(find.text('Sadama niitmine'), findsOneWidget);
