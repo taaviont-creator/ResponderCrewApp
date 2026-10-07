@@ -14,6 +14,11 @@ function validateSettings(d) {
 }
 // Returning to the inner region NEVER grants on-duty status without consent.
 function transition(state, zone, current, delayMinutes) {
+  // Enabling while already on duty is consent to keep that status on the
+  // first nearby fix, not consent to restore it after leaving the radius.
+  if (state.reason === 'waiting' && zone === 'inner' && current === 'onDuty') {
+    return {status:'onDuty',confirmedInner:true,confirmationRequired:false,responseMinutes:null};
+  }
   if (zone === 'inner') return {
     status: state.zone === 'inner' && state.confirmedInner && current === 'onDuty' ? 'onDuty' :
       current === 'delayed' ? 'delayed' : 'offDuty',

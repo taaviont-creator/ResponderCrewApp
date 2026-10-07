@@ -106,8 +106,8 @@ häirete Apple'i entitlement pole lisatud; vaikset režiimi ega Focus't ei ület
 Vajab uut native rakenduse versiooni; veebist paigaldatud PWA ei sobi taustapiirkondade testiks. APK-d selle muudatuse käigus ei koostata.
 
 1. Admin määrab olemasoleva baasi asukoha ja lubab ühingu seadetes piirkonnaautomaatika. Liige annab Valmisolekus selgesõnalise nõusoleku ja täpse asukoha loa „Alati“. Androidil kontrollida energiasäästu; iOS-il taustavärskendust.
-2. Sisepiirkonnas sisselülitamine jätab staatuse mittevalvesse. Teavitus avab õige ühingu Valmisoleku. „Kinnitan: olen valves“ teeb uue asukohakontrolli ja alles siis muudab staatust.
-3. Väljuda sisepiirkonnast vahepealsesse piirkonda ning välispiirist välja: hilinemisega → mitte valves. Korrata lukustatud ekraaniga ja taustal; mõõta tegelik viivitus, mitte eeldada kohest üleminekut.
+2. Märgi end valvesse ja lülita automaatika sisse: valvesoleku raadiuses jääb staatus valvesse. Käsitsi mittevalvest või aktiivse planeeritud mittevalve ajal käivitamine peab olema keelatud. Tagasituleku teavitus avab õige ühingu Valmisoleku; „Kinnitan: olen valves“ teeb uue asukohakontrolli.
+3. Väljuda valvesoleku raadiusest hilinemisega valve alasse ning seejärel ka kaugemast raadiusest välja: hilinemisega → mitte valves. Korrata lukustatud ekraaniga ja taustal; mõõta tegelik viivitus, mitte eeldada kohest üleminekut.
 4. Naastes ei teki automaatset rohelist staatust. Vajalik on kinnitus. Kiire edasi-tagasi liikumine ja ebatäpne GPS ei tohi anda põhjendamatut valvesolekut.
 5. Käsitsi mittevalve ja planeeritud/korduv mittevalve ei kao piirkonnavahetuse tõttu. Aktiivsel väljakutsel reageerides baasist lahkumine ei tohi muuta vastust ega automaatselt maha võtta; automaatika peatub ning vajab pärast väljakutset uut sisselülitamist.
 6. Proovida loa eemaldamist, asukohateenuse sulgemist, võrgu katkemist, telefoni taaskäivitust ja rakenduse sunnitud peatamist. Vaates näidatakse viimast kinnitust; puuduv uus info ei pikenda 24-tunnist kehtivust. Aegumine eemaldab automaatse valveaja ja saadab isikliku teate.
@@ -115,3 +115,5 @@ Vajab uut native rakenduse versiooni; veebist paigaldatud PWA ei sobi taustapiir
 8. Kontrollida sama staatust isiklikus vaates, ühingu valmiduses, keskuste kaardil ja valveaja statistikas. Serverisse ei tohi ilmuda liikme koordinaate ega teekonda.
 
 Automatiseeritud kontrollid ei asenda neid Androidi/iPhone'i pärisseadme kontrolle.
+
+Geofence’i prioriteedikatse: lisa aktiivne ühekordne ja seejärel korduv mittevalve. Liigu mõlemast raadiusest läbi: efektiivne staatus peab jääma mittevalvesse ning geofence ei tohi muuta aluseks olevat staatust ega pakkuda valvesse kinnitamist. Plaani lõppedes tee värske asukohakontroll; väljaspool raadiust peab tulema mitte valves, tagasitulek nõuab kinnitust. 24 tunni aegumispiir jääb kehtima ka planeeritud mittevalve ajal.

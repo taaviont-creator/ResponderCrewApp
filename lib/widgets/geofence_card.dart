@@ -121,7 +121,9 @@ class _GeofenceCardState extends State<GeofenceCard>
 
   String get reason => switch (state['reason']) {
     'disabled' => 'Automaatika on välja lülitatud.',
-    'waiting' => 'Ootab asukohakinnitust. Sa ei ole veel valves.',
+    'waiting' => 'Valves. Ootab esimest asukohakontrolli.',
+    'plannedAbsence' =>
+      'Planeeritud mittevalve on aktiivne. Asukoht sinu staatust sel ajal ei muuda.',
     'manual' => 'Käsitsi valitud staatus peatas automaatika.',
     'callout' =>
       'Automaatika on väljakutsel osalemise ajaks peatatud. Pärast väljakutset lülita see uuesti sisse.',
@@ -135,9 +137,9 @@ class _GeofenceCardState extends State<GeofenceCard>
       'inner' =>
         state['confirmationRequired'] == true
             ? 'Oled baasi lähedal. Kas oled valmis valves olema?'
-            : 'Sisepiirkond · valvesolek kinnitatud',
-      'ring' => 'Vahepealne piirkond · hilinemisega',
-      'outside' => 'Väljaspool piirkonda · mitte valves',
+            : 'Valvesoleku raadiuses · valvesolek kinnitatud',
+      'ring' => 'Hilinemisega valve raadiuses',
+      'outside' => 'Valveraadiusest väljas · mitte valves',
       _ => 'Piirkonna kinnitus puudub.',
     },
   };
@@ -172,7 +174,7 @@ class _GeofenceCardState extends State<GeofenceCard>
               )
             else ...[
               Text(
-                'Baasi lähedal: ${(config['innerMeters'] as num) / 1000} km · välispiir: ${(config['outerMeters'] as num) / 1000} km',
+                'Valvesoleku raadius: ${(config['innerMeters'] as num) / 1000} km. Hilinemisega valve kuni ${(config['outerMeters'] as num) / 1000} km, kaugemal mitte valves.',
               ),
               if (!GeofenceService.supported)
                 const Text(
@@ -198,7 +200,7 @@ class _GeofenceCardState extends State<GeofenceCard>
                             builder: (context) => AlertDialog(
                               title: const Text('Asukohapõhine valmisolek'),
                               content: const Text(
-                                'Telefon kontrollib ühingu piirkonda ka taustal. Täpset asukohta ega liikumisteekonda serverisse ei saadeta.\n\nSisselülitamisel oled esialgu mitte valves. Baasi lähedale jõudes küsime valvesse märkimiseks kinnitust. Käsitsi valitud staatus peatab automaatika; planeeritud mittevalve jääb kehtima.\n\nKui 24 tunni jooksul uut asukohakinnitust ei tule, lõpeb automaatne valvesolek. Piirkonnateated võivad telefoni tõttu viibida.',
+                                'Telefon kontrollib ühingu piirkonda ka taustal. Täpset asukohta ega liikumisteekonda serverisse ei saadeta.\n\nMärgi end esmalt valvesse. Automaatika kohandab sinu alustatud valvet: valvesoleku raadiusest väljudes hilinemisega, kaugemast piirist väljudes mitte valves. Tagasi jõudes küsime valvesse naasmiseks kinnitust. Käsitsi valitud staatus peatab automaatika. Planeeritud mittevalve ajal asukoht sinu staatust ei muuda.\n\nKui 24 tunni jooksul uut asukohakinnitust ei tule, lõpeb automaatne valvesolek. Piirkonnateated võivad telefoni tõttu viibida.',
                               ),
                               actions: [
                                 TextButton(
@@ -303,7 +305,7 @@ class _GeofenceCardState extends State<GeofenceCard>
                 : 'Kasutab ühingu olemasolevat baasiasukohta.',
           ),
           Text(
-            'Sisepiirkond ${(config['innerMeters'] as num) / 1000} km · välispiirkond ${(config['outerMeters'] as num) / 1000} km · hilinemine ${config['delayMinutes']} min',
+            'Valves kuni ${(config['innerMeters'] as num) / 1000} km · hilinemisega kuni ${(config['outerMeters'] as num) / 1000} km · hilinemine ${config['delayMinutes']} min',
           ),
           Text(
             config['enabled'] == true
@@ -313,7 +315,7 @@ class _GeofenceCardState extends State<GeofenceCard>
           TextButton.icon(
             onPressed: busy ? null : editSettings,
             icon: const Icon(Icons.edit_outlined),
-            label: const Text('Muuda piirkonda'),
+            label: const Text('Muuda valveraadiusi'),
           ),
         ],
       ],
@@ -333,7 +335,7 @@ class _GeofenceCardState extends State<GeofenceCard>
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, set) => AlertDialog(
-          title: const Text('Ühingu piirkond'),
+          title: const Text('Kaugus ühingu baasist'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -349,7 +351,7 @@ class _GeofenceCardState extends State<GeofenceCard>
                     decimal: true,
                   ),
                   decoration: const InputDecoration(
-                    labelText: 'Sisepiirkonna raadius (km)',
+                    labelText: 'Valvesoleku raadius (km)',
                   ),
                 ),
                 TextField(
@@ -358,13 +360,13 @@ class _GeofenceCardState extends State<GeofenceCard>
                     decimal: true,
                   ),
                   decoration: const InputDecoration(
-                    labelText: 'Välispiirkonna raadius (km)',
+                    labelText: 'Hilinemisega valve raadius (km)',
                   ),
                 ),
                 DropdownButtonFormField<int>(
                   initialValue: minutes,
                   decoration: const InputDecoration(
-                    labelText: 'Hilinemine vahepealses piirkonnas',
+                    labelText: 'Hilinemine kahe raadiuse vahel',
                   ),
                   items: [15, 30, 60]
                       .map(
@@ -377,7 +379,7 @@ class _GeofenceCardState extends State<GeofenceCard>
                   },
                 ),
                 const Text(
-                  'Sisepiirkond vähemalt 0,3 km. Välispiir vähemalt 0,3 km kaugemal, kuni 50 km. Vahemaa ei arvuta sõiduaega. Muutmine peatab senised automaatikaseansid.',
+                  'Näiteks 3 ja 8 km: kuni 3 km valves, 3–8 km hilinemisega, üle 8 km mitte valves. Valvesse tagasi märkimine vajab kinnitust. Esimene raadius vähemalt 0,3 km, teine vähemalt 0,3 km kaugemal ja kuni 50 km. Vahemaa ei arvuta sõiduaega. Muutmine peatab senised automaatikaseansid.',
                 ),
                 if (validation != null)
                   Text(
