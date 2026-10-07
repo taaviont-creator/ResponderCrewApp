@@ -100,7 +100,7 @@ void main() {
     },
   );
   testWidgets(
-    'creation form fits 320px at 200 percent text and preserves default title on untouched switch',
+    'quick creation fits 320px at 200 percent text without exposing extra fields',
     (tester) async {
       tester.view.physicalSize = const Size(320, 740);
       tester.view.devicePixelRatio = 1;
@@ -125,12 +125,10 @@ void main() {
       );
       await tester.tap(find.widgetWithText(OutlinedButton, 'TROSSI mereabi'));
       await tester.pumpAndSettle();
+      expect(find.byType(TextField), findsNothing);
       expect(
-        tester
-            .widget<TextFormField>(find.byType(TextFormField).first)
-            .controller!
-            .text,
-        'TROSSI mereabi',
+        tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+        isNotNull,
       );
       expect(tester.takeException(), isNull);
     },

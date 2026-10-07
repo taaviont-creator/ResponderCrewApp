@@ -1133,11 +1133,12 @@ test('callout policy enforces TROSS target bounds and explicit type independentl
     createdBy:activeMemberId, calloutType:'tross', responseTargetMinutes:60})));
 });
 
-test('TROSS creates callout, notification and open log atomically; recorded departure remains separate', async () => {
+for (const calloutType of ['sar','tross']) {
+test(`quick ${calloutType} creates callout, notification and own log without a location or description`, async () => {
   const db = testEnv.authenticatedContext(orgAdminId).firestore();
   const id='batch-tross', logId=`callout_${id}_created`;
   const batch=writeBatch(db);
-  batch.set(doc(db,`callouts/${id}`),calloutData(id,{calloutType:'tross',responseTargetMinutes:60}));
+  batch.set(doc(db,`callouts/${id}`),calloutData(id,{title:calloutType==='sar'?'SAR sündmus':'TROSSI mereabi',calloutType,responseTargetMinutes:calloutType==='tross'?60:null}));
   batch.set(doc(db,'notifications/batch-tross'),{id:'batch-tross',organizationId,commandId:organizationId,
     title:'Väljakutse: TROSSI mereabi',message:'Tehniline rike.',type:'callout',priority:'high',relatedType:'callout',relatedId:id,
     createdBy:orgAdminId,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
@@ -1150,9 +1151,21 @@ test('TROSS creates callout, notification and open log atomically; recorded depa
   const log=(await getDoc(doc(db,`operationLogs/${logId}`))).data();
   require('node:assert/strict').equal(log.status,'open');
   require('node:assert/strict').equal(log.calloutId,id);
+  const stored=(await serverDb().doc(`callouts/${id}`).get()).data();
+  const {FieldValue}=serverRequire('firebase-admin/firestore');
+  const amend=serverRequire('./callout-report').createAmendCalloutHandler({db:serverDb(),timestamp:()=>FieldValue.serverTimestamp()});
+  await amend({auth:{uid:orgAdminId},data:{organizationId,calloutId:id,version:stored.updatedAt.toMillis(),
+    title:stored.title,description:'Täpsustus pärast alarmeerimist',location:'Purtse sadama lähistel'}});
+  const member=testEnv.authenticatedContext(activeMemberId).firestore();
+  const updated=(await assertSucceeds(getDoc(doc(member,`callouts/${id}`)))).data();
+  require('node:assert/strict').equal(updated.description,'Täpsustus pärast alarmeerimist');
+  require('node:assert/strict').equal(updated.status,'active');
+  require('node:assert/strict').equal((await serverDb().collection(`callouts/${id}/changeHistory`).get()).size,1);
   await assertFails(setDoc(doc(db,'callouts/fake-time'),calloutData('fake-time',{
     calloutType:'tross',responseTargetMinutes:60,createdAt:new Date('2020-01-01')})));
 });
+
+}
 
 test('first availability transaction reads missing own record and writes status with notification', async () => {
   const db = testEnv.authenticatedContext(activeMemberId).firestore();

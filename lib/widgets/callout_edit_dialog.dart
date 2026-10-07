@@ -109,51 +109,6 @@ class _CalloutEditDialogState extends State<CalloutEditDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            DropdownButtonFormField<String>(
-              initialValue: _type,
-              decoration: const InputDecoration(labelText: 'Sündmuse tüüp'),
-              items: [
-                for (final type in CalloutType.values)
-                  DropdownMenuItem(
-                    value: type,
-                    child: Text(CalloutType.label(type)),
-                  ),
-              ],
-              onChanged: _saving
-                  ? null
-                  : (value) => setState(() => _type = value!),
-            ),
-            if (_type == CalloutType.tross)
-              DropdownButtonFormField<int>(
-                initialValue: _target,
-                decoration: const InputDecoration(
-                  labelText: 'Väljasõidu sihtaeg',
-                ),
-                items: [
-                  for (var m = 1; m <= 60; m++)
-                    DropdownMenuItem(value: m, child: Text('$m min')),
-                ],
-                onChanged: _saving
-                    ? null
-                    : (value) => setState(() => _target = value!),
-              ),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Sündmuse algus'),
-              subtitle: Text(_start.toLocal().toString().substring(0, 16)),
-              trailing: const Icon(Icons.edit_calendar),
-              onTap: _saving ? null : () => _pickTime(true),
-            ),
-            if (widget.callout.status != CalloutStatus.active)
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Sündmuse lõpp'),
-                subtitle: Text(
-                  _end?.toLocal().toString().substring(0, 16) ?? 'Määramata',
-                ),
-                trailing: const Icon(Icons.edit_calendar),
-                onTap: _saving ? null : () => _pickTime(false),
-              ),
             TextField(
               controller: _title,
               enabled: !_saving,
@@ -173,6 +128,57 @@ class _CalloutEditDialogState extends State<CalloutEditDialog> {
               minLines: 3,
               maxLines: null,
               decoration: const InputDecoration(labelText: 'Kirjeldus'),
+            ),
+            ExpansionTile(
+              title: const Text('Sündmuse tüüp ja ajad'),
+              children: [
+                DropdownButtonFormField<String>(
+                  initialValue: _type,
+                  decoration: const InputDecoration(labelText: 'Sündmuse tüüp'),
+                  items: [
+                    for (final type in CalloutType.values)
+                      DropdownMenuItem(
+                        value: type,
+                        child: Text(CalloutType.label(type)),
+                      ),
+                  ],
+                  onChanged: _saving
+                      ? null
+                      : (value) => setState(() => _type = value!),
+                ),
+                if (_type == CalloutType.tross)
+                  DropdownButtonFormField<int>(
+                    initialValue: _target,
+                    decoration: const InputDecoration(
+                      labelText: 'Väljasõidu sihtaeg',
+                    ),
+                    items: [
+                      for (var m = 1; m <= 60; m++)
+                        DropdownMenuItem(value: m, child: Text('$m min')),
+                    ],
+                    onChanged: _saving
+                        ? null
+                        : (value) => setState(() => _target = value!),
+                  ),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Sündmuse algus'),
+                  subtitle: Text(_start.toLocal().toString().substring(0, 16)),
+                  trailing: const Icon(Icons.edit_calendar),
+                  onTap: _saving ? null : () => _pickTime(true),
+                ),
+                if (widget.callout.status != CalloutStatus.active)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Sündmuse lõpp'),
+                    subtitle: Text(
+                      _end?.toLocal().toString().substring(0, 16) ??
+                          'Määramata',
+                    ),
+                    trailing: const Icon(Icons.edit_calendar),
+                    onTap: _saving ? null : () => _pickTime(false),
+                  ),
+              ],
             ),
             const Text('Muudatuse sisu, autor ja aeg jäävad ajalukku.'),
             if (_error != null) Text(_error!),

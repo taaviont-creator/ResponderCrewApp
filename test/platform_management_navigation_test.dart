@@ -55,6 +55,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: PlatformManagementScreen(
+            centersEnabled: true,
             pendingUpdates: const Stream.empty(),
             notices: const SizedBox(),
             call: (name, data) async {
@@ -143,6 +144,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: PlatformManagementScreen(
+            centersEnabled: true,
             pendingUpdates: const Stream.empty(),
             notices: const SizedBox(),
             call: (name, data) async {
