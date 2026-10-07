@@ -5,7 +5,6 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import android.view.WindowManager
 import android.content.Intent
-import android.provider.Settings
 import android.os.Bundle
 import android.app.KeyguardManager
 
@@ -40,15 +39,20 @@ class MainActivity : FlutterActivity() {
                         result.success(AlarmDeviceSettings.read(this))
                         return@setMethodCallHandler
                     }
-                    val intent = AlarmDeviceSettings.intent(this, call.method)
-                    if (intent == null) result.notImplemented()
-                    else { startActivity(intent); result.success(null) }
-                } catch (_: android.content.ActivityNotFoundException) {
-                    try {
-                        startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                            android.net.Uri.parse("package:$packageName")))
-                        result.success(null)
-                    } catch (_: Exception) { result.error("unavailable", "Telefoni seadet ei saanud avada", null) }
+                    val candidates = AlarmDeviceSettings.intents(this, call.method)
+                    if (candidates.isEmpty()) { result.notImplemented(); return@setMethodCallHandler }
+                    for ((destination, settingsIntent) in candidates) {
+                        try {
+                            startActivity(settingsIntent)
+                            result.success(destination)
+                            return@setMethodCallHandler
+                        } catch (_: android.content.ActivityNotFoundException) {
+                            // Continue with a supported screen for the same task.
+                        } catch (_: SecurityException) {
+                            // Some OEMs expose a detail activity only to system apps.
+                        }
+                    }
+                    result.error("unavailable", "Telefoni seadet ei saanud avada", null)
                 } catch (_: SecurityException) {
                     result.error("unavailable", "Telefoni seadet ei saanud avada", null)
                 }
