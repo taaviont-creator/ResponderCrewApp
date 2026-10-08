@@ -8,13 +8,16 @@ async function equipmentAccess(db,request,edit=false) {
   const actor=await access(db,request);
   const id=request.data?.equipmentId;
   if(!validId(id)) throw new HttpsError('invalid-argument','Vali varustus.');
-  const ref=db.doc(`equipment/${id}`),item=(await ref.get()).data();
+  const ref=db.doc(`equipment/${id}`);
+  let item=(await ref.get()).data();
+  const archived=!item;
+  if(!item && !edit) item=(await db.doc(`equipmentArchive/${id}`).get()).data();
   if(!item || orgId(item)!==actor.org ||
       (item.scope==='personal' && item.ownerUserId!==request.auth.uid && !actor.admin) ||
       (edit && !actor.admin && !(item.scope==='personal' && item.ownerUserId===request.auth.uid))) {
     throw new HttpsError('permission-denied','Sul puudub selle varustuse toimingu õigus.');
   }
-  return {...actor,id,item,ref};
+  return {...actor,id,item,ref,archived};
 }
 function createSetEquipmentCondition({db,timestamp}) {
   return async request=>{
@@ -77,7 +80,7 @@ function summarizeWork(activities,participants,members) {
 }
 function createGetEquipmentCare({db}) {
   return async request=>{
-    const {org,id,item,admin}=await equipmentAccess(db,request);
+    const {org,id,item,admin,archived}=await equipmentAccess(db,request);
     let query=db.collection(`equipment/${id}/history`).orderBy('occurredAt','desc');
     if(request.data?.cursor) {
       if(!validId(request.data.cursor)) throw new HttpsError('invalid-argument','Vigane ajaloo lehekülg.');
@@ -107,7 +110,7 @@ function createGetEquipmentCare({db}) {
     }
     // Recheck revocation before returning the assembled response.
     await equipmentAccess(db,request);
-    return {status:item.status||'ok',note:item.note||'',canEdit:admin||item.ownerUserId===request.auth.uid,
+    return {status:item.status||'ok',note:item.note||'',archived,canEdit:!archived && (admin||item.ownerUserId===request.auth.uid),
       history:history.docs.slice(0,50).map(d=>({id:d.id,...d.data(),occurredAt:millis(d.data().occurredAt)})),
       nextCursor:history.docs.length>50?history.docs[49].id:null,works,workLimitReached};
   };

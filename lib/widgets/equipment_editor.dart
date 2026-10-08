@@ -10,8 +10,10 @@ class EquipmentDraft {
     required this.location,
     required this.nextMaintenanceDate,
     required this.note,
+    this.organizationOwned = false,
   });
   final String name, category, status, location, nextMaintenanceDate, note;
+  final bool organizationOwned;
 }
 
 /// Keep the form and its controllers alive until the write is acknowledged.
@@ -20,10 +22,13 @@ class EquipmentEditor extends StatefulWidget {
     super.key,
     this.existing,
     this.initialCategory = EquipmentCategory.other,
+    this.chooseOwnership = false,
+    this.needsApproval = true,
     required this.save,
   });
   final EquipmentModel? existing;
   final String initialCategory;
+  final bool chooseOwnership, needsApproval;
   final Future<void> Function(EquipmentDraft) save;
   @override
   State<EquipmentEditor> createState() => _EquipmentEditorState();
@@ -45,6 +50,7 @@ class _EquipmentEditorState extends State<EquipmentEditor> {
   late String _status = widget.existing?.status ?? EquipmentStatus.ok;
   bool _saving = false;
   String? _error;
+  bool _organizationOwned = false;
   @override
   void dispose() {
     for (final c in [_name, _location, _maintenance, _note]) {
@@ -68,6 +74,7 @@ class _EquipmentEditorState extends State<EquipmentEditor> {
           location: _location.text.trim(),
           nextMaintenanceDate: _maintenance.text.trim(),
           note: _note.text.trim(),
+          organizationOwned: _organizationOwned,
         ),
       );
       if (mounted) Navigator.pop(context, true);
@@ -100,6 +107,37 @@ class _EquipmentEditorState extends State<EquipmentEditor> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  if (widget.chooseOwnership && widget.existing == null) ...[
+                    DropdownButtonFormField<bool>(
+                      initialValue: false,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Kellele ese kuulub?',
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: false,
+                          child: Text('Minu isiklik varustus'),
+                        ),
+                        DropdownMenuItem(
+                          value: true,
+                          child: Text('Ühingu varustus minu käes'),
+                        ),
+                      ],
+                      onChanged: (v) =>
+                          setState(() => _organizationOwned = v ?? false),
+                    ),
+                    if (_organizationOwned)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          widget.needsApproval
+                              ? 'Admin kinnitab eseme enne ühingu arvestusse lisamist. Ära lisa eset uuesti, kui see on sulle juba väljastatud.'
+                              : 'Ese lisatakse ühingu arvestusse ja väljastatakse sulle.',
+                        ),
+                      ),
+                    const SizedBox(height: 12),
+                  ],
                   TextFormField(
                     controller: _name,
                     decoration: const InputDecoration(labelText: 'Nimetus'),
@@ -188,7 +226,13 @@ class _EquipmentEditorState extends State<EquipmentEditor> {
         ),
         FilledButton(
           onPressed: _saving ? null : _save,
-          child: Text(_saving ? 'Salvestan…' : 'Salvesta'),
+          child: Text(
+            _saving
+                ? 'Salvestan…'
+                : _organizationOwned && widget.needsApproval
+                ? 'Saada kinnitamiseks'
+                : 'Salvesta',
+          ),
         ),
       ],
     ),

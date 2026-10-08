@@ -30,6 +30,13 @@ EquipmentModel equipment(
 final boat = equipment('Päästepaat', 'vessel');
 
 class CareService extends Fake implements EquipmentService {
+  @override
+  Future<Map<String, dynamic>> manage(
+    String organizationId,
+    String action, {
+    String? id,
+    Map<String, dynamic>? item,
+  }) async => {'requests': <dynamic>[], 'hasMore': false};
   final items = [
     boat,
     equipment('Raadio', 'radio'),

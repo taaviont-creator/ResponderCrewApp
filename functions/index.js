@@ -397,6 +397,7 @@ exports.notifyDispatchUpdate = onDocumentCreated({document:'dispatchUpdateEvents
 });
 
 const equipmentCare = require('./equipment-care');
+exports.manageEquipment = onCall(statisticsCallableOptions, require('./equipment-lifecycle').createEquipmentLifecycle(workflowDependencies));
 exports.setEquipmentCondition = onCall(statisticsCallableOptions, equipmentCare.createSetEquipmentCondition(workflowDependencies));
 exports.getEquipmentCare = onCall(statisticsCallableOptions, equipmentCare.createGetEquipmentCare({db}));
 exports.recordEquipmentHistory = onDocumentWrittenWithAuthContext({document:'equipment/{equipmentId}',region:'europe-north1',retry:true,maxInstances:5},equipmentCare.createEquipmentHistoryRecorder({db}));

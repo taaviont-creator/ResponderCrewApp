@@ -50,6 +50,13 @@ function createGetReportHandler({db}) {
       .sort((a,b) => (millis(a.data().createdAt) || 0) - (millis(b.data().createdAt) || 0) || a.id.localeCompare(b.id));
     const metadata = reportDoc.exists ? reportDoc.data() : {status:'draft',revision:0,authorUserId:canEdit?request.auth.uid:'',leaderUserId:'',equipmentIds:[],suggestions:''};
     if (reportDoc.exists && orgId(metadata) !== actor.org) throw new HttpsError('permission-denied','Aruanne kuulub teisele ühingule.');
+    // Only previously linked archived equipment belongs in this report; it is
+    // never offered as a new selection or counted as operational equipment.
+    for(const equipmentId of metadata.equipmentIds || []) {
+      if(!id(equipmentId) || equipment.some(e=>e.id===equipmentId)) continue;
+      const archived=await db.doc(`equipmentArchive/${equipmentId}`).get();
+      if(orgId(archived.data())===actor.org && archived.data()?.scope!=='personal') equipment.push(archived);
+    }
     const primary = logs.find(d => d.id === metadata.operationLogId) || logs[0];
     const timeline = [];
     if (callout.createdAt) timeline.push({id:`callout-${calloutId}-created`,title:'Väljakutse loodud',createdAt:callout.createdAt,type:'system',origin:'system'});
@@ -96,6 +103,9 @@ function createSaveReportHandler({db,timestamp}) {
       if (peopleDocs.some((m,i)=>orgId(m.data())!==actor.org || m.data()?.userId!==people[i] || !active(m.data()))) fail('Koostaja ja juht peavad olema ühingu aktiivsed liikmed.');
       if (d.equipmentIds.length) {
         const gear=await tx.getAll(...d.equipmentIds.map(e=>db.doc(`equipment/${e}`)));
+        for(let i=0;i<gear.length;i++) if(!gear[i].exists && old?.equipmentIds?.includes(d.equipmentIds[i])) {
+          gear[i]=await tx.get(db.doc(`equipmentArchive/${d.equipmentIds[i]}`));
+        }
         if (gear.some(e=>orgId(e.data())!==actor.org || e.data()?.scope==='personal' ||
             (!technique(e.data()) && !old?.equipmentIds?.includes(e.id)))) fail('Vali selle ühingu alus või tehnika. Muu varustuse kahjustus või kaotus lisa eraldi kirjena.');
       }

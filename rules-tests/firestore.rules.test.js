@@ -1021,6 +1021,15 @@ test('report technique selection and equipment incidents preserve history and en
   assert(history.docs.some(d=>d.data().after.equipmentIncidents[0].status==='damaged'));
   const audit=await db.collection('platformAudit').where('targetId','==','gear-callout').get();
   assert(audit.docs.some(d=>d.data().changedFields.includes('equipmentIncidents')));
+  // Removing active inventory must not erase equipment from old reports or
+  // prevent their subsequent correction. An archive is not a new selection.
+  const manage=serverRequire('./equipment-lifecycle').createEquipmentLifecycle({db,timestamp:()=>FieldValue.serverTimestamp()});
+  await manage({auth:{uid:orgAdminId},data:{organizationId,action:'delete',id:'boat'}});
+  assert((await read(req(activeMemberId))).equipment.some(e=>e.id==='boat'));
+  await save(req(orgAdminId,{...data,revision:3,equipmentIds:['boat','suit']}));
+  await db.doc('calloutReports/gear-callout').update({equipmentIds:[]});
+  assert(!(await read(req(orgAdminId))).equipment.some(e=>e.id==='boat'));
+  await assert.rejects(save(req(orgAdminId,{...data,revision:4})),{code:'invalid-argument'});
   await assertFails(updateDoc(doc(testEnv.authenticatedContext(activeMemberId).firestore(),'calloutReports','gear-callout'),{equipmentIncidents:[]}));
 });
 
@@ -1790,4 +1799,81 @@ test('equipment care workflow joins real confirmed contributions without changin
   await assertSucceeds(updateDoc(doc(admin,`activityParticipants/contribution_care-work_${activeMemberId}`),{attendanceStatus:'confirmed',hours:2.5,confirmedBy:orgAdminId,confirmedAt:serverTimestamp(),updatedAt:serverTimestamp()}));
   result=await get(request);
   assert.equal(result.works[0].confirmedHours,2.5);assert.equal(result.status,'broken');
+});
+
+test('equipment requests require admin approval, are idempotent and do not cross organizations', async () => {
+  const assert=require('node:assert/strict'),db=serverDb();
+  const manage=serverRequire('./equipment-lifecycle').createEquipmentLifecycle({db,timestamp:()=>new Date()});
+  const item={name:'Kuivülikond',category:'safety',status:'ok',location:'Liikme käes',nextMaintenanceDate:'',note:''};
+  const req=(uid,action,id='request-one',extra={})=>({auth:{uid},data:{organizationId,action,id,item,...extra}});
+  await assert.rejects(manage({data:{organizationId,action:'list'}}),{code:'unauthenticated'});
+  await assert.rejects(manage(req(activeMemberId,'submit','invalid',{item:{...item,nextMaintenanceDate:'2026-02-30'}})),{code:'invalid-argument'});
+  await manage(req(activeMemberId,'submit'));await manage(req(activeMemberId,'submit'));
+  let pending=(await manage(req(orgAdminId,'list'))).requests;
+  assert.equal(pending.length,1);const id=pending[0].id;
+  assert.equal((await db.doc(`equipment/${id}`).get()).exists,false);
+  await assert.rejects(manage(req(activeMemberId,'approve',id)),{code:'permission-denied'});
+  await assert.rejects(manage(req(orgAdminId,'approve',id,{organizationId:otherOrganizationId})),{code:'permission-denied'});
+  await assert.rejects(manage(req(otherUserId,'list')),{code:'permission-denied'});
+  // Competing reviews cannot both succeed with contradictory outcomes.
+  const results=await Promise.allSettled([manage(req(orgAdminId,'approve',id)),manage(req(orgAdminId,'reject',id))]);
+  assert.equal(results.filter(r=>r.status==='fulfilled').length,1);
+  assert.equal((await manage(req(activeMemberId,'list'))).requests.length,0);
+  const status=(await db.doc(`equipmentRequests/${id}`).get()).data().status;
+  assert.equal((await db.doc(`equipment/${id}`).get()).exists,status==='approved');
+  if(status==='approved') {
+    const e=(await db.doc(`equipment/${id}`).get()).data();assert.equal(e.assignedToUserId,activeMemberId);assert.equal(e.scope,'organization');
+    await manage(req(orgAdminId,'approve',id));
+    await assert.rejects(manage(req(activeMemberId,'delete',id)),{code:'permission-denied'});
+  }
+  // Admin self-entry uses the same path and directly issues the item to self.
+  await manage(req(activeMemberId,'submit','member-approved'));
+  const approvedId=(await manage(req(activeMemberId,'list'))).requests[0].id;
+  await manage(req(orgAdminId,'approve',approvedId));
+  await manage(req(orgAdminId,'approve',approvedId));
+  const owned=(await db.doc(`equipment/${approvedId}`).get()).data();
+  assert.equal(owned.assignedToUserId,activeMemberId);assert.equal(owned.scope,'organization');
+  await assertSucceeds(getDoc(doc(testEnv.authenticatedContext(activeMemberId).firestore(),'equipment',approvedId)));
+  await assertFails(updateDoc(doc(testEnv.authenticatedContext(activeMemberId).firestore(),'equipment',approvedId),{scope:'personal',ownerUserId:activeMemberId}));
+  await assertSucceeds(updateDoc(doc(testEnv.authenticatedContext(orgAdminId).firestore(),'equipment',approvedId),{name:'Kinnitatud ülikond',updatedAt:serverTimestamp()}));
+  await manage(req(orgAdminId,'submit','admin-own'));
+  const issued=(await db.collection('equipment').where('submittedBy','==',orgAdminId).get()).docs;
+  assert.equal(issued.length,1);assert.equal(issued[0].data().assignedToUserId,orgAdminId);
+  await manage(req(activeMemberId,'submit','cancel-own'));
+  pending=(await manage(req(activeMemberId,'list'))).requests;
+  await manage(req(activeMemberId,'cancel',pending[0].id));
+  assert.equal((await manage(req(activeMemberId,'list'))).requests.length,0);
+});
+
+test('equipment deletion preserves audit and repair access; owner and tenant restrictions survive archival', async () => {
+  const assert=require('node:assert/strict'),db=serverDb();
+  const manage=serverRequire('./equipment-lifecycle').createEquipmentLifecycle({db,timestamp:()=>new Date()});
+  const {createGetEquipmentCare,createSetEquipmentCondition}=serverRequire('./equipment-care');
+  const get=createGetEquipmentCare({db}),set=createSetEquipmentCondition({db,timestamp:()=>new Date()});
+  const req=(uid,id,extra={})=>({auth:{uid},data:{organizationId,action:'delete',id,equipmentId:id,...extra}});
+  for(const [id,scope,owner] of [['delete-own','personal',activeMemberId],['delete-other','personal',orgAdminId],['delete-org','organization','']])
+    await db.doc(`equipment/${id}`).set({id,organizationId,scope,ownerUserId:owner,name:id,status:'ok',note:''});
+  await assert.rejects(manage(req(activeMemberId,'delete-other')),{code:'permission-denied'});
+  await assert.rejects(manage(req(activeMemberId,'delete-org')),{code:'permission-denied'});
+  await manage(req(activeMemberId,'delete-own'));await manage(req(activeMemberId,'delete-own'));
+  assert.equal((await db.doc('equipment/delete-own').get()).exists,false);
+  assert.equal((await db.doc('equipmentArchive/delete-own').get()).data().deletedBy,activeMemberId);
+  const care=await get(req(activeMemberId,'delete-own'));assert.equal(care.archived,true);assert.equal(care.canEdit,false);assert.equal(care.history.length,1);
+  await assert.rejects(get(req(targetMemberId,'delete-own')),{code:'permission-denied'});
+  await assert.rejects(set(req(activeMemberId,'delete-own',{status:'ok',note:'',expectedStatus:'ok',expectedNote:''})),{code:'permission-denied'});
+  await manage(req(orgAdminId,'delete-org'));
+  assert.equal((await get(req(activeMemberId,'delete-org'))).archived,true);
+  await db.doc(`memberships/${activeMemberId}_${organizationId}`).update({status:'removed',isActive:false});
+  await assert.rejects(get(req(activeMemberId,'delete-own')),{code:'permission-denied'});
+});
+
+test('equipment requests and archives cannot be forged or read through direct clients', async () => {
+  for(const uid of [activeMemberId,orgAdminId]) {
+    const client=testEnv.authenticatedContext(uid).firestore();
+    for(const path of ['equipmentRequests/request','equipmentArchive/item']) {
+      await assertFails(setDoc(doc(client,path),{organizationId,status:'approved',submittedBy:uid}));
+      await assertFails(getDoc(doc(client,path)));
+    }
+    await assertFails(deleteDoc(doc(client,'equipment','no-direct-delete')));
+  }
 });
