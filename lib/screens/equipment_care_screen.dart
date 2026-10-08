@@ -189,7 +189,11 @@ class _EquipmentCareScreenState extends State<EquipmentCareScreen> {
                   'Reageerimisel arvestatakse aluse praegust olekut. Hoolduses või katki olev alus ei ole kasutusvalmis.',
                 ),
               ),
-            if (!widget.item.isPersonal)
+            if (data['archived'] == true)
+              const Text(
+                'Ese on aktiivsest arvestusest kustutatud. Ajalugu säilib.',
+              ),
+            if (!widget.item.isPersonal && data['archived'] != true)
               Align(
                 alignment: Alignment.centerLeft,
                 child: TextButton.icon(
@@ -298,6 +302,7 @@ class _EquipmentCareScreenState extends State<EquipmentCareScreen> {
     const labels = {
       'note': 'Kommentaar',
       'nextMaintenanceDate': 'Järgmine hooldus',
+      'deleted': 'Ese eemaldatud aktiivsest arvestusest',
       'storage': 'Asukoht',
       'assignedToUserId': 'Saaja',
       'assignedToName': 'Saaja nimi',
@@ -325,8 +330,10 @@ class _EquipmentCareScreenState extends State<EquipmentCareScreen> {
                 '${before.isEmpty ? 'Lisatud' : EquipmentStatus.label(before['status'] as String? ?? '')} → ${EquipmentStatus.label(after['status'] as String? ?? '')}',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
+            if (changed.contains('deleted'))
+              const Text('Ese eemaldatud aktiivsest arvestusest'),
             for (final field in changed.where(
-              (f) => f != 'status' && f != 'assignedToUserId',
+              (f) => f != 'status' && f != 'assignedToUserId' && f != 'deleted',
             ))
               Text(
                 '${labels[field] ?? field}: ${value(before, field)} → ${value(after, field)}',

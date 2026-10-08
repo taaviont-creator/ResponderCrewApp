@@ -60,3 +60,19 @@ Push vajab seadmes lubatud teavitusi ja registreeritud seadmetokenit. Äpi teavi
 5. Kui muuta tunnistuse lõppkuupäeva, kontrolli uue kuupäevaga meeldetuletust. 31 päeva pärast aeguv tunnistus ei tohi veel teadet tekitada.
 
 Automaatseid kutse- ja platvormiadmini e-kirju see muudatus ei aktiveeri; need vajavad e-posti teenuse/SMTP/API saladuse seadistust.
+
+## Varustuse omand, kinnitamine ja kustutamine (08.10.2026)
+
+- „Minu varustus → Lisa varustus” küsib, kas ese on isiklik või ühingu oma liikme käes. Isiklik ese salvestub senise `scope: personal` mudeliga kohe. Isiklikud kirjed on endiselt ühingupõhised; nende puudumine „Liikmete varustus” loendist tuleneb omandi filtrist, mitte globaalsest isiklikust laost.
+- Ühingu eseme sisestab liige ise, kuid admin kinnitab selle. Kuni kinnitamiseni on kirje serveri hallatavas `equipmentRequests` kogumis, mitte aktiivses varustuses, aruande valikutes ega valmidusarvestuses. Liige saab oma ootel taotluse tühistada. Admin saab vaadata detaile, kinnitada või tagasi lükata. Admini enda sisestus kinnitatakse kohe.
+- Kinnitamine loob ühe `equipment` kirje olemasolevate `scope: organization`, `assignedToUserId`, `assignedToName`, `issuedBy` ja `issuedAt` väljadega. See ilmub „Minu varustus” ja „Liikmete varustus” vaadetesse ning liikme profiili seniste päringute kaudu. Korduspäring ei dubleeri eset. Enne kinnitamist palutakse kontrollida, et sama ese pole juba arvel; automaatset samanimeliste esemete ühendamist ei tehta.
+- Kinnitamise taotlus ja tulemus lisatakse asjaomase kasutaja rakendusesisesesse teavituste loendisse. See ei lisa eraldi push-häiret.
+- Eseme toimingumenüüs on „Kustuta varustus”. Enda isiklikku eset saab kustutada omanik või ühingu admin; ühingu eset ainult sama ühingu aktiivne admin. Pelk platvormihalduri roll õigust ei anna. Kinnitusdialoog selgitab mõju, sealhulgas väljastatud esemele ja alusele.
+- Kustutamine viib hetkeseisu serveri hallatavasse `equipmentArchive/{id}` dokumenti ning eemaldab aktiivse `equipment/{id}` dokumendi ühe tehinguna. See eemaldab eseme ka vanade klientide nimekirjadest. Hooldusajalugu ja panuste seosed säilivad. Aruandesse varem seotud arhiveeritud tehnika on endiselt loetav ja aruanne parandatav, kuid seda ei saa uue aruande jaoks valida. Arhiivi taastamise kasutajaliidest selles muudatuses ei lisatud.
+- Kinnitamise otsused säilitavad tegija ja aja taotluses, kustutamine arhiveerija/aja ning kustutamiskirje eseme ajaloos. Kliendid ei saa kirjutada ega lugeda taotluste või arhiivi kogumeid otse. Neid teenindab `manageEquipment` callable tegeliku aktiivse liikmelisuse kontrolliga. Firestore reegleid, olemasolevate dokumentide vormingut ega keskuste avaldamise seadeid ei muudeta; migratsiooni pole vaja.
+
+Kontroll: Flutter analyze puhas; 361 Flutter testi; 116 Functions testi ja lint; 156 Firestore/Storage/serveri testi. Uued regressioonid katavad omandivaliku, kustutamise kinnituse ja tõrke, taotluse tühistamise, admini otsuse tõrke, serveripoolsed rolli- ja ühingupiirid, idempotentsuse, konkureerivad otsused, arhiveeritud isikliku varustuse privaatsuse ja aruande säilimise.
+
+Telefonis katsetada uuendatud APK-ga: isikliku eseme lisamine/kustutamine; ühingu eseme esitamine liikmena, kinnitamine teise kontoga, ilmumine mõlemasse loendisse; juba väljastatud eseme ja aluse kustutamise hoiatus. Varasem APK 1.0.4 neid uusi sisestus- ja kustutamisnuppe ei sisalda.
+
+Lisakontroll: praegu avaldatud reeglite koopiaga läbisid 146 testi (keskuste avaldamata väljakutsete testid jäid sellest kontrollist välja). Tegeliku Flutteri renderdusega kontrolliti varustuse vaadet 360 ja 1100 pikslil. Veebikoost õnnestus, keskused on endiselt peidetud.

@@ -1,4 +1,6 @@
 import '../widgets/equipment_editor.dart';
+import '../widgets/equipment_requests_panel.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'equipment_care_screen.dart';
 import '../widgets/app_layout.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -64,6 +66,7 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
 
   String _search = '';
   String? _category;
+  int _requestsRevision = 0;
 
   @override
   void initState() {
@@ -111,37 +114,71 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
         (scope == EquipmentScope.organization && !widget.canManageEquipment)) {
       return;
     }
+    final requestId = FirebaseFirestore.instance
+        .collection('equipmentRequests')
+        .doc()
+        .id;
+    var pending = false;
     final saved = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (_) => EquipmentEditor(
+        chooseOwnership: scope == EquipmentScope.personal,
+        needsApproval: !widget.canManageEquipment,
         initialCategory: _view == 'technique'
             ? EquipmentCategory.vessel
             : EquipmentCategory.other,
-        save: (draft) => _equipmentService.addEquipment(
-          organizationId: widget.organizationId,
-          scope: scope,
-          ownerUserId: scope == EquipmentScope.personal
-              ? widget.currentUid
-              : '',
-          storage: scope == EquipmentScope.organization && _view == 'warehouse'
-              ? 'warehouse'
-              : 'shared',
-          name: draft.name,
-          category: draft.category,
-          status: draft.status,
-          location: draft.location,
-          nextMaintenanceDate: draft.nextMaintenanceDate,
-          note: draft.note,
-          createdBy: widget.currentUid,
-          canManageOrganizationEquipment: widget.canManageEquipment,
-        ),
+        save: (draft) async {
+          if (scope == EquipmentScope.personal && draft.organizationOwned) {
+            final result = await _equipmentService.manage(
+              widget.organizationId,
+              'submit',
+              id: requestId,
+              item: {
+                'name': draft.name,
+                'category': draft.category,
+                'status': draft.status,
+                'location': draft.location,
+                'nextMaintenanceDate': draft.nextMaintenanceDate,
+                'note': draft.note,
+              },
+            );
+            pending = result['status'] == 'pending';
+            return;
+          }
+          await _equipmentService.addEquipment(
+            organizationId: widget.organizationId,
+            scope: scope,
+            ownerUserId: scope == EquipmentScope.personal
+                ? widget.currentUid
+                : '',
+            storage:
+                scope == EquipmentScope.organization && _view == 'warehouse'
+                ? 'warehouse'
+                : 'shared',
+            name: draft.name,
+            category: draft.category,
+            status: draft.status,
+            location: draft.location,
+            nextMaintenanceDate: draft.nextMaintenanceDate,
+            note: draft.note,
+            createdBy: widget.currentUid,
+            canManageOrganizationEquipment: widget.canManageEquipment,
+          );
+        },
       ),
     );
     if (saved == true && mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Varustus salvestatud')));
+      setState(() => _requestsRevision++);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            pending
+                ? 'Ese saadetud adminile kinnitamiseks'
+                : 'Varustus salvestatud',
+          ),
+        ),
+      );
     }
   }
 
@@ -443,12 +480,20 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
                 ],
               ),
               const SizedBox(height: 8),
+              EquipmentRequestsPanel(
+                key: ValueKey(
+                  '${widget.organizationId}-${widget.currentUid}-${widget.canManageEquipment}-$_requestsRevision',
+                ),
+                organizationId: widget.organizationId,
+                canManage: widget.canManageEquipment,
+                service: _equipmentService,
+              ),
               _buildEquipmentSection(
                 title: title,
                 equipment: visible,
                 emptyText: 'Varustust ei leitud.',
                 addLabel: _view == 'mine'
-                    ? 'Lisa isiklik varustus'
+                    ? 'Lisa varustus'
                     : _view == 'technique'
                     ? 'Lisa tehnika'
                     : 'Lisa varustus',
@@ -609,19 +654,13 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
   Widget? _buildEquipmentActions(EquipmentModel item) {
     if (!_canEditEquipment(item)) return null;
 
-    if (item.isPersonal) {
-      return IconButton(
-        icon: const Icon(Icons.edit),
-        tooltip: 'Muuda varustust',
-        onPressed: () => _showEditEquipmentDialog(item),
-      );
-    }
-
     return PopupMenuButton<String>(
       tooltip: 'Varustuse toimingud',
       onSelected: (value) {
         if (value == 'edit') {
           _showEditEquipmentDialog(item);
+        } else if (value == 'delete') {
+          _deleteEquipment(item);
         } else if (value == 'issue') {
           _showIssueEquipmentDialog(item);
         } else if (value == 'warehouse' || value == 'shared') {
@@ -635,7 +674,7 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
           value: 'edit',
           child: Text('Muuda varustust'),
         ),
-        if (!item.isAssigned)
+        if (!item.isPersonal && !item.isAssigned)
           PopupMenuItem<String>(
             value: item.storage == 'warehouse' ? 'shared' : 'warehouse',
             child: Text(
@@ -644,17 +683,112 @@ class _EquipmentScreenState extends State<EquipmentScreen> {
                   : 'Liiguta lattu',
             ),
           ),
-        if (!item.isAssigned)
+        if (!item.isPersonal && !item.isAssigned)
           const PopupMenuItem<String>(
             value: 'issue',
             child: Text('Väljasta liikmele'),
           ),
-        if (item.isAssigned)
+        if (!item.isPersonal && item.isAssigned)
           const PopupMenuItem<String>(
             value: 'return',
             child: Text('Märgi tagastatuks'),
           ),
+        const PopupMenuDivider(),
+        const PopupMenuItem<String>(
+          value: 'delete',
+          child: Text('Kustuta varustus'),
+        ),
       ],
+    );
+  }
+
+  Future<void> _deleteEquipment(EquipmentModel item) async {
+    if (!_canEditEquipment(item)) return;
+    var saving = false;
+    String? error;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, update) => PopScope(
+          canPop: !saving,
+          child: AlertDialog(
+            title: Text('Kustuta „${item.name}“?'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Ese eemaldatakse aktiivsest varustuse loendist. Varasemad aruanded ja hooldusajalugu säilivad.',
+                  ),
+                  if (item.isAssigned)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 8),
+                      child: Text(
+                        'Ese on liikmele väljastatud. See eemaldatakse ka tema varustuse loendist.',
+                      ),
+                    ),
+                  if (item.category == EquipmentCategory.vessel &&
+                      !item.isPersonal)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 8),
+                      child: Text(
+                        'Seda alust ei saa pärast kustutamist enam reageerimisel arvestada.',
+                      ),
+                    ),
+                  if (error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        error!,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: saving ? null : () => Navigator.pop(dialogContext),
+                child: const Text('Tagasi'),
+              ),
+              FilledButton(
+                onPressed: saving
+                    ? null
+                    : () async {
+                        update(() {
+                          saving = true;
+                          error = null;
+                        });
+                        try {
+                          await _equipmentService.manage(
+                            widget.organizationId,
+                            'delete',
+                            id: item.id,
+                          );
+                          if (dialogContext.mounted) {
+                            Navigator.pop(dialogContext);
+                          }
+                        } catch (e) {
+                          if (dialogContext.mounted) {
+                            update(() {
+                              saving = false;
+                              error = e is FirebaseFunctionsException
+                                  ? e.message
+                                  : 'Kustutamine ebaõnnestus. Proovi uuesti.';
+                            });
+                          }
+                        }
+                      },
+                child: Text(saving ? 'Kustutan…' : 'Kustuta'),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

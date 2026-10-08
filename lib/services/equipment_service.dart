@@ -9,6 +9,23 @@ import '../models/notification_model.dart';
 import 'notification_service.dart';
 
 class EquipmentService {
+  Future<Map<String, dynamic>> manage(
+    String organizationId,
+    String action, {
+    String? id,
+    Map<String, dynamic>? item,
+  }) async {
+    final result = await FirebaseFunctions.instanceFor(region: 'europe-north1')
+        .httpsCallable('manageEquipment')
+        .call({
+          'organizationId': organizationId,
+          'action': action,
+          'id': ?id,
+          'item': ?item,
+        });
+    return Map<String, dynamic>.from(result.data as Map);
+  }
+
   Future<void> updateEquipmentDetails({
     required String equipmentId,
     required String organizationId,
