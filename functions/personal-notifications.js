@@ -8,7 +8,7 @@ const deliveryId = (...parts) => createHash('sha256').update(JSON.stringify(part
 // One durable inbox record per recipient and source event. Never blindly retry
 // an uncertain FCM send. The inbox remains usable without registered devices.
 function createPersonalDelivery({db,messaging,loadTokens,logger,now = () => new Date()}) {
-  return async ({sourceId,org,uid,title,body,type = 'system',relatedType,relatedId = '',preferenceKeys = [],platform = false,pushType,urgent = false}) => {
+  return async ({sourceId,org,uid,title,body,type = 'system',relatedType,relatedId = '',preferenceKeys = [],platform = false,pushType,urgent = false,timeSensitive = false}) => {
     if (platform) {
       if (!platformRole((await db.doc(`users/${uid}`).get()).data()?.systemRole)) return;
     } else {
@@ -30,7 +30,7 @@ function createPersonalDelivery({db,messaging,loadTokens,logger,now = () => new 
         const channelId = type === 'availability' ? 'readiness_changes' : urgent ? 'dispatch_updates' : 'respondcrew_info';
         const result = await messaging.sendEachForMulticast({tokens:tokens.slice(start,start+500).map(t => t.token),
           notification:{title,body},data:{type:pushType || relatedType,organizationId:org,relatedId,notificationId:id,...(urgent?{urgent:'true'}:{})},
-          android:{priority:urgent?'high':'normal',notification:{channelId,tag:id}},apns:{payload:{aps:{sound:'default'}}}});
+          android:{priority:urgent || timeSensitive?'high':'normal',notification:{channelId,tag:id}},apns:{payload:{aps:{sound:'default'}}}});
         failed += result.failureCount;
       }
       await ref.update({pushStatus:tokens.length ? failed?'partialFailure':'accepted' : 'noDevices'});

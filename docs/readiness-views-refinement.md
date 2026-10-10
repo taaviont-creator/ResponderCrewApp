@@ -105,3 +105,17 @@ Native teek `native_geofence` 1.3.1 (MIT) kasutab Androidi/iOS-i piirkonnajälgi
 OS võib sündmusi edasi lükata; sunnitud sulgemine, energiasääst, puuduv võrk või luba võivad edastamise takistada. Sellest ei tehta reaalajas jälgimise garantiid. Telefonitest on vajalik. Funktsioon on vaikimisi väljas, olemasolevaid liikmeid ega staatuseid ei migreerita. APK-d selles etapis ei koostata.
 
 Viited: [Androidi geofencing](https://developer.android.com/develop/sensors-and-location/location/geofencing), [Apple'i piirkonnajälgimine](https://developer.apple.com/documentation/corelocation/monitoring-the-user-s-proximity-to-geographic-regions), [native_geofence](https://pub.dev/packages/native_geofence).
+
+## Taustal naasmise kinnitus ja isiklik staatusteade (10.10.2026)
+
+Naasmise teade kasutas Androidis FCM-i tavaprioriteeti, mida Doze võib edasi lükata. Lisaks ootas native piirkonnasündmus uut täpset GPS-mõõtmist: piiril või ebaõnnestunud mõõtmise korral jäi piirkond teadmata ning kinnitusteade ei tekkinud.
+
+- Geofence'i isiklikud teated kasutavad ajakriitilist FCM-i kõrget edastusprioriteeti, säilitades tavalise valmiduse teavituskanali. SAR-alarmi ega vaikse režiimi erandit ei lisata.
+- Oma aktiivse seansi sisemise raadiuse enter/dwell-kutse võib ebatäpse GPS-i korral saata `returnCandidate: true`. Server küsib kinnitust, aga teadmata asukoht jääb **mitte valves**. Kinnitamine nõuab endiselt uut piisavalt täpset sisemise piirkonna mõõtmist. Välimise raadiuse sündmus ega lahkumine seda vihjet ei anna. Koordinaate serverisse ei saadeta.
+- Sama `notifyGeofenceReturn` trigger teatab nüüd ka automaatsest muutusest **hilinemisega** või **mitte valves**, koos põhjusega. `geofenceStates.statusChange` sisaldab viimase tegeliku muutuse aega, vana/uue staatuse, piirkonna ja viivituse; see ei ole uus staatuse allikas. Puuduv väli vanal dokumendil on lubatud.
+- Enne saatmist loetakse kehtiv seanss sama liikmelisuse, käsitsi valiku ja planeeritud mittevalve kontrolliga. Hilinenud, asendatud või juba kinnitatud naasmist ei teavitata; muutumatu staatuse iga GPS-mõõtmine uut teadet ei tekita. Postkasti/FCM-i olemasolev idempotentsus säilib.
+- Firestore turvareeglid, geofence'i 24 tunni kehtivus, org-põhine eraldatus ja aktiivse väljakutse kaitse ei muutu. Server parandab prioriteedi ja staatusteated ka senise APK jaoks; native naasmisvihje vajab uut APK-d.
+
+Kontrollid: Functions-i teavituste/edastusprioriteedi ja deduplikatsiooni testid; emulaatoris naasmisvihje, värske kinnituse, planeeritud mittevalve ja käsitsi valiku test; Flutteri raadiuse/seansi valiku ja kinnituse kasutajaliidese testid. Telefonis kontrollida lukustatud ekraaniga lahkumist, naasmist, teate avamist Valmisolekusse ja kinnitamist. Android võib geofence'i sündmust taustal siiski mõne minuti võrra viivitada; päris Xiaomi telefonikatset ei asenda serveri ega emulaatori test.
+
+Viited: [FCM-i edastusprioriteet ja Doze](https://firebase.google.com/docs/cloud-messaging/android-message-priority), [Androidi taustal geofencing](https://developer.android.com/develop/sensors-and-location/location/geofencing).

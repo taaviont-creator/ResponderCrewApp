@@ -30,7 +30,16 @@ Future<void> respondCrewGeofenceCallback(GeofenceCallbackParams event) async {
         .toSet();
     for (final session in sessions) {
       try {
-        await GeofenceService(background: true).sample(session);
+        await GeofenceService(background: true).sample(
+          session,
+          returnCandidate: geofenceReturnCandidate(
+            fenceIds: event.geofences.map((g) => g.id),
+            session: session,
+            entering:
+                event.event == GeofenceEvent.enter ||
+                event.event == GeofenceEvent.dwell,
+          ),
+        );
       } catch (_) {
         // A stale sample is never replayed. Next callback/resume obtains a new fix.
         await SharedPreferencesAsync().setString(
@@ -263,7 +272,7 @@ class GeofenceService with WidgetsBindingObserver {
     await call(org, 'disable', {'sessionId': session});
   }
 
-  Future<int?> sample(String session) async {
+  Future<int?> sample(String session, {bool returnCandidate = false}) async {
     final local = await localSession(session);
     if (local == null) return null;
     final user = await FirebaseAuth.instance.authStateChanges().first;
@@ -286,7 +295,8 @@ class GeofenceService with WidgetsBindingObserver {
     final config = Map<String, dynamic>.from(local['config'] as Map);
     String zone = 'unknown';
     var at = DateTime.now().millisecondsSinceEpoch;
-    if (await permissionsReady()) {
+    final permitted = await permissionsReady();
+    if (permitted) {
       try {
         final position = await Geolocator.getCurrentPosition(
           locationSettings: const LocationSettings(
@@ -320,6 +330,11 @@ class GeofenceService with WidgetsBindingObserver {
         'sessionId': session,
         'zone': zone,
         'observedAtMs': at,
+        // Boundary callbacks often arrive before GPS can resolve which side
+        // of the accuracy circle we occupy. Ask for confirmation without
+        // treating the native event's untimed coordinates as a fresh fix.
+        if (background && permitted && returnCandidate && zone == 'unknown')
+          'returnCandidate': true,
       });
     } on FirebaseFunctionsException catch (error) {
       if ({'permission-denied', 'unauthenticated'}.contains(error.code)) {

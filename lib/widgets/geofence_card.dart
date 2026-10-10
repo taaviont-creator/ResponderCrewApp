@@ -133,10 +133,12 @@ class _GeofenceCardState extends State<GeofenceCard>
     'stale' => 'Asukohainfo aegus. Lülita automaatika uuesti sisse.',
     'locationUnavailable' =>
       'Asukoht pole piisavalt täpne või luba puudub. Automaatne staatus: mitte valves.',
+    'returnCandidate' =>
+      'Telefon tuvastas võimaliku naasmise valvesoleku piirkonda. Kinnitamisel kontrollitakse asukohta uuesti. Seni oled mitte valves.',
     _ => switch (state['zone']) {
       'inner' =>
         state['confirmationRequired'] == true
-            ? 'Oled baasi lähedal. Kas oled valmis valves olema?'
+            ? 'Oled valvesoleku piirkonnas. Kas oled valmis valves olema?'
             : 'Valvesoleku raadiuses · valvesolek kinnitatud',
       'ring' => 'Hilinemisega valve raadiuses',
       'outside' => 'Valveraadiusest väljas · mitte valves',

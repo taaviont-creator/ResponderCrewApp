@@ -60,6 +60,33 @@ module.exports=({getEnv,serverDb,serverRequire})=>{
     await assert.rejects(x.h.handle(req('enable')),{code:'failed-precondition'});
     assert.equal((await x.availability()).status,'onDuty');
   });
+  test('geofence: native return hint requests consent without granting duty or bypassing protections',async()=>{
+    const x=await setup(),{h,sessionId,db}=x;
+    const send=(zone,extra={})=>h.handle(req('event',{sessionId,zone,observedAtMs:x.tick(),...extra}));
+    await send('outside');
+    let state=await x.state();
+    assert.deepEqual(state.statusChange,{atMs:x.now(),from:'onDuty',to:'offDuty',zone:'outside',responseMinutes:null});
+    await send('unknown',{returnCandidate:true});
+    state=await x.state();
+    assert.equal(state.confirmationRequired,true); assert.equal(state.reason,'returnCandidate');
+    assert.equal(state.confirmedInner,false); assert.equal((await x.availability()).status,'offDuty');
+    await assert.rejects(h.handle(req('confirm',{sessionId,observedAtMs:x.now()})),{code:'failed-precondition'});
+    await send('inner');
+    await h.handle(req('confirm',{sessionId,observedAtMs:x.now()}));
+    assert.equal((await x.availability()).status,'onDuty');
+    await assert.rejects(send('inner',{returnCandidate:true}),{code:'invalid-argument'});
+    await assert.rejects(send('unknown',{returnCandidate:'true'}),{code:'invalid-argument'});
+    await db.doc('plannedUnavailability/geo-plan').set({organizationId:org,userId:uid,status:'active',startAt:new Date(x.now()-10000),endAt:new Date(x.now()+60000)});
+    const before=await x.availability();
+    await send('unknown',{returnCandidate:true});
+    assert.equal((await x.state()).confirmationRequired,false);
+    assert.deepEqual(await x.availability(),before);
+    await db.doc('plannedUnavailability/geo-plan').delete();
+    await db.doc(`availability/${uid}_${org}`).update({status:'offDuty',updatedAt:new Date(x.tick()),geofenceAppliedAt:null});
+    await send('unknown',{returnCandidate:true});
+    assert.equal((await x.state()).enabled,false);
+    assert.equal((await x.state()).confirmationRequired,false);
+  });
   test('geofence: recurring absence pauses location writes until its end; expiry still fails closed',async()=>{
     const x=await setup();
     const send=zone=>x.h.handle(req('event',{sessionId:x.sessionId,zone,observedAtMs:x.tick()}));

@@ -7,6 +7,7 @@ class FakeGeofence extends GeofenceService {
   bool fail = false;
   bool confirmed = false;
   bool absent = false;
+  bool candidate = false;
   @override
   Future<Map<String, dynamic>> call(
     String org,
@@ -26,9 +27,10 @@ class FakeGeofence extends GeofenceService {
       'state': {
         'enabled': true,
         'sessionId': 'session',
-        'zone': 'inner',
+        'zone': candidate ? 'unknown' : 'inner',
         'confirmationRequired': !confirmed && !absent,
         if (absent) 'reason': 'plannedAbsence',
+        if (candidate && !absent) 'reason': 'returnCandidate',
       },
     };
   }
@@ -46,6 +48,29 @@ class FakeGeofence extends GeofenceService {
 }
 
 void main() {
+  testWidgets(
+    'Native return hint shows pending consent and explains fresh location check',
+    (tester) async {
+      final service = FakeGeofence()..candidate = true;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: GeofenceCard(organizationId: 'org', service: service),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Kinnitan: olen valves'), findsOneWidget);
+      expect(
+        find.textContaining('Kinnitamisel kontrollitakse asukohta uuesti'),
+        findsOneWidget,
+      );
+      expect(service.confirmed, isFalse);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
   testWidgets(
     'Returning member sees confirmation; rendering never grants duty',
     (tester) async {

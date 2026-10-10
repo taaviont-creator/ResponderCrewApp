@@ -47,9 +47,12 @@ function createGeofence({db,now=Date.now}) {
   async function handle(request) {
     const d=request.data || {}, action=d.action;
     const allowed={get:[],save:['enabled','innerMeters','outerMeters','delayMinutes','expectedRevision'],
-      enable:[],disable:['sessionId'],event:['sessionId','zone','observedAtMs'],confirm:['sessionId','observedAtMs']};
+      enable:[],disable:['sessionId'],event:['sessionId','zone','observedAtMs','returnCandidate'],confirm:['sessionId','observedAtMs']};
     if (!Object.hasOwn(allowed,action) || Object.keys(d).some(k=>!['action','organizationId',...allowed[action]].includes(k))) {
       throw new HttpsError('invalid-argument','Kontrolli piirkonnaandmeid. Isiklikke koordinaate ei saadeta.');
+    }
+    if (Object.hasOwn(d,'returnCandidate') && (typeof d.returnCandidate!=='boolean' || d.zone!=='unknown')) {
+      throw new HttpsError('invalid-argument','Naasmise vihje on lubatud ainult täpsustamata asukoha korral.');
     }
     return db.runTransaction(async tx => {
       const reader=transactional(tx), actor=await access(reader,request,{adminOnly:action==='save'});
@@ -127,8 +130,15 @@ function createGeofence({db,now=Date.now}) {
       if (!['inner','ring','outside','unknown'].includes(d.zone)) throw new HttpsError('invalid-argument','Tundmatu piirkond.');
       if(d.observedAtMs<=state.lastObservedMs) return {ignored:true};
       const next=transition(state,d.zone,a.status,cfg.delayMinutes);
+      // Native boundary entry may precede a usable GPS fix. It can only
+      // request confirmation; unknown location remains off-duty. Confirm
+      // still requires a fresh, accurate inner-region sample above.
+      if(d.returnCandidate===true) next.confirmationRequired=true;
+      const reason=d.returnCandidate===true?'returnCandidate':d.zone==='unknown'?'locationUnavailable':'observed';
       tx.update(ref,{zone:d.zone,lastObservedMs:d.observedAtMs,confirmedInner:next.confirmedInner,
-        confirmationRequired:next.confirmationRequired,reason:d.zone==='unknown'?'locationUnavailable':'observed',
+        confirmationRequired:next.confirmationRequired,reason,
+        ...(a.status!==next.status ? {statusChange:{atMs:at,from:a.status,to:next.status,
+          zone:d.zone,responseMinutes:next.responseMinutes}} : {}),
         availabilityAtMs:at,expiresAtMs:at+FRESH_MS,updatedAt:new Date(at)});
       saveAvailability(tx,aRef,a,uid,org,next.status,next.responseMinutes,at,true);
       return {saved:true,confirmationRequired:next.confirmationRequired};
