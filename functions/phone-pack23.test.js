@@ -93,6 +93,18 @@ test('dispatch information uses exact callout routing and a separate channel wit
   await deliver({...message,sourceId:'routine',urgent:false});
   assert.equal(sent[1].android.notification.channelId,'respondcrew_info');assert.equal(sent[1].android.priority,'normal');
 });
+test('time-sensitive personal geofence push wakes delivery without becoming a SAR alarm; retry is deduplicated',async()=>{
+  const {db}=memoryDb({'commands/o':{status:'approved'},'memberships/a_o':member('a')});
+  const sent=[];
+  const deliver=createPersonalDelivery({db,logger,loadTokens:async()=>[{token:'device'}],messaging:{sendEachForMulticast:async data=>{sent.push(data);return {failureCount:0};}}});
+  const message={sourceId:'geo',org:'o',uid:'a',title:'Asukohapõhine valve',body:'Kinnita',type:'availability',relatedType:'personalAvailability',timeSensitive:true};
+  await deliver(message); await deliver(message);
+  assert.equal(sent.length,1);
+  assert.equal(sent[0].android.priority,'high'); assert.equal(sent[0].android.notification.channelId,'readiness_changes');
+  assert.equal(sent[0].data.type,'personalAvailability'); assert.equal(sent[0].data.urgent,undefined);
+  await deliver({...message,sourceId:'ordinary',timeSensitive:false});
+  assert.equal(sent[1].android.priority,'normal');
+});
 test('membership email goes only to active org admins via Auth and is idempotent/minimal',async()=>{
   const applicant={userId:'applicant',organizationId:'o',role:'member',status:'pending',isActive:false,displayName:'Taotleja',joinedAt:new Date(now)};
   const {db,records}=memoryDb({'commands/o':{status:'approved',name:'Päästeühing'},'memberships/applicant_o':applicant,

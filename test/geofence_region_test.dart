@@ -4,6 +4,22 @@ import 'package:respondcrew_app/models/availability_model.dart';
 
 void main() {
   test(
+    'Only entry into this session duty radius requests return confirmation',
+    () {
+      bool candidate(List<String> ids, {bool entering = true}) =>
+          geofenceReturnCandidate(
+            fenceIds: ids,
+            session: 'mine',
+            entering: entering,
+          );
+      expect(candidate(['rcg:mine:inner']), isTrue);
+      expect(candidate(['rcg:mine:outer']), isFalse);
+      expect(candidate(['rcg:other:inner']), isFalse);
+      expect(candidate(['rcg:mine:inner'], entering: false), isFalse);
+      expect(candidate(['rcg:mine:outer', 'rcg:mine:inner']), isTrue);
+    },
+  );
+  test(
     'Region classification uses uncertainty instead of pretending to be inside',
     () {
       String region(double distance, double accuracy) => geofenceRegion(

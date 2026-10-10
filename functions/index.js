@@ -336,20 +336,10 @@ exports.geofenceReadiness = onCall({region:'europe-north1',maxInstances:5,timeou
 exports.expireGeofenceReadiness = onSchedule({schedule:'every 1 minutes',region:'europe-west1',
   maxInstances:1,concurrency:1,timeoutSeconds:120,retryCount:0},geofence.expire);
 exports.notifyGeofenceReturn = onDocumentWritten({document:'geofenceStates/{stateId}',region:'europe-north1',
-  maxInstances:3,timeoutSeconds:60,retry:true}, async event=>{
-  const before=event.data?.before.data(), after=event.data?.after.data();
-  const returning=after?.enabled && after.confirmationRequired && !before?.confirmationRequired;
-  const expired=before?.enabled && !after?.enabled && after?.reason==='stale';
-  if(!returning && !expired) return;
-  const current=(await db.doc(`geofenceStates/${event.params.stateId}`).get()).data();
-  if(current?.sessionId!==after.sessionId || (returning && (!current.enabled || !current.confirmationRequired)) ||
-    (expired && (current.enabled || current.reason!=='stale'))) return;
-  await personalDelivery({sourceId:`geofence:${event.id}`,org:after.organizationId,uid:after.userId,
-    title:expired?'Asukohapõhine valmisolek aegus':'Oled baasi lähedal. Kas oled valves?',
-    body:expired?'24 tunni jooksul ei tulnud uut asukohakinnitust. Oled automaatika järgi mitte valves. Ava valmisolek ja kontrolli oma staatust.':
-      'Ava valmisolek ja kinnita, kui saad reageerida. Automaatika ei märgi sind ise valvesse.',
-    type:'availability',relatedType:'personalAvailability'});
-});
+  maxInstances:3,timeoutSeconds:60,retry:true},require('./geofence-notifications').createGeofenceNotifications({
+  getState:async state=>(await geofence.handle({auth:{uid:state.userId},
+    data:{action:'get',organizationId:state.organizationId}})).state,deliver:personalDelivery,
+}));
 for (const collection of ['availability','memberships','plannedUnavailability','plannedUnavailabilityRules','organizationReadinessSummaries']) {
   exports[`updateReadiness_${collection}`] = onDocumentWritten({document:`${collection}/{documentId}`,region:'europe-north1',
     maxInstances:3,timeoutSeconds:60,retry:true},readinessEngine.changed);

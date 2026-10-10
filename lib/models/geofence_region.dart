@@ -19,3 +19,10 @@ String geofenceRegion({
   if (distance - accuracy > inner && distance + accuracy < outer) return 'ring';
   return 'unknown';
 }
+
+// A native entry is only a request to check/confirm, never proof of readiness.
+bool geofenceReturnCandidate({
+  required Iterable<String> fenceIds,
+  required String session,
+  required bool entering,
+}) => entering && fenceIds.contains('rcg:$session:inner');
