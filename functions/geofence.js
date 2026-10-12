@@ -47,12 +47,15 @@ function createGeofence({db,now=Date.now}) {
   async function handle(request) {
     const d=request.data || {}, action=d.action;
     const allowed={get:[],save:['enabled','innerMeters','outerMeters','delayMinutes','expectedRevision'],
-      enable:[],disable:['sessionId'],event:['sessionId','zone','observedAtMs','returnCandidate'],confirm:['sessionId','observedAtMs']};
+      enable:[],returnMode:['sessionId','requireReturnConfirmation'],disable:['sessionId'],event:['sessionId','zone','observedAtMs','returnCandidate'],confirm:['sessionId','observedAtMs']};
     if (!Object.hasOwn(allowed,action) || Object.keys(d).some(k=>!['action','organizationId',...allowed[action]].includes(k))) {
       throw new HttpsError('invalid-argument','Kontrolli piirkonnaandmeid. Isiklikke koordinaate ei saadeta.');
     }
     if (Object.hasOwn(d,'returnCandidate') && (typeof d.returnCandidate!=='boolean' || d.zone!=='unknown')) {
       throw new HttpsError('invalid-argument','Naasmise vihje on lubatud ainult täpsustamata asukoha korral.');
+    }
+    if(action==='returnMode' && typeof d.requireReturnConfirmation!=='boolean') {
+      throw new HttpsError('invalid-argument','Vali valvesse naasmise viis.');
     }
     return db.runTransaction(async tx => {
       const reader=transactional(tx), actor=await access(reader,request,{adminOnly:action==='save'});
@@ -92,6 +95,7 @@ function createGeofence({db,now=Date.now}) {
         if(availabilityStatus(a,at)!=='onDuty') fail('Märgi end kõigepealt valvesse. Asukohaautomaatika kohandab ainult sinu alustatud valvet.');
         if(await participating(reader,org,uid)) fail('Osaled aktiivsel väljakutsel. Lülita automaatika sisse pärast väljakutset.');
         const value={organizationId:org,userId:uid,sessionId:randomUUID(),version:cfg.version,enabled:true,
+          requireReturnConfirmation:state?.requireReturnConfirmation!==false,
           zone:'unknown',reason:'waiting',confirmedInner:false,confirmationRequired:false,lastObservedMs:0,
           availabilityAtMs:at,expiresAtMs:at+FRESH_MS,updatedAt:new Date(at)};
         tx.set(ref,value);
@@ -104,6 +108,11 @@ function createGeofence({db,now=Date.now}) {
         tx.update(ref,{enabled:false,reason:wasManual?'manual':'configuration',confirmationRequired:false,updatedAt:new Date(at)});
         if(!wasManual) saveAvailability(tx,aRef,a,uid,org,'offDuty',null,at,false);
         return {stopped:true};
+      }
+      if(action==='returnMode') {
+        // Preference alone never changes duty or renews the location lease.
+        tx.update(ref,{requireReturnConfirmation:d.requireReturnConfirmation,updatedAt:new Date(at)});
+        return {saved:true};
       }
       if (!Number.isSafeInteger(d.observedAtMs) || d.observedAtMs>at+30000 || d.observedAtMs<at-SAMPLE_MS) fail('Asukoha kinnitus on aegunud. Kontrolli asukohta uuesti.');
       if (await participating(reader,org,uid)) {
@@ -122,6 +131,9 @@ function createGeofence({db,now=Date.now}) {
         return {saved:true,paused:true};
       }
       if(action==='confirm') {
+        // A fresh sample may already have restored duty in automatic mode.
+        if(state.requireReturnConfirmation===false && state.zone==='inner' &&
+          state.lastObservedMs===d.observedAtMs && state.confirmedInner && a.status==='onDuty') return {saved:true};
         if(state.zone!=='inner' || state.lastObservedMs!==d.observedAtMs || !state.confirmationRequired) fail('Kontrolli kõigepealt, et asud valvesoleku raadiuses.');
         tx.update(ref,{confirmedInner:true,confirmationRequired:false,reason:'confirmed',availabilityAtMs:at,expiresAtMs:at+FRESH_MS,updatedAt:new Date(at)});
         saveAvailability(tx,aRef,a,uid,org,'onDuty',null,at,true);

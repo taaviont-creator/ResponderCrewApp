@@ -18,6 +18,10 @@ function createGeofenceNotifications({getState,deliver}) {
       title='Oled tagasi valvesoleku piirkonnas?';
       body='Telefon tuvastas võimaliku naasmise. Ava valmisolek, kontrolli asukohta ja kinnita, kui saad reageerida. Valvesse märkimine vajab sinu kinnitust.'+
         (current.zone==='unknown'?' Seni oled mitte valves.':'');
+      if(current.requireReturnConfirmation===false) {
+        title='Kontrolli asukohta valvesse naasmiseks';
+        body='Telefon tuvastas võimaliku naasmise, kuid asukoht pole piisavalt täpne. Ava valmisolek ja kontrolli asukohta. Automaatne valve taastub alles täpse asukohakinnituse järel.';
+      }
       kind='return';
     } else if(expired && !current.enabled && current.reason==='stale') {
       title='Asukohapõhine valmisolek aegus';
@@ -25,7 +29,10 @@ function createGeofenceNotifications({getState,deliver}) {
       kind='expired';
     } else if(changed && current.enabled && current.statusChange?.atMs===change.atMs &&
       current.zone===change.zone && ['observed','locationUnavailable','returnCandidate'].includes(current.reason)) {
-      if(change.to==='delayed') {
+      if(change.to==='onDuty' && current.requireReturnConfirmation===false) {
+        title='Asukohapõhine valve: tagasi valves';
+        body='Jõudsid valvesoleku raadiusesse. Automaatika märkis sind sinu valiku järgi tagasi valvesse.';
+      } else if(change.to==='delayed') {
         title='Asukohapõhine valve: hilinemisega';
         body=`Lahkusid valvesoleku raadiusest. Automaatika märkis sind hilinemisega valvesse (+${change.responseMinutes} min).`;
       } else if(change.to==='offDuty') {

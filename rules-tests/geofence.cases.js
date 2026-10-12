@@ -47,6 +47,41 @@ module.exports=({getEnv,serverDb,serverRequire})=>{
     await assert.rejects(h.handle(req('event',{sessionId,zone:'inner',observedAtMs:x.now()-200000})),{code:'failed-precondition'});
     await assert.rejects(h.handle(req('event',{sessionId,zone:'inner',observedAtMs:x.now(),latitude:59})),{code:'invalid-argument'});
   });
+  test('geofence: return mode defaults to consent and automatic return requires fresh accurate location',async()=>{
+    const x=await setup(),{h,sessionId,db}=x;
+    const send=(zone,extra={})=>h.handle(req('event',{sessionId,zone,observedAtMs:x.tick(),...extra}));
+    const mode=value=>h.handle(req('returnMode',{sessionId,requireReturnConfirmation:value}));
+    assert.equal((await x.state()).requireReturnConfirmation,true);
+    await send('outside'); await send('inner');
+    assert.equal((await x.availability()).status,'offDuty');
+    const old=await x.availability();
+    await mode(false);
+    assert.deepEqual(await x.availability(),old);
+    await send('unknown',{returnCandidate:true});
+    assert.equal((await x.availability()).status,'offDuty');
+    await assert.rejects(h.handle(req('confirm',{sessionId,observedAtMs:x.now()})),{code:'failed-precondition'});
+    await send('inner');
+    assert.equal((await x.availability()).status,'onDuty');
+    assert.equal((await x.state()).confirmationRequired,false);
+    assert.equal((await x.state()).statusChange.to,'onDuty');
+    // The confirmation CTA also handles an automatic sample that just restored duty.
+    await h.handle(req('confirm',{sessionId,observedAtMs:x.now()}));
+    await assert.rejects(mode('false'),{code:'invalid-argument'});
+    await assert.rejects(h.handle(req('returnMode',{sessionId:'old',requireReturnConfirmation:false})),{code:'failed-precondition'});
+    await db.doc('plannedUnavailability/auto-plan').set({organizationId:org,userId:uid,status:'active',startAt:new Date(x.now()-1000),endAt:new Date(x.now()+60000)});
+    const planned=await x.availability();
+    await send('inner'); assert.deepEqual(await x.availability(),planned);
+    assert.equal((await x.state()).reason,'plannedAbsence');
+    await db.doc('plannedUnavailability/auto-plan').delete();
+    await mode(true); await send('outside'); await send('inner');
+    assert.equal((await x.availability()).status,'offDuty'); assert.equal((await x.state()).confirmationRequired,true);
+    await mode(false); await send('inner');
+    const restart=await h.handle(req('enable'));
+    assert.equal(restart.state.requireReturnConfirmation,false);
+    await db.doc(`availability/${uid}_${org}`).update({status:'offDuty',updatedAt:new Date(x.tick()),geofenceAppliedAt:null});
+    await h.handle(req('event',{sessionId:restart.state.sessionId,zone:'inner',observedAtMs:x.tick()}));
+    assert.equal((await x.availability()).status,'offDuty'); assert.equal((await x.state()).enabled,false);
+  });
   test('geofence: cannot start from manual off-duty, delay or active absence; disable preserves manual choice',async()=>{
     const x=await setup();
     for(const status of ['offDuty','delayed']) {

@@ -10,8 +10,10 @@ class GeofenceCard extends StatefulWidget {
     required this.organizationId,
     this.admin = false,
     this.service,
+    this.statusControls,
   });
   final GeofenceService? service;
+  final Widget? statusControls;
   final String organizationId;
   final bool admin;
   @override
@@ -133,12 +135,16 @@ class _GeofenceCardState extends State<GeofenceCard>
     'stale' => 'Asukohainfo aegus. Lülita automaatika uuesti sisse.',
     'locationUnavailable' =>
       'Asukoht pole piisavalt täpne või luba puudub. Automaatne staatus: mitte valves.',
+    'returnCandidate' when state['requireReturnConfirmation'] == false =>
+      'Telefon tuvastas võimaliku naasmise. Täpne asukoht puudub; seni oled mitte valves. Kontrolli asukohta valve taastamiseks.',
     'returnCandidate' =>
       'Telefon tuvastas võimaliku naasmise valvesoleku piirkonda. Kinnitamisel kontrollitakse asukohta uuesti. Seni oled mitte valves.',
     _ => switch (state['zone']) {
       'inner' =>
         state['confirmationRequired'] == true
             ? 'Oled valvesoleku piirkonnas. Kas oled valmis valves olema?'
+            : state['requireReturnConfirmation'] == false
+            ? 'Valvesoleku raadiuses · asukoha järgi valves'
             : 'Valvesoleku raadiuses · valvesolek kinnitatud',
       'ring' => 'Hilinemisega valve raadiuses',
       'outside' => 'Valveraadiusest väljas · mitte valves',
@@ -150,7 +156,12 @@ class _GeofenceCardState extends State<GeofenceCard>
     if (widget.admin) return _admin();
     final enabled = state['enabled'] == true;
     final last = state['lastObservedMs'] as num?;
-    return Card(
+    final pending =
+        enabled &&
+        local &&
+        failure == null &&
+        state['confirmationRequired'] == true;
+    final settings = Card(
       margin: EdgeInsets.zero,
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -202,7 +213,7 @@ class _GeofenceCardState extends State<GeofenceCard>
                             builder: (context) => AlertDialog(
                               title: const Text('Asukohapõhine valmisolek'),
                               content: const Text(
-                                'Telefon kontrollib ühingu piirkonda ka taustal. Täpset asukohta ega liikumisteekonda serverisse ei saadeta.\n\nMärgi end esmalt valvesse. Automaatika kohandab sinu alustatud valvet: valvesoleku raadiusest väljudes hilinemisega, kaugemast piirist väljudes mitte valves. Tagasi jõudes küsime valvesse naasmiseks kinnitust. Käsitsi valitud staatus peatab automaatika. Planeeritud mittevalve ajal asukoht sinu staatust ei muuda.\n\nKui 24 tunni jooksul uut asukohakinnitust ei tule, lõpeb automaatne valvesolek. Piirkonnateated võivad telefoni tõttu viibida.',
+                                'Telefon kontrollib ühingu piirkonda ka taustal. Täpset asukohta ega liikumisteekonda serverisse ei saadeta.\n\nMärgi end esmalt valvesse. Automaatika kohandab sinu alustatud valvet: valvesoleku raadiusest väljudes hilinemisega, kaugemast piirist väljudes mitte valves. Tagasi jõudes taastub valve sinu valitud viisil: kinnitusega või automaatselt koos teavitusega. Vaikimisi küsime kinnitust. Käsitsi valitud staatus peatab automaatika. Planeeritud mittevalve ajal asukoht sinu staatust ei muuda.\n\nKui 24 tunni jooksul uut asukohakinnitust ei tule, lõpeb automaatne valvesolek. Piirkonnateated võivad telefoni tõttu viibida.',
                               ),
                               actions: [
                                 TextButton(
@@ -225,6 +236,30 @@ class _GeofenceCardState extends State<GeofenceCard>
                           await service.enable(widget.organizationId);
                         }),
                 ),
+                if (enabled && local)
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Taasta valve automaatselt'),
+                    subtitle: Text(
+                      state['requireReturnConfirmation'] == false
+                          ? 'Naasmisel märgitakse sind valvesse ja saad teavituse.'
+                          : 'Naasmisel küsitakse enne valvesse märkimist kinnitust.',
+                    ),
+                    value: state['requireReturnConfirmation'] == false,
+                    onChanged: busy
+                        ? null
+                        : (automatic) => run(() async {
+                            final session = state['sessionId'] as String;
+                            await service
+                                .call(widget.organizationId, 'returnMode', {
+                                  'sessionId': session,
+                                  'requireReturnConfirmation': !automatic,
+                                });
+                            // Get a fresh location; changing a preference alone
+                            // never grants duty based on a historical inner sample.
+                            if (automatic) await service.sample(session);
+                          }),
+                  ),
                 if (!permissions) ...[
                   const Text(
                     'Vajalik on täpne asukoht ja asukohaluba „Alati“. Telefoni energiasääst võib taustateateid viivitada.',
@@ -237,7 +272,7 @@ class _GeofenceCardState extends State<GeofenceCard>
                   ),
                 ],
               ],
-              if (state.isNotEmpty) Text(reason),
+              if (state.isNotEmpty && !pending) Text(reason),
               if (enabled && !local)
                 const Text(
                   'Automaatika on sisse lülitatud teises telefonis. Siin sisselülitamine asendab varasema telefoni.',
@@ -256,19 +291,6 @@ class _GeofenceCardState extends State<GeofenceCard>
                 Wrap(
                   spacing: 8,
                   children: [
-                    if (state['confirmationRequired'] == true)
-                      FilledButton.icon(
-                        onPressed: busy
-                            ? null
-                            : () => run(
-                                () => service.confirm(
-                                  widget.organizationId,
-                                  state['sessionId'] as String,
-                                ),
-                              ),
-                        icon: const Icon(Icons.check),
-                        label: const Text('Kinnitan: olen valves'),
-                      ),
                     TextButton(
                       onPressed: busy
                           ? null
@@ -286,6 +308,64 @@ class _GeofenceCardState extends State<GeofenceCard>
           ],
         ),
       ),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (pending) ...[
+          Card(
+            margin: EdgeInsets.zero,
+            color: Theme.of(context).colorScheme.primaryContainer,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    state['requireReturnConfirmation'] == false
+                        ? 'Kontrolli asukohta valve taastamiseks'
+                        : 'Valvesse naasmine ootab kinnitust',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(reason),
+                  const SizedBox(height: 8),
+                  FilledButton.icon(
+                    onPressed: busy
+                        ? null
+                        : () => run(
+                            () => service.confirm(
+                              widget.organizationId,
+                              state['sessionId'] as String,
+                            ),
+                          ),
+                    icon: const Icon(Icons.my_location),
+                    label: Text(
+                      state['requireReturnConfirmation'] == false
+                          ? 'Kontrolli asukohta ja taasta valve'
+                          : 'Kinnitan: olen valves',
+                    ),
+                  ),
+                  const Text('Asukohapõhine automaatika jääb sisse.'),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+        if (widget.statusControls != null) ...[
+          if (enabled && local)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 8),
+              child: Text(
+                'Allolev käsitsi staatuse valimine peatab asukohapõhise automaatika.',
+              ),
+            ),
+          widget.statusControls!,
+          const SizedBox(height: 12),
+        ],
+        settings,
+      ],
     );
   }
 
@@ -383,7 +463,7 @@ class _GeofenceCardState extends State<GeofenceCard>
                   },
                 ),
                 const Text(
-                  'Vali kaugused ühingu reageerimisaja ja kohalike teeolude järgi. Näiteks 20 ja 30 km: kuni 20 km valves, 20–30 km hilinemisega, üle 30 km mitte valves. Raadius on kaugus baasist linnulennul, mitte sõiduaeg. Tagasi valvesse märkimine vajab kinnitust. Raadiuste muutmise järel tuleb automaatika uuesti sisse lülitada.',
+                  'Vali kaugused ühingu reageerimisaja ja kohalike teeolude järgi. Näiteks 20 ja 30 km: kuni 20 km valves, 20–30 km hilinemisega, üle 30 km mitte valves. Raadius on kaugus baasist linnulennul, mitte sõiduaeg. Valvesse naasmise viisi valib liige ise. Raadiuste muutmise järel tuleb automaatika uuesti sisse lülitada.',
                 ),
                 if (validation != null)
                   Text(

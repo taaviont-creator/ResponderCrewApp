@@ -12,8 +12,11 @@ function validateSettings(d) {
     Number.isInteger(d.outerMeters) && d.outerMeters >= d.innerMeters + 300 && d.outerMeters <= 50000 &&
     [15,30,60].includes(d.delayMinutes);
 }
-// Returning to the inner region NEVER grants on-duty status without consent.
+// Missing preference preserves explicit confirmation for existing members.
 function transition(state, zone, current, delayMinutes) {
+  if (zone === 'inner' && state.requireReturnConfirmation === false) {
+    return {status:'onDuty',confirmedInner:true,confirmationRequired:false,responseMinutes:null};
+  }
   // Enabling while already on duty is consent to keep that status on the
   // first nearby fix, not consent to restore it after leaving the radius.
   if (state.reason === 'waiting' && zone === 'inner' && current === 'onDuty') {

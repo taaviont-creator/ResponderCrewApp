@@ -202,40 +202,39 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                     return ListView(
                       padding: const EdgeInsets.all(AppTheme.screenPadding),
                       children: [
-                        PersonalAvailabilityCard(
-                          status: status,
-                          minutes: minutes,
-                          plannedUnavailable: plannedUnavailable,
-                          saving: _isUpdating,
-                          loading:
-                              !plansLoaded ||
-                              availability.connectionState ==
-                                  ConnectionState.waiting,
-                          error: hasError,
-                          onRetry: () => setState(_bindStreams),
-                          onSelect: (value) =>
-                              _updateAvailabilityRespectingSchedule(
-                                value,
-                                responseMinutes:
-                                    value == AvailabilityStatus.delayed
-                                    ? minutes
-                                    : null,
-                                note: availability.data?.note,
-                              ),
-                          onDelayChanged: (value) =>
-                              _updateAvailabilityRespectingSchedule(
-                                AvailabilityStatus.delayed,
-                                responseMinutes: value,
-                                note: availability.data?.note,
-                              ),
-                        ),
-                        const SizedBox(height: 16),
-                        _buildPlans(periods, rules, now),
-                        const SizedBox(height: 12),
                         GeofenceCard(
                           key: ValueKey('geofence-${widget.organizationId}'),
                           organizationId: widget.organizationId,
+                          statusControls: PersonalAvailabilityCard(
+                            status: status,
+                            minutes: minutes,
+                            plannedUnavailable: plannedUnavailable,
+                            saving: _isUpdating,
+                            loading:
+                                !plansLoaded ||
+                                availability.connectionState ==
+                                    ConnectionState.waiting,
+                            error: hasError,
+                            onRetry: () => setState(_bindStreams),
+                            onSelect: (value) =>
+                                _updateAvailabilityRespectingSchedule(
+                                  value,
+                                  responseMinutes:
+                                      value == AvailabilityStatus.delayed
+                                      ? minutes
+                                      : null,
+                                  note: availability.data?.note,
+                                ),
+                            onDelayChanged: (value) =>
+                                _updateAvailabilityRespectingSchedule(
+                                  AvailabilityStatus.delayed,
+                                  responseMinutes: value,
+                                  note: availability.data?.note,
+                                ),
+                          ),
                         ),
+                        const SizedBox(height: 16),
+                        _buildPlans(periods, rules, now),
                         const SizedBox(height: 16),
                         _buildAvailabilityReminderSettings(),
                       ],

@@ -1,13 +1,26 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {transition,availabilityStatus,validateSettings,FRESH_MS}=require('./geofence-policy');
-test('geofence: entry always needs explicit on-duty consent, re-entry invalidates previous consent',()=>{
+test('geofence: default entry needs explicit on-duty consent, re-entry invalidates previous consent',()=>{
   for(const current of ['offDuty','delayed','onDuty']) {
     const next=transition({zone:'outside',confirmedInner:true},'inner',current,15);
     assert.notEqual(next.status,'onDuty'); assert.equal(next.confirmationRequired,true);
   }
   assert.equal(transition({zone:'inner',confirmedInner:true},'inner','onDuty',15).status,'onDuty');
   assert.equal(transition({zone:'inner',confirmedInner:true},'outside','onDuty',15).confirmedInner,false);
+});
+test('geofence: only explicit automatic preference and accurate inner region restore duty',()=>{
+  for(const current of ['offDuty','delayed']) {
+    const state={zone:'outside',requireReturnConfirmation:false};
+    assert.equal(transition(state,'inner',current,30).status,'onDuty');
+    assert.equal(transition(state,'inner',current,30).confirmationRequired,false);
+    assert.equal(transition(state,'unknown',current,30).status,'offDuty');
+    assert.equal(transition(state,'outside',current,30).status,'offDuty');
+    assert.equal(transition(state,'ring',current,30).status,'delayed');
+    for(const value of [undefined,true,'false',0]) {
+      assert.notEqual(transition({...state,requireReturnConfirmation:value},'inner',current,30).status,'onDuty');
+    }
+  }
 });
 test('geofence: ring delays, outside and inaccurate location remove availability',()=>{
   assert.equal(transition({},'ring','onDuty',30).responseMinutes,30);
