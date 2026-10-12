@@ -367,6 +367,7 @@ void main() {
       expect(find.text('Lisa aeg'), findsOneWidget);
       expect(find.text('Arsti aeg'), findsOneWidget);
       expect(find.text('Tööaeg'), findsNothing);
+      await tester.ensureVisible(find.text('Näita tühistatud'));
       await tester.tap(find.text('Näita tühistatud'));
       await tester.pumpAndSettle();
       expect(find.text('Tööaeg'), findsOneWidget);

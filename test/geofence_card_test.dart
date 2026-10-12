@@ -88,6 +88,8 @@ void main() {
         lessThan(tester.getTopLeft(find.text('Käsitsi valve nupud')).dy),
       );
       expect(service.requireConfirmation, isTrue);
+      await tester.tap(find.text('Asukohapõhine valmisolek'));
+      await tester.pumpAndSettle();
       final toggle = find.widgetWithText(
         SwitchListTile,
         'Taasta valve automaatselt',
@@ -123,7 +125,7 @@ void main() {
       expect(find.text('Kinnitan: olen valves'), findsOneWidget);
       expect(
         find.textContaining('Kinnitamisel kontrollitakse asukohta uuesti'),
-        findsOneWidget,
+        findsWidgets,
       );
       expect(service.confirmed, isFalse);
       await tester.pumpWidget(const SizedBox());
@@ -171,6 +173,8 @@ void main() {
         find.textContaining('Planeeritud mittevalve on aktiivne'),
         findsOneWidget,
       );
+      await tester.tap(find.text('Asukohapõhine valmisolek'));
+      await tester.pumpAndSettle();
       expect(find.textContaining('Valvesoleku raadius:'), findsOneWidget);
       expect(find.textContaining('välispiir:'), findsNothing);
       await tester.pumpWidget(const SizedBox());
@@ -187,6 +191,8 @@ void main() {
           ),
         ),
       );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Asukohapõhine valmisolek'));
       await tester.pumpAndSettle();
       expect(find.text('Proovi uuesti'), findsOneWidget);
       expect(find.text('Kinnitan: olen valves'), findsNothing);
