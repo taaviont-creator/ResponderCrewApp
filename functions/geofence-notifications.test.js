@@ -32,6 +32,15 @@ test('planned absence, manual choice, changed session and already answered retur
     const x=fixture(base,changed,{...changed,...patch}); await x.run(); assert.equal(x.sent.length,0);
   }
 });
+test('automatic return explains restored duty once; uncertain location still asks for a check',async()=>{
+  const after={...base,zone:'inner',requireReturnConfirmation:false,statusChange:{atMs:2,from:'offDuty',to:'onDuty',zone:'inner'}};
+  const x=fixture(base,after); await x.run();
+  assert.equal(x.sent.length,1); assert.match(x.sent[0].title,/tagasi valves/); assert.equal(x.sent[0].timeSensitive,true);
+  const repeated=fixture(after,{...after,lastObservedMs:3}); await repeated.run(); assert.equal(repeated.sent.length,0);
+  const uncertain=fixture(base,{...base,zone:'unknown',reason:'returnCandidate',requireReturnConfirmation:false,confirmationRequired:true});
+  await uncertain.run(); assert.match(uncertain.sent[0].title,/Kontrolli asukohta/);
+  assert.doesNotMatch(uncertain.sent[0].body,/märgiti.*valvesse/);
+});
 test('expiry remains notified, deleted state and lost membership do not leak notifications',async()=>{
   const after={...base,enabled:false,reason:'stale'};
   const x=fixture(base,after); await x.run(); assert.match(x.sent[0].title,/aegus/);

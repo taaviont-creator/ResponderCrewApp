@@ -119,3 +119,13 @@ Naasmise teade kasutas Androidis FCM-i tavaprioriteeti, mida Doze võib edasi l�
 Kontrollid: Functions-i teavituste/edastusprioriteedi ja deduplikatsiooni testid; emulaatoris naasmisvihje, värske kinnituse, planeeritud mittevalve ja käsitsi valiku test; Flutteri raadiuse/seansi valiku ja kinnituse kasutajaliidese testid. Telefonis kontrollida lukustatud ekraaniga lahkumist, naasmist, teate avamist Valmisolekusse ja kinnitamist. Android võib geofence'i sündmust taustal siiski mõne minuti võrra viivitada; päris Xiaomi telefonikatset ei asenda serveri ega emulaatori test.
 
 Viited: [FCM-i edastusprioriteet ja Doze](https://firebase.google.com/docs/cloud-messaging/android-message-priority), [Androidi taustal geofencing](https://developer.android.com/develop/sensors-and-location/location/geofencing).
+
+## Valitav valvesse naasmine (12.10.2026)
+
+Liige saab Valmisoleku asukohaautomaatika juures valida „Taasta valve automaatselt“. Väljas tähendab senist kinnitusega naasmist; sees taastab värske ja piisavalt täpne sisemise raadiuse mõõtmine valvesoleku ning saadetakse isiklik „tagasi valves“ teade. Puuduv seadistus tähendab alati kinnitust: olemasolevate kasutajate nõusolekut ei muudeta.
+
+`geofenceStates/{uid_org}.requireReturnConfirmation` salvestatakse oma aktiivse seansi kaudu (`geofenceReadiness`, tegevus `returnMode`, ainult boolean). Seade säilib automaatika uuesti käivitamisel ja on ühingupõhine. Seadistuse muutmine ise ei kirjuta valvesolekut ega pikenda asukohakinnituse kehtivust; äpp küsib automaatse režiimi valimisel uue asukoha. Planeeritud mittevalve, käsitsi valik, aegunud/asendatud seanss ja aktiivsel väljakutsel osalemine säilitavad varasema prioriteedi. Teadmata või ebatäpne asukoht ei anna automaatset valvesolekut.
+
+Kinnituse või ebatäpse asukoha kontrollimise nupp paikneb nüüd eraldi plokis enne käsitsi staatusevalikuid. Kinnitamisel jääb automaatika sisse. Käsitsi staatusevalikute ees on aktiivse automaatika korral selgitus, et need peatavad automaatika. Režiimi valik on automaatika seadete juures; staatust ei pea selle muutmiseks ümber lülitama. Tundmatu asukoha korral saab ka automaatse režiimi kasutaja eraldi asukohakontrolli teha, ilma käsitsi staatuse muutmisega automaatikat katkestamata.
+
+Olemasolev isiklik teavituste kanal, sündmusepõhine deduplikatsioon ja turvareeglid säilivad. Reeglite ega andmete migratsiooni pole vaja. Uus valik ja kinnituse paigutus vajavad APK uuendust. Testid katavad vana seadistuseta kirje, mõlemad režiimid, puuduliku asukoha, staatuse automaatse taastamise teate, planeeritud mittevalve ja käsitsi valiku, seansikontrolli ning mobiilivaate nuppude järjekorra.

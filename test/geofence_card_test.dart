@@ -8,6 +8,8 @@ class FakeGeofence extends GeofenceService {
   bool confirmed = false;
   bool absent = false;
   bool candidate = false;
+  bool requireConfirmation = true;
+  int samples = 0;
   @override
   Future<Map<String, dynamic>> call(
     String org,
@@ -15,6 +17,9 @@ class FakeGeofence extends GeofenceService {
     Map<String, dynamic> fields = const {},
   ]) async {
     if (fail) throw StateError('offline');
+    if (action == 'returnMode') {
+      requireConfirmation = fields['requireReturnConfirmation'] as bool;
+    }
     return {
       'config': {
         'enabled': true,
@@ -27,6 +32,7 @@ class FakeGeofence extends GeofenceService {
       'state': {
         'enabled': true,
         'sessionId': 'session',
+        'requireReturnConfirmation': requireConfirmation,
         'zone': candidate ? 'unknown' : 'inner',
         'confirmationRequired': !confirmed && !absent,
         if (absent) 'reason': 'plannedAbsence',
@@ -42,12 +48,66 @@ class FakeGeofence extends GeofenceService {
   @override
   Future<String?> error(String session) async => null;
   @override
+  Future<int?> sample(String session, {bool returnCandidate = false}) async {
+    samples++;
+    if (!requireConfirmation) confirmed = true;
+    return 1;
+  }
+
+  @override
   Future<void> confirm(String org, String session) async {
     confirmed = true;
   }
 }
 
 void main() {
+  testWidgets(
+    'Return choice persists, refreshes location and places confirmation before manual controls',
+    (tester) async {
+      tester.view.physicalSize = const Size(360, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final service = FakeGeofence();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: GeofenceCard(
+                organizationId: 'org',
+                service: service,
+                statusControls: const Text('Käsitsi valve nupud'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        tester.getTopLeft(find.text('Kinnitan: olen valves')).dy,
+        lessThan(tester.getTopLeft(find.text('Käsitsi valve nupud')).dy),
+      );
+      expect(service.requireConfirmation, isTrue);
+      await tester.tap(find.text('Asukohapõhine valmisolek'));
+      await tester.pumpAndSettle();
+      final toggle = find.widgetWithText(
+        SwitchListTile,
+        'Taasta valve automaatselt',
+      );
+      await tester.ensureVisible(toggle);
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+      expect(service.requireConfirmation, isFalse);
+      expect(service.samples, 1);
+      expect(tester.takeException(), isNull);
+      expect(find.text('Kinnitan: olen valves'), findsNothing);
+      expect(
+        find.textContaining('Naasmisel märgitakse sind valvesse'),
+        findsOneWidget,
+      );
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
   testWidgets(
     'Native return hint shows pending consent and explains fresh location check',
     (tester) async {
@@ -65,7 +125,7 @@ void main() {
       expect(find.text('Kinnitan: olen valves'), findsOneWidget);
       expect(
         find.textContaining('Kinnitamisel kontrollitakse asukohta uuesti'),
-        findsOneWidget,
+        findsWidgets,
       );
       expect(service.confirmed, isFalse);
       await tester.pumpWidget(const SizedBox());
@@ -113,6 +173,8 @@ void main() {
         find.textContaining('Planeeritud mittevalve on aktiivne'),
         findsOneWidget,
       );
+      await tester.tap(find.text('Asukohapõhine valmisolek'));
+      await tester.pumpAndSettle();
       expect(find.textContaining('Valvesoleku raadius:'), findsOneWidget);
       expect(find.textContaining('välispiir:'), findsNothing);
       await tester.pumpWidget(const SizedBox());
@@ -129,6 +191,8 @@ void main() {
           ),
         ),
       );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Asukohapõhine valmisolek'));
       await tester.pumpAndSettle();
       expect(find.text('Proovi uuesti'), findsOneWidget);
       expect(find.text('Kinnitan: olen valves'), findsNothing);
