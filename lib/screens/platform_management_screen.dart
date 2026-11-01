@@ -1,3 +1,4 @@
+import '../widgets/tru_access_dialog.dart';
 import '../config/release_features.dart';
 import '../widgets/app_layout.dart';
 import 'dart:async';
@@ -494,6 +495,14 @@ class _PlatformManagementScreenState extends State<PlatformManagementScreen> {
                                 ),
                               ),
                       ),
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.construction_outlined),
+                      label: const Text('TRU liikmesus'),
+                      onPressed: _saving ? null : () => showDialog<void>(
+                        context: context, builder: (_) => TruAccessDialog(
+                          userId: account['uid'] as String,
+                          name: account['email'] as String)),
+                    ),
                     OutlinedButton(
                       onPressed: _saving ? null : () => _revoke(account),
                       child: const Text('Tühista sisselogimisseansid'),

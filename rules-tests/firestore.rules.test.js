@@ -1877,3 +1877,21 @@ test('equipment requests and archives cannot be forged or read through direct cl
     await assertFails(deleteDoc(doc(client,'equipment','no-direct-delete')));
   }
 });
+
+// TRU discovery and grants use authenticated callables. The existing default-deny
+// rules must keep the entire new namespace inaccessible to every client role.
+test('TRU membership cannot be read, listed, self-granted, corrupted or deleted through Firestore', async () => {
+  const refPath = `truMemberships/${activeMemberId}`;
+  await testEnv.withSecurityRulesDisabled(async context => {
+    await setDoc(doc(context.firestore(), refPath), {active:true, role:'member', regions:['Ida'], revision:1, validUntil:null});
+  });
+  for (const uid of [null, activeMemberId, orgAdminId, 'platform-admin', otherUserId]) {
+    const client = uid ? testEnv.authenticatedContext(uid).firestore() : testEnv.unauthenticatedContext().firestore();
+    await assertFails(getDoc(doc(client, refPath)));
+    await assertFails(getDocs(collection(client, 'truMemberships')));
+    await assertFails(setDoc(doc(client, `truMemberships/${uid || 'anonymous'}`), {active:true, role:'admin', regions:['Ida']}));
+    await assertFails(updateDoc(doc(client, refPath), {role:'admin', regions:['Põhja'], extra:'x'.repeat(20000)}));
+    await assertFails(deleteDoc(doc(client, refPath)));
+    await assertFails(getDoc(doc(client, `${refPath}/private/entry`)));
+  }
+});
