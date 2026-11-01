@@ -17,6 +17,15 @@ void main() {
     expect(e.plannedAt(start.add(const Duration(hours: 26))), 0);
     expect(e.response('A').presence, 'Pole saabunud');
   });
+  test('Coverage identifies a short gap between participation periods', () {
+    final e = incident();
+    e.addSlot('A', TimeSlot(start, start.add(const Duration(hours: 1))));
+    e.addSlot('B', TimeSlot(start.add(const Duration(hours: 2)), start.add(const Duration(hours: 4))));
+    final segments = e.coverageUntil(start.add(const Duration(hours: 4)));
+    expect(segments.map((s) => s.count), [1, 0, 1]);
+    expect(segments[1].period.start, start.add(const Duration(hours: 1)));
+    expect(segments[1].period.end, start.add(const Duration(hours: 2)));
+  });
   test('Reject reversed, overlapping, and out-of-event periods', () {
     final e = incident();
     expect(() => TimeSlot(start, start), throwsArgumentError);

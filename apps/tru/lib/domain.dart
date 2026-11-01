@@ -20,6 +20,12 @@ class Participation {
   String presence = 'Pole saabunud';
 }
 
+class Coverage {
+  Coverage(this.period, this.count);
+  final TimeSlot period;
+  final int count;
+}
+
 class TruEvent {
   TruEvent({required this.title, required this.location, required this.region,
     required this.kind, required this.start, this.end, this.requiredCrew = 2});
@@ -51,6 +57,20 @@ class TruEvent {
     p.reply = Reply.yes;
     p.slots.add(slot);
     p.slots.sort((a, b) => a.start.compareTo(b.start));
+  }
+  List<Coverage> coverageUntil(DateTime until) {
+    if (!until.isAfter(start)) return [];
+    final limit = end != null && end!.isBefore(until) ? end! : until;
+    final boundaries = <DateTime>{start.toUtc(), limit.toUtc()};
+    for (final p in participants.values.where((p) => p.reply == Reply.yes)) {
+      for (final s in p.slots) {
+        if (s.start.isAfter(start) && s.start.isBefore(limit)) boundaries.add(s.start.toUtc());
+        if (s.end.isAfter(start) && s.end.isBefore(limit)) boundaries.add(s.end.toUtc());
+      }
+    }
+    final sorted = boundaries.toList()..sort();
+    return List.generate(sorted.length - 1, (i) =>
+      Coverage(TimeSlot(sorted[i], sorted[i + 1]), plannedAt(sorted[i])));
   }
   int plannedAt(DateTime time) => participants.values.where(
     (p) => p.reply == Reply.yes && p.slots.any((s) => s.contains(time))).length;

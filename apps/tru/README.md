@@ -38,8 +38,8 @@ Avalikku katseveebi ega telefoni APK-d selles etapis ei avaldata.
 - Ööpäeva piiri ületav ning hiljem algav osalemine.
 - Sündmuse pikendamine ja lõpetamine.
 - Tegeliku kohaloleku märkimine planeeritud osalemisest eraldi.
-- Meeskonna plaan ning 8-tunniste kontrollpunktide katvus. See ei ole täielik
-  vahetuste planeerija: kontrollpunktide vahel võib katvus olla erinev.
+- Meeskonna plaan ja katvus iga saabumise/lahkumise vahel, sh katmata ajad.
+  Lahtise lõpuga sündmusel näidatakse esimest 72 tundi.
 - Kogu TRU varustus, seisukorra muutmine ja üleandmine regioonile või sündmusele.
 - Püsiasukoha ja kuuluvuse säilimine, vastuvõtja ja liikumisajalugu.
 - Regioonile või kõigile mõeldud teate loomine ja lugemise kinnitus.

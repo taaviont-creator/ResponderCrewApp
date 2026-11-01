@@ -150,12 +150,10 @@ class _WorkspaceState extends State<Workspace> {
           ...event.participants.entries.map((p) => Padding(padding: const EdgeInsets.only(bottom: 8),
             child: Text('${p.key}: ${replyLabel(p.value.reply)} · ${p.value.presence}\n${p.value.slots.map((s) => s.label).join('\n')}'))),
           heading('Katvus osalemisplaani järgi'),
-          const Text('Kontrollpunktid iga 8 tunni järel; vahepeal võib katvus muutuda.'),
-          ...List.generate(9, (i) => event.start.add(Duration(hours: i * 8)))
-            .where((t) => event.end == null || t.isBefore(event.end!)).map((t) {
-              final count = event.plannedAt(t);
-              return Text('${ActivitySchedule.format(t)}: $count / ${event.requiredCrew}${count < event.requiredCrew ? ' · inimesi puudu' : ''}');
-            }),
+          if (event.end == null) const Text('Lõpp on lahtine: allpool on esimese 72 tunni plaan.'),
+          ...event.coverageUntil(event.end ?? event.start.add(const Duration(days: 3))).map((segment) =>
+            Padding(padding: const EdgeInsets.only(bottom: 8), child: Text(
+              '${segment.period.label}: ${segment.count} / ${event.requiredCrew}${segment.count < event.requiredCrew ? ' · inimesi puudu' : ''}'))),
           if (!event.closed) TextButton(onPressed: () async {
             final values = await fields('Pikenda sündmust', ['Uus lõpp (PP.KK.AAAA HH:MM)'], [stamp(event.end ?? event.start)]);
             if (values == null || !mounted || !context.mounted) return;
