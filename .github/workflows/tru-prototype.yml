@@ -1,0 +1,31 @@
+name: TRU prototype
+on:
+  pull_request:
+    paths:
+      - 'apps/tru/**'
+      - '.github/workflows/tru-prototype.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  tru:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/tru
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
+      - run: flutter build web --release --no-web-resources-cdn
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TRU-prototype-web
+          path: apps/tru/build/web
+          retention-days: 14
