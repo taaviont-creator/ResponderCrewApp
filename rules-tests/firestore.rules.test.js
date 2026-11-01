@@ -1884,6 +1884,7 @@ test('TRU membership cannot be read, listed, self-granted, corrupted or deleted 
   const refPath = `truMemberships/${activeMemberId}`;
   await testEnv.withSecurityRulesDisabled(async context => {
     await setDoc(doc(context.firestore(), refPath), {active:true, role:'member', regions:['Ida'], revision:1, validUntil:null});
+    await setDoc(doc(context.firestore(), 'users/platform-admin'), {systemRole:'platformAdmin'});
   });
   for (const uid of [null, activeMemberId, orgAdminId, 'platform-admin', otherUserId]) {
     const client = uid ? testEnv.authenticatedContext(uid).firestore() : testEnv.unauthenticatedContext().firestore();
