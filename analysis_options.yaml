@@ -9,6 +9,8 @@
 # packages, and plugins designed to encourage good coding practices.
 analyzer:
   exclude:
+    # Independent TRU package has its own analyzer and CI job.
+    - apps/tru/**
     - build/**
     - android/**
     - ios/**
