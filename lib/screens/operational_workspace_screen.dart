@@ -62,13 +62,14 @@ class _OperationalWorkspaceState extends State<OperationalWorkspaceScreen>
     }
     return ListenableBuilder(listenable: _access!, builder: (context, _) {
       final access = _access!;
-      if (!access.initialized) {
+      final selecting = ['/', '/tru', '/tookeskkonnad'].contains(widget.path);
+      if (!access.initialized && selecting) {
         return const Scaffold(body: Center(child: CircularProgressIndicator()));
       }
       final member = access.membership;
-      _initialChoice ??= member != null;
+      if (access.initialized) _initialChoice ??= member != null;
       final picker = widget.path == '/tookeskkonnad' ||
-        (widget.path == '/' && _initialChoice!);
+        (widget.path == '/' && (_initialChoice ?? false));
       Widget content;
       if (widget.path == '/tru') {
         content = member == null ? denied() : KeyedSubtree(

@@ -80,4 +80,16 @@ void main() {
     await access.refresh(); expect(access.membership, isNull); expect(access.error, isNotNull);
     access.dispose();
   });
+  testWidgets('pending TRU check never blocks a directly selected marine workspace', (tester) async {
+    final pending = Completer<Map<String,dynamic>>();
+    final access = TruAccessService(load:() => pending.future);
+    await tester.pumpWidget(MaterialApp(home:OperationalWorkspaceScreen(
+      userId:'uid', displayName:'Liige', path:'/uhingud', navigate:(_) {}, access:access,
+      marineHome:const Text('Merepääste avatud'), truBuilder:(_,s,c) => const Text('TRU'))));
+    expect(find.text('Merepääste avatud'), findsOneWidget);
+    pending.complete(response(active:false)); await tester.pumpAndSettle();
+    expect(find.text('Merepääste avatud'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+  });
+
 }
