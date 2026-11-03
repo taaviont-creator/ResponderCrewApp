@@ -1,3 +1,4 @@
+import 'workspace_guide.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -30,6 +31,7 @@ class LoginInformation extends StatelessWidget {
     }
     if (!context.mounted) return;
     final body = data['${key}Text'];
+    if (key == 'guide' && (body is! String || body.trim().isEmpty)) {await openWorkspaceGuide(context); return;}
     await showDialog<void>(
       context: context,
       builder: (_) => AlertDialog(
