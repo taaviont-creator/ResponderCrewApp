@@ -80,7 +80,7 @@ class _OrganizationPlanningState extends State<OrganizationPlanning> {
         'Ühingu planeeritud mittevalved',
         style: Theme.of(context).textTheme.titleMedium,
       ),
-      const Text('Kõigi liikmete ajad Eesti aja järgi. Enda planeeringuid halda Valmisoleku lehel. Isiklikke märkusi ei jagata.'),
+      const Text('Ajad on Eesti aja järgi.'),
       CheckboxListTile(
         contentPadding: EdgeInsets.zero,
         title: const Text('Näita tühistatud mittevalveid'),

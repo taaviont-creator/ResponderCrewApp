@@ -43,7 +43,6 @@ class OrganizationReadinessScreen extends StatelessWidget {
                       'Ühingu valve juhtimine',
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    subtitle: const Text('Admini valikud kogu ühingule'),
                   ),
                   MinimumCrewControl(
                     key: ValueKey('minimum-$organizationId'),
