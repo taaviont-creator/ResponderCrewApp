@@ -326,7 +326,7 @@ class OperationLogService {
         'operationLogId': operationLogId,
         'type': OperationLogEventType.statusChange,
         'status': status,
-        'title': _operationLogStatusLabel(status),
+        'title': data['calloutId'] == null && status == OperationLogStatus.completed ? 'Seoseta logi suletud' : _operationLogStatusLabel(status),
         'description': '',
         'createdBy': updatedBy,
         'createdByName': _auth.currentUser?.displayName ?? '',

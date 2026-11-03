@@ -60,6 +60,11 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
   final _wakelockService = WakelockService();
   final Set<String> _visibleActiveLogIds = <String>{};
   bool _wakelockEnabled = false;
+  String? _selectedGroup;
+  String _group(OperationLogModel log) {
+    if (log.calloutId == null) return _legacyClosed(log) ? 'Lõpetatud' : 'Seoseta';
+    return _isActiveOperationLog(log.status) ? 'Töös' : 'Lõpetatud';
+  }
 
   void _handleVisibleActiveLogChanged(String logId, bool isVisibleActive) {
     if (!mounted) return;
@@ -207,78 +212,6 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
     );
   }
 
-  Future<void> _showAddOperationLogDialog() async {
-    if (!widget.canStartOperationLog) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sul puudub õigus seda toimingut teha')),
-      );
-      return;
-    }
-
-    final titleController = TextEditingController();
-    final descriptionController = TextEditingController();
-
-    final shouldCreate = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Uus operatiivlogi'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: titleController,
-                decoration: const InputDecoration(labelText: 'Pealkiri'),
-                autofocus: true,
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: descriptionController,
-                decoration: const InputDecoration(
-                  labelText: 'Kirjeldus (valikuline)',
-                ),
-                maxLines: 3,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Katkesta'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Lisa'),
-          ),
-        ],
-      ),
-    );
-
-    if (shouldCreate != true) return;
-
-    try {
-      await _operationLogService.addLog(
-        organizationId: widget.organizationId,
-        createdBy: widget.currentUid,
-        createdByName: widget.currentUserName,
-        type: OperationLogType.other,
-        title: titleController.text,
-        description: descriptionController.text,
-      );
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Logikanne lisatud')));
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Logikande lisamine ebaõnnestus.')),
-      );
-    }
-  }
-
   @override
   void dispose() {
     _visibleActiveLogIds.clear();
@@ -292,13 +225,6 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
   Widget build(BuildContext context) {
     return AppScaffold(
       appBar: AppBar(title: const Text('Operatiivlogi')),
-      floatingActionButton: widget.canStartOperationLog
-          ? FloatingActionButton.extended(
-              onPressed: _showAddOperationLogDialog,
-              icon: const Icon(Icons.add),
-              label: const Text('Uus logi'),
-            )
-          : null,
       body: StreamBuilder<List<OperationLogModel>>(
         stream: _operationLogService.streamOrganizationLogs(
           organizationId: widget.organizationId,
@@ -312,15 +238,19 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
             return Center(child: Text('Logi laadimine ebaõnnestus.'));
           }
 
-          final logs = _sortOperationLogsForUse(
+          final allLogs = _sortOperationLogsForUse(
             snapshot.data ?? const <OperationLogModel>[],
             focusedLogId: widget.initialLogId,
           );
-          if (logs.isEmpty) {
-            return const Center(child: Text('Logikandeid ei ole veel lisatud'));
-          }
-
-          return ListView.separated(
+          final focus = allLogs.where((l) => l.id == widget.initialLogId).firstOrNull;
+          final group = _selectedGroup ?? (focus == null ? 'Töös' : _group(focus));
+          final logs = allLogs.where((l) => _group(l) == group).toList();
+          return Column(children: [
+            Wrap(spacing: 6, children: [for (final g in ['Töös','Lõpetatud','Seoseta'])
+              ChoiceChip(label: Text('$g (${allLogs.where((l) => _group(l) == g).length})'), selected: group == g,
+                onSelected: (_) => setState(() => _selectedGroup = g))]),
+            if (logs.isEmpty) Padding(padding: const EdgeInsets.all(20), child: Text(group == 'Töös' ? 'Töös logisid pole. Alusta logi vastava väljakutse vaatest.' : 'Selles loendis logisid pole.')),
+            Expanded(child: ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: logs.length,
             separatorBuilder: (_, _) => const Divider(height: 1),
@@ -335,11 +265,7 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
                 canViewCalloutResponseSummary:
                     widget.canViewCalloutResponseSummary,
                 isFocusedOperationLog: log.id == widget.initialLogId,
-                initiallyExpanded:
-                    log.id == widget.initialLogId ||
-                    (widget.initialLogId == null &&
-                        index == 0 &&
-                        _isActiveOperationLog(log.status)),
+                initiallyExpanded: log.id == widget.initialLogId,
                 onUpdateStatus: _updateStatus,
                 onShowAddManualEventDialog: _showAddManualEventDialog,
                 onHandleQuickAction: _handleQuickAction,
@@ -347,7 +273,7 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
                 onVisibleActiveChanged: _handleVisibleActiveLogChanged,
               );
             },
-          );
+          )),]);
         },
       ),
     );
@@ -466,7 +392,7 @@ class _OperationLogCardState extends State<_OperationLogCard> {
     final colorScheme = Theme.of(context).colorScheme;
     final subtitleParts = [
       _operationLogStatusLabel(log.status),
-      _operationLogTypeLabel(log.type),
+      if (log.calloutId == null) 'Väljakutsega sidumata' else _operationLogTypeLabel(log.type),
       if (log.createdByName.isNotEmpty) log.createdByName,
       if (log.timestamp != null) _shortDateTime(log.timestamp!),
     ];
@@ -496,7 +422,7 @@ class _OperationLogCardState extends State<_OperationLogCard> {
             bottom: 12,
           ),
           title: Text(
-            log.title,
+            _linkedCallout?.title ?? log.title,
             style: isEmphasized
                 ? const TextStyle(fontWeight: FontWeight.w700)
                 : null,
@@ -546,7 +472,18 @@ class _OperationLogCardState extends State<_OperationLogCard> {
             'Täienda lõpetatud väljakutse logi. Kommentaare, kokkuvõtet ja osalejaid saab lisada ka tagantjärele.',
           ),
         ),
-      OperationLogAccessPanel(
+      if (log.calloutId == null && !_legacyClosed(log) && widget.canStartOperationLog)
+        OutlinedButton.icon(icon: const Icon(Icons.archive_outlined), label: const Text('Sulge seoseta logi'),
+          onPressed: () async {
+            final confirmed = await showDialog<bool>(context: context, builder: (dialog) => AlertDialog(
+              title: const Text('Sulge seoseta logi?'), content: Text('„${log.title}“ liigub lõpetatud logide alla. Kõik kanded säilivad.'),
+              actions: [TextButton(onPressed: () => Navigator.pop(dialog,false), child: const Text('Loobu')),
+                FilledButton(onPressed: () => Navigator.pop(dialog,true), child: const Text('Sulge logi'))]));
+            if (confirmed != true || !mounted) return;
+            try { await widget.onUpdateStatus(log,OperationLogStatus.completed); }
+            catch (_) { if(mounted) ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Logi sulgemine ebaõnnestus.'))); }
+          }),
+      if (log.calloutId != null) OperationLogAccessPanel(
         createStream: _participantAccess,
         builder: (context, access) {
           if (!widget.canStartOperationLog &&
@@ -573,7 +510,7 @@ class _OperationLogCardState extends State<_OperationLogCard> {
       ExpansionTile(
         key: ValueKey('completion-$canSummarize'),
         tilePadding: EdgeInsets.zero,
-        initiallyExpanded: canSummarize,
+        initiallyExpanded: false,
         title: const Text('Kokkuvõte ja osalejad'),
         subtitle: widget.canStartOperationLog
             ? const Text('Täida sündmuse lõpus või hiljem')
@@ -774,6 +711,9 @@ List<OperationLogModel> _sortOperationLogsForUse(
 int _focusedLogSortOrder(String logId, String? focusedLogId) {
   return focusedLogId != null && logId == focusedLogId ? 0 : 1;
 }
+
+bool _legacyClosed(OperationLogModel log) => log.calloutId == null &&
+    [OperationLogStatus.completed, OperationLogStatus.returnedToBase].contains(OperationLogStatus.normalize(log.status));
 
 bool _isActiveOperationLog(String status) {
   return OperationLogStatus.normalize(status) !=
