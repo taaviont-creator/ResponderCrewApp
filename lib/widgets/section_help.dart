@@ -8,9 +8,14 @@ class SectionHelp extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(children: [
     Flexible(child: Text(title, style: Theme.of(context).textTheme.titleMedium)),
-    IconButton(
-      tooltip: 'Selgitus: $title',
-      icon: const Icon(Icons.help_outline, size: 20),
+    Tooltip(message: 'Selgitus: $title', child: OutlinedButton.icon(
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size(88, 48),
+        visualDensity: VisualDensity.standard,
+        tapTargetSize: MaterialTapTargetSize.padded,
+      ),
+      icon: const Icon(Icons.help_outline, size: 22),
+      label: const Text('Info'),
       onPressed: () => showDialog<void>(
         context: context,
         builder: (dialog) => AlertDialog(
@@ -20,6 +25,6 @@ class SectionHelp extends StatelessWidget {
           actions: [TextButton(onPressed: () => Navigator.pop(dialog), child: const Text('Sulge'))],
         ),
       ),
-    ),
+    )),
   ]);
 }
