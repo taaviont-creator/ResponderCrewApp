@@ -38,7 +38,7 @@ class _TruAccessDialogState extends State<TruAccessDialog> {
     setState(() {_busy = true; _error = null;});
     try {
       await _functions.httpsCallable('setTruAccess').call({'userId':widget.userId,
-        'active':_active, 'role':_role, 'regions':_regions,
+        'active':_active, 'role':_role, 'regions':_role == 'admin' ? TruMembership.regionNames.toList() : _regions,
         'expectedRevision':_revision, 'validUntilMs':_active ? _validUntilMs : null});
       if (mounted) Navigator.pop(context);
     } on FirebaseFunctionsException catch (e) {
@@ -59,9 +59,16 @@ class _TruAccessDialogState extends State<TruAccessDialog> {
         DropdownButtonFormField<String>(initialValue:_role, decoration:const InputDecoration(labelText:'TRU roll'),
           items: const [DropdownMenuItem(value:'member', child:Text('Liige')),
             DropdownMenuItem(value:'coordinator', child:Text('Koordinaator')),
-            DropdownMenuItem(value:'admin', child:Text('TRU haldur'))],
-          onChanged:_busy || !_loaded ? null : (v) => setState(() => _role = v!)),
-        for (final r in TruMembership.regionNames) CheckboxListTile(title:Text(r), value:_regions.contains(r),
+            DropdownMenuItem(value:'admin', child:Text('TRU juht'))],
+          onChanged:_busy || !_loaded ? null : (v) => setState(() {if (_role == 'admin' || (v == 'coordinator' && _regions.length != 1)) _regions = []; _role = v!;})),
+        if (_role == 'admin') const Text('Üleriigiline juht · kõik regioonid')
+        else if (_role == 'coordinator') DropdownButtonFormField<String>(
+          key: ValueKey(_regions.join(',')),
+          initialValue: _regions.length == 1 ? _regions.first : null,
+          decoration: const InputDecoration(labelText: 'Koordinaatori regioon'),
+          items: TruMembership.regionNames.map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
+          onChanged: _busy || !_loaded ? null : (v) => setState(() => _regions = [v!]),
+        ) else for (final r in TruMembership.regionNames) CheckboxListTile(title:Text(r), value:_regions.contains(r),
           onChanged:_busy || !_loaded ? null : (v) => setState(() {if (v == true) {_regions.add(r);} else {_regions.remove(r);}})),
         if (_validUntilMs != null) TextButton(onPressed:_busy ? null : () => setState(() => _validUntilMs = null),
           child: const Text('Muuda tähtajatuks')),
@@ -69,5 +76,5 @@ class _TruAccessDialogState extends State<TruAccessDialog> {
         TextButton(onPressed:_busy ? null : _load, child: const Text('Laadi uuesti')),
       ]))),
     actions: [TextButton(onPressed:_busy ? null : () => Navigator.pop(context), child:const Text('Loobu')),
-      FilledButton(onPressed:_busy || !_loaded || _regions.isEmpty ? null : _save, child:const Text('Salvesta'))]);
+      FilledButton(onPressed:_busy || !_loaded || (_role != 'admin' && _regions.isEmpty) || (_role == 'coordinator' && _regions.length != 1) ? null : _save, child:const Text('Salvesta'))]);
 }
