@@ -63,7 +63,7 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
   String? _selectedGroup;
   String _group(OperationLogModel log) {
     if (log.calloutId == null) return _legacyClosed(log) ? 'Lõpetatud' : 'Seoseta';
-    return _isActiveOperationLog(log.status) ? 'Töös' : 'Lõpetatud';
+    return log.completedAt == null && _isActiveOperationLog(log.status) ? 'Töös' : 'Lõpetatud';
   }
 
   void _handleVisibleActiveLogChanged(String logId, bool isVisibleActive) {
@@ -320,6 +320,25 @@ class _OperationLogCard extends StatefulWidget {
 }
 
 class _OperationLogCardState extends State<_OperationLogCard> {
+  bool _closing = false;
+  Future<void> _close(OperationLogModel log) async {
+    final yes = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+      title: const Text('Lõpeta operatiivlogi?'),
+      content: Text('„${_linkedCallout?.title ?? log.title}“ liigub lõpetatud logidesse. Väljakutse olek jääb samaks.'),
+      actions: [TextButton(onPressed: () => Navigator.pop(ctx,false), child: const Text('Loobu')),
+        FilledButton(onPressed: () => Navigator.pop(ctx,true), child: const Text('Lõpeta logi'))]));
+    if (!mounted || yes != true || _closing) return;
+    setState(() => _closing = true);
+    try {
+      final service = OperationLogService();
+      await service.updateLogStatus(operationLogId: log.id, organizationId: widget.organizationId,
+        status: OperationLogStatus.completed, updatedBy: widget.currentUid, closingLog: true);
+      await service.updateFinalSummary(operationLogId: log.id, organizationId: widget.organizationId,
+        summary: '', outcome: '', completedBy: widget.currentUid, closingLog: true);
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Logi lõpetamine ebaõnnestus. Kontrolli ühendust ja proovi uuesti.')));
+    } finally { if (mounted) setState(() => _closing = false); }
+  }
   final _calloutService = CalloutService();
   late bool _expanded;
   late final Stream<CalloutModel?>? _calloutStream =
@@ -427,6 +446,8 @@ class _OperationLogCardState extends State<_OperationLogCard> {
                 ? const TextStyle(fontWeight: FontWeight.w700)
                 : null,
           ),
+          trailing: widget.canStartOperationLog && log.calloutId != null && log.completedAt == null && _isActiveOperationLog(log.status)
+            ? TextButton(onPressed: _closing ? null : () => _close(log), child: const Text('Lõpeta logi')) : null,
           subtitle: Text(
             log.description.isEmpty
                 ? subtitleParts.join(' - ')
@@ -483,7 +504,7 @@ class _OperationLogCardState extends State<_OperationLogCard> {
             try { await widget.onUpdateStatus(log,OperationLogStatus.completed); }
             catch (_) { if(mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Logi sulgemine ebaõnnestus.'))); }
           }),
-      if (log.calloutId != null) OperationLogAccessPanel(
+      if (log.calloutId != null && log.completedAt == null) OperationLogAccessPanel(
         createStream: _participantAccess,
         builder: (context, access) {
           if (!widget.canStartOperationLog &&

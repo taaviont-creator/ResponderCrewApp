@@ -274,6 +274,7 @@ class OperationLogService {
     required String organizationId,
     required String status,
     required String updatedBy,
+    bool closingLog = false,
     double? latitude,
     double? longitude,
     double? accuracyMeters,
@@ -326,7 +327,7 @@ class OperationLogService {
         'operationLogId': operationLogId,
         'type': OperationLogEventType.statusChange,
         'status': status,
-        'title': data['calloutId'] == null && status == OperationLogStatus.completed ? 'Seoseta logi suletud' : _operationLogStatusLabel(status),
+        'title': closingLog ? 'Logi lõpetamine' : data['calloutId'] == null && status == OperationLogStatus.completed ? 'Seoseta logi suletud' : _operationLogStatusLabel(status),
         'description': '',
         'createdBy': updatedBy,
         'createdByName': _auth.currentUser?.displayName ?? '',
@@ -428,6 +429,7 @@ class OperationLogService {
     required String summary,
     required String outcome,
     required String completedBy,
+    bool closingLog = false,
   }) async {
     _requireOrganizationId(organizationId);
     await _ensureCanStartOperationLog(
@@ -435,8 +437,7 @@ class OperationLogService {
       createdBy: completedBy,
     );
 
-    final trimmedSummary = summary.trim();
-    final trimmedOutcome = outcome.trim();
+
     final doc = _operationLogs.doc(operationLogId);
     final eventDoc = doc.collection('events').doc();
 
@@ -469,6 +470,9 @@ class OperationLogService {
 
       final currentSummary = (data['summary'] ?? '').toString();
       final currentOutcome = (data['outcome'] ?? '').toString();
+      if (closingLog && data['completedAt'] != null) return;
+      final trimmedSummary = closingLog ? currentSummary : summary.trim();
+      final trimmedOutcome = closingLog ? [if (currentOutcome.isNotEmpty) currentOutcome, 'Operatiivlogi lõpetatud.'].join('\n') : outcome.trim();
       if (currentSummary == trimmedSummary &&
           currentOutcome == trimmedOutcome) {
         return;
