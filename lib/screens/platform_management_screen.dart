@@ -1,3 +1,4 @@
+import '../widgets/tru_access_dialog.dart';
 import '../config/release_features.dart';
 import '../widgets/app_layout.dart';
 import 'dart:async';
@@ -75,6 +76,22 @@ class _PlatformManagementScreenState extends State<PlatformManagementScreen> {
   StreamSubscription<Object?>? _pendingSubscription;
   bool _reloadQueued = false;
   final List<Map<String, dynamic>> _accounts = [];
+  int _visibleAccounts = 40;
+  bool _searching = false;
+  Future<void> _searchDirectory() async {
+    if (_searching || _saving || _query.trim().isEmpty) return;
+    final section = _section;
+    setState(() => _searching = true);
+    try {
+      while (mounted && _section == section && _query.trim().isNotEmpty && _pageToken != null) {
+        final previous = _pageToken;
+        await _loadAccounts();
+        if (_error != null || previous == _pageToken) break;
+      }
+    } finally {
+      if (mounted) setState(() => _searching = false);
+    }
+  }
   String? _pageToken, _error;
   bool _loading = true, _saving = false, _accountsLoaded = false;
   static List<Map<String, dynamic>> maps(dynamic value) =>
@@ -427,7 +444,11 @@ class _PlatformManagementScreenState extends State<PlatformManagementScreen> {
     );
   }
 
-  Widget _accountList() => ListView(
+  Widget _accountList() {
+    final query = _query.trim().toLowerCase();
+    final matches = _accounts.where((a) => '${a['name']} ${a['email']}'.toLowerCase().contains(query)).toList()
+      ..sort((a,b) => (a['email'] as String? ?? '').compareTo(b['email'] as String? ?? ''));
+    return ListView(
     padding: const EdgeInsets.all(16),
     children: [
       Text(
@@ -440,14 +461,15 @@ class _PlatformManagementScreenState extends State<PlatformManagementScreen> {
           labelText: 'Otsi nime või e-posti järgi',
           prefixIcon: Icon(Icons.search),
         ),
-        onChanged: (v) => setState(() => _query = v),
+        textInputAction: TextInputAction.search,
+        onSubmitted: (_) => _searchDirectory(),
+        onChanged: (v) => setState(() {_query = v; _visibleAccounts = 40;}),
       ),
 
-      for (final account in _accounts.where(
-        (a) => '${a['name']} ${a['email']}'.toLowerCase().contains(
-          _query.toLowerCase(),
-        ),
-      ))
+      if (query.isNotEmpty && _pageToken != null)
+        TextButton.icon(onPressed: _saving || _searching ? null : _searchDirectory, icon: const Icon(Icons.search), label: const Text('Otsi kõigist kontodest')),
+      Text('Kuvatud ${matches.take(_visibleAccounts).length} / ${matches.length} vastet laaditud kontode seas'),
+      for (final account in matches.take(_visibleAccounts))
         Card(
           child: _section == 'centerAccounts'
               ? ListTile(
@@ -494,6 +516,14 @@ class _PlatformManagementScreenState extends State<PlatformManagementScreen> {
                                 ),
                               ),
                       ),
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.construction_outlined),
+                      label: const Text('TRU liikmesus'),
+                      onPressed: _saving ? null : () => showDialog<void>(
+                        context: context, builder: (_) => TruAccessDialog(
+                          userId: account['uid'] as String,
+                          name: account['email'] as String)),
+                    ),
                     OutlinedButton(
                       onPressed: _saving ? null : () => _revoke(account),
                       child: const Text('Tühista sisselogimisseansid'),
@@ -513,6 +543,8 @@ class _PlatformManagementScreenState extends State<PlatformManagementScreen> {
               ? 'Kasutajakontosid pole.'
               : 'Laaditud kontode hulgast vastet ei leitud.',
         ),
+      if (matches.length > _visibleAccounts)
+        TextButton(onPressed: () => setState(() => _visibleAccounts += 40), child: const Text('Näita veel 40')),
       if (_pageToken != null)
         const Text(
           'Otsing hõlmab laaditud kontosid. Vajadusel laadi järgmised kontod.',
@@ -526,6 +558,7 @@ class _PlatformManagementScreenState extends State<PlatformManagementScreen> {
         ),
     ],
   );
+  }
   Widget _auditList() => ListView(
     padding: const EdgeInsets.all(16),
     children: [
@@ -546,7 +579,7 @@ class _PlatformManagementScreenState extends State<PlatformManagementScreen> {
     String description,
   ) => Card(
     child: ListTile(
-      leading: Icon(icon),
+      leading: section == 'requests' && _organizations.any((o) => o['status'] == 'pending') ? Badge(label: Text('${_organizations.where((o) => o['status'] == 'pending').length}'), child: Icon(icon)) : Icon(icon),
       title: Text(title),
       subtitle: Text(description),
       trailing: const Icon(Icons.chevron_right),
@@ -564,10 +597,10 @@ class _PlatformManagementScreenState extends State<PlatformManagementScreen> {
         _tile(
           'requests',
           Icons.inbox_outlined,
-          'Taotlused',
+          'Ootel ühingud',
           widget.centersEnabled
               ? '$pending uut ühingut · kaardile lisamise taotlused'
-              : '$pending uut ühingut',
+              : pending == 0 ? 'Kinnitamise ootel ühinguid pole' : '$pending ühingut ootab kinnitamist',
         ),
         if (widget.centersEnabled)
           _tile(
@@ -585,8 +618,8 @@ class _PlatformManagementScreenState extends State<PlatformManagementScreen> {
         _tile(
           'accounts',
           Icons.people_outline,
-          'Kasutajakontod',
-          'Kontode otsing ja tehniline haldus',
+          'Liikmete haldus',
+          'Otsi inimest ning halda tema TRU liikmesust ja kontot',
         ),
         _tile('audit', Icons.history, 'Auditlogi', 'Olulised haldustoimingud'),
       ],
@@ -636,11 +669,11 @@ class _PlatformManagementScreenState extends State<PlatformManagementScreen> {
               ),
         title: Text(
           const {
-            'home': 'RespondCrew haldus',
-            'requests': 'Taotlused',
+            'home': 'Platvormihaldus',
+            'requests': 'Ootel ühingud',
             'centers': 'Kaardikeskused',
             'organizations': 'Ühingud',
-            'accounts': 'Kasutajakontod',
+            'accounts': 'Liikmete haldus',
             'centerAccounts': 'Keskuste kasutajaõigused',
             'audit': 'Auditlogi',
           }[_section]!,

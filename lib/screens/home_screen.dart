@@ -462,7 +462,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (PlatformRole.isPlatformAdmin(profile.data()?['systemRole'])) {
         items.add({
           'commandId': '__platform_context__',
-          'commandName': 'RespondCrew haldus',
+          'commandName': 'Platvormihaldus',
           'available': 'yes',
           'status': 'Platvormihaldus',
         });
@@ -871,7 +871,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 8),
             OutlinedButton.icon(
               icon: const Icon(Icons.apartment_outlined),
-              label: const Text('Ootel ühingud'),
+              label: const Text('Platvormihaldus'),
               onPressed: () {
                 _pushPage(
                   context,
@@ -1057,7 +1057,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 12),
             OutlinedButton.icon(
               icon: const Icon(Icons.apartment_outlined),
-              label: const Text('Ootel ühingud'),
+              label: const Text('Platvormihaldus'),
               onPressed: () {
                 _pushPage(
                   context,

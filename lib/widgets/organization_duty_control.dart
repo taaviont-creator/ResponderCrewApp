@@ -20,19 +20,32 @@ class _OrganizationDutyControlState extends State<OrganizationDutyControl> {
       .collection('commands')
       .doc(widget.organizationId)
       .snapshots();
-  final _reason = TextEditingController();
   bool _saving = false;
   String? _error;
-  @override
-  void dispose() {
-    _reason.dispose();
-    super.dispose();
-  }
 
   Future<void> _save(bool paused) async {
-    if (paused && _reason.text.trim().isEmpty) {
-      setState(() => _error = 'Lisa põhjus, mida liikmed avalehel näevad.');
-      return;
+    String reason = '';
+    if (paused) {
+      final form = GlobalKey<FormState>();
+      final answer = await showDialog<String>(context: context, builder: (dialog) => AlertDialog(
+        title: const Text('Võta ühing valvest maha'),
+        content: SingleChildScrollView(child: Form(key: form, child: TextFormField(
+          autofocus: true, maxLength: 1000, minLines: 2, maxLines: 4,
+          decoration: const InputDecoration(labelText: 'Põhjus', helperText: 'Teade on liikmetele nähtav.'),
+          validator: (value) => (value ?? '').trim().isEmpty ? 'Kirjuta peatamise põhjus.' : null,
+          onSaved: (value) => reason = value!.trim(),
+        ))),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialog), child: const Text('Loobu')),
+          FilledButton(onPressed: () {
+            if (!form.currentState!.validate()) return;
+            form.currentState!.save();
+            Navigator.pop(dialog, reason);
+          }, child: const Text('Peata valve')),
+        ],
+      ));
+      if (answer == null || !mounted) return;
+      reason = answer;
     }
     setState(() {
       _saving = true;
@@ -44,7 +57,7 @@ class _OrganizationDutyControlState extends State<OrganizationDutyControl> {
       ).httpsCallable('setOrganizationDuty').call({
         'organizationId': widget.organizationId,
         'paused': paused,
-        'reason': _reason.text,
+        'reason': reason,
       });
       if (mounted) widget.onSaved?.call();
     } on FirebaseFunctionsException catch (error) {
@@ -81,28 +94,9 @@ class _OrganizationDutyControlState extends State<OrganizationDutyControl> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                'Kogu ühingu valve',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              Text(
-                paused
-                    ? 'Ühing on valvest maas. Liikmete valveaja arvestus on peatatud.'
-                    : 'Ühingu valve on lubatud. Reageerimisvalmidus sõltub meeskonnast.',
-              ),
-              const Text(
-                'See seade puudutab tervet ühingut. Liikmete isiklikke staatuseid ei muudeta. Koolituste ja tegevuste panuse arvestus jätkub.',
-              ),
+              Text(paused ? 'Ühingu valve on peatatud' : 'Ühingu valve on lubatud',
+                  style: Theme.of(context).textTheme.titleMedium),
               if (paused) Text('Põhjus: ${data['dutyPauseReason'] ?? ''}'),
-              if (!paused)
-                TextField(
-                  controller: _reason,
-                  enabled: !_saving,
-                  maxLength: 1000,
-                  decoration: const InputDecoration(
-                    labelText: 'Valve peatamise põhjus (liikmetele nähtav)',
-                  ),
-                ),
               if (_error != null) Text(_error!),
               OutlinedButton.icon(
                 onPressed: _saving ? null : () => _save(!paused),
@@ -112,7 +106,7 @@ class _OrganizationDutyControlState extends State<OrganizationDutyControl> {
                 label: Text(
                   paused
                       ? 'Taasta ühingu valve'
-                      : 'Võta kogu ühing valvest maha',
+                      : 'Võta ühing valvest maha',
                 ),
               ),
               if (_saving) const LinearProgressIndicator(),

@@ -102,7 +102,7 @@ class _OperationLogActionsState extends State<OperationLogActions> {
         if (!widget.appendOnly) ('Tagasi baasis', Icons.home_outlined),
       ],
       if (active) ...[('Teade edastatud', Icons.radio_outlined),
-        ('Sündmus lõpetatud', Icons.flag_outlined)],
+        ],
     ];
     final style = FilledButton.styleFrom(
       minimumSize: const Size.fromHeight(56),
@@ -140,7 +140,7 @@ class _OperationLogActionsState extends State<OperationLogActions> {
                         style: style,
                         onPressed: _saving ? null : () => _run(action.$1),
                         icon: Icon(action.$2, size: 28),
-                        label: Text(action.$1, softWrap: true),
+                        label: Text(action.$1 == 'Tagasi baasis' ? 'Tagasi baasis – lõpeta logi' : action.$1, softWrap: true),
                       ),
                     ),
                 ],

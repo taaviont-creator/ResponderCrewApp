@@ -198,7 +198,7 @@ class MenuScreen extends StatelessWidget {
           if (isPlatformAdmin)
             _MenuEntry(
               icon: Icons.apartment_outlined,
-              title: 'RespondCrew haldus',
+              title: 'Platvormihaldus',
               leading: platformBadge,
               subtitle: 'Ühingud, kasutajakontod ja audit',
               onTap: () => Navigator.of(context, rootNavigator: true).push(

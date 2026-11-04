@@ -208,7 +208,7 @@ void main() {
       );
       if (role != 'member') {
         await tester.scrollUntilVisible(
-          find.text(role == 'admin' ? 'Ühingu seaded' : 'RespondCrew haldus'),
+          find.text(role == 'admin' ? 'Ühingu seaded' : 'Platvormihaldus'),
           240,
           scrollable: find.byType(Scrollable).first,
         );
@@ -222,7 +222,7 @@ void main() {
         role == 'admin' ? findsOneWidget : findsNothing,
       );
       expect(
-        find.text('RespondCrew haldus'),
+        find.text('Platvormihaldus'),
         role == 'platform' ? findsOneWidget : findsNothing,
       );
       expect(tester.takeException(), isNull);

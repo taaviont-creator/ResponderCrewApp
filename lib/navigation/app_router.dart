@@ -1,3 +1,5 @@
+import '../models/tru_session.dart';
+import '../screens/operational_workspace_screen.dart';
 import 'navigation_protection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -18,6 +20,8 @@ class AppRouteParser extends RouteInformationParser<String> {
 
 class AppRouter extends RouterDelegate<String>
     with ChangeNotifier, PopNavigatorRouterDelegateMixin<String> {
+  AppRouter({this.truWorkspaceBuilder});
+  final TruWorkspaceBuilder? truWorkspaceBuilder;
   @override
   final navigatorKey = GlobalKey<NavigatorState>();
   String _path = '/';
@@ -42,13 +46,19 @@ class AppRouter extends RouterDelegate<String>
     pages: [
       MaterialPage<void>(
         key: const ValueKey('authenticated-app'),
-        child: ['/', '/uhingud', '/keskus/sar', '/keskus/tross'].contains(_path)
+        child: ['/', '/uhingud', '/keskus/sar', '/keskus/tross', '/tru', '/tookeskkonnad'].contains(_path)
             ? AuthGate(
-                signedInBuilder: (context, user) => AppContextScreen(
+                signedInBuilder: (context, user) => OperationalWorkspaceScreen(
+                  key: ValueKey(user.uid), userId: user.uid,
+                  displayName: user.displayName ?? 'Liige',
+                  path: _path, navigate: navigate,
+                  truBuilder: truWorkspaceBuilder,
+                  marineHome: AppContextScreen(
                   key: ValueKey(user.uid),
                   userId: user.uid,
                   path: _path,
                   navigate: navigate,
+                  ),
                 ),
               )
             : Scaffold(

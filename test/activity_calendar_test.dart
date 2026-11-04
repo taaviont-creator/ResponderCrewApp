@@ -269,7 +269,12 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        await tester.ensureVisible(find.text('Merepäästekoolitus'));
+        // A six-row month can put the lazy list item beyond the built viewport.
+        await tester.scrollUntilVisible(
+          find.text('Merepäästekoolitus'),
+          200,
+          scrollable: find.byType(Scrollable).first,
+        );
         await tester.tap(find.text('Merepäästekoolitus'));
         await tester.pumpAndSettle();
       }

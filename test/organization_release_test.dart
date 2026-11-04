@@ -52,7 +52,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Kaardikeskused'), findsNothing);
-    await tester.tap(find.text('Taotlused'));
+    await tester.tap(find.text('Ootel ühingud'));
     await tester.pumpAndSettle();
     expect(find.text('Kaardile lisamise taotlused'), findsNothing);
     expect(calls.any((name) => name.toLowerCase().contains('center')), false);

@@ -1,3 +1,4 @@
+import 'section_help.dart';
 import 'dart:async';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
@@ -76,11 +77,7 @@ class _OrganizationPlanningState extends State<OrganizationPlanning> {
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      Text(
-        'Ühingu planeeritud mittevalved',
-        style: Theme.of(context).textTheme.titleMedium,
-      ),
-      const Text('Kõigi liikmete ajad Eesti aja järgi. Enda planeeringuid halda Valmisoleku lehel. Isiklikke märkusi ei jagata.'),
+      const SectionHelp('Ühingu planeeritud mittevalved', 'Siin näed liikmete planeeritud mittevalveid Eesti aja järgi. Enda aegu saad muuta Valmisoleku lehel. Isiklikke märkusi teistele ei kuvata.'),
       CheckboxListTile(
         contentPadding: EdgeInsets.zero,
         title: const Text('Näita tühistatud mittevalveid'),
