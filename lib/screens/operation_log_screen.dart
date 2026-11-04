@@ -481,7 +481,7 @@ class _OperationLogCardState extends State<_OperationLogCard> {
                 FilledButton(onPressed: () => Navigator.pop(dialog,true), child: const Text('Sulge logi'))]));
             if (confirmed != true || !mounted) return;
             try { await widget.onUpdateStatus(log,OperationLogStatus.completed); }
-            catch (_) { if(mounted) ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(content: Text('Logi sulgemine ebaõnnestus.'))); }
+            catch (_) { if(mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Logi sulgemine ebaõnnestus.'))); }
           }),
       if (log.calloutId != null) OperationLogAccessPanel(
         createStream: _participantAccess,
