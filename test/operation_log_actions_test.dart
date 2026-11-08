@@ -66,6 +66,11 @@ void main() {
       await tester.pumpAndSettle();
       expect(calls, ['Sündmus lõpetatud']);
       expect(find.byType(AlertDialog), findsNothing);
+    },
+  );
+
+  testWidgets('only arrival at base remains during return', (tester) async {
+      final calls = <String>[];
       await showControls(
         tester,
         status: OperationLogStatus.completed,
