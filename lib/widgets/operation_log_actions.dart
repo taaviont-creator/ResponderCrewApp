@@ -115,7 +115,7 @@ class _OperationLogActionsState extends State<OperationLogActions> {
                         style: style,
                         onPressed: _saving ? null : () => _run(action.$1),
                         icon: Icon(action.$2, size: 28),
-                        label: Text(action.$1 == 'Tagasi baasis' ? 'Tagasi baasis – lõpeta logi' : action.$1, softWrap: true),
+                        label: Text(action.$1, softWrap: true),
                       ),
                     ),
                 ],
