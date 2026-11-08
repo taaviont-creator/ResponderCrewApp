@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'models/tru_session.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -10,12 +11,14 @@ import 'services/callout_alarm_notification_service.dart';
 import 'services/geofence_service.dart';
 import 'theme/app_theme.dart';
 
-Future<void> main() async {
+Future<void> main() => runRespondCrew();
+
+Future<void> runRespondCrew({TruWorkspaceBuilder? truWorkspaceBuilder}) async {
   WidgetsFlutterBinding.ensureInitialized();
   configureUrlStrategy();
   CalloutAlarmNotificationService.registerBackgroundHandler();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  runApp(const MyApp());
+  runApp(MyApp(truWorkspaceBuilder: truWorkspaceBuilder));
   unawaited(_initializeCalloutAlarmNotifications());
   unawaited(
     GeofenceService.lifecycle.initialize().catchError((Object _) {
@@ -34,14 +37,15 @@ Future<void> _initializeCalloutAlarmNotifications() async {
 }
 
 class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+  const MyApp({super.key, this.truWorkspaceBuilder});
+  final TruWorkspaceBuilder? truWorkspaceBuilder;
 
   @override
   State<MyApp> createState() => _MyAppState();
 }
 
 class _MyAppState extends State<MyApp> {
-  final _router = AppRouter();
+  late final _router = AppRouter(truWorkspaceBuilder: widget.truWorkspaceBuilder);
 
   @override
   void dispose() {

@@ -107,15 +107,15 @@ void main() {
       );
       await tester.pumpAndSettle();
       for (final title in [
-        'Taotlused',
+        'Ootel ühingud',
         'Kaardikeskused',
         'Ühingud',
-        'Kasutajakontod',
+        'Liikmete haldus',
         'Auditlogi',
       ]) {
         expect(find.text(title), findsOneWidget);
       }
-      await tester.tap(find.text('Taotlused'));
+      await tester.tap(find.text('Ootel ühingud'));
       await tester.pumpAndSettle();
       expect(find.text('Uus ühing'), findsOneWidget);
       expect(find.text('Kaardile lisamise taotlused'), findsOneWidget);

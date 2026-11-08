@@ -1,3 +1,4 @@
+import 'callout_report_screen.dart';
 import '../widgets/dispatch_callout_panel.dart';
 import '../widgets/app_layout.dart';
 import '../services/operation_log_access_service.dart';
@@ -60,6 +61,11 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
   final _wakelockService = WakelockService();
   final Set<String> _visibleActiveLogIds = <String>{};
   bool _wakelockEnabled = false;
+  String? _selectedGroup;
+  String _group(OperationLogModel log) {
+    if (log.calloutId == null) return _legacyClosed(log) ? 'Lõpetatud' : 'Seoseta';
+    return _logFinished(log) ? 'Lõpetatud' : 'Töös';
+  }
 
   void _handleVisibleActiveLogChanged(String logId, bool isVisibleActive) {
     if (!mounted) return;
@@ -157,7 +163,7 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
   }
 
   Future<void> _handleQuickAction(OperationLogModel log, String action) async {
-    if (!widget.canStartOperationLog || action == 'Sündmus lõpetatud') {
+    if (!widget.canStartOperationLog) {
       await _addQuickAction(log, action);
       return;
     }
@@ -168,21 +174,31 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
       case 'Sündmuskohal':
         await _updateStatus(log, OperationLogStatus.onScene);
         break;
-      case 'Otsing algas':
-        await _updateStatus(log, OperationLogStatus.inProgress);
+      case 'Otsing':
+        if (OperationLogStatus.normalize(log.status) == OperationLogStatus.onScene) {
+          await _updateStatus(log, OperationLogStatus.inProgress);
+        } else {
+          await _addQuickAction(log, action);
+        }
         break;
       case 'Teade edastatud':
-      case 'Pukseerimine alustatud':
+      case 'Pukseerimine':
         await _addQuickAction(log, action);
         break;
       case 'Kannatanu leitud':
         await _addQuickAction(log, 'Kannatanu leitud');
         break;
-      case 'Sündmuskohal tegevused tehtud':
+      case 'Sündmus lõpetatud':
+        final choice = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+          title: const Text('Kas olete tagasi baasis?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Loobu')),
+            OutlinedButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Sõidan tagasi')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Tagasi baasis – lõpeta sündmus')),
+          ]));
+        if (choice == null) return;
         await _updateStatus(log, OperationLogStatus.completed);
-        break;
-      case 'Tagasisõit':
-        await _addQuickAction(log, 'Tagasisõit');
+        if (choice) await _updateStatus(log, OperationLogStatus.returnedToBase);
         break;
       case 'Tagasi baasis':
         await _updateStatus(log, OperationLogStatus.returnedToBase);
@@ -207,78 +223,6 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
     );
   }
 
-  Future<void> _showAddOperationLogDialog() async {
-    if (!widget.canStartOperationLog) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sul puudub õigus seda toimingut teha')),
-      );
-      return;
-    }
-
-    final titleController = TextEditingController();
-    final descriptionController = TextEditingController();
-
-    final shouldCreate = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Uus operatiivlogi'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: titleController,
-                decoration: const InputDecoration(labelText: 'Pealkiri'),
-                autofocus: true,
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: descriptionController,
-                decoration: const InputDecoration(
-                  labelText: 'Kirjeldus (valikuline)',
-                ),
-                maxLines: 3,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Katkesta'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Lisa'),
-          ),
-        ],
-      ),
-    );
-
-    if (shouldCreate != true) return;
-
-    try {
-      await _operationLogService.addLog(
-        organizationId: widget.organizationId,
-        createdBy: widget.currentUid,
-        createdByName: widget.currentUserName,
-        type: OperationLogType.other,
-        title: titleController.text,
-        description: descriptionController.text,
-      );
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Logikanne lisatud')));
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Logikande lisamine ebaõnnestus.')),
-      );
-    }
-  }
-
   @override
   void dispose() {
     _visibleActiveLogIds.clear();
@@ -292,13 +236,6 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
   Widget build(BuildContext context) {
     return AppScaffold(
       appBar: AppBar(title: const Text('Operatiivlogi')),
-      floatingActionButton: widget.canStartOperationLog
-          ? FloatingActionButton.extended(
-              onPressed: _showAddOperationLogDialog,
-              icon: const Icon(Icons.add),
-              label: const Text('Uus logi'),
-            )
-          : null,
       body: StreamBuilder<List<OperationLogModel>>(
         stream: _operationLogService.streamOrganizationLogs(
           organizationId: widget.organizationId,
@@ -312,15 +249,19 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
             return Center(child: Text('Logi laadimine ebaõnnestus.'));
           }
 
-          final logs = _sortOperationLogsForUse(
+          final allLogs = _sortOperationLogsForUse(
             snapshot.data ?? const <OperationLogModel>[],
             focusedLogId: widget.initialLogId,
           );
-          if (logs.isEmpty) {
-            return const Center(child: Text('Logikandeid ei ole veel lisatud'));
-          }
-
-          return ListView.separated(
+          final focus = allLogs.where((l) => l.id == widget.initialLogId).firstOrNull;
+          final group = _selectedGroup ?? (focus == null ? 'Töös' : _group(focus));
+          final logs = allLogs.where((l) => _group(l) == group).toList();
+          return Column(children: [
+            Wrap(spacing: 6, children: [for (final g in ['Töös','Lõpetatud','Seoseta'])
+              ChoiceChip(label: Text('$g (${allLogs.where((l) => _group(l) == g).length})'), selected: group == g,
+                onSelected: (_) => setState(() => _selectedGroup = g))]),
+            if (logs.isEmpty) Padding(padding: const EdgeInsets.all(20), child: Text(group == 'Töös' ? 'Töös logisid pole. Alusta logi vastava väljakutse vaatest.' : 'Selles loendis logisid pole.')),
+            Expanded(child: ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: logs.length,
             separatorBuilder: (_, _) => const Divider(height: 1),
@@ -335,11 +276,7 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
                 canViewCalloutResponseSummary:
                     widget.canViewCalloutResponseSummary,
                 isFocusedOperationLog: log.id == widget.initialLogId,
-                initiallyExpanded:
-                    log.id == widget.initialLogId ||
-                    (widget.initialLogId == null &&
-                        index == 0 &&
-                        _isActiveOperationLog(log.status)),
+                initiallyExpanded: log.id == widget.initialLogId,
                 onUpdateStatus: _updateStatus,
                 onShowAddManualEventDialog: _showAddManualEventDialog,
                 onHandleQuickAction: _handleQuickAction,
@@ -347,7 +284,7 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
                 onVisibleActiveChanged: _handleVisibleActiveLogChanged,
               );
             },
-          );
+          )),]);
         },
       ),
     );
@@ -394,6 +331,17 @@ class _OperationLogCard extends StatefulWidget {
 }
 
 class _OperationLogCardState extends State<_OperationLogCard> {
+  bool _closing = false;
+  Future<void> _close(OperationLogModel log) async {
+    if (_closing) return;
+    setState(() => _closing = true);
+    try {
+      await widget.onHandleQuickAction(log, OperationLogStatus.normalize(log.status) == OperationLogStatus.completed
+          ? 'Tagasi baasis' : 'Sündmus lõpetatud');
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Logi lõpetamine ebaõnnestus. Kontrolli ühendust ja proovi uuesti.')));
+    } finally { if (mounted) setState(() => _closing = false); }
+  }
   final _calloutService = CalloutService();
   late bool _expanded;
   late final Stream<CalloutModel?>? _calloutStream =
@@ -454,19 +402,19 @@ class _OperationLogCardState extends State<_OperationLogCard> {
   void _notifyVisibleActiveChanged() {
     widget.onVisibleActiveChanged(
       widget.log.id,
-      _expanded && !_calloutClosed && _isActiveOperationLog(widget.log.status),
+      _expanded && !_calloutClosed && !_logFinished(widget.log),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final log = widget.log;
-    final isActive = _isActiveOperationLog(log.status);
+    final isActive = !_logFinished(log);
     final isEmphasized = isActive || widget.isFocusedOperationLog;
     final colorScheme = Theme.of(context).colorScheme;
     final subtitleParts = [
-      _operationLogStatusLabel(log.status),
-      _operationLogTypeLabel(log.type),
+      _logFinished(log) ? 'Lõpetatud' : _operationLogStatusLabel(log.status),
+      if (log.calloutId == null) 'Väljakutsega sidumata' else _operationLogTypeLabel(log.type),
       if (log.createdByName.isNotEmpty) log.createdByName,
       if (log.timestamp != null) _shortDateTime(log.timestamp!),
     ];
@@ -496,11 +444,13 @@ class _OperationLogCardState extends State<_OperationLogCard> {
             bottom: 12,
           ),
           title: Text(
-            log.title,
+            _linkedCallout?.title ?? log.title,
             style: isEmphasized
                 ? const TextStyle(fontWeight: FontWeight.w700)
                 : null,
           ),
+          trailing: (!_expanded || _calloutClosed) && widget.canStartOperationLog && log.calloutId != null && log.completedAt == null && _isActiveOperationLog(log.status)
+            ? TextButton(onPressed: _closing ? null : () => _close(log), child: Text(log.status == OperationLogStatus.completed ? 'Tagasi baasis' : 'Sündmus lõpetatud')) : null,
           subtitle: Text(
             log.description.isEmpty
                 ? subtitleParts.join(' - ')
@@ -522,11 +472,9 @@ class _OperationLogCardState extends State<_OperationLogCard> {
     OperationLogModel log, {
     required bool calloutClosed,
   }) {
-    final canSummarize =
-        calloutClosed ||
-        log.status == OperationLogStatus.completed ||
-        log.status == OperationLogStatus.returnedToBase;
-    final finished = calloutClosed || !_isActiveOperationLog(log.status);
+    final canSummarize = _logFinished(log) ||
+        (calloutClosed && log.status != OperationLogStatus.completed);
+    final finished = calloutClosed || _logFinished(log);
     return [
       if (_linkedCallout?.dispatch != null)
         DispatchCalloutPanel(
@@ -539,14 +487,28 @@ class _OperationLogCardState extends State<_OperationLogCard> {
         const Text(
           'Väljakutse oleku laadimine ebaõnnestus. Kontrolli ühendust.',
         ),
-      if (finished && widget.canStartOperationLog)
-        const Padding(
-          padding: EdgeInsets.only(bottom: 12),
-          child: Text(
-            'Täienda lõpetatud väljakutse logi. Kommentaare, kokkuvõtet ja osalejaid saab lisada ka tagantjärele.',
-          ),
+      if (log.calloutId != null)
+        FilledButton.icon(
+          icon: const Icon(Icons.picture_as_pdf_outlined),
+          label: const Text('Sündmuse aruanne'),
+          onPressed: () => Navigator.push(context, MaterialPageRoute<void>(
+            builder: (_) => CalloutReportScreen(organizationId: widget.organizationId, calloutId: log.calloutId!))),
         ),
-      OperationLogAccessPanel(
+      if (finished && widget.canStartOperationLog)
+        OutlinedButton.icon(icon: const Icon(Icons.note_add_outlined),
+          label: const Text('Lisa täiendus'), onPressed: () => widget.onShowAddManualEventDialog(log)),
+      if (log.calloutId == null && !_legacyClosed(log) && widget.canStartOperationLog)
+        OutlinedButton.icon(icon: const Icon(Icons.archive_outlined), label: const Text('Sulge seoseta logi'),
+          onPressed: () async {
+            final confirmed = await showDialog<bool>(context: context, builder: (dialog) => AlertDialog(
+              title: const Text('Sulge seoseta logi?'), content: Text('„${log.title}“ liigub lõpetatud logide alla. Kõik kanded säilivad.'),
+              actions: [TextButton(onPressed: () => Navigator.pop(dialog,false), child: const Text('Loobu')),
+                FilledButton(onPressed: () => Navigator.pop(dialog,true), child: const Text('Sulge logi'))]));
+            if (confirmed != true || !mounted) return;
+            try { await widget.onUpdateStatus(log,OperationLogStatus.completed); }
+            catch (_) { if(mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Logi sulgemine ebaõnnestus.'))); }
+          }),
+      if (log.calloutId != null && !finished) OperationLogAccessPanel(
         createStream: _participantAccess,
         builder: (context, access) {
           if (!widget.canStartOperationLog &&
@@ -573,11 +535,8 @@ class _OperationLogCardState extends State<_OperationLogCard> {
       ExpansionTile(
         key: ValueKey('completion-$canSummarize'),
         tilePadding: EdgeInsets.zero,
-        initiallyExpanded: canSummarize,
+        initiallyExpanded: false,
         title: const Text('Kokkuvõte ja osalejad'),
-        subtitle: widget.canStartOperationLog
-            ? const Text('Täida sündmuse lõpus või hiljem')
-            : null,
         children: [
           if (log.calloutId != null)
             CalloutParticipantsSection(
@@ -775,6 +734,11 @@ int _focusedLogSortOrder(String logId, String? focusedLogId) {
   return focusedLogId != null && logId == focusedLogId ? 0 : 1;
 }
 
+bool _logFinished(OperationLogModel log) => log.completedAt != null || _legacyClosed(log) || !_isActiveOperationLog(log.status);
+
+bool _legacyClosed(OperationLogModel log) => log.calloutId == null &&
+    [OperationLogStatus.completed, OperationLogStatus.returnedToBase].contains(OperationLogStatus.normalize(log.status));
+
 bool _isActiveOperationLog(String status) {
   return OperationLogStatus.normalize(status) !=
       OperationLogStatus.returnedToBase;
@@ -812,13 +776,13 @@ String _operationLogTypeLabel(String type) {
     case OperationLogType.arrivalOnScene:
       return 'Jõudmine kohale';
     case OperationLogType.searchStarted:
-      return 'Otsing algas';
+      return 'Otsing';
     case OperationLogType.searchEnded:
       return 'Otsing lõpetatud';
     case OperationLogType.patientRecovered:
       return 'Kannatanu leitud';
     case OperationLogType.towingStarted:
-      return 'Pukseerimine algas';
+      return 'Pukseerimine';
     case OperationLogType.towingEnded:
       return 'Pukseerimine lõpetatud';
     case OperationLogType.returnedToBase:

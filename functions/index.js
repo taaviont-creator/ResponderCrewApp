@@ -391,3 +391,12 @@ exports.manageEquipment = onCall(statisticsCallableOptions, require('./equipment
 exports.setEquipmentCondition = onCall(statisticsCallableOptions, equipmentCare.createSetEquipmentCondition(workflowDependencies));
 exports.getEquipmentCare = onCall(statisticsCallableOptions, equipmentCare.createGetEquipmentCare({db}));
 exports.recordEquipmentHistory = onDocumentWrittenWithAuthContext({document:'equipment/{equipmentId}',region:'europe-north1',retry:true,maxInstances:5},equipmentCare.createEquipmentHistoryRecorder({db}));
+
+// TRU membership is independent of marine organization and center permissions.
+const truAccess = require('./tru-access').createTruAccessHandlers({db,
+  timestamp: () => admin.firestore.FieldValue.serverTimestamp(),
+  fromMillis: ms => admin.firestore.Timestamp.fromMillis(ms)});
+const truAccessOptions = {region:'europe-north1', maxInstances:5, timeoutSeconds:40};
+exports.getTruContext = onCall(truAccessOptions, truAccess.getTruContext);
+exports.getPlatformTruAccess = onCall(truAccessOptions, truAccess.getPlatformTruAccess);
+exports.setTruAccess = onCall(truAccessOptions, truAccess.setTruAccess);

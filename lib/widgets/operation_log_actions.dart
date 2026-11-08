@@ -32,28 +32,6 @@ class _OperationLogActionsState extends State<OperationLogActions> {
       _message = null;
     });
     try {
-      if (title == 'Tagasi baasis') {
-        final confirmed = await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Lõpeta operatiivlogi?'),
-            content: const Text(
-              'Kinnitad baasi jõudmise. Kommentaare, kokkuvõtet ja osalejaid saad täiendada ka hiljem.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Jätka logi'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Lõpeta operatiivlogi'),
-              ),
-            ],
-          ),
-        );
-        if (confirmed != true || !mounted) return;
-      }
       if (comment) {
         await widget.onComment();
       } else {
@@ -85,24 +63,21 @@ class _OperationLogActionsState extends State<OperationLogActions> {
         status == OperationLogStatus.onScene ||
         status == OperationLogStatus.inProgress;
     final actions = <(String, IconData)>[
-      if (active && (widget.appendOnly || status == OperationLogStatus.open))
-        ('Väljasõit', Icons.directions_boat_outlined),
-      if (active && (widget.appendOnly || status == OperationLogStatus.open ||
-          status == OperationLogStatus.enRoute))
-        ('Sündmuskohal', Icons.place_outlined),
-      if (active && (widget.appendOnly || status == OperationLogStatus.onScene)) ('Otsing algas', Icons.search),
-      if (active && (widget.appendOnly || onScene)) ...[
-        ('Kannatanu leitud', Icons.person_outline),
-        ('Pukseerimine alustatud', Icons.directions_boat),
+      if (active && status != OperationLogStatus.completed) ...[
+        if (widget.appendOnly || status == OperationLogStatus.open)
+          ('Väljasõit', Icons.directions_boat_outlined),
+        if (widget.appendOnly || status == OperationLogStatus.open || status == OperationLogStatus.enRoute)
+          ('Sündmuskohal', Icons.place_outlined),
+        if (widget.appendOnly || onScene) ...[
+          ('Otsing', Icons.search),
+          ('Kannatanu leitud', Icons.person_outline),
+          ('Pukseerimine', Icons.directions_boat),
+        ],
+        ('Teade edastatud', Icons.radio_outlined),
+        if (!widget.appendOnly) ('Sündmus lõpetatud', Icons.flag_outlined),
       ],
-      if (active && status != OperationLogStatus.completed)
-        ('Sündmuskohal tegevused tehtud', Icons.task_alt),
-      if (active && (widget.appendOnly || status == OperationLogStatus.completed)) ...[
-        ('Tagasisõit', Icons.keyboard_return),
-        if (!widget.appendOnly) ('Tagasi baasis', Icons.home_outlined),
-      ],
-      if (active) ...[('Teade edastatud', Icons.radio_outlined),
-        ('Sündmus lõpetatud', Icons.flag_outlined)],
+      if (status == OperationLogStatus.completed && !widget.appendOnly)
+        ('Tagasi baasis', Icons.home_outlined),
     ];
     final style = FilledButton.styleFrom(
       minimumSize: const Size.fromHeight(56),
@@ -113,7 +88,7 @@ class _OperationLogActionsState extends State<OperationLogActions> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (active) ...[
+        if (actions.isNotEmpty) ...[
           const Text(
             'Kiirtegevused',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
