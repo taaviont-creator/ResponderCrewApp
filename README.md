@@ -1,3 +1,6 @@
+> **Arendus on kolinud ühte privaatsesse hoidlasse:** [RespondCrew põhihoidla](https://github.com/taaviont-creator/TRUWorkspace.).
+> Uued muudatused ja APK koostamine tehakse seal `main` harus. See hoidla säilitab varasema eraldi merepääste hosti ajaloo; ühine merepääste + TRU lähtekood on põhihoidlas.
+
 # RespondCrew
 
 Flutteri rakendus vabatahtlike merepäästeühingute liikmetele, ühingu administraatoritele ning Merevalvekeskusele ja Trossi keskusele. Telefonirakendus ja veebiversioon kasutavad sama Firebase’i projekti `respondcrew`. Ühingu liikmesus, keskuse ligipääs ning platvormihalduri roll on eraldi õigused.
