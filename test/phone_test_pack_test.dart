@@ -295,7 +295,7 @@ void main() {
   });
 
   testWidgets(
-    'participant quick actions append only; informational end needs no confirmation',
+    'participant can log actions but cannot end the incident',
     (tester) async {
       final entries = <String>[];
       await tester.pumpWidget(
@@ -315,12 +315,13 @@ void main() {
         ),
       );
       expect(find.text('Tagasi baasis'), findsNothing);
-      await tester.ensureVisible(find.text('Sündmus lõpetatud'));
-      await tester.tap(find.text('Sündmus lõpetatud'));
+      expect(find.text('Sündmus lõpetatud'), findsNothing);
+      await tester.ensureVisible(find.text('Pukseerimine'));
+      await tester.tap(find.text('Pukseerimine'));
       await tester.pumpAndSettle();
-      expect(entries, ['Sündmus lõpetatud']);
+      expect(entries, ['Pukseerimine']);
       expect(find.byType(AlertDialog), findsNothing);
-      expect(find.text('Tagasisõit'), findsOneWidget);
+      expect(find.text('Tagasisõit'), findsNothing);
     },
   );
 }

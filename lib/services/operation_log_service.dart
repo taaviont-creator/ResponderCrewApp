@@ -327,7 +327,7 @@ class OperationLogService {
         'operationLogId': operationLogId,
         'type': OperationLogEventType.statusChange,
         'status': status,
-        'title': closingLog ? 'Logi lõpetamine' : data['calloutId'] == null && status == OperationLogStatus.completed ? 'Seoseta logi suletud' : _operationLogStatusLabel(status),
+        'title': closingLog ? 'Logi lõpetamine' : data['calloutId'] == null && status == OperationLogStatus.completed ? 'Seoseta logi suletud' : status == OperationLogStatus.inProgress ? 'Otsing' : status == OperationLogStatus.completed ? 'Sündmus lõpetatud' : _operationLogStatusLabel(status),
         'description': '',
         'createdBy': updatedBy,
         'createdByName': _auth.currentUser?.displayName ?? '',

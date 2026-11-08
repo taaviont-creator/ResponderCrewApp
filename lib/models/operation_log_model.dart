@@ -69,7 +69,7 @@ class OperationLogStatus {
     enRoute => 'Väljasõit',
     onScene => 'Sündmuskohal',
     inProgress => 'Tegevuses',
-    completed => 'Sündmuskohal tegevused tehtud',
+    completed => 'Tagasisõit',
     returnedToBase => 'Tagasi baasis · operatiivlogi lõpetatud',
     _ => 'Avatud',
   };

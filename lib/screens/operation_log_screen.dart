@@ -163,7 +163,7 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
   }
 
   Future<void> _handleQuickAction(OperationLogModel log, String action) async {
-    if (!widget.canStartOperationLog || action == 'Sündmus lõpetatud') {
+    if (!widget.canStartOperationLog) {
       await _addQuickAction(log, action);
       return;
     }
@@ -174,21 +174,31 @@ class _OperationLogScreenState extends State<OperationLogScreen> {
       case 'Sündmuskohal':
         await _updateStatus(log, OperationLogStatus.onScene);
         break;
-      case 'Otsing algas':
-        await _updateStatus(log, OperationLogStatus.inProgress);
+      case 'Otsing':
+        if (OperationLogStatus.normalize(log.status) == OperationLogStatus.onScene) {
+          await _updateStatus(log, OperationLogStatus.inProgress);
+        } else {
+          await _addQuickAction(log, action);
+        }
         break;
       case 'Teade edastatud':
-      case 'Pukseerimine alustatud':
+      case 'Pukseerimine':
         await _addQuickAction(log, action);
         break;
       case 'Kannatanu leitud':
         await _addQuickAction(log, 'Kannatanu leitud');
         break;
-      case 'Sündmuskohal tegevused tehtud':
+      case 'Sündmus lõpetatud':
+        final choice = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+          title: const Text('Kas olete tagasi baasis?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Loobu')),
+            OutlinedButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Sõidan tagasi')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Tagasi baasis – lõpeta sündmus')),
+          ]));
+        if (choice == null) return;
         await _updateStatus(log, OperationLogStatus.completed);
-        break;
-      case 'Tagasisõit':
-        await _addQuickAction(log, 'Tagasisõit');
+        if (choice) await _updateStatus(log, OperationLogStatus.returnedToBase);
         break;
       case 'Tagasi baasis':
         await _updateStatus(log, OperationLogStatus.returnedToBase);
@@ -323,19 +333,11 @@ class _OperationLogCard extends StatefulWidget {
 class _OperationLogCardState extends State<_OperationLogCard> {
   bool _closing = false;
   Future<void> _close(OperationLogModel log) async {
-    final yes = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
-      title: const Text('Lõpeta operatiivlogi?'),
-      content: Text('„${_linkedCallout?.title ?? log.title}“ liigub lõpetatud logidesse. Väljakutse olek jääb samaks.'),
-      actions: [TextButton(onPressed: () => Navigator.pop(ctx,false), child: const Text('Loobu')),
-        FilledButton(onPressed: () => Navigator.pop(ctx,true), child: const Text('Lõpeta logi'))]));
-    if (!mounted || yes != true || _closing) return;
+    if (_closing) return;
     setState(() => _closing = true);
     try {
-      final service = OperationLogService();
-      await service.updateLogStatus(operationLogId: log.id, organizationId: widget.organizationId,
-        status: OperationLogStatus.completed, updatedBy: widget.currentUid, closingLog: true);
-      await service.updateFinalSummary(operationLogId: log.id, organizationId: widget.organizationId,
-        summary: '', outcome: '', completedBy: widget.currentUid, closingLog: true);
+      await widget.onHandleQuickAction(log, OperationLogStatus.normalize(log.status) == OperationLogStatus.completed
+          ? 'Tagasi baasis' : 'Sündmus lõpetatud');
     } catch (_) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Logi lõpetamine ebaõnnestus. Kontrolli ühendust ja proovi uuesti.')));
     } finally { if (mounted) setState(() => _closing = false); }
@@ -447,8 +449,8 @@ class _OperationLogCardState extends State<_OperationLogCard> {
                 ? const TextStyle(fontWeight: FontWeight.w700)
                 : null,
           ),
-          trailing: widget.canStartOperationLog && log.calloutId != null && log.completedAt == null && _isActiveOperationLog(log.status)
-            ? TextButton(onPressed: _closing ? null : () => _close(log), child: const Text('Lõpeta logi')) : null,
+          trailing: (!_expanded || _calloutClosed) && widget.canStartOperationLog && log.calloutId != null && log.completedAt == null && _isActiveOperationLog(log.status)
+            ? TextButton(onPressed: _closing ? null : () => _close(log), child: Text(log.status == OperationLogStatus.completed ? 'Tagasi baasis' : 'Sündmus lõpetatud')) : null,
           subtitle: Text(
             log.description.isEmpty
                 ? subtitleParts.join(' - ')
@@ -470,10 +472,8 @@ class _OperationLogCardState extends State<_OperationLogCard> {
     OperationLogModel log, {
     required bool calloutClosed,
   }) {
-    final canSummarize =
-        calloutClosed ||
-        log.status == OperationLogStatus.completed ||
-        log.status == OperationLogStatus.returnedToBase;
+    final canSummarize = _logFinished(log) ||
+        (calloutClosed && log.status != OperationLogStatus.completed);
     final finished = calloutClosed || _logFinished(log);
     return [
       if (_linkedCallout?.dispatch != null)
@@ -776,13 +776,13 @@ String _operationLogTypeLabel(String type) {
     case OperationLogType.arrivalOnScene:
       return 'Jõudmine kohale';
     case OperationLogType.searchStarted:
-      return 'Otsing algas';
+      return 'Otsing';
     case OperationLogType.searchEnded:
       return 'Otsing lõpetatud';
     case OperationLogType.patientRecovered:
       return 'Kannatanu leitud';
     case OperationLogType.towingStarted:
-      return 'Pukseerimine algas';
+      return 'Pukseerimine';
     case OperationLogType.towingEnded:
       return 'Pukseerimine lõpetatud';
     case OperationLogType.returnedToBase:

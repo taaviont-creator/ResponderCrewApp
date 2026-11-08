@@ -36,54 +36,45 @@ void main() {
       await showControls(
         tester,
         onAction: (action) async {
-          expect(action, 'Otsing algas');
+          expect(action, 'Otsing');
           calls++;
           if (calls == 1) await pending.future;
         },
       );
-      await tester.tap(find.text('Otsing algas'));
+      await tester.tap(find.text('Otsing'));
       await tester.pump();
       expect(find.byType(AlertDialog), findsNothing);
-      await tester.tap(find.text('Otsing algas'));
+      await tester.tap(find.text('Otsing'));
       expect(calls, 1);
       pending.completeError(StateError('offline'));
       await tester.pumpAndSettle();
       expect(find.textContaining('Salvestamine ebaõnnestus'), findsOneWidget);
-      await tester.tap(find.text('Otsing algas'));
+      await tester.tap(find.text('Otsing'));
       await tester.pumpAndSettle();
       expect(calls, 2);
-      expect(find.text('Salvestatud: Otsing algas'), findsOneWidget);
+      expect(find.text('Salvestatud: Otsing'), findsOneWidget);
     },
   );
 
   testWidgets(
-    'scene completion is immediate, returning remains available, only log closure is confirmed',
+    'return trip replaces scene actions with arrival at base',
     (tester) async {
       final calls = <String>[];
       await showControls(tester, onAction: (action) async => calls.add(action));
-      await tester.ensureVisible(find.text('Sündmuskohal tegevused tehtud'));
-      await tester.tap(find.text('Sündmuskohal tegevused tehtud'));
+      await tester.ensureVisible(find.text('Sündmus lõpetatud'));
+      await tester.tap(find.text('Sündmus lõpetatud'));
       await tester.pumpAndSettle();
-      expect(calls, ['Sündmuskohal tegevused tehtud']);
+      expect(calls, ['Sündmus lõpetatud']);
       expect(find.byType(AlertDialog), findsNothing);
       await showControls(
         tester,
         status: OperationLogStatus.completed,
         onAction: (action) async => calls.add(action),
       );
-      await tester.ensureVisible(find.text('Tagasisõit'));
-      await tester.tap(find.text('Tagasisõit'));
-      await tester.pumpAndSettle();
-      expect(calls.last, 'Tagasisõit');
+      expect(find.text('Otsing'), findsNothing);
+      expect(find.text('Sündmus lõpetatud'), findsNothing);
+      expect(find.text('Pukseerimine'), findsNothing);
       await tester.tap(find.text('Tagasi baasis'));
-      await tester.pumpAndSettle();
-      expect(find.byType(AlertDialog), findsOneWidget);
-      await tester.tap(find.text('Jätka logi'));
-      await tester.pumpAndSettle();
-      expect(calls.length, 2);
-      await tester.tap(find.text('Tagasi baasis'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Lõpeta operatiivlogi'));
       await tester.pumpAndSettle();
       expect(calls.last, 'Tagasi baasis');
     },
